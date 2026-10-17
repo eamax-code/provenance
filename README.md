@@ -25,6 +25,7 @@ file.
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
 | Universe: seed CIKs, budgeted resumable bulk ingestion with backoff | `scripts/bulk_ingest.py`, poller refreshes due members |
+| Quality snapshots per run, SEC request metrics, retention purge | `scripts/quality_report.py`, `scripts/retention.py`, `/v1/stats.quality_snapshot` |
 
 OpenAPI: `/openapi.json`, Swagger UI: `/docs`. All `/v1` endpoints require `X-API-Key`.
 
@@ -53,6 +54,8 @@ python scripts/bulk_ingest.py --seed-file data/universe.sample.txt --seed-only
 python scripts/bulk_ingest.py --seed-tickers --top 500 --seed-only   # or the first 500 issuers of the SEC ticker file
 python scripts/bulk_ingest.py --budget 400 --history-pages 1          # one pass; re-run until --status shows due_now 0
 python scripts/bulk_ingest.py --status
+python scripts/quality_report.py --take     # data-quality snapshot + trend (AGENTS.md section 12 metrics)
+python scripts/retention.py                 # purge usage/deliveries past the retention windows
 
 uvicorn app.main:app --reload           # http://127.0.0.1:8000/docs
 python scripts/poll_sec.py --once       # refresh watched companies, deliver pending webhooks
@@ -178,7 +181,7 @@ See `docs/operations.md` for topology, secret rotation, backups, monitoring and 
 - SSRF protection validates at creation and re-resolves DNS immediately before each delivery,
   but the HTTP client still connects by hostname, leaving a small rebinding window.
 - Company search uses `LIKE` with a bounded scan; no trigram index yet.
-- Usage/delivery retention purges are documented SQL, not automated.
+- Retention purges run from `scripts/retention.py`; schedule it (daily cron) yourself, it is not automatic.
 - Coverage is limited to companies that have been ingested; nothing is "complete".
 
 ## Deviations from AGENTS.md (and why)

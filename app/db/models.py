@@ -9,6 +9,7 @@ from decimal import Decimal
 from sqlalchemy import (
     Boolean,
     Date,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -139,6 +140,15 @@ class IngestionRun(Base):
     updated_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sec_requests: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    sec_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    sec_errors: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    sec_cached: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    sec_duration_ms: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
@@ -241,3 +251,35 @@ class UniverseMember(Base):
     next_attempt_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     consecutive_failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class DataQualitySnapshot(Base):
+    """Point-in-time quality and coverage metrics, written at the end of each ingestion run."""
+
+    __tablename__ = "data_quality_snapshots"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    taken_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, default=utcnow, index=True
+    )
+    companies_known: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    companies_ingested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    companies_stale: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    filings_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    filings_with_accepted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    duplicate_filings: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    facts_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    facts_ok: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    facts_partial: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    facts_ambiguous: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    facts_invalid: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    facts_with_provenance_pct: Mapped[float] = mapped_column(Float, nullable=False, default=100.0)
+    pending_deliveries: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    delivered_24h: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed_24h: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    oldest_pending_age_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    active_watches: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    universe_active: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    universe_due: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    universe_disabled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -521,6 +521,39 @@ def ingest_company(
     if run is None:
         run = start_run(db, source="sec:company")
     result = IngestResult(cik=cik, run_id=run.id)
+    before = client.metrics.snapshot()
+    try:
+        return _ingest_company(
+            db, client, cik, run, own_run, now, include_facts, history_pages, result
+        )
+    finally:
+        try:
+            run = db.merge(run)
+            account_sec_metrics(run, client.metrics.delta(before))
+            db.commit()
+        except Exception:  # noqa: BLE001 - metrics must never mask the real outcome
+            db.rollback()
+
+
+def account_sec_metrics(run: IngestionRun, delta: dict[str, int]) -> None:
+    run.sec_requests += delta["requests"]
+    run.sec_retries += delta["retries"]
+    run.sec_errors += delta["errors"]
+    run.sec_cached += delta["cached"]
+    run.sec_duration_ms += delta["duration_ms"]
+
+
+def _ingest_company(
+    db: Session,
+    client: SecClient,
+    cik: str,
+    run: IngestionRun,
+    own_run: bool,
+    now: datetime,
+    include_facts: bool,
+    history_pages: int | None,
+    result: IngestResult,
+) -> IngestResult:
     www_base = client.settings.sec_base_www_url
 
     try:

@@ -47,6 +47,29 @@ class SecUnavailable(SecClientError):
 
 
 @dataclass
+class SecMetrics:
+    """Cumulative outcome counters for one client; callers diff snapshots per run."""
+
+    requests: int = 0
+    retries: int = 0
+    errors: int = 0
+    cached: int = 0
+    duration_ms: int = 0
+
+    def snapshot(self) -> SecMetrics:
+        return SecMetrics(self.requests, self.retries, self.errors, self.cached, self.duration_ms)
+
+    def delta(self, before: SecMetrics) -> dict[str, int]:
+        return {
+            "requests": self.requests - before.requests,
+            "retries": self.retries - before.retries,
+            "errors": self.errors - before.errors,
+            "cached": self.cached - before.cached,
+            "duration_ms": self.duration_ms - before.duration_ms,
+        }
+
+
+@dataclass
 class SecResponse:
     url: str
     status_code: int
@@ -155,6 +178,7 @@ class SecClient:
         self._sleep = sleep
         self._limiter = _shared_limiter(settings.sec_min_request_interval_seconds)
         self._cache_dir = Path(cache_dir or settings.sec_cache_dir)
+        self.metrics = SecMetrics()
         self._own_http = http is None
         self.http = http or httpx.Client(
             timeout=httpx.Timeout(settings.sec_timeout_seconds, connect=10.0),
@@ -208,10 +232,14 @@ class SecClient:
         while True:
             self._limiter.wait()
             started = time.monotonic()
+            self.metrics.requests += 1
+            if attempt > 0:
+                self.metrics.retries += 1
             try:
                 resp = self.http.get(url, headers=headers)
             except httpx.HTTPError as exc:
                 duration = time.monotonic() - started
+                self.metrics.duration_ms += int(duration * 1000)
                 log_event(
                     logger,
                     logging.WARNING,
@@ -229,6 +257,7 @@ class SecClient:
                 continue
 
             duration = time.monotonic() - started
+            self.metrics.duration_ms += int(duration * 1000)
             log_event(
                 logger,
                 logging.INFO,
@@ -242,6 +271,7 @@ class SecClient:
             now = datetime.now(UTC)
 
             if resp.status_code == 304 and cached:
+                self.metrics.cached += 1
                 return SecResponse(
                     url=url,
                     status_code=304,
@@ -255,6 +285,7 @@ class SecClient:
                 )
             if resp.status_code in RETRY_STATUSES:
                 if attempt >= self.settings.sec_max_retries:
+                    self.metrics.errors += 1
                     raise SecUnavailable(
                         f"SEC endpoint returned {resp.status_code} after retries",
                         status_code=resp.status_code,
@@ -264,8 +295,10 @@ class SecClient:
                 attempt += 1
                 continue
             if resp.status_code == 404:
+                self.metrics.errors += 1
                 raise SecNotFound("Resource not found at SEC", status_code=404, url=url)
             if resp.status_code >= 400:
+                self.metrics.errors += 1
                 raise SecClientError(
                     f"SEC endpoint returned {resp.status_code}",
                     status_code=resp.status_code,

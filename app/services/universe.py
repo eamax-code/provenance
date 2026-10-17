@@ -215,6 +215,9 @@ def bulk_ingest(
         else:
             status = "failed" if summary["ingested"] == 0 else "partial"
         finish_run(db, run, status, "; ".join(errors)[:2000] or None)
+        from app.services.quality import take_snapshot
+
+        take_snapshot(db, settings, run_id=run.id, now=now)
         db.commit()
     log_event(logger, logging.INFO, "universe bulk ingest", **summary)
     return summary

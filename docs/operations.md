@@ -75,13 +75,25 @@ Per-key fixed-window limits are kept in process memory. With more than one API r
 replica enforces the limit independently (effective limit = replicas x limit). Move the counter
 to PostgreSQL before scaling out.
 
-## Retention jobs (manual for now)
+## Quality snapshots and reports
 
-```sql
-DELETE FROM api_usage WHERE occurred_at < now() - interval '90 days';
-DELETE FROM notification_deliveries
- WHERE status IN ('delivered','failed') AND created_at < now() - interval '90 days';
-```
+Every poller pass and every standalone bulk-ingest run ends by writing a row to
+`data_quality_snapshots`: companies known/ingested/stale, filings and acceptance-timestamp
+coverage, duplicate filings (expected 0), facts by quality status and provenance completeness,
+delivery backlog and 24h outcomes, universe active/due/disabled. `ingestion_runs` also records
+SEC request totals, retries, errors, 304 cache hits and cumulative duration per run.
+
+- `python scripts/quality_report.py [--take]` prints the latest snapshot and a trend.
+- `/v1/stats` exposes the latest snapshot as `quality_snapshot`.
+
+Alert on: `facts_ambiguous / facts_total` rising, `companies_stale > 0` for two snapshots,
+`oldest_pending_age_seconds > 3600`, `duplicate_filings > 0`, `sec_errors` growing run to run.
+
+## Retention jobs
+
+`python scripts/retention.py` deletes `api_usage` older than `USAGE_RETENTION_DAYS` and
+delivered/failed `notification_deliveries` older than `DELIVERY_RETENTION_DAYS`; pending or
+retrying deliveries are never purged. Schedule it daily.
 
 ## Budget
 

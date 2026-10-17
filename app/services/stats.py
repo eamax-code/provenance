@@ -19,6 +19,7 @@ from app.db.models import (
     NotificationDelivery,
 )
 from app.services.fact_normalizer import MAPPING_VERSION
+from app.services.quality import latest_snapshot, snapshot_to_dict
 
 CACHE_TTL_SECONDS = 30
 
@@ -140,6 +141,7 @@ def compute_stats(db: Session, settings: Settings, now: datetime | None = None) 
             "delivered_total": delivered,
             "failed_total": failed,
         },
+        "quality_snapshot": snapshot_to_dict(snap) if (snap := latest_snapshot(db)) else None,
         "mapping_version": MAPPING_VERSION,
         "generated_at": _iso(now),
         "cache_ttl_seconds": CACHE_TTL_SECONDS,

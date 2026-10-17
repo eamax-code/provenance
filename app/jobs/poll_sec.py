@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import Company, CompanyWatch, utcnow
-from app.services import universe
+from app.services import quality, universe
 from app.services.ingestion import finish_run, ingest_company, start_run
 from app.services.notifications import deliver_pending
 from app.services.sec_client import SecClient, SecClientError
@@ -120,8 +120,11 @@ def run_once(
             finish_run(db, run, status, "; ".join(errors)[:2000] or None)
             db.commit()
             if include_universe:
-                summary["universe"] = universe.bulk_ingest(db, settings, client)
+                summary["universe"] = universe.bulk_ingest(db, settings, client, run=run)
             summary["deliveries"] = deliver_pending(db, settings, sender=sender)
+            snap = quality.take_snapshot(db, settings, run_id=run.id)
+            db.commit()
+            summary["snapshot_id"] = str(snap.id)
         finally:
             if own_client:
                 client.close()
