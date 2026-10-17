@@ -14,7 +14,13 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.api import routes_companies, routes_developer, routes_exports, routes_notifications
+from app.api import (
+    routes_companies,
+    routes_developer,
+    routes_exports,
+    routes_notifications,
+    routes_stats,
+)
 from app.core.config import Settings, get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, log_event, request_id_var
@@ -110,6 +116,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_notifications.router)
     app.include_router(routes_developer.router)
     app.include_router(routes_exports.router)
+    app.include_router(routes_stats.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")
     def healthz():
@@ -148,7 +155,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         for path, methods in schema.get("paths", {}).items():
             for method in methods.values():
                 if path.startswith("/v1/"):
-                    if path == "/v1/developer/api-keys" and method.get("summary", "").startswith(
+                    if path == "/v1/stats":
+                        method["security"] = []
+                    elif path == "/v1/developer/api-keys" and method.get("summary", "").startswith(
                         "Create"
                     ):
                         method["security"] = [{"AdminToken": []}]

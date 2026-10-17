@@ -21,6 +21,7 @@ file.
 | Watches and signed webhook deliveries | `POST/GET/DELETE /v1/watches`, `GET /v1/watches/{id}/deliveries` |
 | API keys and usage | `POST/GET/DELETE /v1/developer/api-keys`, `GET /v1/developer/usage` |
 | Bounded CSV/JSON export with provenance | `GET /v1/exports/facts` |
+| Public coverage stats, cached 30 s, no key | `GET /v1/stats` |
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
 

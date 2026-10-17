@@ -297,12 +297,13 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
         <a class="btn" href="/openapi.json">OpenAPI schema</a>
         <a class="btn" href="/llms.txt">llms.txt</a>
       </div>
-      <div class="facts" aria-label="Key properties">
-        <div><b data-count="5">5</b>canonical metrics</div>
-        <div><b data-count="100" data-suffix="%">100%</b>of facts carry a source URL</div>
-        <div><b>null</b>never silently 0</div>
-        <div><b>HMAC</b>signed webhooks</div>
+      <div class="facts" aria-label="Live coverage" id="live-facts" data-source="/v1/stats">
+        <div><b data-stat="companies">—</b>companies ingested</div>
+        <div><b data-stat="filings">—</b>filings indexed</div>
+        <div><b data-stat="facts">—</b>normalized facts</div>
+        <div><b data-stat="fetch_age">—</b>since last SEC fetch</div>
       </div>
+      <p class="muted mono" id="live-note" style="font-size:.74rem;margin-top:10px">Loading live coverage from /v1/stats…</p>
     </div>
     <div class="terminal" aria-label="Sample API response">
       <div class="bar"><span>GET /v1/companies/320193/facts?metric=revenue&amp;period=annual</span><span class="status-pill"><i></i>200</span></div>
@@ -407,6 +408,26 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
 }</pre>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section id="status">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Live status</p>
+        <h2>What this deployment has actually ingested.</h2>
+        <p class="muted">Numbers below come from <code>/v1/stats</code>, a public endpoint refreshed every 30 seconds. They describe this service's coverage, not the SEC universe.</p>
+      </div>
+      <div class="grid3" id="status-grid">
+        <div class="tile"><span class="mono">service.health</span><h3 data-stat="health">—</h3><p data-stat="health_note">Waiting for the first response.</p></div>
+        <div class="tile"><span class="mono">facts.by_quality</span><h3>Quality mix</h3><p data-stat="quality">—</p></div>
+        <div class="tile"><span class="mono">ingestion.last_run</span><h3 data-stat="run_status">—</h3><p data-stat="run_note">—</p></div>
+        <div class="tile"><span class="mono">notifications</span><h3 data-stat="watches">—</h3><p data-stat="deliveries">—</p></div>
+        <div class="tile"><span class="mono">filings.latest_filing_date</span><h3 data-stat="latest_filing">—</h3><p data-stat="accepted_share">—</p></div>
+        <div class="tile"><span class="mono">mapping_version</span><h3 data-stat="mapping">—</h3><p>Concept mapping used for every normalized fact.</p></div>
+      </div>
+      <p class="note" id="status-empty" hidden>No companies ingested yet. Run <code>scripts/ingest_company.py &lt;cik&gt;</code> or request any CIK through the API to start.</p>
+      <p class="note" id="status-error" hidden>Live stats are unavailable right now. The rest of this page is static.</p>
     </div>
   </section>
 
@@ -701,6 +722,48 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
     new IntersectionObserver(function (en) { var vis = en[0].isIntersecting; if (vis && !running) { running = true; requestAnimationFrame(draw); } if (!vis) running = false; }, { rootMargin: '200px' }).observe(canvas);
   }
   resize(); requestAnimationFrame(draw);
+})();
+
+(function () {
+  var src = (document.getElementById('live-facts') || {}).getAttribute ? document.getElementById('live-facts').getAttribute('data-source') : '/v1/stats';
+  var note = document.getElementById('live-note');
+  function set(name, value) { document.querySelectorAll('[data-stat="' + name + '"]').forEach(function (el) { el.textContent = value; }); }
+  function fmt(n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); }
+  function age(sec) {
+    if (sec == null) return 'never';
+    if (sec < 90) return sec + 's'; if (sec < 5400) return Math.round(sec / 60) + 'm'; if (sec < 172800) return Math.round(sec / 3600) + 'h';
+    return Math.round(sec / 86400) + 'd';
+  }
+  function apply(d) {
+    var ingested = d.companies.ingested;
+    set('companies', fmt(ingested)); set('filings', fmt(d.filings.total)); set('facts', fmt(d.facts.total));
+    set('fetch_age', age(d.freshness.last_successful_fetch_age_seconds));
+    set('health', d.service.health);
+    set('health_note', { ok: 'Last SEC fetch within the staleness window.', stale: 'Last successful fetch is older than ' + age(d.freshness.stale_after_seconds) + '.', degraded: 'The most recent ingestion run failed; data is from the last success.', empty: 'Nothing ingested yet.' }[d.service.health] || '');
+    var q = d.facts.by_quality || {}, total = d.facts.total || 0;
+    set('quality', total ? Object.keys(q).sort().map(function (k) { return k + ' ' + Math.round(100 * q[k] / total) + '%'; }).join(' · ') : 'no facts yet');
+    set('run_status', d.ingestion.last_run_status || 'no runs');
+    set('run_note', d.ingestion.last_run_finished_at ? 'Finished ' + d.ingestion.last_run_finished_at.replace('T', ' ').slice(0, 19) + ' UTC, ' + fmt(d.ingestion.last_run_error_count) + ' errors' : 'No ingestion run recorded.');
+    set('watches', fmt(d.notifications.active_watches) + ' active watches');
+    set('deliveries', fmt(d.notifications.delivered_total) + ' delivered · ' + fmt(d.notifications.pending_deliveries) + ' pending · ' + fmt(d.notifications.failed_total) + ' failed');
+    set('latest_filing', d.filings.latest_filing_date || '—');
+    set('accepted_share', d.filings.total ? Math.round(100 * d.filings.with_acceptance_timestamp / d.filings.total) + '% of filings carry an SEC acceptance timestamp' : 'No filings yet.');
+    set('mapping', d.mapping_version);
+    document.getElementById('status-empty').hidden = ingested > 0;
+    document.getElementById('status-error').hidden = true;
+    if (note) note.textContent = ingested > 0 ? 'Live from /v1/stats · generated ' + d.generated_at.replace('T', ' ').slice(0, 19) + ' UTC' : 'No companies ingested yet. Live from /v1/stats.';
+  }
+  function fail() {
+    ['companies', 'filings', 'facts', 'fetch_age'].forEach(function (k) { set(k, 'n/a'); });
+    document.getElementById('status-error').hidden = false;
+    if (note) note.textContent = 'Live stats unavailable; showing static content.';
+  }
+  function load() {
+    try {
+      fetch(src, { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(apply).catch(fail);
+    } catch (e) { fail(); }
+  }
+  load(); setInterval(load, 30000);
 })();
 </script>
 </body>

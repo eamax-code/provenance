@@ -4,9 +4,9 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `GET /v1/stats` needs no API key, is rate limited per IP, cached for a short interval, and exposes no secrets or internals
-- [ ] Stats include company/filing/fact counts, last successful fetch time, last ingestion run status, share of facts by quality status, pending delivery backlog
-- [ ] Landing page hero strip and a status section render from `/v1/stats`, with an honest empty state and a failure state
-- [ ] Integration tests cover the endpoint shape, caching and rate limiting; the site test asserts the live wiring
+- [x] `GET /v1/stats` needs no API key, is rate limited per IP, cached for a short interval, and exposes no secrets or internals
+- [x] Stats include company/filing/fact counts, last successful fetch time, last ingestion run status, share of facts by quality status, pending delivery backlog
+- [x] Landing page hero strip and a status section render from `/v1/stats`, with an honest empty state and a failure state
+- [x] Integration tests cover the endpoint shape, caching and rate limiting; the site test asserts the live wiring
