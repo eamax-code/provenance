@@ -19,7 +19,7 @@ def test_admin_key_creation_and_revocation_flow(client, settings):
     body = r.json()
     raw = body["api_key"]
     assert (
-        raw.startswith("prv_test_") and body["plan"] == "pilot" and body["key_prefix"] == raw[:17]
+        raw.startswith("prv_test_") and body["plan"] == "builder" and body["key_prefix"] == raw[:17]
     )
     auth = {"X-API-Key": raw}
     r = client.get("/v1/developer/api-keys", headers=auth)
@@ -402,21 +402,19 @@ def test_error_envelope_hides_internals(app, auth, monkeypatch):
 def test_watch_limit_enforced_per_plan(
     client, auth, settings, ingested_aapl, db, monkeypatch, tickers_payload
 ):
-    from app.api import routes_notifications
+    from app.api import routes_developer, routes_notifications
     from app.services.ingestion import import_ticker_mapping
 
     import_ticker_mapping(db, tickers_payload)
     db.commit()
-    monkeypatch.setattr(
-        routes_notifications,
-        "plan_limits",
-        lambda plan, s: {
-            "rate_limit_per_minute": 100,
-            "monthly_request_quota": 10_000,
-            "max_export_rows": 10,
-            "max_watches": 1,
-        },
-    )
+    limits = {
+        "rate_limit_per_minute": 100,
+        "monthly_request_quota": 10_000,
+        "max_export_rows": 10,
+        "max_watches": 1,
+    }
+    monkeypatch.setattr(routes_notifications, "plan_limits", lambda plan, s: limits)
+    monkeypatch.setattr(routes_developer, "plan_limits", lambda plan, s: limits)
     body = {"destination_type": "webhook", "destination": "https://hooks.example.com/sec"}
     assert (
         client.post("/v1/watches", json={**body, "cik": "320193"}, headers=auth).status_code == 201
