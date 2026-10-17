@@ -10,7 +10,7 @@ from app.schemas.common import ORMModel
 
 class ApiKeyCreate(BaseModel):
     owner_email: EmailStr
-    plan: str = Field(default="free", pattern="^(free|pilot|internal)$")
+    plan: str = Field(default="free", pattern="^(free|builder|team|enterprise|internal)$")
     label: str | None = Field(default=None, max_length=100)
 
 
@@ -40,6 +40,8 @@ class PlanInfo(BaseModel):
     monthly_request_quota: int
     monthly_requests_used: int
     max_export_rows: int
+    max_watches: int
+    watched_companies_used: int
 
 
 class UsageOut(BaseModel):

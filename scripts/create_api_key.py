@@ -13,12 +13,13 @@ import sys
 from _bootstrap import bootstrap
 
 from app.api.routes_developer import create_key_record
+from app.core.config import PLAN_NAMES
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("owner_email")
-    parser.add_argument("--plan", default="free", choices=["free", "pilot", "internal"])
+    parser.add_argument("--plan", default="free", choices=list(PLAN_NAMES))
     parser.add_argument("--label", default=None)
     args = parser.parse_args()
     settings, Session = bootstrap()

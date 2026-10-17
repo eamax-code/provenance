@@ -12,7 +12,7 @@ def test_admin_key_creation_and_revocation_flow(client, settings):
     assert r.status_code == 403
     r = client.post(
         "/v1/developer/api-keys",
-        json={"owner_email": "a@example.com", "plan": "pilot", "label": "x"},
+        json={"owner_email": "a@example.com", "plan": "builder", "label": "x"},
         headers={"X-Admin-Token": settings.admin_token},
     )
     assert r.status_code == 201, r.text
@@ -397,3 +397,57 @@ def test_error_envelope_hides_internals(app, auth, monkeypatch):
     body = r.json()["error"]
     assert body["code"] == "internal_error" and body["message"] == "An internal error occurred."
     assert "secret" not in r.text and body["request_id"].startswith("req_")
+
+
+def test_watch_limit_enforced_per_plan(
+    client, auth, settings, ingested_aapl, db, monkeypatch, tickers_payload
+):
+    from app.api import routes_notifications
+    from app.services.ingestion import import_ticker_mapping
+
+    import_ticker_mapping(db, tickers_payload)
+    db.commit()
+    monkeypatch.setattr(
+        routes_notifications,
+        "plan_limits",
+        lambda plan, s: {
+            "rate_limit_per_minute": 100,
+            "monthly_request_quota": 10_000,
+            "max_export_rows": 10,
+            "max_watches": 1,
+        },
+    )
+    body = {"destination_type": "webhook", "destination": "https://hooks.example.com/sec"}
+    assert (
+        client.post("/v1/watches", json={**body, "cik": "320193"}, headers=auth).status_code == 201
+    )
+    # same CIK again does not consume another slot
+    assert (
+        client.post(
+            "/v1/watches",
+            json={**body, "cik": "320193", "destination": "https://hooks.example.com/other"},
+            headers=auth,
+        ).status_code
+        == 201
+    )
+    r = client.post("/v1/watches", json={**body, "cik": "789019"}, headers=auth)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "watch_limit_reached"
+    usage = client.get("/v1/developer/usage", headers=auth).json()
+    assert usage["plan"]["max_watches"] == 1 and usage["plan"]["watched_companies_used"] == 1
+
+
+def test_admin_can_create_builder_and_team_keys(client, settings):
+    for plan in ("builder", "team", "enterprise"):
+        r = client.post(
+            "/v1/developer/api-keys",
+            json={"owner_email": f"{plan}@example.com", "plan": plan},
+            headers={"X-Admin-Token": settings.admin_token},
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["plan"] == plan
+    r = client.post(
+        "/v1/developer/api-keys",
+        json={"owner_email": "x@example.com", "plan": "platinum"},
+        headers={"X-Admin-Token": settings.admin_token},
+    )
+    assert r.status_code == 422

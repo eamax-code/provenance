@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import db_session, require_api_key, settings_dep
-from app.core.config import Settings
+from app.core.config import Settings, plan_limits
 from app.core.errors import APIError
 from app.core.security import derive_watch_secret, hash_secret
 from app.core.ssrf import UnsafeDestination, validate_webhook_url
@@ -23,6 +23,7 @@ from app.schemas.watches import (
     WatchOut,
 )
 from app.services.sec_client import normalize_cik
+from app.services.usage import watched_companies_used
 
 router = APIRouter(prefix="/v1", tags=["watches"])
 
@@ -32,7 +33,6 @@ _ERRORS = {
     422: {"model": ErrorEnvelope},
 }
 _EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}\.[A-Za-z]{2,}$")
-MAX_ACTIVE_WATCHES_PER_KEY = 100
 
 
 @router.post("/watches", response_model=WatchCreated, status_code=201, responses=_ERRORS)
@@ -73,17 +73,20 @@ def create_watch(
         if not _EMAIL_RE.match(destination) or len(destination) > 254:
             raise APIError(422, "invalid_destination", "destination must be a valid email address.")
 
-    active = db.scalar(
-        select(CompanyWatch)
-        .where(CompanyWatch.api_key_id == key.id, CompanyWatch.is_active.is_(True))
-        .offset(MAX_ACTIVE_WATCHES_PER_KEY - 1)
-        .limit(1)
+    limits = plan_limits(key.plan, settings)
+    already_watched = db.scalar(
+        select(CompanyWatch.id).where(
+            CompanyWatch.api_key_id == key.id,
+            CompanyWatch.cik == cik,
+            CompanyWatch.is_active.is_(True),
+        )
     )
-    if active is not None:
+    if already_watched is None and watched_companies_used(db, key.id) >= limits["max_watches"]:
         raise APIError(
             422,
             "watch_limit_reached",
-            f"At most {MAX_ACTIVE_WATCHES_PER_KEY} active watches per key.",
+            f"Your plan allows watching {limits['max_watches']} companies. "
+            "Deactivate a watch or upgrade.",
         )
 
     now = utcnow()

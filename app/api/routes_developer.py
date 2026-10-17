@@ -21,7 +21,7 @@ from app.schemas.developer import (
     PlanInfo,
     UsageOut,
 )
-from app.services.usage import requests_this_month, usage_summary
+from app.services.usage import requests_this_month, usage_summary, watched_companies_used
 
 router = APIRouter(prefix="/v1/developer", tags=["developer"])
 _ERRORS = {
@@ -160,5 +160,7 @@ def usage(
             monthly_request_quota=limits["monthly_request_quota"],
             monthly_requests_used=requests_this_month(db, key.id, now),
             max_export_rows=limits["max_export_rows"],
+            max_watches=limits["max_watches"],
+            watched_companies_used=watched_companies_used(db, key.id),
         ),
     )

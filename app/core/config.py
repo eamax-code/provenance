@@ -106,19 +106,40 @@ class Settings(BaseSettings):
 
 
 PLAN_LIMITS: dict[str, dict[str, int]] = {
-    # requests per minute, requests per calendar month, max export rows per request
-    "free": {"rate_limit_per_minute": 60, "monthly_request_quota": 10_000, "max_export_rows": 1000},
-    "pilot": {
-        "rate_limit_per_minute": 300,
-        "monthly_request_quota": 100_000,
+    # Advertised on the pricing page; keep in sync with site/index.html.
+    # rate limit per minute, requests per calendar month, export rows per request, watched CIKs
+    "free": {
+        "rate_limit_per_minute": 60,
+        "monthly_request_quota": 10_000,
         "max_export_rows": 1000,
+        "max_watches": 5,
+    },
+    "builder": {
+        "rate_limit_per_minute": 300,
+        "monthly_request_quota": 250_000,
+        "max_export_rows": 1000,
+        "max_watches": 50,
+    },
+    "team": {
+        "rate_limit_per_minute": 1000,
+        "monthly_request_quota": 2_000_000,
+        "max_export_rows": 1000,
+        "max_watches": 500,
+    },
+    "enterprise": {
+        "rate_limit_per_minute": 3000,
+        "monthly_request_quota": 50_000_000,
+        "max_export_rows": 1000,
+        "max_watches": 5000,
     },
     "internal": {
         "rate_limit_per_minute": 1000,
         "monthly_request_quota": 10_000_000,
         "max_export_rows": 1000,
+        "max_watches": 5000,
     },
 }
+PLAN_NAMES = tuple(PLAN_LIMITS)
 
 
 def plan_limits(plan: str, settings: Settings) -> dict[str, int]:
@@ -135,4 +156,4 @@ def get_settings() -> Settings:
     return Settings()
 
 
-__all__ = ["Settings", "get_settings", "plan_limits", "PLAN_LIMITS", "Field"]
+__all__ = ["Settings", "get_settings", "plan_limits", "PLAN_LIMITS", "PLAN_NAMES", "Field"]

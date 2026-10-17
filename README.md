@@ -136,8 +136,9 @@ Errors always use `{"error": {"code", "message", "request_id"}}`; every response
 Self-serve signup is not in the MVP. Keys are issued by an operator via
 `scripts/create_api_key.py` or `POST /v1/developer/api-keys` protected by `X-Admin-Token`
 (disabled unless `ADMIN_TOKEN` is set). Key holders can list and revoke keys that share their
-owner email. Plans: `free` (60 req/min, 10k req/month), `pilot`, `internal`; all capped at
-1,000 export rows per request.
+owner email. Plans: `free` (60 req/min, 10k req/month, 5 watched companies), `builder` (300/min,
+250k/month, 50 watches), `team` (1,000/min, 2M/month, 500 watches), `enterprise`, `internal`; all
+capped at 1,000 export rows per request. Limits live in `PLAN_LIMITS` and match the pricing page.
 
 ## Deployment
 

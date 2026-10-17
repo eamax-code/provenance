@@ -4,9 +4,9 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Plans `free`, `builder`, `team`, `enterprise`, `internal` with limits matching the pricing page
-- [ ] Watch creation enforces the plan's watched-company limit (distinct CIKs) with a clear error
-- [ ] Usage endpoint reports watch limit and watches used
-- [ ] Key creation script and admin endpoint accept the new plans; tests cover enforcement
+- [x] Plans `free`, `builder`, `team`, `enterprise`, `internal` with limits matching the pricing page
+- [x] Watch creation enforces the plan's watched-company limit (distinct CIKs) with a clear error
+- [x] Usage endpoint reports watch limit and watches used
+- [x] Key creation script and admin endpoint accept the new plans; tests cover enforcement

@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import ApiUsage, utcnow
+from app.db.models import ApiUsage, CompanyWatch, utcnow
 
 
 def record_usage(
@@ -89,3 +89,14 @@ def usage_summary(db: Session, api_key_id: uuid.UUID, start: datetime, end: date
         "export_bytes": int(export_bytes),
         "response_bytes": int(total_bytes),
     }
+
+
+def watched_companies_used(db: Session, api_key_id: uuid.UUID) -> int:
+    return int(
+        db.scalar(
+            select(func.count(func.distinct(CompanyWatch.cik))).where(
+                CompanyWatch.api_key_id == api_key_id, CompanyWatch.is_active.is_(True)
+            )
+        )
+        or 0
+    )
