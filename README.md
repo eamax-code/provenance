@@ -22,6 +22,7 @@ file.
 | API keys and usage | `POST/GET/DELETE /v1/developer/api-keys`, `GET /v1/developer/usage` |
 | Bounded CSV/JSON export with provenance | `GET /v1/exports/facts` |
 | Explorer web app: search, filings, facts chart with provenance, freshness | `GET /app/` (static, key stays in the browser) |
+| Developer console: usage and plan meters, keys, watches, deliveries | `GET /app/#console` |
 | Public coverage stats, cached 30 s, no key | `GET /v1/stats` |
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |

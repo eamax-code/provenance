@@ -287,3 +287,12 @@ def test_explorer_app_is_served(client):
     assert "localStorage" in js.text
     css = client.get("/app/app.css")
     assert css.status_code == 200 and "prefers-color-scheme" in css.text
+
+
+def test_console_module_is_served(client):
+    html = client.get("/app/").text
+    assert "/app/console.js" in html and 'id="watch-form"' in html
+    js = client.get("/app/console.js")
+    assert js.status_code == 200
+    for route in ("/v1/developer/usage", "/v1/developer/api-keys", "/v1/watches"):
+        assert route in js.text

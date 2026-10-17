@@ -92,12 +92,26 @@
   </main>
 
   <main id="console" class="view" hidden>
-    <section class="panel"><p class="muted">Console loads in the next release: usage, keys, watches and deliveries.</p></section>
+    <section class="panel"><h2>Usage and plan</h2><div id="con-usage"></div></section>
+    <section class="panel"><h2>API keys</h2><div id="con-keys"></div></section>
+    <section class="panel">
+      <h2>Watches</h2>
+      <form id="watch-form" class="controls">
+        <label>CIK <input id="w-cik" required placeholder="320193" size="12"></label>
+        <label>Type <select id="w-type"><option value="webhook">webhook</option><option value="email">email</option></select></label>
+        <label>Destination <input id="w-dest" required placeholder="https://hooks.example.com/sec" size="36"></label>
+        <button class="btn primary small" type="submit">Create watch</button>
+      </form>
+      <div id="watch-secret" class="secret-box" hidden></div>
+      <div id="con-watches"></div>
+      <div id="con-deliveries" hidden></div>
+    </section>
   </main>
 
   <footer class="foot muted small">Data from SEC EDGAR. Provenance is independent and not affiliated with the SEC. Values marked <code>derived</code> are computed by this service. Not investment advice. <a href="/docs">API docs</a> · <a href="/llms.txt">llms.txt</a></footer>
   <div id="toast" class="toast" role="status" aria-live="assertive" hidden></div>
 </div>
+<script src="/app/console.js"></script>
 <script src="/app/app.js"></script>
 </body>
 </html>

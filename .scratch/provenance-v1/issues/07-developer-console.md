@@ -4,9 +4,9 @@
 
 **Blocked by:** 05, 06
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Usage view with totals, by-route breakdown, export rows/bytes and plan limits
-- [ ] Keys list and revoke with confirmation built into the page
-- [ ] Watch create (webhook/email), list, deactivate; deliveries list per watch
-- [ ] Console works against the live API in integration tests of the backing endpoints; UI syntax-checked in CI
+- [x] Usage view with totals, by-route breakdown, export rows/bytes and plan limits
+- [x] Keys list and revoke with confirmation built into the page
+- [x] Watch create (webhook/email), list, deactivate; deliveries list per watch
+- [x] Console works against the live API in integration tests of the backing endpoints; UI syntax-checked in CI
