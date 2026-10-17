@@ -30,3 +30,22 @@ def send_filing_email(settings: Settings, to_address: str, payload: dict) -> Non
         if settings.smtp_username:
             smtp.login(settings.smtp_username, settings.smtp_password)
         smtp.send_message(msg)
+
+
+def send_api_key_email(settings: Settings, to_address: str, raw_key: str, plan: str) -> None:
+    msg = EmailMessage()
+    msg["Subject"] = f"Your {settings.app_name} API key"
+    msg["From"] = settings.email_from
+    msg["To"] = to_address
+    msg.set_content(
+        f"Your {settings.app_name} API key ({plan} plan). "
+        "It is shown only once; store it securely.\n\n"
+        f"{raw_key}\n\nSend it as the X-API-Key header. Docs: /docs  OpenAPI: /openapi.json\n\n"
+        "Data from SEC EDGAR. This service is independent and not affiliated with the SEC.\n"
+    )
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
+        if settings.smtp_use_tls:
+            smtp.starttls()
+        if settings.smtp_username:
+            smtp.login(settings.smtp_username, settings.smtp_password)
+        smtp.send_message(msg)

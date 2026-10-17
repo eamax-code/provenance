@@ -19,6 +19,7 @@
 - GET /v1/developer/usage?from=&to= ; GET/DELETE /v1/developer/api-keys
 - GET /v1/exports/facts?metric=&ciks=a,b&format={csv|json}&limit<=1000
 - GET /v1/stats  (public, no key; coverage and health of this deployment, cached 30s)
+- POST /v1/developer/key-requests {"email","use_case","plan"}  (public, rate limited; operator approves)
 
 ## Interpreting facts
 - Every fact has source_url (SEC filing index), source_tag (XBRL concept), accession_number,

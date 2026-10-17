@@ -4,9 +4,9 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `POST /v1/developer/key-requests` unauthenticated, per-IP rate limited, honeypot field, email validation, dedupe per email
-- [ ] `scripts/approve_key_request.py` issues the key and prints it, or emails it when SMTP is configured
-- [ ] Landing page and app have a request form with clear success/failure states
-- [ ] Tests cover rate limiting, duplicates and approval
+- [x] `POST /v1/developer/key-requests` unauthenticated, per-IP rate limited, honeypot field, email validation, dedupe per email
+- [x] `scripts/approve_key_request.py` issues the key and prints it, or emails it when SMTP is configured
+- [x] Landing page and app have a request form with clear success/failure states
+- [x] Tests cover rate limiting, duplicates and approval

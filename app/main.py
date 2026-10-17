@@ -18,6 +18,7 @@ from app.api import (
     routes_companies,
     routes_developer,
     routes_exports,
+    routes_key_requests,
     routes_notifications,
     routes_stats,
 )
@@ -117,6 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_developer.router)
     app.include_router(routes_exports.router)
     app.include_router(routes_stats.router)
+    app.include_router(routes_key_requests.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")
     def healthz():
@@ -155,7 +157,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         for path, methods in schema.get("paths", {}).items():
             for method in methods.values():
                 if path.startswith("/v1/"):
-                    if path == "/v1/stats":
+                    if path in ("/v1/stats", "/v1/developer/key-requests"):
                         method["security"] = []
                     elif path == "/v1/developer/api-keys" and method.get("summary", "").startswith(
                         "Create"

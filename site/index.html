@@ -535,10 +535,19 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
         <h2>Pilot access is open to a small number of teams.</h2>
         <p class="muted">Tell us which companies you watch and what your code does with a filing fact. Pilot keys are issued by hand while we measure real latency and data quality.</p>
       </div>
-      <div class="tile" style="max-width:560px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><span class="mono" id="contact-email">pilot@provenance.example</span><button class="copybtn" type="button" data-copy="contact-email">copy</button></div>
-        <p>Replace this address before launch. Issuing keys: <code>scripts/create_api_key.py</code>.</p>
-      </div>
+      <form class="tile" style="max-width:560px" id="key-request-form" action="/v1/developer/key-requests" method="post" novalidate>
+        <label for="kr-email" class="eyebrow">Work email</label>
+        <input id="kr-email" name="email" type="email" required autocomplete="email" placeholder="you@company.com" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);color:var(--fg);font:inherit">
+        <label for="kr-use" class="eyebrow">What will your code do with filing facts?</label>
+        <textarea id="kr-use" name="use_case" required minlength="12" rows="3" placeholder="e.g. monitor 40 issuers for 10-Q filings and pull quarterly revenue into our dashboard" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);color:var(--fg);font:inherit;resize:vertical"></textarea>
+        <label for="kr-plan" class="eyebrow">Plan</label>
+        <select id="kr-plan" name="plan" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);color:var(--fg);font:inherit">
+          <option value="free">Free</option><option value="builder">Builder</option><option value="team">Team</option>
+        </select>
+        <div style="position:absolute;left:-9999px" aria-hidden="true"><label for="kr-website">Website</label><input id="kr-website" name="website" tabindex="-1" autocomplete="off"></div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit" id="kr-submit">Request a key</button><span class="muted" id="kr-status" role="status" aria-live="polite"></span></div>
+        <p class="muted" style="font-size:.85rem">Requests are reviewed by hand during the pilot. Your key is delivered once to this address. No marketing email.</p>
+      </form>
     </div>
   </section>
 </main>
@@ -764,6 +773,28 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
     } catch (e) { fail(); }
   }
   load(); setInterval(load, 30000);
+})();
+
+(function () {
+  var form = document.getElementById('key-request-form'); if (!form) return;
+  var status = document.getElementById('kr-status'), submit = document.getElementById('kr-submit');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = document.getElementById('kr-email'), use = document.getElementById('kr-use');
+    if (!email.checkValidity()) { status.textContent = 'Enter a valid email address.'; email.focus(); return; }
+    if (use.value.trim().length < 12) { status.textContent = 'Tell us a little more about the use case (12+ characters).'; use.focus(); return; }
+    submit.disabled = true; status.textContent = 'Sending…';
+    var payload = { email: email.value.trim(), use_case: use.value.trim(), plan: document.getElementById('kr-plan').value, website: document.getElementById('kr-website').value };
+    fetch(form.getAttribute('action'), { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload) })
+      .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, status: r.status, body: b }; }); })
+      .then(function (res) {
+        if (res.ok) { status.textContent = res.body.message || 'Request received.'; form.reset(); }
+        else if (res.status === 429) { status.textContent = 'Too many requests from your network. Try again later.'; }
+        else { status.textContent = (res.body && res.body.error && res.body.error.message) || 'Could not send the request.'; }
+      })
+      .catch(function () { status.textContent = 'Network error. The API may be offline.'; })
+      .then(function () { submit.disabled = false; });
+  });
 })();
 </script>
 </body>

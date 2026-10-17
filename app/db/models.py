@@ -283,3 +283,22 @@ class DataQualitySnapshot(Base):
     universe_active: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     universe_due: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     universe_disabled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class KeyRequest(Base):
+    """Self-serve API key request awaiting operator approval (or auto-approval via email)."""
+
+    __tablename__ = "key_requests"
+    __table_args__ = (Index("ix_key_requests_email_status", "email", "status"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    use_case: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_plan: Mapped[str] = mapped_column(Text, nullable=False, default="free")
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+    client_ip_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    approved_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    approved_key_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    rejected_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    key_delivered_via: Mapped[str | None] = mapped_column(Text, nullable=True)  # email | operator
