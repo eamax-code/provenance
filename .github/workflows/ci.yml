@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: companydata
+          POSTGRES_PASSWORD: companydata
+          POSTGRES_DB: companydata_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U companydata" --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Lint
+        run: |
+          ruff check app tests scripts
+          ruff format --check app tests scripts
+      - name: Site scripts parse
+        run: |
+          node -e "
+          const fs=require('fs');
+          for (const f of fs.readdirSync('site').filter(f=>f.endsWith('.html'))) {
+            const s=fs.readFileSync('site/'+f,'utf8');
+            for (const m of s.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(m[1]);
+            for (const m of s.matchAll(/<script type=\"application\/ld\+json\">([\s\S]*?)<\/script>/g)) JSON.parse(m[1]);
+          }
+          for (const f of fs.existsSync('site/app') ? fs.readdirSync('site/app').filter(f=>f.endsWith('.js')) : []) new Function(fs.readFileSync('site/app/'+f,'utf8'));
+          console.log('site scripts ok');"
+      - name: Tests (SQLite)
+        run: pytest -q
+      - name: Migrations + tests (PostgreSQL)
+        env:
+          DATABASE_URL: postgresql+psycopg://companydata:companydata@localhost:5432/companydata_test
+          TEST_DATABASE_URL: postgresql+psycopg://companydata:companydata@localhost:5432/companydata_test
+          SEC_USER_AGENT: "Provenance-ci/0.1 contact=ci@provenance.test"
+          API_KEY_PEPPER: ci-pepper-0123456789abcdef
+          WEBHOOK_SIGNING_SECRET: ci-webhook-0123456789abcdef
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          pytest -q -p no:cacheprovider
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t provenance:ci .

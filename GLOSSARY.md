@@ -1,0 +1,18 @@
+# Glossary
+
+- **CIK**: SEC Central Index Key, the canonical company identifier, always stored as a 10-digit zero-padded string.
+- **Accession number**: SEC filing identifier `##########-##-######`; with the CIK it identifies a filing.
+- **Filing**: one row per (CIK, accession number) from the SEC submissions feed.
+- **Observation**: one reported XBRL value (tag, unit, period, accession). Restated values are new observations, never overwrites.
+- **Fact / normalized fact**: an observation mapped to one of the five canonical metrics via the versioned concept mapping.
+- **Metric**: `revenue`, `operating_income`, `net_income`, `total_assets`, `operating_cash_flow`.
+- **Preferred tag**: the highest-precedence candidate tag that has data for a period; its observations are `ok`, alternates are `ambiguous_mapping`.
+- **Period class**: `annual`, `quarterly`, `ytd`, `other`, derived from reported dates, never from the SEC `fp` label.
+- **Derived value**: a quarter computed by subtracting two reported year-to-date observations; always `derived=true`.
+- **Quality status**: `ok`, `partial`, `ambiguous_mapping`, `invalid_source_value`, `stale`, `unavailable`, `derived`.
+- **First detected / processed**: when this service first saw a record and when it last wrote it.
+- **Watch**: an API key's subscription to new filings for a CIK, delivered to a webhook or email.
+- **Delivery**: one attempt-tracked notification event with a stable `event_id`.
+- **Ingestion run**: one pass of the ingestion pipeline with counts, status and redacted errors.
+- **Universe**: the configured list of CIKs that bulk ingestion and polling cover.
+- **Freshness**: age of the last successful SEC fetch plus detection/processing timestamps for the latest filing.

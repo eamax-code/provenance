@@ -1,0 +1,56 @@
+# Local development only. Do not use these credentials anywhere else.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: companydata
+      POSTGRES_PASSWORD: companydata
+      POSTGRES_DB: companydata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U companydata"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://companydata:companydata@db:5432/companydata
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://companydata:companydata@db:5432/companydata
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - seccache:/app/.sec_cache
+
+  poller:
+    build: .
+    command: ["python", "scripts/poll_sec.py"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://companydata:companydata@db:5432/companydata
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - seccache:/app/.sec_cache
+
+volumes:
+  pgdata:
+  seccache:

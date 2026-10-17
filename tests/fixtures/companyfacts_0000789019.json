@@ -1,0 +1,29 @@
+{
+  "cik": 789019,
+  "entityName": "MICROSOFT CORP",
+  "facts": {
+    "us-gaap": {
+      "RevenueFromContractWithCustomerExcludingAssessedTax": {
+        "units": {"USD": [
+          {"start": "2023-07-01", "end": "2024-06-30", "val": 245122000000, "accn": "0000950170-24-087843", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2024-07-30"}
+        ]}
+      },
+      "Revenues": {
+        "units": {"USD": [
+          {"start": "2023-07-01", "end": "2024-06-30", "val": 245000000000, "accn": "0000950170-24-087843", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2024-07-30"}
+        ]}
+      },
+      "OperatingIncomeLoss": {
+        "units": {"USD": [
+          {"start": "2023-07-01", "end": "2024-06-30", "val": -1000000, "accn": "0000950170-24-087843", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2024-07-30"}
+        ]}
+      },
+      "Assets": {
+        "units": {"USD": [
+          {"end": "2024-06-30", "val": 512163000000, "accn": "0000950170-24-087843", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2024-07-30"},
+          {"end": "2024-06-30", "accn": "0000950170-24-087843", "form": "10-K", "filed": "2024-07-30"}
+        ]}
+      }
+    }
+  }
+}
