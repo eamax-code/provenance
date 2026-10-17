@@ -157,9 +157,10 @@ capped at 1,000 export rows per request. Limits live in `PLAN_LIMITS` and match 
 
 ## Deployment
 
-See `docs/operations.md` for topology, secret rotation, backups, monitoring and retention.
-`Dockerfile` serves the API; run the poller with the same image and
-`python scripts/poll_sec.py`. `docker-compose.yml` runs db + migrate + api + poller locally.
+See `docs/deployment.md` for Fly.io (`deploy/fly.toml`), Render (`deploy/render.yaml`) and
+Docker Compose paths with commands and planning costs, and `docs/operations.md` for topology,
+secret rotation, backups, monitoring and retention. `Dockerfile` serves the API; the poller runs
+the same image with `python scripts/poll_sec.py`.
 
 ## Documentation
 

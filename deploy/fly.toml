@@ -1,0 +1,53 @@
+# Fly.io deployment: one app, two process groups (api + poller) sharing the image.
+# Pair with a Fly Postgres (or any managed Postgres) and set secrets with `fly secrets set`.
+app = "provenance-api"          # change to your app name
+primary_region = "iad"          # close to data.sec.gov (US East)
+
+[build]
+  dockerfile = "../Dockerfile"
+
+[env]
+  APP_ENV = "production"
+  APP_NAME = "Provenance"
+  LOG_JSON = "true"
+  SEC_MIN_REQUEST_INTERVAL_SECONDS = "0.25"
+  INGESTION_POLL_INTERVAL_SECONDS = "300"
+  UNIVERSE_REQUEST_BUDGET_PER_RUN = "400"
+  SEC_CACHE_DIR = "/data/sec_cache"
+
+[processes]
+  api = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
+  poller = "python scripts/poll_sec.py"
+
+[deploy]
+  release_command = "alembic upgrade head"
+
+[[mounts]]
+  source = "sec_cache"
+  destination = "/data"
+  processes = ["poller"]
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["api"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 50
+    hard_limit = 100
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/readyz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  processes = ["api", "poller"]
