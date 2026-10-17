@@ -97,6 +97,7 @@ class IngestResult:
     notifications_created: int = 0
     errors: list[str] = field(default_factory=list)
     facts_available: bool = True
+    history_pages_fetched: int = 0
 
 
 # --- parsing --------------------------------------------------------------------------------
@@ -164,22 +165,38 @@ def parse_submissions(
         source_url=submissions_url(cik),
     )
 
-    filings: list[FilingRecord] = []
-    recent = (
-        (payload.get("filings") or {}).get("recent")
-        if isinstance(payload.get("filings"), dict)
-        else None
-    )
-    if not isinstance(recent, dict):
-        return company, filings
+    filings_block = payload.get("filings")
+    recent = filings_block.get("recent") if isinstance(filings_block, dict) else None
+    filings = parse_filings_block(cik, recent, www_base) if isinstance(recent, dict) else []
+    return company, filings
 
-    accessions = recent.get("accessionNumber") or []
+
+def history_page_names(payload: dict) -> list[str]:
+    """Names of the older-filings pages referenced by a submissions payload, in order."""
+    filings_block = payload.get("filings") if isinstance(payload, dict) else None
+    files = filings_block.get("files") if isinstance(filings_block, dict) else None
+    if not isinstance(files, list):
+        return []
+    names = []
+    for entry in files:
+        name = entry.get("name") if isinstance(entry, dict) else None
+        if isinstance(name, str) and name.endswith(".json") and "/" not in name:
+            names.append(name)
+    return names
+
+
+def parse_filings_block(
+    cik: str, block: dict, www_base: str = "https://www.sec.gov"
+) -> list[FilingRecord]:
+    """Parse a column-oriented SEC filings block (the `recent` block or a history page)."""
+    filings: list[FilingRecord] = []
+    accessions = block.get("accessionNumber") or []
     if not isinstance(accessions, list):
-        return company, filings
+        return filings
     n = len(accessions)
 
     def col(name: str) -> list:
-        values = recent.get(name)
+        values = block.get(name)
         if isinstance(values, list) and len(values) == n:
             return values
         return [None] * n
@@ -222,7 +239,7 @@ def parse_submissions(
                 notes=notes,
             )
         )
-    return company, filings
+    return filings
 
 
 def _valid_accession(accn: str) -> bool:
@@ -495,6 +512,7 @@ def ingest_company(
     run: IngestionRun | None = None,
     now: datetime | None = None,
     include_facts: bool = True,
+    history_pages: int | None = None,
 ) -> IngestResult:
     """Full vertical ingestion for one company. Commits on success; records failures."""
     cik = normalize_cik(cik)
@@ -534,6 +552,26 @@ def ingest_company(
 
     company = upsert_company(db, company_rec, now, source_updated_at=sub.last_modified)
     run.companies_seen += 1
+
+    pages = client.settings.sec_filings_history_pages if history_pages is None else history_pages
+    for name in history_page_names(sub.data)[: max(0, pages)]:
+        try:
+            page = client.get_json(f"{client.settings.sec_base_data_url}/submissions/{name}")
+        except (SecUnavailable, SecClientError) as exc:
+            result.errors.append(f"history page {name}: {_redact_error(exc)}")
+            run.error_count += 1
+            continue
+        result.history_pages_fetched += 1
+        if isinstance(page.data, dict):
+            filing_recs.extend(parse_filings_block(cik, page.data, www_base))
+    # de-duplicate across recent + pages, first occurrence wins
+    seen_accn: set[str] = set()
+    deduped: list[FilingRecord] = []
+    for rec in filing_recs:
+        if rec.accession_number not in seen_accn:
+            seen_accn.add(rec.accession_number)
+            deduped.append(rec)
+    filing_recs = deduped
     ins, upd, new_rows = upsert_filings(db, filing_recs, run.id, now)
     result.filings_seen = len(filing_recs)
     result.filings_inserted, result.filings_updated = ins, upd

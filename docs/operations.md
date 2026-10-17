@@ -6,6 +6,17 @@ One API process (`uvicorn app.main:app`), one poller (`python scripts/poll_sec.p
 PostgreSQL database. The poller takes a PostgreSQL advisory lock (`pg_try_advisory_lock`) so
 duplicate concurrent runs skip themselves; cron with `--once` is also safe.
 
+## Universe and bulk ingestion
+
+`universe_members` holds every CIK the deployment keeps fresh: seeded from a file, the SEC
+ticker file (`--seed-tickers --top N`), or automatically when someone creates a watch. Each
+poller pass refreshes due members within `UNIVERSE_REQUEST_BUDGET_PER_RUN` SEC requests
+(two per company plus one per history page), oldest-due and highest-priority first, so a
+universe of 5,000 companies at 400 requests per 5-minute pass completes a full refresh in about
+2 hours while staying far below SEC's 10 requests/second guidance. Failures back off
+15 min, 30 min, ... up to 24 h and disable the member after `UNIVERSE_MAX_CONSECUTIVE_FAILURES`
+(see `disabled_reason`). `scripts/bulk_ingest.py --status` shows how much is due.
+
 ## Configuration
 
 See `.env.example`. `GET /readyz` returns 503 with a list of configuration problems (never

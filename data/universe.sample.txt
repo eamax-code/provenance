@@ -1,0 +1,7 @@
+# One CIK per line, any zero padding; '#' starts a comment. Order sets priority.
+320193    # Apple
+789019    # Microsoft
+1652044   # Alphabet
+1018724   # Amazon
+1318605   # Tesla
+1067983   # Berkshire Hathaway

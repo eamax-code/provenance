@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.logging import log_event
-from app.db.models import Company, CompanyWatch
+from app.db.models import Company, CompanyWatch, utcnow
+from app.services import universe
 from app.services.ingestion import finish_run, ingest_company, start_run
 from app.services.notifications import deliver_pending
 from app.services.sec_client import SecClient, SecClientError
@@ -70,6 +71,7 @@ def run_once(
     client: SecClient | None = None,
     include_all_companies: bool = False,
     sender=None,
+    include_universe: bool = True,
 ) -> dict:
     with single_run_guard(db) as acquired:
         if not acquired:
@@ -84,19 +86,31 @@ def run_once(
         errors: list[str] = []
         try:
             for cik in ciks:
+                now = utcnow()
+                member = universe.ensure_member(db, cik, source="watch", now=now)
+                db.commit()
                 try:
-                    result = ingest_company(db, client, cik, run=run)
+                    result = ingest_company(db, client, cik, run=run, now=now)
+                    member = db.merge(member)
+                    universe.record_success(member, settings, now)
                     summary["succeeded"] += 1
                     summary["notifications_created"] += result.notifications_created
                 except SecClientError as exc:
                     db.rollback()
+                    member = db.merge(member)
+                    run = db.merge(run)
+                    universe.record_failure(member, settings, now, f"{type(exc).__name__}: {exc}")
                     summary["failed"] += 1
                     errors.append(f"{cik}: {type(exc).__name__}")
                 except Exception as exc:  # noqa: BLE001 - keep polling other companies
                     db.rollback()
+                    member = db.merge(member)
+                    run = db.merge(run)
+                    universe.record_failure(member, settings, now, type(exc).__name__)
                     summary["failed"] += 1
                     errors.append(f"{cik}: {type(exc).__name__}")
                     logger.exception("poll failure", extra={"extra_fields": {"cik": cik}})
+                db.commit()
             status = (
                 "succeeded"
                 if not errors
@@ -105,6 +119,8 @@ def run_once(
             run = db.merge(run)
             finish_run(db, run, status, "; ".join(errors)[:2000] or None)
             db.commit()
+            if include_universe:
+                summary["universe"] = universe.bulk_ingest(db, settings, client)
             summary["deliveries"] = deliver_pending(db, settings, sender=sender)
         finally:
             if own_client:

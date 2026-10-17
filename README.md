@@ -24,6 +24,7 @@ file.
 | Public coverage stats, cached 30 s, no key | `GET /v1/stats` |
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
+| Universe: seed CIKs, budgeted resumable bulk ingestion with backoff | `scripts/bulk_ingest.py`, poller refreshes due members |
 
 OpenAPI: `/openapi.json`, Swagger UI: `/docs`. All `/v1` endpoints require `X-API-Key`.
 
@@ -46,6 +47,12 @@ alembic upgrade head                    # apply migrations
 python scripts/create_api_key.py you@example.com --plan pilot   # prints the key once
 python scripts/import_tickers.py        # optional: seed ~10k company identities from the SEC ticker file
 python scripts/ingest_company.py 320193 # ingest one company (filings + facts) from the SEC
+
+# bulk coverage: define a universe, then ingest it within an SEC request budget (resumable)
+python scripts/bulk_ingest.py --seed-file data/universe.sample.txt --seed-only
+python scripts/bulk_ingest.py --seed-tickers --top 500 --seed-only   # or the first 500 issuers of the SEC ticker file
+python scripts/bulk_ingest.py --budget 400 --history-pages 1          # one pass; re-run until --status shows due_now 0
+python scripts/bulk_ingest.py --status
 
 uvicorn app.main:app --reload           # http://127.0.0.1:8000/docs
 python scripts/poll_sec.py --once       # refresh watched companies, deliver pending webhooks
@@ -155,8 +162,9 @@ See `docs/operations.md` for topology, secret rotation, backups, monitoring and 
 
 ## Known limitations
 
-- Only the `recent` block of SEC submissions (about the latest 1,000 filings per company) is
-  ingested; older filings in `filings.files` are not.
+- By default only the `recent` block of SEC submissions (about the latest 1,000 filings per
+  company) is ingested. Set `SEC_FILINGS_HISTORY_PAGES` (or `--history-pages`) to pull older
+  pages; each page is one more SEC request per company.
 - Facts use standard `us-gaap` tags from the SEC company-facts API; IFRS filers and custom
   extension tags are not covered.
 - `source_published_at` is always `null`; the SEC exposes an acceptance timestamp, not a

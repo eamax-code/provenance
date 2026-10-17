@@ -221,3 +221,23 @@ class AuditEvent(Base):
     subject_type: Mapped[str] = mapped_column(Text, nullable=False)
     subject_id: Mapped[str] = mapped_column(Text, nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class UniverseMember(Base):
+    """A CIK this deployment aims to keep ingested. Drives bulk ingestion and polling."""
+
+    __tablename__ = "universe_members"
+    __table_args__ = (Index("ix_universe_due", "is_active", "priority", "next_attempt_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False, unique=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)  # tickers | file | watch | manual
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=1000)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    disabled_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    added_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    last_success_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    consecutive_failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)

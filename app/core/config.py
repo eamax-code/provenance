@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     sec_live_tests: bool = False
 
     ingestion_poll_interval_seconds: int = 300
+    # Universe (bulk coverage) settings
+    universe_refresh_interval_seconds: int = 6 * 3600
+    universe_request_budget_per_run: int = 400
+    universe_max_consecutive_failures: int = 10
+    sec_filings_history_pages: int = 0
     freshness_stale_after_seconds: int = 24 * 3600
     on_demand_ingestion_enabled: bool = True
 
