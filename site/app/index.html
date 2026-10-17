@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Provenance Explorer</title>
+<meta name="description" content="Explore SEC filings and normalized facts with provenance using your Provenance API key.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/app/app.css">
+</head>
+<body>
+<div id="app" class="app">
+  <header class="topbar">
+    <a class="brand" href="/"><span class="dot" aria-hidden="true"></span>Provenance <span class="muted">Explorer</span></a>
+    <nav class="views" aria-label="Views">
+      <button type="button" class="view-btn" data-view="explore" aria-pressed="true">Explore</button>
+      <button type="button" class="view-btn" data-view="console" aria-pressed="false">Console</button>
+    </nav>
+    <div class="session">
+      <span class="status-pill" id="key-pill"><i></i><span id="key-label">no key</span></span>
+      <button type="button" class="btn small" id="signout" hidden>Sign out</button>
+    </div>
+  </header>
+
+  <section class="panel gate" id="gate">
+    <h1>Paste your API key to start.</h1>
+    <p class="muted">The key stays in this browser only (localStorage) and is sent as <code>X-API-Key</code> to this host. No key yet? <a href="/#contact">Request one</a>.</p>
+    <form id="key-form" class="row">
+      <label for="key-input" class="sr-only">API key</label>
+      <input id="key-input" type="password" autocomplete="off" spellcheck="false" placeholder="prv_live_…" required>
+      <button class="btn primary" type="submit">Connect</button>
+    </form>
+    <p class="muted small" id="gate-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <main id="explore" class="view" hidden>
+    <section class="panel">
+      <form id="search-form" class="row">
+        <label for="q" class="sr-only">Search</label>
+        <input id="q" type="search" placeholder="Ticker, CIK or company name (e.g. AAPL, 320193, Microsoft)" autocomplete="off" required>
+        <button class="btn primary" type="submit">Search</button>
+      </form>
+      <ul id="results" class="results" aria-live="polite"></ul>
+    </section>
+
+    <section id="company" class="company" hidden>
+      <header class="company-head">
+        <div>
+          <p class="eyebrow" id="c-cik">CIK</p>
+          <h2 id="c-name">Company</h2>
+          <p class="muted" id="c-meta"></p>
+        </div>
+        <div class="badges" id="c-badges"></div>
+      </header>
+      <nav class="tabs" aria-label="Company sections">
+        <button type="button" class="tab" data-tab="facts" aria-pressed="true">Facts</button>
+        <button type="button" class="tab" data-tab="filings" aria-pressed="false">Filings</button>
+        <button type="button" class="tab" data-tab="freshness" aria-pressed="false">Freshness</button>
+      </nav>
+
+      <section class="tabpane" id="pane-facts">
+        <div class="controls">
+          <label>Metric <select id="f-metric">
+            <option value="revenue">Revenue</option><option value="operating_income">Operating income</option><option value="net_income">Net income</option><option value="total_assets">Total assets</option><option value="operating_cash_flow">Operating cash flow</option>
+          </select></label>
+          <label>Period <select id="f-period"><option value="annual">Annual</option><option value="quarterly">Quarterly</option><option value="all">All</option></select></label>
+          <label class="check"><input type="checkbox" id="f-derived"> Include derived quarters</label>
+          <label class="check"><input type="checkbox" id="f-all"> All observations</label>
+        </div>
+        <div class="chart-wrap"><svg id="chart" viewBox="0 0 800 260" role="img" aria-label="Fact values by period"></svg></div>
+        <p class="muted small" id="facts-note"></p>
+        <div class="table-wrap"><table id="facts-table"><thead><tr><th>Period</th><th>Class</th><th class="num">Value</th><th>Unit</th><th>Form</th><th>Filed</th><th>Tag</th><th>Quality</th><th>Source</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="tabpane" id="pane-filings" hidden>
+        <div class="controls">
+          <label>Form <input id="fl-form" placeholder="10-K, 10-Q, 8-K…" size="10"></label>
+          <label>Since <input id="fl-since" type="date"></label>
+          <button type="button" class="btn small" id="fl-apply">Apply</button>
+        </div>
+        <div class="table-wrap"><table id="filings-table"><thead><tr><th>Filed</th><th>Form</th><th>Accession</th><th>Accepted (SEC)</th><th>Detected</th><th>Quality</th><th>Source</th></tr></thead><tbody></tbody></table></div>
+        <div class="row"><button type="button" class="btn small" id="fl-more" hidden>Load more</button></div>
+      </section>
+
+      <section class="tabpane" id="pane-freshness" hidden>
+        <div class="grid" id="fresh-grid"></div>
+        <ul class="notes" id="fresh-notes"></ul>
+      </section>
+    </section>
+  </main>
+
+  <main id="console" class="view" hidden>
+    <section class="panel"><p class="muted">Console loads in the next release: usage, keys, watches and deliveries.</p></section>
+  </main>
+
+  <footer class="foot muted small">Data from SEC EDGAR. Provenance is independent and not affiliated with the SEC. Values marked <code>derived</code> are computed by this service. Not investment advice. <a href="/docs">API docs</a> · <a href="/llms.txt">llms.txt</a></footer>
+  <div id="toast" class="toast" role="status" aria-live="assertive" hidden></div>
+</div>
+<script src="/app/app.js"></script>
+</body>
+</html>

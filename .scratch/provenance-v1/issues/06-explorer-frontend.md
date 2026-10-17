@@ -4,10 +4,10 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Static, framework-free app served by the API with the same visual language as the landing page, both themes, phone width
-- [ ] Key entry with validation against `/v1/developer/usage`; key stored in localStorage only; clear sign-out
-- [ ] Search, profile, filings (filters), facts (metric/period toggles, derived toggle, chart + table with source links), freshness
-- [ ] Error envelope and rate-limit responses surface as readable messages
-- [ ] Served-file tests plus a JS syntax check in CI
+- [x] Static, framework-free app served by the API with the same visual language as the landing page, both themes, phone width
+- [x] Key entry with validation against `/v1/developer/usage`; key stored in localStorage only; clear sign-out
+- [x] Search, profile, filings (filters), facts (metric/period toggles, derived toggle, chart + table with source links), freshness
+- [x] Error envelope and rate-limit responses surface as readable messages
+- [x] Served-file tests plus a JS syntax check in CI

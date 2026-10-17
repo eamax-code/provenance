@@ -276,3 +276,14 @@ def test_freshness_stale_status(client, auth, ingested_aapl, db):
     db.commit()
     body = client.get("/v1/companies/320193/freshness", headers=auth).json()
     assert body["status"] == "stale"
+
+
+def test_explorer_app_is_served(client):
+    r = client.get("/app/")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    assert 'id="app"' in r.text and "/app/app.js" in r.text and "not affiliated" in r.text
+    js = client.get("/app/app.js")
+    assert js.status_code == 200 and "/v1/companies/search" in js.text and "X-API-Key" in js.text
+    assert "localStorage" in js.text
+    css = client.get("/app/app.css")
+    assert css.status_code == 200 and "prefers-color-scheme" in css.text
