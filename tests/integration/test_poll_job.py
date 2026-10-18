@@ -8,8 +8,8 @@ def test_run_once_polls_watched_companies_and_delivers(
 ):
     from datetime import UTC, datetime
 
-    from app.api.routes_developer import create_key_record
     from app.db.models import CompanyWatch
+    from app.services.api_keys import create_key_record
     from app.services.ingestion import import_ticker_mapping, ingest_company
     from app.services.notifications import WebhookSender
 
@@ -33,7 +33,7 @@ def test_run_once_polls_watched_companies_and_delivers(
     recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
     for col, val in [
         ("accessionNumber", "0000320193-25-000002"),
-        ("filingDate", "2025-02-01"),
+        ("filingDate", "2026-10-15"),
         ("reportDate", ""),
         ("acceptanceDateTime", ""),
         ("form", "8-K"),
@@ -73,8 +73,8 @@ def test_poll_continues_after_one_company_fails(
 
     from sqlalchemy import select
 
-    from app.api.routes_developer import create_key_record
     from app.db.models import CompanyWatch, IngestionRun
+    from app.services.api_keys import create_key_record
     from app.services.ingestion import import_ticker_mapping
 
     import_ticker_mapping(db, tickers_payload)

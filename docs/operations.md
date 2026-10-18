@@ -42,7 +42,7 @@ secret values) when:
 4. Start the API with 1-2 workers behind HTTPS; health check `GET /healthz`, readiness `GET /readyz`.
 5. Run the poller as a separate process or a cron job: `python scripts/poll_sec.py --once` every
    `INGESTION_POLL_INTERVAL_SECONDS`.
-6. Create the first API key: `python scripts/create_api_key.py you@example.com --plan pilot`.
+6. Create the first API key: `python scripts/create_api_key.py you@example.com --plan builder`.
 
 The Dockerfile serves the API by default; override the command for the poller.
 

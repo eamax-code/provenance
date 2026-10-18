@@ -47,7 +47,7 @@ source .venv/bin/activate
 docker compose up -d db                 # PostgreSQL on localhost:5432
 alembic upgrade head                    # apply migrations
 
-python scripts/create_api_key.py you@example.com --plan pilot   # prints the key once
+python scripts/create_api_key.py you@example.com --plan builder   # prints the key once
 python scripts/import_tickers.py        # optional: seed ~10k company identities from the SEC ticker file
 python scripts/ingest_company.py 320193 # ingest one company (filings + facts) from the SEC
 
@@ -148,7 +148,8 @@ Errors always use `{"error": {"code", "message", "request_id"}}`; every response
 Visitors request a key from the landing page (`POST /v1/developer/key-requests`: public,
 per-IP rate limited, honeypot, one pending request per email). An operator reviews with
 `scripts/approve_key_request.py list|approve|reject`; `approve --email` sends the key when SMTP
-is configured, otherwise the key is printed once for manual delivery. Operators can also issue
+is configured, otherwise the key is printed once for manual delivery. Deviation from ticket 08:
+there is no email-verification auto-approval; every request is approved by a person. Operators can also issue
 keys directly via `scripts/create_api_key.py` or `POST /v1/developer/api-keys` protected by
 `X-Admin-Token` (disabled unless `ADMIN_TOKEN` is set). Key holders can list and revoke keys that share their
 owner email. Plans: `free` (60 req/min, 10k req/month, 5 watched companies), `builder` (300/min,
@@ -183,7 +184,8 @@ the same image with `python scripts/poll_sec.py`.
 - Email notifications are implemented behind an SMTP adapter but disabled unless
   `EMAIL_PROVIDER=smtp` is configured; creating an email watch returns a clear error otherwise.
   They have not been exercised against a real SMTP server.
-- Rate limiting is in-process; multiple API replicas multiply the effective limit.
+- Rate limiting is in-process; multiple API replicas multiply the effective limit. Per-IP limits rely on uvicorn's `--proxy-headers --forwarded-allow-ips` (set in the Dockerfile and deploy manifests); without them every visitor behind a proxy shares one bucket.
+- SEC request metrics are per-run totals (requests, retries, errors, 304s, duration), not per endpoint or per status code.
 - SSRF protection validates at creation and re-resolves DNS immediately before each delivery,
   but the HTTP client still connects by hostname, leaving a small rebinding window.
 - Company search uses `LIKE` with a bounded scan; no trigram index yet.

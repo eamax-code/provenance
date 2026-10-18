@@ -138,9 +138,9 @@ def test_history_pages_are_ingested_without_duplicates(
 def test_watched_ciks_are_added_to_universe_on_poll(db, settings, sec_client, tickers_payload):
     from datetime import datetime as dt
 
-    from app.api.routes_developer import create_key_record
     from app.db.models import CompanyWatch
     from app.jobs.poll_sec import run_once
+    from app.services.api_keys import create_key_record
     from app.services.ingestion import import_ticker_mapping
 
     import_ticker_mapping(db, tickers_payload)
@@ -169,3 +169,101 @@ def test_not_found_at_sec_is_a_counted_failure(db, settings, sec_client):
         from app.services.ingestion import ingest_company
 
         ingest_company(db, sec_client, "999")
+
+
+def test_run_once_refreshes_due_universe_members_within_budget(
+    db, settings, sec_client, tickers_payload
+):
+    from app.jobs.poll_sec import run_once
+
+    universe.seed_from_tickers(db, tickers_payload, top_n=2)  # AAPL, MSFT; no watches
+    db.commit()
+    summary = run_once(db, settings, client=sec_client)
+    assert summary["companies"] == 0 and summary["universe"]["ingested"] == 2
+    assert summary["universe"]["requests_used"] >= 4
+    again = run_once(db, settings, client=sec_client)
+    assert again["universe"]["ingested"] == 0  # refreshed recently, nothing due
+    summary_off = run_once(db, settings, client=sec_client, include_universe=False)
+    assert "universe" not in summary_off
+
+
+def test_bulk_ingest_charges_actual_requests_including_retries(
+    db, settings, sec_client, fake_sec, tickers_payload
+):
+    universe.seed_from_tickers(db, tickers_payload, top_n=1)
+    db.commit()
+    fake_sec.fail_statuses = [503]
+    summary = universe.bulk_ingest(db, settings, sec_client, request_budget=10, now=_now())
+    assert summary["ingested"] == 1 and summary["requests_used"] == 3
+
+
+def test_history_page_and_old_filings_never_notify(
+    db, settings, sec_client, fake_sec, submissions_aapl
+):
+    import json
+    from pathlib import Path
+
+    from sqlalchemy import select
+
+    from app.db.models import CompanyWatch, NotificationDelivery
+    from app.services.api_keys import create_key_record
+    from app.services.ingestion import ingest_company
+
+    ingest_company(db, sec_client, "320193")
+    key, _ = create_key_record(db, settings, "w@example.com", "free", None, actor="test")
+    db.add(
+        CompanyWatch(
+            api_key_id=key.id,
+            cik="0000320193",
+            destination_type="webhook",
+            destination="https://hooks.example.com/",
+            is_active=True,
+            created_at=datetime.now(UTC),
+        )
+    )
+    db.commit()
+    page = json.loads(
+        (Path(__file__).parents[1] / "fixtures/submissions_0000320193_page1.json").read_text()
+    )
+    recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
+    # a filing dated years ago appearing in `recent` for the first time is backfill too
+    for col, val in [
+        ("accessionNumber", "0000320193-19-000001"),
+        ("filingDate", "2019-01-31"),
+        ("reportDate", ""),
+        ("acceptanceDateTime", ""),
+        ("form", "8-K"),
+        ("primaryDocument", "old.htm"),
+    ]:
+        recent[col].insert(0, val)
+    payload = {
+        **submissions_aapl,
+        "filings": {"recent": recent, "files": [{"name": "CIK0000320193-submissions-001.json"}]},
+    }
+    fake_sec.add("https://data.sec.gov/submissions/CIK0000320193.json", payload)
+    fake_sec.add("https://data.sec.gov/submissions/CIK0000320193-submissions-001.json", page)
+    result = ingest_company(
+        db, sec_client, "320193", history_pages=1, now=datetime(2026, 10, 18, tzinfo=UTC)
+    )
+    assert result.filings_inserted == 3 and result.notifications_created == 0
+    assert db.scalars(select(NotificationDelivery)).all() == []
+
+
+def test_unexpected_error_mid_ingest_rolls_back_partial_writes(
+    db, settings, sec_client, monkeypatch
+):
+    from sqlalchemy import func, select
+
+    from app.db.models import Company, Filing, IngestionRun
+    from app.services import ingestion
+
+    def boom(*a, **k):
+        raise RuntimeError("disk on fire")
+
+    monkeypatch.setattr(ingestion, "upsert_filings", boom)
+    with pytest.raises(RuntimeError):
+        ingestion.ingest_company(db, sec_client, "320193")
+    assert db.scalar(select(func.count(Company.id))) == 0
+    assert db.scalar(select(func.count(Filing.id))) == 0
+    runs = db.scalars(select(IngestionRun)).all()
+    assert len(runs) == 1 and runs[0].status == "failed" and runs[0].sec_requests == 1

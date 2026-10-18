@@ -23,7 +23,7 @@ from app.schemas.watches import (
     WatchOut,
 )
 from app.services.sec_client import normalize_cik
-from app.services.usage import watched_companies_used
+from app.services.usage import active_watches_used, watched_companies_used
 
 router = APIRouter(prefix="/v1", tags=["watches"])
 
@@ -86,6 +86,13 @@ def create_watch(
             422,
             "watch_limit_reached",
             f"Your plan allows watching {limits['max_watches']} companies. "
+            "Deactivate a watch or upgrade.",
+        )
+    if active_watches_used(db, key.id) >= limits["max_active_watches"]:
+        raise APIError(
+            422,
+            "watch_limit_reached",
+            f"Your plan allows {limits['max_active_watches']} active watches in total. "
             "Deactivate a watch or upgrade.",
         )
 

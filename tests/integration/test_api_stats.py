@@ -78,3 +78,37 @@ def test_landing_page_wires_live_stats(client):
     html = client.get("/").text
     assert "/v1/stats" in html and 'data-stat="companies"' in html
     assert "No companies ingested yet" in html or "not ingested anything yet" in html.lower()
+
+
+def test_stats_health_branches_and_cache_header(client, db, ingested_aapl, settings):
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import select
+
+    from app.db.models import Company, IngestionRun
+
+    stats_service.reset_cache()
+    r = client.get("/v1/stats")
+    assert (
+        r.headers["Cache-Control"].startswith("public, max-age=")
+        and r.json()["service"]["health"] == "ok"
+    )
+    c = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    c.last_successful_fetch_at = datetime.now(UTC) - timedelta(days=3)
+    db.commit()
+    stats_service.reset_cache()
+    assert client.get("/v1/stats").json()["service"]["health"] == "stale"
+    c.last_successful_fetch_at = datetime.now(UTC)
+    db.add(
+        IngestionRun(
+            source="sec:poll",
+            status="failed",
+            started_at=datetime.now(UTC),
+            finished_at=datetime.now(UTC),
+            error_count=1,
+        )
+    )
+    db.commit()
+    stats_service.reset_cache()
+    assert client.get("/v1/stats").json()["service"]["health"] == "degraded"
+    stats_service.reset_cache()

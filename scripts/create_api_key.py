@@ -12,8 +12,8 @@ import sys
 
 from _bootstrap import bootstrap
 
-from app.api.routes_developer import create_key_record
 from app.core.config import PLAN_NAMES
+from app.services.api_keys import create_key_record
 
 
 def main() -> int:
@@ -32,6 +32,7 @@ def main() -> int:
         key, raw = create_key_record(
             db, settings, args.owner_email, args.plan, args.label, actor="script"
         )
+        db.commit()
         print(f"key_id={key.id} prefix={key.key_prefix} plan={key.plan}")
         print(f"API key (shown once): {raw}")
         return 0

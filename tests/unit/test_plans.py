@@ -7,7 +7,9 @@ def test_all_advertised_plans_exist_with_pricing_page_limits():
         api_key_pepper="p" * 20,
         webhook_signing_secret="w" * 20,
     )
-    assert set(PLAN_LIMITS) == {"free", "builder", "team", "enterprise", "internal"}
+    assert set(PLAN_LIMITS) == {"free", "builder", "team", "enterprise", "internal", "pilot"}
+    assert plan_limits("pilot", s) == plan_limits("builder", s)  # legacy name keeps Builder limits
+    assert all("max_active_watches" in p for p in PLAN_LIMITS.values())
     free, builder, team = plan_limits("free", s), plan_limits("builder", s), plan_limits("team", s)
     assert (free["rate_limit_per_minute"], free["monthly_request_quota"], free["max_watches"]) == (
         60,

@@ -20,12 +20,13 @@ def test_request_key_records_and_dedupes(client, db):
     assert r.status_code == 202, r.text
     body = r.json()
     assert (
-        body["status"] == "pending" and body["email"] == "dev@example.com" and "request_id" in body
+        body["status"] == "received" and body["email"] == "dev@example.com" and body["request_id"]
     )
     assert "api_key" not in r.text
     # duplicate pending request for the same email is acknowledged, not duplicated
     r2 = client.post("/v1/developer/key-requests", json=payload)
-    assert r2.status_code == 202 and r2.json()["request_id"] == body["request_id"]
+    assert r2.status_code == 202 and r2.json()["request_id"] is None
+    assert r2.json()["message"] == body["message"]
     assert db.scalar(select(KeyRequest.id)) is not None
     assert len(db.scalars(select(KeyRequest)).all()) == 1
 
@@ -119,6 +120,35 @@ def test_reject_request(client, db, settings):
         ).status_code
         == 202
     )
+
+
+def test_email_with_active_key_gets_same_answer_and_no_row(client, db, settings):
+    from app.services.api_keys import create_key_record
+
+    _reset()
+    create_key_record(db, settings, "has@example.com", "free", None, actor="test")
+    db.commit()
+    r = client.post(
+        "/v1/developer/key-requests", json={"email": "has@example.com", "use_case": "x" * 20}
+    )
+    assert (
+        r.status_code == 202 and r.json()["request_id"] is None and r.json()["status"] == "received"
+    )
+    assert db.scalars(select(KeyRequest)).all() == []
+
+
+def test_approve_is_atomic_when_caller_rolls_back(client, db, settings):
+    from app.services.key_requests import approve_request, list_pending
+
+    _reset()
+    client.post(
+        "/v1/developer/key-requests", json={"email": "atomic@example.com", "use_case": "x" * 20}
+    )
+    req = list_pending(db)[0]
+    approve_request(db, settings, req.id, plan="free", actor="test")
+    db.rollback()  # e.g. emailing the key failed
+    assert db.get(KeyRequest, req.id).status == "pending"
+    assert db.scalar(select(ApiKey).where(ApiKey.owner_email == "atomic@example.com")) is None
 
 
 def test_landing_page_has_request_form(client):

@@ -16,3 +16,7 @@
 - **Ingestion run**: one pass of the ingestion pipeline with counts, status and redacted errors.
 - **Universe**: the configured list of CIKs that bulk ingestion and polling cover.
 - **Freshness**: age of the last successful SEC fetch plus detection/processing timestamps for the latest filing.
+- **Key request**: a self-serve request for an API key, pending until an operator approves or rejects it; never returns a key itself.
+- **Quality snapshot**: the per-run row of coverage, staleness, quality-status and delivery metrics in `data_quality_snapshots`.
+- **Health** (`/v1/stats`): `empty` (nothing fetched yet), `ok`, `stale` (last fetch beyond the staleness window), `degraded` (last run failed).
+- **Plan**: a named set of limits (`free`, `builder`, `team`, `enterprise`, `internal`; `pilot` is a legacy alias of `builder`).

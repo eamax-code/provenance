@@ -27,6 +27,11 @@ def test_snapshot_after_ingestion_has_counts(db, settings, sec_client):
     assert d["taken_at"].endswith("Z") and d["facts"]["by_quality"]["ok"] == snap.facts_ok
 
 
+def test_snapshot_on_empty_database_does_not_invent_provenance(db, settings):
+    snap = quality.take_snapshot(db, settings)
+    assert snap.facts_total == 0 and snap.facts_with_provenance_pct is None
+
+
 def test_snapshot_counts_stale_companies(db, settings, sec_client):
     ingest_company(db, sec_client, "320193")
     from app.db.models import Company
@@ -50,9 +55,9 @@ def test_sec_request_metrics_recorded_on_run(db, settings, sec_client, fake_sec)
 
 
 def test_poll_run_writes_snapshot(db, settings, sec_client, tickers_payload):
-    from app.api.routes_developer import create_key_record
     from app.db.models import CompanyWatch
     from app.jobs.poll_sec import run_once
+    from app.services.api_keys import create_key_record
     from app.services.ingestion import import_ticker_mapping
 
     import_ticker_mapping(db, tickers_payload)
@@ -88,7 +93,7 @@ def test_stats_includes_latest_snapshot(client, db, settings, ingested_aapl):
 
 
 def test_retention_purges_only_beyond_window(db, settings, sec_client):
-    from app.api.routes_developer import create_key_record
+    from app.services.api_keys import create_key_record
 
     key, _ = create_key_record(db, settings, "r@example.com", "free", None, actor="test")
     now = datetime(2026, 10, 18, tzinfo=UTC)

@@ -57,9 +57,9 @@ def test_new_filing_detected_on_second_run(db, sec_client, fake_sec, submissions
     ingest_company(db, sec_client, "320193")
     recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
     recent["accessionNumber"].insert(0, "0000320193-25-000001")
-    recent["filingDate"].insert(0, "2025-01-31")
+    recent["filingDate"].insert(0, "2026-10-15")
     recent["reportDate"].insert(0, "2024-12-28")
-    recent["acceptanceDateTime"].insert(0, "2025-01-31T06:00:00.000Z")
+    recent["acceptanceDateTime"].insert(0, "2026-10-15T06:00:00.000Z")
     recent["form"].insert(0, "10-Q")
     recent["primaryDocument"].insert(0, "aapl-20241228.htm")
     fake_sec.add(

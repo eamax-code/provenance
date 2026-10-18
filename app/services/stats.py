@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.core.timeutil import iso_z
 from app.db.models import (
     Company,
     CompanyWatch,
@@ -33,8 +34,7 @@ def reset_cache() -> None:
         _cached = None
 
 
-def _iso(dt: datetime | None) -> str | None:
-    return dt.astimezone(UTC).isoformat().replace("+00:00", "Z") if dt else None
+_iso = iso_z
 
 
 def compute_stats(db: Session, settings: Settings, now: datetime | None = None) -> dict:

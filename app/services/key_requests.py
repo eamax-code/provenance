@@ -8,9 +8,9 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.routes_developer import create_key_record
 from app.core.config import Settings
 from app.db.models import ApiKey, AuditEvent, KeyRequest, utcnow
+from app.services.api_keys import create_key_record
 
 MIN_USE_CASE_CHARS = 12
 
@@ -23,14 +23,24 @@ def hash_ip(ip: str | None, pepper: str) -> str | None:
 
 def create_or_get_pending(
     db: Session, email: str, use_case: str, plan: str, client_ip_hash: str | None
-) -> tuple[KeyRequest, bool]:
-    """Return (request, created). An existing pending request for the email is reused."""
+) -> tuple[KeyRequest | None, bool]:
+    """Return (request_or_None, created).
+
+    Nothing new is stored when a pending request or an active key already exists for the
+    email; callers answer identically in both cases so the endpoint cannot be used to probe
+    which addresses are known.
+    """
     email = email.strip().lower()
     existing = db.scalar(
         select(KeyRequest).where(KeyRequest.email == email, KeyRequest.status == "pending")
     )
     if existing is not None:
         return existing, False
+    active_key = db.scalar(
+        select(ApiKey.id).where(ApiKey.owner_email == email, ApiKey.is_active.is_(True))
+    )
+    if active_key is not None:
+        return None, False
     req = KeyRequest(
         email=email,
         use_case=use_case.strip()[:2000],
@@ -75,11 +85,13 @@ def approve_request(
         raise ValueError("key request not found")
     if req.status != "pending":
         raise ValueError(f"key request is already {req.status}")
-    key, raw = create_key_record(db, settings, req.email, plan, label="self-serve", actor=actor)
+    # Mark the request first, then issue the key, all in the caller's transaction, so a failure
+    # anywhere leaves neither an orphaned key nor a re-approvable request.
     req.status = "approved"
     req.approved_at = utcnow()
-    req.approved_key_id = key.id
     req.key_delivered_via = delivered_via
+    key, raw = create_key_record(db, settings, req.email, plan, label="self-serve", actor=actor)
+    req.approved_key_id = key.id
     db.add(
         AuditEvent(
             actor=actor,

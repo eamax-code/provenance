@@ -50,17 +50,21 @@ def main() -> int:
             print("rejected")
             return 0
         via = "email" if args.email else "operator"
+        if args.email and not settings.email_configured:
+            print("SMTP is not configured; approve without --email instead.", file=sys.stderr)
+            return 2
         key, raw = approve_request(
             db, settings, rid, plan=args.plan, actor="script", delivered_via=via
         )
         if args.email:
-            if not settings.email_configured:
-                db.rollback()
-                print("SMTP is not configured; approve without --email instead.", file=sys.stderr)
-                return 2
             from app.services.email_adapter import send_api_key_email
 
-            send_api_key_email(settings, key.owner_email, raw, key.plan)
+            try:
+                send_api_key_email(settings, key.owner_email, raw, key.plan)
+            except Exception as exc:  # noqa: BLE001 - nothing is persisted on failure
+                db.rollback()
+                print(f"email failed ({type(exc).__name__}); nothing was issued.", file=sys.stderr)
+                return 3
             db.commit()
             print(f"approved and emailed to {key.owner_email} (key_id={key.id})")
         else:

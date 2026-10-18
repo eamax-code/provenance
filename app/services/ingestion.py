@@ -11,7 +11,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -66,6 +66,7 @@ class FilingRecord:
     source_url: str
     quality_status: str
     notes: list[str] = field(default_factory=list)
+    from_history_page: bool = False
 
     def payload_hash(self) -> str:
         return hashlib.sha256(
@@ -523,24 +524,46 @@ def ingest_company(
     result = IngestResult(cik=cik, run_id=run.id)
     before = client.metrics.snapshot()
     try:
-        return _ingest_company(
+        outcome = _ingest_company(
             db, client, cik, run, own_run, now, include_facts, history_pages, result
         )
-    finally:
-        try:
-            run = db.merge(run)
-            account_sec_metrics(run, client.metrics.delta(before))
-            db.commit()
-        except Exception:  # noqa: BLE001 - metrics must never mask the real outcome
-            db.rollback()
+    except (SecClientError, IngestionError):
+        _account(db, run, client, before)
+        raise
+    except Exception as exc:
+        # Unexpected failure mid-ingest: discard partial writes, then record a failed run.
+        db.rollback()
+        failed = IngestionRun(
+            source=run.source,
+            started_at=run.started_at,
+            finished_at=utcnow(),
+            status="failed",
+            error_count=1,
+            error_summary=_redact_error(exc),
+        )
+        account_sec_metrics(failed, client.metrics.delta(before))
+        db.add(failed)
+        db.commit()
+        raise
+    _account(db, run, client, before)
+    return outcome
+
+
+def _account(db: Session, run: IngestionRun, client: SecClient, before) -> None:
+    try:
+        run = db.merge(run)
+        account_sec_metrics(run, client.metrics.delta(before))
+        db.commit()
+    except Exception:  # noqa: BLE001 - metrics must never mask the real outcome
+        db.rollback()
 
 
 def account_sec_metrics(run: IngestionRun, delta: dict[str, int]) -> None:
-    run.sec_requests += delta["requests"]
-    run.sec_retries += delta["retries"]
-    run.sec_errors += delta["errors"]
-    run.sec_cached += delta["cached"]
-    run.sec_duration_ms += delta["duration_ms"]
+    run.sec_requests = (run.sec_requests or 0) + delta["requests"]
+    run.sec_retries = (run.sec_retries or 0) + delta["retries"]
+    run.sec_errors = (run.sec_errors or 0) + delta["errors"]
+    run.sec_cached = (run.sec_cached or 0) + delta["cached"]
+    run.sec_duration_ms = (run.sec_duration_ms or 0) + delta["duration_ms"]
 
 
 def _ingest_company(
@@ -596,7 +619,9 @@ def _ingest_company(
             continue
         result.history_pages_fetched += 1
         if isinstance(page.data, dict):
-            filing_recs.extend(parse_filings_block(cik, page.data, www_base))
+            for rec in parse_filings_block(cik, page.data, www_base):
+                rec.from_history_page = True
+                filing_recs.append(rec)
     # de-duplicate across recent + pages, first occurrence wins
     seen_accn: set[str] = set()
     deduped: list[FilingRecord] = []
@@ -613,11 +638,17 @@ def _ingest_company(
     run.updated_count += upd
 
     # Notifications: one per active watch per newly detected filing (idempotent event ids).
-    # Only filings dated on/after the company's first ingestion count as "new" events so a
-    # backfill of a thousand historical filings does not fan out a thousand webhooks.
+    # Backfill never notifies (ADR 0004): not the company's first ingestion, not rows that came
+    # from older-filings history pages, and not filings older than NOTIFY_MAX_FILING_AGE_DAYS.
     first_ingestion = company.last_processed_at is None
     if not first_ingestion:
+        history_accessions = {r.accession_number for r in filing_recs if r.from_history_page}
+        max_age = timedelta(days=client.settings.notify_max_filing_age_days)
         for row in new_rows:
+            if row.accession_number in history_accessions:
+                continue
+            if row.filing_date is not None and (now.date() - row.filing_date) > max_age:
+                continue
             created = notifications.create_deliveries_for_filing(db, row, now)
             result.notifications_created += created
     result.new_filing_ids = [r.id for r in new_rows]

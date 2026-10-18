@@ -181,9 +181,10 @@ def client(app):
 
 @pytest.fixture
 def api_key(db, settings):
-    from app.api.routes_developer import create_key_record
+    from app.services.api_keys import create_key_record
 
     key, raw = create_key_record(db, settings, "dev@example.com", "free", "test", actor="test")
+    db.commit()
     return raw
 
 

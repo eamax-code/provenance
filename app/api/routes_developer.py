@@ -10,8 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import db_session, require_admin, require_api_key, settings_dep
 from app.core.config import Settings, plan_limits
 from app.core.errors import APIError
-from app.core.security import generate_api_key
-from app.db.models import ApiKey, AuditEvent, utcnow
+from app.db.models import ApiKey
 from app.schemas.common import ErrorEnvelope
 from app.schemas.developer import (
     ApiKeyCreate,
@@ -21,7 +20,13 @@ from app.schemas.developer import (
     PlanInfo,
     UsageOut,
 )
-from app.services.usage import requests_this_month, usage_summary, watched_companies_used
+from app.services.api_keys import create_key_record, revoke_key  # noqa: F401 - re-exported
+from app.services.usage import (
+    active_watches_used,
+    requests_this_month,
+    usage_summary,
+    watched_companies_used,
+)
 
 router = APIRouter(prefix="/v1/developer", tags=["developer"])
 _ERRORS = {
@@ -30,36 +35,6 @@ _ERRORS = {
     404: {"model": ErrorEnvelope},
     503: {"model": ErrorEnvelope},
 }
-
-
-def create_key_record(
-    db: Session, settings: Settings, owner_email: str, plan: str, label: str | None, actor: str
-):
-    env = "test" if settings.app_env in ("development", "test") else "live"
-    generated = generate_api_key(settings.api_key_pepper, env=env)
-    now = utcnow()
-    key = ApiKey(
-        owner_email=owner_email.lower(),
-        key_prefix=generated.key_prefix,
-        key_hash=generated.key_hash,
-        plan=plan,
-        label=label,
-        is_active=True,
-        created_at=now,
-    )
-    db.add(key)
-    db.flush()
-    db.add(
-        AuditEvent(
-            actor=actor,
-            action="api_key.created",
-            subject_type="api_key",
-            subject_id=str(key.id),
-            occurred_at=now,
-        )
-    )
-    db.commit()
-    return key, generated.raw_key
 
 
 @router.post(
@@ -80,6 +55,7 @@ def create_api_key(
     key, raw = create_key_record(
         db, settings, body.owner_email, body.plan, body.label, actor="admin"
     )
+    db.commit()
     return ApiKeyCreated(**ApiKeyOut.model_validate(key).model_dump(), api_key=raw)
 
 
@@ -110,20 +86,8 @@ def revoke_api_key(
     )
     if target is None:
         raise APIError(404, "api_key_not_found", "No API key with this id belongs to you.")
-    if target.is_active:
-        now = utcnow()
-        target.is_active = False
-        target.revoked_at = now
-        db.add(
-            AuditEvent(
-                actor=f"api_key:{key.key_prefix}",
-                action="api_key.revoked",
-                subject_type="api_key",
-                subject_id=str(target.id),
-                occurred_at=now,
-            )
-        )
-        db.commit()
+    revoke_key(db, target, actor=f"api_key:{key.key_prefix}")
+    db.commit()
     return ApiKeyOut.model_validate(target)
 
 
@@ -162,5 +126,7 @@ def usage(
             max_export_rows=limits["max_export_rows"],
             max_watches=limits["max_watches"],
             watched_companies_used=watched_companies_used(db, key.id),
+            max_active_watches=limits["max_active_watches"],
+            active_watches_used=active_watches_used(db, key.id),
         ),
     )

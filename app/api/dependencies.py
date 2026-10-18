@@ -94,3 +94,23 @@ def require_admin(
     if not token or not constant_time_equals(token, settings.admin_token):
         raise APIError(403, "forbidden", "A valid X-Admin-Token header is required.")
     return "admin"
+
+
+def client_ip(request: Request) -> str:
+    """Peer address as seen by the server.
+
+    Behind a reverse proxy run uvicorn with --proxy-headers and --forwarded-allow-ips so the
+    peer address is the real client, otherwise every visitor shares one rate-limit bucket.
+    """
+    return request.client.host if request.client else "unknown"
+
+
+def enforce_ip_limit(limiter: FixedWindowRateLimiter, key: str, limit: int, message: str) -> None:
+    decision = limiter.check(key, limit)
+    if not decision.allowed:
+        raise APIError(
+            429,
+            "rate_limited",
+            message,
+            headers={"Retry-After": str(decision.retry_after_seconds)},
+        )

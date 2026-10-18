@@ -30,7 +30,7 @@ def _watch(db, api_key_id, cik="0000320193", dest="https://hooks.example.com/sec
 
 
 def _key_id(db, settings):
-    from app.api.routes_developer import create_key_record
+    from app.services.api_keys import create_key_record
 
     key, _ = create_key_record(db, settings, "n@example.com", "free", None, actor="test")
     return key.id
@@ -95,9 +95,9 @@ def test_backfill_does_not_fan_out_but_new_filing_does(
     recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
     for col, val in [
         ("accessionNumber", "0000320193-25-000001"),
-        ("filingDate", "2025-01-31"),
+        ("filingDate", "2026-10-15"),
         ("reportDate", "2024-12-28"),
-        ("acceptanceDateTime", "2025-01-31T06:00:00.000Z"),
+        ("acceptanceDateTime", "2026-10-15T06:00:00.000Z"),
         ("form", "10-Q"),
         ("primaryDocument", "x.htm"),
     ]:

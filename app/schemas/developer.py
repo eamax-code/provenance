@@ -5,12 +5,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.core.config import PLAN_NAMES
 from app.schemas.common import ORMModel
 
 
 class ApiKeyCreate(BaseModel):
     owner_email: EmailStr
-    plan: str = Field(default="free", pattern="^(free|builder|team|enterprise|internal)$")
+    plan: str = Field(default="free", pattern="^(" + "|".join(PLAN_NAMES) + ")$")
     label: str | None = Field(default=None, max_length=100)
 
 
@@ -42,6 +43,8 @@ class PlanInfo(BaseModel):
     max_export_rows: int
     max_watches: int
     watched_companies_used: int
+    max_active_watches: int
+    active_watches_used: int
 
 
 class UsageOut(BaseModel):

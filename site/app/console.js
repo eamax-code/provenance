@@ -21,7 +21,9 @@
 
   function loadUsage() {
     var box = $('con-usage'); box.innerHTML = ''; box.appendChild(el('p', { class: 'skeleton', text: 'Loading usage…' }));
-    api('/v1/developer/usage').then(function (res) {
+    var days = parseInt(($('con-window') || { value: '30' }).value, 10) || 30;
+    var from = new Date(Date.now() - days * 86400000).toISOString();
+    api('/v1/developer/usage?from=' + encodeURIComponent(from)).then(function (res) {
       var u = res.body, p = u.plan; box.innerHTML = '';
       var grid = el('div', { class: 'grid' });
       var kv = function (k, v, extra) { var d = el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })]); if (extra) d.appendChild(extra); grid.appendChild(d); };
@@ -105,6 +107,7 @@
   }
 
   function bindCreate() {
+    var win = $('con-window'); if (win && !win.getAttribute('data-bound')) { win.setAttribute('data-bound', '1'); win.addEventListener('change', loadUsage); }
     var form = $('watch-form'); if (form.getAttribute('data-bound')) return; form.setAttribute('data-bound', '1');
     form.addEventListener('submit', function (e) {
       e.preventDefault();

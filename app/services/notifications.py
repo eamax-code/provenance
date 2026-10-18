@@ -8,7 +8,7 @@ import logging
 import random
 import time
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import httpx
 from sqlalchemy import select
@@ -18,6 +18,7 @@ from app.core.config import Settings
 from app.core.logging import log_event
 from app.core.security import derive_watch_secret, sign_webhook
 from app.core.ssrf import UnsafeDestination, resolve_and_check
+from app.core.timeutil import iso_z
 from app.db.models import CompanyWatch, Filing, NotificationDelivery, utcnow
 
 logger = logging.getLogger("app.notifications")
@@ -73,17 +74,15 @@ def build_event_payload(
     return {
         "event_id": delivery.event_id,
         "event_type": EVENT_TYPE,
-        "created_at": created_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
+        "created_at": iso_z(created_at),
         "data": {
             "cik": filing.cik,
             "accession_number": filing.accession_number,
             "form_type": filing.form_type,
             "filing_date": filing.filing_date.isoformat() if filing.filing_date else None,
-            "accepted_at": filing.accepted_at.isoformat().replace("+00:00", "Z")
-            if filing.accepted_at
-            else None,
+            "accepted_at": iso_z(filing.accepted_at),
             "source_url": filing.source_url,
-            "first_detected_at": filing.first_detected_at.isoformat().replace("+00:00", "Z"),
+            "first_detected_at": iso_z(filing.first_detected_at),
         },
     }
 

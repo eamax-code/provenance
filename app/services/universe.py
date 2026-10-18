@@ -23,11 +23,13 @@ from app.services.ingestion import (
     parse_ticker_exchange,
     start_run,
 )
+from app.services.quality import take_snapshot
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
 
 logger = logging.getLogger("app.universe")
 
 REQUESTS_PER_COMPANY = 2  # submissions + company facts; history pages add one each
+last_result = None  # IngestResult of the most recent ingest_member call
 
 
 def failure_backoff_seconds(consecutive_failures: int) -> int:
@@ -157,6 +159,39 @@ def record_failure(member: UniverseMember, settings: Settings, now: datetime, er
         )
 
 
+def ingest_member(
+    db: Session,
+    settings: Settings,
+    client: SecClient,
+    member: UniverseMember,
+    run: IngestionRun,
+    now: datetime,
+    history_pages: int | None = None,
+) -> tuple[bool, str | None]:
+    """Ingest one universe member, recording success/failure on the member. Commits."""
+    global last_result
+    last_result = None
+    try:
+        last_result = ingest_company(
+            db, client, member.cik, run=run, now=now, history_pages=history_pages
+        )
+        member = db.merge(member)
+        record_success(member, settings, now)
+        db.commit()
+        return True, None
+    except SecClientError as exc:
+        db.rollback()
+        error = f"{type(exc).__name__}: {exc}"
+    except Exception as exc:  # noqa: BLE001 - keep the run alive
+        db.rollback()
+        error = type(exc).__name__
+        logger.exception("universe ingest crashed", extra={"extra_fields": {"cik": member.cik}})
+    member = db.merge(member)
+    record_failure(member, settings, now, error)
+    db.commit()
+    return False, error.split(":")[0]
+
+
 def bulk_ingest(
     db: Session,
     settings: Settings,
@@ -168,16 +203,18 @@ def bulk_ingest(
     history_pages: int | None = None,
 ) -> dict:
     """Ingest due universe members in priority order until the request budget is spent."""
+    fixed_now = now
     now = now or utcnow()
     budget = settings.universe_request_budget_per_run if request_budget is None else request_budget
     pages = settings.sec_filings_history_pages if history_pages is None else history_pages
-    cost = REQUESTS_PER_COMPANY + max(0, pages)
+    cost = REQUESTS_PER_COMPANY + max(0, pages)  # estimate used to decide whether to start
     own_run = run is None
     if run is None:
         run = start_run(db, source="sec:universe")
         db.commit()
-    summary = {"ingested": 0, "failed": 0, "requests_used": 0, "remaining_due": 0}
+    summary: dict = {"ingested": 0, "failed": 0, "requests_used": 0, "remaining_due": 0}
     errors: list[str] = []
+    summary["errors"] = errors
     while summary["requests_used"] + cost <= budget:
         if max_companies is not None and summary["ingested"] + summary["failed"] >= max_companies:
             break
@@ -185,28 +222,17 @@ def bulk_ingest(
         if not candidates:
             break
         member = candidates[0]
-        summary["requests_used"] += cost
-        try:
-            ingest_company(db, client, member.cik, run=run, now=now, history_pages=pages)
-            member = db.merge(member)
-            record_success(member, settings, now)
+        company_now = fixed_now or utcnow()
+        before = client.metrics.snapshot()
+        ok, error = ingest_member(db, settings, client, member, run, company_now, pages)
+        # Charge the SEC requests actually made (retries and page fetches included).
+        summary["requests_used"] += max(cost, client.metrics.delta(before)["requests"])
+        if ok:
             summary["ingested"] += 1
-        except SecClientError as exc:
-            db.rollback()
-            member = db.merge(member)
-            run = db.merge(run)
-            record_failure(member, settings, now, f"{type(exc).__name__}: {exc}")
+        else:
             summary["failed"] += 1
-            errors.append(f"{member.cik}: {type(exc).__name__}")
-        except Exception as exc:  # noqa: BLE001 - keep the run alive
-            db.rollback()
-            member = db.merge(member)
-            run = db.merge(run)
-            record_failure(member, settings, now, f"{type(exc).__name__}")
-            summary["failed"] += 1
-            errors.append(f"{member.cik}: {type(exc).__name__}")
-            logger.exception("universe ingest crashed", extra={"extra_fields": {"cik": member.cik}})
-        db.commit()
+            errors.append(f"{member.cik}: {error}")
+        run = db.merge(run)
     summary["remaining_due"] = count_due(db, now)
     if own_run:
         run = db.merge(run)
@@ -215,8 +241,6 @@ def bulk_ingest(
         else:
             status = "failed" if summary["ingested"] == 0 else "partial"
         finish_run(db, run, status, "; ".join(errors)[:2000] or None)
-        from app.services.quality import take_snapshot
-
         take_snapshot(db, settings, run_id=run.id, now=now)
         db.commit()
     log_event(logger, logging.INFO, "universe bulk ingest", **summary)

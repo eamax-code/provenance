@@ -274,7 +274,7 @@ class DataQualitySnapshot(Base):
     facts_partial: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     facts_ambiguous: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     facts_invalid: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    facts_with_provenance_pct: Mapped[float] = mapped_column(Float, nullable=False, default=100.0)
+    facts_with_provenance_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     pending_deliveries: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     delivered_24h: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     failed_24h: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

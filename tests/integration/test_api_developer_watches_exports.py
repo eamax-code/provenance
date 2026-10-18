@@ -228,9 +228,9 @@ def test_new_filing_creates_delivery_and_webhook_is_verifiable(
     recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
     for col, val in [
         ("accessionNumber", "0000320193-25-000001"),
-        ("filingDate", "2025-01-31"),
+        ("filingDate", "2026-10-15"),
         ("reportDate", "2024-12-28"),
-        ("acceptanceDateTime", "2025-01-31T06:00:00.000Z"),
+        ("acceptanceDateTime", "2026-10-15T06:00:00.000Z"),
         ("form", "10-Q"),
         ("primaryDocument", "x.htm"),
     ]:
@@ -412,6 +412,7 @@ def test_watch_limit_enforced_per_plan(
         "monthly_request_quota": 10_000,
         "max_export_rows": 10,
         "max_watches": 1,
+        "max_active_watches": 2,
     }
     monkeypatch.setattr(routes_notifications, "plan_limits", lambda plan, s: limits)
     monkeypatch.setattr(routes_developer, "plan_limits", lambda plan, s: limits)
@@ -430,8 +431,16 @@ def test_watch_limit_enforced_per_plan(
     )
     r = client.post("/v1/watches", json={**body, "cik": "789019"}, headers=auth)
     assert r.status_code == 422 and r.json()["error"]["code"] == "watch_limit_reached"
+    # total active watch rows are capped too (same CIK, third destination)
+    r = client.post(
+        "/v1/watches",
+        json={**body, "cik": "320193", "destination": "https://hooks.example.com/third"},
+        headers=auth,
+    )
+    assert r.status_code == 422 and "active watches in total" in r.json()["error"]["message"]
     usage = client.get("/v1/developer/usage", headers=auth).json()
     assert usage["plan"]["max_watches"] == 1 and usage["plan"]["watched_companies_used"] == 1
+    assert usage["plan"]["max_active_watches"] == 2 and usage["plan"]["active_watches_used"] == 2
 
 
 def test_admin_can_create_builder_and_team_keys(client, settings):

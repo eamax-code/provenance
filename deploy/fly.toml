@@ -16,7 +16,7 @@ primary_region = "iad"          # close to data.sec.gov (US East)
   SEC_CACHE_DIR = "/data/sec_cache"
 
 [processes]
-  api = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
+  api = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=*"
   poller = "python scripts/poll_sec.py"
 
 [deploy]

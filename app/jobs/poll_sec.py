@@ -20,9 +20,9 @@ from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import Company, CompanyWatch, utcnow
 from app.services import quality, universe
-from app.services.ingestion import finish_run, ingest_company, start_run
+from app.services.ingestion import finish_run, start_run
 from app.services.notifications import deliver_pending
-from app.services.sec_client import SecClient, SecClientError
+from app.services.sec_client import SecClient
 
 logger = logging.getLogger("app.jobs.poll")
 ADVISORY_LOCK_KEY = 7_201_349_001
@@ -89,38 +89,28 @@ def run_once(
                 now = utcnow()
                 member = universe.ensure_member(db, cik, source="watch", now=now)
                 db.commit()
-                try:
-                    result = ingest_company(db, client, cik, run=run, now=now)
-                    member = db.merge(member)
-                    universe.record_success(member, settings, now)
+                ok, error = universe.ingest_member(db, settings, client, member, run, now)
+                run = db.merge(run)
+                if ok:
                     summary["succeeded"] += 1
-                    summary["notifications_created"] += result.notifications_created
-                except SecClientError as exc:
-                    db.rollback()
-                    member = db.merge(member)
-                    run = db.merge(run)
-                    universe.record_failure(member, settings, now, f"{type(exc).__name__}: {exc}")
+                    summary["notifications_created"] += (
+                        universe.last_result.notifications_created if universe.last_result else 0
+                    )
+                else:
                     summary["failed"] += 1
-                    errors.append(f"{cik}: {type(exc).__name__}")
-                except Exception as exc:  # noqa: BLE001 - keep polling other companies
-                    db.rollback()
-                    member = db.merge(member)
-                    run = db.merge(run)
-                    universe.record_failure(member, settings, now, type(exc).__name__)
-                    summary["failed"] += 1
-                    errors.append(f"{cik}: {type(exc).__name__}")
-                    logger.exception("poll failure", extra={"extra_fields": {"cik": cik}})
-                db.commit()
-            status = (
-                "succeeded"
-                if not errors
-                else ("failed" if summary["succeeded"] == 0 and ciks else "partial")
-            )
-            run = db.merge(run)
-            finish_run(db, run, status, "; ".join(errors)[:2000] or None)
-            db.commit()
+                    errors.append(f"{cik}: {error}")
             if include_universe:
                 summary["universe"] = universe.bulk_ingest(db, settings, client, run=run)
+                run = db.merge(run)
+                errors.extend(summary["universe"].get("errors", []))
+            if not errors:
+                status = "succeeded"
+            elif summary["succeeded"] == 0 and ciks:
+                status = "failed"
+            else:
+                status = "partial"
+            finish_run(db, run, status, "; ".join(errors)[:2000] or None)
+            db.commit()
             summary["deliveries"] = deliver_pending(db, settings, sender=sender)
             snap = quality.take_snapshot(db, settings, run_id=run.id)
             db.commit()

@@ -9,6 +9,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.core.timeutil import iso_z
 from app.db.models import (
     Company,
     CompanyWatch,
@@ -86,7 +87,7 @@ def take_snapshot(
         facts_invalid=by_quality.get("invalid_source_value", 0),
         facts_with_provenance_pct=round(100.0 * with_provenance / facts_total, 3)
         if facts_total
-        else 100.0,
+        else None,
         pending_deliveries=_count(
             db,
             select(func.count(NotificationDelivery.id)).where(
@@ -142,7 +143,7 @@ def latest_snapshot(db: Session) -> DataQualitySnapshot | None:
 
 def snapshot_to_dict(snap: DataQualitySnapshot) -> dict:
     return {
-        "taken_at": snap.taken_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
+        "taken_at": iso_z(snap.taken_at),
         "run_id": str(snap.run_id) if snap.run_id else None,
         "companies": {
             "known": snap.companies_known,

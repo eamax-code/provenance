@@ -47,6 +47,7 @@ nginx) in front of port 8000 and set `.env` from `.env.example` with real secret
 | --- | --- |
 | Fly shared-cpu-1x 512 MB x2 (api + poller), auto-stop on api | about US$4-8 |
 | Fly Postgres single node 1 GB | about US$2-5 |
+| Fly volume 1 GB for the SEC response cache (poller) | about US$0.15 |
 | Domain | about US$12/year |
 
 Roughly ₹700-1,200 per month, inside the ₹4,000 hosting cap in AGENTS.md for a multi-month

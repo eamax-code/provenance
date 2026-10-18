@@ -100,3 +100,14 @@ def watched_companies_used(db: Session, api_key_id: uuid.UUID) -> int:
         )
         or 0
     )
+
+
+def active_watches_used(db: Session, api_key_id: uuid.UUID) -> int:
+    return int(
+        db.scalar(
+            select(func.count(CompanyWatch.id)).where(
+                CompanyWatch.api_key_id == api_key_id, CompanyWatch.is_active.is_(True)
+            )
+        )
+        or 0
+    )

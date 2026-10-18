@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     sec_live_tests: bool = False
 
     ingestion_poll_interval_seconds: int = 300
+    # Newly detected filings older than this are treated as backfill and never notified
+    notify_max_filing_age_days: int = 30
     # Universe (bulk coverage) settings
     universe_refresh_interval_seconds: int = 6 * 3600
     universe_request_budget_per_run: int = 400
@@ -112,39 +114,48 @@ class Settings(BaseSettings):
 
 PLAN_LIMITS: dict[str, dict[str, int]] = {
     # Advertised on the pricing page; keep in sync with site/index.html.
-    # rate limit per minute, requests per calendar month, export rows per request, watched CIKs
+    # rate limit per minute, requests per calendar month, export rows per request,
+    # distinct watched CIKs, total active watch rows (destinations)
     "free": {
         "rate_limit_per_minute": 60,
         "monthly_request_quota": 10_000,
         "max_export_rows": 1000,
         "max_watches": 5,
+        "max_active_watches": 10,
     },
     "builder": {
         "rate_limit_per_minute": 300,
         "monthly_request_quota": 250_000,
         "max_export_rows": 1000,
         "max_watches": 50,
+        "max_active_watches": 100,
     },
     "team": {
         "rate_limit_per_minute": 1000,
         "monthly_request_quota": 2_000_000,
         "max_export_rows": 1000,
         "max_watches": 500,
+        "max_active_watches": 1000,
     },
     "enterprise": {
         "rate_limit_per_minute": 3000,
         "monthly_request_quota": 50_000_000,
         "max_export_rows": 1000,
         "max_watches": 5000,
+        "max_active_watches": 10_000,
     },
     "internal": {
         "rate_limit_per_minute": 1000,
         "monthly_request_quota": 10_000_000,
         "max_export_rows": 1000,
         "max_watches": 5000,
+        "max_active_watches": 10_000,
     },
 }
+# Legacy name from the first release; keys created as "pilot" keep Builder-level limits.
+PLAN_LIMITS["pilot"] = dict(PLAN_LIMITS["builder"])
 PLAN_NAMES = tuple(PLAN_LIMITS)
+SELF_SERVE_PLANS = ("free", "builder", "team")
 
 
 def plan_limits(plan: str, settings: Settings) -> dict[str, int]:
@@ -161,4 +172,12 @@ def get_settings() -> Settings:
     return Settings()
 
 
-__all__ = ["Settings", "get_settings", "plan_limits", "PLAN_LIMITS", "PLAN_NAMES", "Field"]
+__all__ = [
+    "Settings",
+    "get_settings",
+    "plan_limits",
+    "PLAN_LIMITS",
+    "PLAN_NAMES",
+    "SELF_SERVE_PLANS",
+    "Field",
+]
