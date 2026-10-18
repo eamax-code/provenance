@@ -19,6 +19,9 @@
 - GET /v1/developer/usage?from=&to= ; GET/DELETE /v1/developer/api-keys
 - GET /v1/exports/facts?metric=&ciks=a,b&format={csv|json}&limit<=1000
 - GET /v1/stats  (public, no key; coverage and health of this deployment, cached 30s)
+- GET /v1/public/plans  (public; plan limits and pilot pricing)
+- GET /v1/public/companies  (public; showcase companies with latest filing and latest annual revenue)
+- GET /v1/public/companies/{cik}  (public; profile, latest 10 filings, annual facts for 5 metrics, freshness; showcase only)
 - POST /v1/developer/key-requests {"email","use_case","plan"}  (public, rate limited; operator approves)
 
 ## Interpreting facts

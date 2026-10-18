@@ -1,0 +1,19 @@
+/* Public pages: builds on /app/app.css tokens and components. */
+.pub-head { display: grid; gap: 8px; padding-block: 28px 8px; }
+.pub-head h1 { font-size: clamp(1.5rem, 3.5vw, 2.3rem); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 16px; display: grid; gap: 8px; min-width: 0; color: var(--fg); position: relative; transition: border-color .25s, transform .25s; }
+.card:hover { border-color: var(--accent); text-decoration: none; transform: translateY(-3px); }
+.card .ticker { font-family: var(--font-mono); font-size: .74rem; color: var(--accent); letter-spacing: .08em; }
+.card .name { font-family: var(--font-display); font-weight: 600; font-size: 1rem; }
+.card .big { font-family: var(--font-display); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.card .fine { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); }
+.cta-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--panel); padding: 14px 16px; }
+.notice { border: 1px solid var(--line); border-left: 3px solid var(--accent-2); border-radius: var(--radius); background: var(--panel); padding: 12px 14px; font-size: .88rem; }
+.metric-block { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 16px; min-width: 0; }
+.metric-block h3 { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+.metric-block .series { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .metric-block .series { grid-template-columns: 1fr; } }
+.state { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); }
+.breadcrumb { font-family: var(--font-mono); font-size: .76rem; color: var(--muted); }
+.breadcrumb a { color: var(--muted); }

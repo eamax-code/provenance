@@ -9,7 +9,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -20,6 +20,7 @@ from app.api import (
     routes_exports,
     routes_key_requests,
     routes_notifications,
+    routes_public,
     routes_stats,
 )
 from app.core.config import Settings, get_settings
@@ -119,6 +120,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_exports.router)
     app.include_router(routes_stats.router)
     app.include_router(routes_key_requests.router)
+    app.include_router(routes_public.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")
     def healthz():
@@ -157,7 +159,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         for path, methods in schema.get("paths", {}).items():
             for method in methods.values():
                 if path.startswith("/v1/"):
-                    if path in ("/v1/stats", "/v1/developer/key-requests"):
+                    if path in ("/v1/stats", "/v1/developer/key-requests") or path.startswith(
+                        "/v1/public/"
+                    ):
                         method["security"] = []
                     elif path == "/v1/developer/api-keys" and method.get("summary", "").startswith(
                         "Create"
@@ -173,6 +177,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Static marketing site (index.html, llms.txt). Mounted last so API routes win.
     site_dir = Path(__file__).resolve().parent.parent / "site"
     if site_dir.is_dir():
+        company_page = site_dir / "company.html"
+
+        @app.get("/companies/{cik}", include_in_schema=False, response_class=FileResponse)
+        def public_company_page(cik: str):
+            # Shareable URL; the page script reads the CIK from the path and calls the API.
+            return FileResponse(company_page, media_type="text/html")
+
         app.mount("/", StaticFiles(directory=str(site_dir), html=True), name="site")
     return app
 

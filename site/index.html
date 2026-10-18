@@ -7,6 +7,7 @@
 <meta name="description" content="Source-linked SEC filing facts for developers and AI agents: company identity, filings, normalized XBRL financials, freshness and signed notifications. Independent of the SEC.">
 <link rel="alternate" type="application/json" href="/openapi.json" title="OpenAPI">
 <link rel="help" href="/llms.txt">
+<link rel="stylesheet" href="/public.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script type="application/ld+json">
@@ -279,10 +280,12 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
       <a href="#agents">For agents</a>
       <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
+      <a href="/companies/">Companies</a>
+      <a href="/status/">Status</a>
       <a href="/app/">Explorer</a>
       <a href="/docs">API docs</a>
     </nav>
-    <a class="btn primary" href="#pricing">Get an API key</a>
+    <a class="btn primary" href="#contact">Get an API key</a>
   </div>
 </header>
 
@@ -307,8 +310,8 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
       <p class="muted mono" id="live-note" style="font-size:.74rem;margin-top:10px">Loading live coverage from /v1/stats…</p>
     </div>
     <div class="terminal" aria-label="Sample API response">
-      <div class="bar"><span>GET /v1/companies/320193/facts?metric=revenue&amp;period=annual</span><span class="status-pill"><i></i>200</span></div>
-<pre>{
+      <div class="bar"><span id="hero-sample-url">GET /v1/companies/320193/facts?metric=revenue&amp;period=annual</span><span class="status-pill"><i></i>200</span></div>
+<pre id="hero-sample">{
   <span class="k">"metric"</span>: <span class="s">"revenue"</span>,
   <span class="k">"value"</span>: <span class="n">391035000000</span>,
   <span class="k">"unit"</span>: <span class="s">"USD"</span>,
@@ -432,6 +435,18 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
     </div>
   </section>
 
+  <section id="live-data">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Live data · /v1/public/companies</p>
+        <h2>Real companies, real filings, real links.</h2>
+        <p class="muted">A keyless showcase of companies this deployment has ingested. Open one to see its filings, the five normalized metrics and freshness, every row linking to the SEC source. <a href="/companies/">Browse all showcase companies →</a></p>
+      </div>
+      <p class="state" id="live-data-state">Loading live data…</p>
+      <div class="cards" id="live-data-grid"></div>
+    </div>
+  </section>
+
   <section id="pricing">
     <div class="wrap">
       <div class="sec-head">
@@ -444,46 +459,46 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
         <button type="button" id="bill-annual" aria-pressed="false">Annual · 2 months free</button>
       </div>
       <div class="plans">
-        <div class="plan">
+        <div class="plan" data-plan="free">
           <div class="name"><h3>Free</h3><span class="tag">evaluate</span></div>
           <div class="price">$0<small> forever</small></div>
           <p class="for">Try the schema, build a prototype, run an agent demo.</p>
           <ul>
-            <li class="quota">60 requests / minute</li>
-            <li class="quota">10,000 requests / month</li>
-            <li class="quota">5 watched companies</li>
-            <li class="quota">1,000 rows per export</li>
+            <li class="quota" data-limit="rate">60 requests / minute</li>
+            <li class="quota" data-limit="monthly">10,000 requests / month</li>
+            <li class="quota" data-limit="watches">5 watched companies</li>
+            <li class="quota" data-limit="export">1,000 rows per export</li>
             <li>OpenAPI, llms.txt, sample code</li>
           </ul>
-          <a class="btn" href="/docs">Request a key</a>
+          <a class="btn" href="#contact">Request a key</a>
         </div>
-        <div class="plan featured">
+        <div class="plan featured" data-plan="builder">
           <div class="name"><h3>Builder</h3><span class="tag">most popular</span></div>
           <div class="price"><span data-price data-monthly="49" data-annual="41">$49</span><small> / month</small></div>
           <p class="for">Indie fintech, research tooling, one production AI app.</p>
           <ul>
-            <li class="quota">300 requests / minute</li>
-            <li class="quota">250,000 requests / month</li>
-            <li class="quota">50 watched companies</li>
-            <li class="quota">1,000 rows per export</li>
+            <li class="quota" data-limit="rate">300 requests / minute</li>
+            <li class="quota" data-limit="monthly">250,000 requests / month</li>
+            <li class="quota" data-limit="watches">50 watched companies</li>
+            <li class="quota" data-limit="export">1,000 rows per export</li>
             <li>Email support, 2 business days</li>
           </ul>
-          <a class="btn primary" href="/docs">Start Builder</a>
+          <a class="btn primary" href="#contact">Start Builder</a>
         </div>
-        <div class="plan">
+        <div class="plan" data-plan="team">
           <div class="name"><h3>Team</h3><span class="tag">scale</span></div>
           <div class="price"><span data-price data-monthly="199" data-annual="166">$199</span><small> / month</small></div>
           <p class="for">Analytics SaaS and data teams monitoring a defined watch list.</p>
           <ul>
-            <li class="quota">1,000 requests / minute</li>
-            <li class="quota">2,000,000 requests / month</li>
-            <li class="quota">500 watched companies</li>
-            <li class="quota">1,000 rows per export, higher on request</li>
+            <li class="quota" data-limit="rate">1,000 requests / minute</li>
+            <li class="quota" data-limit="monthly">2,000,000 requests / month</li>
+            <li class="quota" data-limit="watches">500 watched companies</li>
+            <li class="quota" data-limit="export">1,000 rows per export, higher on request</li>
             <li>Priority support, usage reports, measured freshness report for your watch list</li>
           </ul>
-          <a class="btn" href="/docs">Start Team</a>
+          <a class="btn" href="#contact">Start Team</a>
         </div>
-        <div class="plan">
+        <div class="plan" data-plan="enterprise">
           <div class="name"><h3>Enterprise</h3><span class="tag">custom</span></div>
           <div class="price">Talk to us</div>
           <p class="for">Dedicated polling lists, custom quotas, invoicing, data-rights review.</p>
@@ -496,16 +511,17 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
           <a class="btn" href="#contact">Contact</a>
         </div>
       </div>
+      <p class="note mono" id="pricing-live" style="font-size:.74rem">Limits shown are the static defaults until /v1/public/plans responds.</p>
       <p class="note">Prices are proposed pilot pricing in USD, excluding taxes, and may change after the pilot. Quotas are per API key. Freshness depends on the poll interval and SEC propagation; no latency SLA is offered during the pilot. Nothing here is investment advice.</p>
 
       <div class="compare">
         <table>
           <thead><tr><th>Limit</th><th>Free</th><th>Builder</th><th>Team</th><th>Enterprise</th></tr></thead>
           <tbody>
-            <tr><td>Requests per minute</td><td class="num">60</td><td class="num">300</td><td class="num">1,000</td><td class="num">custom</td></tr>
-            <tr><td>Requests per month</td><td class="num">10,000</td><td class="num">250,000</td><td class="num">2,000,000</td><td class="num">custom</td></tr>
-            <tr><td>Watched companies</td><td class="num">5</td><td class="num">50</td><td class="num">500</td><td class="num">custom</td></tr>
-            <tr><td>Export rows per request</td><td class="num">1,000</td><td class="num">1,000</td><td class="num">1,000+</td><td class="num">custom</td></tr>
+            <tr data-compare="rate"><td>Requests per minute</td><td class="num" data-plan-col="free">60</td><td class="num" data-plan-col="builder">300</td><td class="num" data-plan-col="team">1,000</td><td class="num" data-plan-col="enterprise">custom</td></tr>
+            <tr data-compare="monthly"><td>Requests per month</td><td class="num" data-plan-col="free">10,000</td><td class="num" data-plan-col="builder">250,000</td><td class="num" data-plan-col="team">2,000,000</td><td class="num" data-plan-col="enterprise">custom</td></tr>
+            <tr data-compare="watches"><td>Watched companies</td><td class="num" data-plan-col="free">5</td><td class="num" data-plan-col="builder">50</td><td class="num" data-plan-col="team">500</td><td class="num" data-plan-col="enterprise">custom</td></tr>
+            <tr data-compare="export"><td>Export rows per request</td><td class="num" data-plan-col="free">1,000</td><td class="num" data-plan-col="builder">1,000</td><td class="num" data-plan-col="team">1,000+</td><td class="num" data-plan-col="enterprise">custom</td></tr>
             <tr><td>Webhook retries</td><td class="num">6 attempts</td><td class="num">6 attempts</td><td class="num">6 attempts</td><td class="num">custom</td></tr>
             <tr><td>Poll interval for watched companies</td><td class="num">5 min</td><td class="num">5 min</td><td class="num">5 min</td><td class="num">custom</td></tr>
             <tr><td>Support</td><td>Docs</td><td>Email</td><td>Priority</td><td>Named contact</td></tr>
@@ -798,5 +814,6 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
   });
 })();
 </script>
+<script src="/public.js"></script>
 </body>
 </html>

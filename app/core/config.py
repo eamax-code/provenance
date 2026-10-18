@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     sec_filings_history_pages: int = 0
     freshness_stale_after_seconds: int = 24 * 3600
     on_demand_ingestion_enabled: bool = True
+    # Public website showcase: explicit CIK list, or the most recently filed ingested companies
+    public_showcase_ciks: str = ""
+    public_showcase_limit: int = 12
 
     # Security
     api_key_pepper: str = ""
@@ -156,6 +159,13 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
 PLAN_LIMITS["pilot"] = dict(PLAN_LIMITS["builder"])
 PLAN_NAMES = tuple(PLAN_LIMITS)
 SELF_SERVE_PLANS = ("free", "builder", "team")
+# Pilot pricing shown on the website (USD per month, billed monthly). None = contact sales.
+PUBLIC_PLANS: tuple[dict, ...] = (
+    {"name": "free", "label": "Free", "price_usd_per_month": 0, "featured": False},
+    {"name": "builder", "label": "Builder", "price_usd_per_month": 49, "featured": True},
+    {"name": "team", "label": "Team", "price_usd_per_month": 199, "featured": False},
+    {"name": "enterprise", "label": "Enterprise", "price_usd_per_month": None, "featured": False},
+)
 
 
 def plan_limits(plan: str, settings: Settings) -> dict[str, int]:

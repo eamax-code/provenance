@@ -24,6 +24,8 @@ file.
 | Explorer web app: search, filings, facts chart with provenance, freshness | `GET /app/` (static, key stays in the browser) |
 | Developer console: usage and plan meters, keys, watches, deliveries | `GET /app/#console` |
 | Public coverage stats, cached 30 s, no key | `GET /v1/stats` |
+| Public showcase API: plans, companies, per-company bundle (no key, cached 60 s, never calls the SEC) | `GET /v1/public/plans`, `/v1/public/companies`, `/v1/public/companies/{cik}` |
+| Public pages driven by the API: directory, company pages, status | `GET /companies/`, `/companies/{cik}`, `/status/` |
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
 | Universe: seed CIKs, budgeted resumable bulk ingestion with backoff | `scripts/bulk_ingest.py`, poller refreshes due members |
@@ -191,6 +193,9 @@ the same image with `python scripts/poll_sec.py`.
 - Company search uses `LIKE` with a bounded scan; no trigram index yet.
 - Retention purges run from `scripts/retention.py`; schedule it (daily cron) yourself, it is not automatic.
 - Coverage is limited to companies that have been ingested; nothing is "complete".
+- The public website exposes only the showcase set (`PUBLIC_SHOWCASE_CIKS`, or the most
+  recently filed ingested companies up to `PUBLIC_SHOWCASE_LIMIT`), annual facts only, and
+  never triggers SEC requests. Pricing on the site is read from `/v1/public/plans`.
 
 ## Deviations from AGENTS.md (and why)
 
