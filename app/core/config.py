@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     sec_filings_history_pages: int = 0
     freshness_stale_after_seconds: int = 24 * 3600
     on_demand_ingestion_enabled: bool = True
+    # International listings (Canada/Europe/UK) sources
+    markets_user_agent: str = ""  # defaults to SEC_USER_AGENT
+    markets_timeout_seconds: float = 60.0
+    markets_cache_dir: str = ".markets_cache"
+    markets_sources_enabled: str = (
+        "esma_firds,fca_firds,gleif"  # comma list; exchange adapters opt-in
+    )
+    markets_firds_days_back: int = 3
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12
