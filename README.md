@@ -211,8 +211,9 @@ an instrument first trading on a venue; the API never calls it an IPO.
 - Listings: FIRDS first-trade dates are per instrument and venue, so secondary-venue admissions
   look like new listings; issuer names are instrument names until GLEIF enrichment runs (bounded
   to 50 lookups per run); Canadian rows have no ISIN and the Canadian adapters are off by
-  default; the live FIRDS/GLEIF path has not been exercised end to end yet (fixtures are real
-  records captured during research).
+  default. Live check on 2026-10-22: one ESMA delta part (DLTINS_20261021_04of04) parsed in 13 s
+  and produced one covered equity record and a delisting event; GLEIF enrichment resolved the
+  issuer. A full daily pass processes all delta parts (about 4 per day per register).
 - The public website exposes only the showcase set (`PUBLIC_SHOWCASE_CIKS`, or the most
   recently filed ingested companies up to `PUBLIC_SHOWCASE_LIMIT`), annual facts only, and
   never triggers SEC requests. Pricing on the site is read from `/v1/public/plans`.
