@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import PUBLIC_PLANS, Settings, plan_limits
 from app.core.timeutil import iso_z
-from app.db.models import Company, Filing, FinancialFact
+from app.db.models import Company, Filing, FinancialFact, ListingEvent, Market
 from app.schemas.companies import CompanyOut, FactOut, FilingOut, FreshnessOut
+from app.schemas.markets import ListingEventOut
 from app.schemas.public import (
     LatestFilingCard,
     LatestRevenueCard,
@@ -319,3 +320,33 @@ def company_bundle(db: Session, settings: Settings, cik: str) -> PublicCompanyBu
         )
 
     return _cached(f"company:{cik}", build)
+
+
+LISTINGS_ATTRIBUTION = (
+    "Listing data from ESMA FIRDS, FCA FIRDS and GLEIF; Provenance is independent and not "
+    "affiliated with ESMA, the FCA, GLEIF, the CSA, TMX, the CSE or any exchange. new_listing "
+    "means an instrument first traded on a venue recently and is not an IPO determination."
+)
+
+
+def public_listing_events(db: Session, limit: int = 30) -> dict:
+    def build():
+        rows = db.scalars(
+            select(ListingEvent)
+            .join(Market, Market.mic == ListingEvent.mic)
+            .where(ListingEvent.event_type.in_(["new_listing", "ipo", "delisting", "suspended"]))
+            .order_by(ListingEvent.detected_at.desc(), ListingEvent.listing_key)
+            .limit(limit)
+        ).all()
+        venues = {
+            m.mic: {"name": m.name, "country": m.country, "region": m.region}
+            for m in db.scalars(select(Market))
+        }
+        return {
+            "data": [ListingEventOut.model_validate(r).model_dump(mode="json") for r in rows],
+            "venues": venues,
+            "generated_at": _now_iso(),
+            "disclaimer": LISTINGS_ATTRIBUTION,
+        }
+
+    return _cached("listing_events", build)

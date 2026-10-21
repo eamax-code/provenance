@@ -1,6 +1,6 @@
 # Spec: Canada, Europe and UK public-company identity and listing lifecycle
 
-**Status:** ready-for-agent · **Tracker:** local markdown · **ADR:** docs/adr/0006
+**Status:** implemented 2026-10-22 (tickets 01-04 done; live FIRDS run pending) · **Tracker:** local markdown · **ADR:** docs/adr/0006
 
 ## Problem Statement
 

@@ -17,6 +17,9 @@ from app.db.models import (
     Filing,
     FinancialFact,
     IngestionRun,
+    ListedInstrument,
+    ListingEvent,
+    Market,
     NotificationDelivery,
 )
 from app.services.fact_normalizer import MAPPING_VERSION
@@ -140,6 +143,19 @@ def compute_stats(db: Session, settings: Settings, now: datetime | None = None) 
             "pending_deliveries": pending,
             "delivered_total": delivered,
             "failed_total": failed,
+        },
+        "listings": {
+            "venues": int(db.scalar(select(func.count(Market.id))) or 0),
+            "instruments": int(db.scalar(select(func.count(ListedInstrument.id))) or 0),
+            "events_by_type": {
+                t: int(n)
+                for t, n in db.execute(
+                    select(ListingEvent.event_type, func.count(ListingEvent.id)).group_by(
+                        ListingEvent.event_type
+                    )
+                ).all()
+            },
+            "latest_event_detected_at": _iso(db.scalar(select(func.max(ListingEvent.detected_at)))),
         },
         "quality_snapshot": snapshot_to_dict(snap) if (snap := latest_snapshot(db)) else None,
         "mapping_version": MAPPING_VERSION,

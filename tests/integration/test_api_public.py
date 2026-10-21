@@ -186,3 +186,55 @@ def test_public_pages_are_served(client):
     assert (
         "/v1/public/plans" in html and "/v1/public/companies" in html and 'id="live-data"' in html
     )
+
+
+def test_public_listing_events_and_page(client, db):
+    from datetime import UTC, datetime, timedelta
+
+    from app.services.markets import ingest
+    from app.services.markets.records import ListingRecord
+
+    _reset()
+    ingest.ensure_market(
+        db,
+        "XPAR",
+        "Euronext Paris",
+        "FR",
+        "europe",
+        "esma_firds",
+        "https://registers.esma.europa.eu/",
+    )
+    db.commit()
+    now = datetime.now(UTC)
+    ingest.ingest_records(
+        db,
+        [
+            ListingRecord(
+                isin="FR001400AJ45",
+                mic="XPAR",
+                issuer_name="Exosens",
+                issuer_lei="969500ABCDEFGHIJ1234",
+                source="esma_firds",
+                source_url="https://firds.esma.europa.eu/firds/DLTINS.zip",
+                first_trade_date=now.date() - timedelta(days=2),
+            )
+        ],
+        "esma_firds",
+        now=now,
+    )
+    r = client.get("/v1/public/listings/events")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert (
+        body["data"][0]["event_type"] == "new_listing" and body["data"][0]["isin"] == "FR001400AJ45"
+    )
+    assert (
+        body["venues"]["XPAR"]["region"] == "europe"
+        and "not an IPO determination" in body["disclaimer"]
+    )
+    assert "X-API-Key" not in r.request.headers
+    spec = client.get("/openapi.json").json()
+    assert spec["paths"]["/v1/public/listings/events"]["get"]["security"] == []
+    page = client.get("/listings/")
+    assert page.status_code == 200 and "/v1/public/listings/events" in client.get("/public.js").text
+    assert "not affiliated" in page.text.lower() and 'id="listings-table"' in page.text

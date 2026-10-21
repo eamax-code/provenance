@@ -40,7 +40,8 @@ class IssuerOut(ORMModel):
 
 
 class InstrumentOut(ORMModel):
-    isin: str
+    isin: str | None
+    listing_key: str
     mic: str
     issuer_name: str
     issuer_lei: str | None
@@ -76,7 +77,9 @@ class InstrumentDetail(BaseModel):
 
 
 class ListingEventOut(ORMModel):
-    isin: str
+    isin: str | None
+    listing_key: str
+    symbol: str | None
     mic: str
     issuer_name: str
     event_type: str = Field(

@@ -1,0 +1,37 @@
+{
+ "last_updated": 1792572907,
+ "length": 3,
+ "results": [
+  {
+   "symbol": "AW",
+   "name": "A & W Food Services of Canada Inc.",
+   "instruments": [
+    {
+     "symbol": "AW",
+     "name": "A&W Food Serv Canada"
+    }
+   ]
+  },
+  {
+   "symbol": "ABXX",
+   "name": "Abaxx Technologies Inc.",
+   "instruments": [
+    {
+     "symbol": "ABXX",
+     "name": "Abaxx Technologies I"
+    }
+   ]
+  },
+  {
+   "symbol": "ABT",
+   "name": "Abbott Labs CDR (CAD Hedged)",
+   "instruments": [
+    {
+     "symbol": "ABT",
+     "name": "AbbottLab CDR Hgd"
+    }
+   ]
+  }
+ ],
+ "isHttpError": false
+}

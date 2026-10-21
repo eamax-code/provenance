@@ -22,7 +22,17 @@
 - GET /v1/public/plans  (public; plan limits and pilot pricing)
 - GET /v1/public/companies  (public; showcase companies with latest filing and latest annual revenue)
 - GET /v1/public/companies/{cik}  (public; profile, latest 10 filings, annual facts for 5 metrics, freshness; showcase only)
+- GET /v1/public/listings/events  (public; recent new listings, delistings, suspensions on covered CA/EU/UK venues)
 - POST /v1/developer/key-requests {"email","use_case","plan"}  (public, rate limited; operator approves)
+
+## International listings (Canada / Europe / UK; key required)
+- GET /v1/markets/  venues covered (MIC, country, region, counts)
+- GET /v1/markets/instruments?mic=&country=&region={canada|europe|uk}&status={listed|delisted|suspended}&q=&first_trade_since=
+- GET /v1/markets/instruments/{isin}  listings across venues + issuer (LEI)
+- GET /v1/markets/events?type={new_listing|ipo|delisting|modified|suspended|reinstated}&region=&mic=&since=
+- GET /v1/markets/issuers/{lei}
+- new_listing = instrument first traded on a venue recently; NOT an IPO determination. ipo only when the source states it.
+- Sources: ESMA FIRDS, FCA FIRDS, GLEIF (CC0). Rows carry source and source_url.
 
 ## Interpreting facts
 - Every fact has source_url (SEC filing index), source_tag (XBRL concept), accession_number,

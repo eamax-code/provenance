@@ -16,6 +16,8 @@ from app.db.models import (
     DataQualitySnapshot,
     Filing,
     FinancialFact,
+    ListedInstrument,
+    ListingEvent,
     NotificationDelivery,
     UniverseMember,
 )
@@ -129,6 +131,14 @@ def take_snapshot(
         universe_disabled=_count(
             db, select(func.count(UniverseMember.id)).where(UniverseMember.is_active.is_(False))
         ),
+        listings_total=_count(db, select(func.count(ListedInstrument.id))),
+        listings_listed=_count(
+            db,
+            select(func.count(ListedInstrument.id)).where(ListedInstrument.status == "listed"),
+        ),
+        listing_events_24h=_count(
+            db, select(func.count(ListingEvent.id)).where(ListingEvent.detected_at >= day_ago)
+        ),
     )
     db.add(snap)
     db.flush()
@@ -176,6 +186,11 @@ def snapshot_to_dict(snap: DataQualitySnapshot) -> dict:
             "active": snap.universe_active,
             "due": snap.universe_due,
             "disabled": snap.universe_disabled,
+        },
+        "listings": {
+            "total": snap.listings_total,
+            "listed": snap.listings_listed,
+            "events_24h": snap.listing_events_24h,
         },
     }
 

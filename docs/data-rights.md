@@ -17,6 +17,23 @@ contact address, at most 4 requests/second by default, conditional requests (ETa
 Last-Modified), exponential backoff honoring `Retry-After`, and no attempt to bypass throttling.
 Confirm the current guidance at https://www.sec.gov/os/accessing-edgar-data before deploying.
 
+## International listing sources (Canada, Europe, UK)
+
+Added 2026-10-22 (ADR 0006). Identity and listing lifecycle only; no financial statements.
+
+| Source | Terms (quoted) | Our use |
+| --- | --- | --- |
+| ESMA FIRDS, `https://registers.esma.europa.eu/` and `https://firds.esma.europa.eu/firds/` | "Reproduction of all information on this site (ESMA Library) is authorised except as otherwise stated" provided "the source is acknowledged"; must not "imply that ESMA is endorsing a firm" | Daily delta files for covered EU/EEA venues; source acknowledged on every row |
+| FCA FIRDS, `https://data.fca.org.uk/` | "The FCA owns the copyright … in all material on this site"; datasets in the Data section under the UK Open Government Licence; no FIRDS-specific licence found | Daily delta files for UK venues only; FCA acknowledged; identity metadata only |
+| GLEIF, `https://api.gleif.org/` | "The data available through the Access Service are provided under the CC0 licence"; no suggestion of GLEIF endorsement | Issuer legal identity by LEI |
+| TSX / TSXV, `https://www.tsx.com/json/company-directory/` | Licence "to view and print the material … for your non-commercial or personal use only"; "you may not use, distribute, sell, modify … information, data … without TMX's prior written permission" | Adapter shipped **disabled**; enable only with written permission from TMX |
+| CSE, `https://thecse.com/api/webapi/listed-companies/` | "You may not … copy, reproduce, republish … distribute … for any purpose other than personal, non-commercial use, without prior written consent from the CSE" | Adapter shipped **disabled**; enable only with written consent |
+| SEDAR+, Cboe Canada, LSE, Euronext, SIX, Nasdaq Nordic | Automated access and/or redistribution prohibited without licence | Not used |
+
+Attribution shown on listing endpoints and pages: "Listing data from ESMA FIRDS, FCA FIRDS and
+GLEIF; Provenance is independent and not affiliated with ESMA, the FCA, GLEIF, the CSA, TMX,
+the CSE or any exchange."
+
 ## Intended use
 
 Make official filing information easier to discover, normalize, monitor and consume through a
@@ -27,7 +44,7 @@ documented API. Every filing and every normalized fact links back to its SEC sou
 - Stock quotes, EOD/intraday prices, OHLCV, order books, corporate-action adjustments.
 - Analyst estimates, consensus, news, transcripts, vendor-enriched datasets.
 - Investment advice, valuation models, buy/sell signals.
-- Non-US issuers beyond what appears in SEC filings; custom company XBRL extensions.
+- Financial statements for non-US issuers; custom company XBRL extensions. (Non-US listing identity and lifecycle are in scope since ADR 0006.)
 - Unbounded bulk mirrors or unlimited exports.
 
 No paid or third-party dataset is used or redistributed. The exchange field comes from the SEC

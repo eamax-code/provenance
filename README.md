@@ -26,6 +26,7 @@ file.
 | Public coverage stats, cached 30 s, no key | `GET /v1/stats` |
 | Public showcase API: plans, companies, per-company bundle (no key, cached 60 s, never calls the SEC) | `GET /v1/public/plans`, `/v1/public/companies`, `/v1/public/companies/{cik}` |
 | Public pages driven by the API: directory, company pages, status | `GET /companies/`, `/companies/{cik}`, `/status/` |
+| International listings (Canada, Europe, UK): venues, issuers (LEI), instruments, new listings / delistings / suspensions / name changes | `GET /v1/markets/`, `/v1/markets/instruments`, `/v1/markets/instruments/{isin}`, `/v1/markets/events`, `/v1/markets/issuers/{lei}` |
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
 | Universe: seed CIKs, budgeted resumable bulk ingestion with backoff | `scripts/bulk_ingest.py`, poller refreshes due members |
@@ -59,6 +60,10 @@ python scripts/bulk_ingest.py --seed-tickers --top 500 --seed-only   # or the fi
 python scripts/bulk_ingest.py --budget 400 --history-pages 1          # one pass; re-run until --status shows due_now 0
 python scripts/bulk_ingest.py --status
 python scripts/quality_report.py --take     # data-quality snapshot + trend (AGENTS.md section 12 metrics)
+
+# international listings (ESMA FIRDS, FCA FIRDS, GLEIF; TSX/CSE only if you hold permission)
+python scripts/ingest_markets.py --all              # daily: last 3 days of FIRDS deltas + GLEIF enrichment
+python scripts/ingest_markets.py --source esma_firds --full --days-back 8   # one-off weekly full equities file
 python scripts/retention.py                 # purge usage/deliveries past the retention windows
 
 uvicorn app.main:app --reload           # http://127.0.0.1:8000/docs
@@ -172,6 +177,16 @@ the same image with `python scripts/poll_sec.py`.
 - `docs/operations.md`: run book.
 - `docs/implementation-checklist.md`: what was built, in priority order.
 
+## International listings
+
+Since ADR 0006 the API also tracks listing lifecycle for Canada, the EU/EEA and the UK:
+venues (MIC), issuers (LEI via GLEIF), instruments (ISIN on a venue) and events
+(`new_listing`, `delisting`, `suspended`, `reinstated`, `modified`, and `ipo` only when a
+source states it). Sources and their terms are in `docs/research/international-listings-sources.md`
+and `docs/data-rights.md`. ESMA FIRDS, FCA FIRDS and GLEIF are enabled by default; the TSX and
+CSE adapters exist but are disabled because their terms are non-commercial. A `new_listing` is
+an instrument first trading on a venue; the API never calls it an IPO.
+
 ## Known limitations
 
 - By default only the `recent` block of SEC submissions (about the latest 1,000 filings per
@@ -193,6 +208,11 @@ the same image with `python scripts/poll_sec.py`.
 - Company search uses `LIKE` with a bounded scan; no trigram index yet.
 - Retention purges run from `scripts/retention.py`; schedule it (daily cron) yourself, it is not automatic.
 - Coverage is limited to companies that have been ingested; nothing is "complete".
+- Listings: FIRDS first-trade dates are per instrument and venue, so secondary-venue admissions
+  look like new listings; issuer names are instrument names until GLEIF enrichment runs (bounded
+  to 50 lookups per run); Canadian rows have no ISIN and the Canadian adapters are off by
+  default; the live FIRDS/GLEIF path has not been exercised end to end yet (fixtures are real
+  records captured during research).
 - The public website exposes only the showcase set (`PUBLIC_SHOWCASE_CIKS`, or the most
   recently filed ingested companies up to `PUBLIC_SHOWCASE_LIMIT`), annual facts only, and
   never triggers SEC requests. Pricing on the site is read from `/v1/public/plans`.

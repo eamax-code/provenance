@@ -106,7 +106,7 @@ def instruments(
     stmt = (
         stmt.order_by(
             ListedInstrument.first_trade_date.desc().nulls_last(),
-            ListedInstrument.isin,
+            ListedInstrument.listing_key,
             ListedInstrument.mic,
         )
         .offset(offset)
@@ -186,7 +186,7 @@ def events(
             >= datetime.combine(detected_since, datetime.min.time(), tzinfo=UTC)
         )
     stmt = (
-        stmt.order_by(ListingEvent.detected_at.desc(), ListingEvent.isin)
+        stmt.order_by(ListingEvent.detected_at.desc(), ListingEvent.listing_key)
         .offset(offset)
         .limit(limit + 1)
     )

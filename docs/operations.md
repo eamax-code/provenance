@@ -75,6 +75,16 @@ Per-key fixed-window limits are kept in process memory. With more than one API r
 replica enforces the limit independently (effective limit = replicas x limit). Move the counter
 to PostgreSQL before scaling out.
 
+## International listings job
+
+`python scripts/ingest_markets.py --all` once a day (after 09:30 UTC, when ESMA and FCA deltas
+are published) processes the last `MARKETS_FIRDS_DAYS_BACK` days of delta files per register
+(each delta part is 10-100 MB zipped; parsing streams the XML and keeps only covered venues and
+share CFI codes), then enriches up to `MARKETS_GLEIF_LOOKUPS_PER_RUN` issuers from GLEIF. Files
+already processed are skipped (`market_source_files`). Run `--source esma_firds --full` once
+to seed the equities universe from the weekly full file. Event counts appear in the quality
+snapshot and `/v1/stats.listings`.
+
 ## Quality snapshots and reports
 
 Every poller pass and every standalone bulk-ingest run ends by writing a row to

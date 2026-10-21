@@ -1,0 +1,17 @@
+{
+ "last_updated": 1792572907,
+ "length": 2,
+ "results": [
+  {
+   "name": "Bloom Energy CDR (CAD Hedged)",
+   "date": 1792382400,
+   "symbol": "BE"
+  },
+  {
+   "name": "Bristol-Myers Squibb CDR (CAD Hedged)",
+   "date": 1792382400,
+   "symbol": "BMY"
+  }
+ ],
+ "isHttpError": false
+}

@@ -35,11 +35,11 @@ STATUSES = (STATUS_LISTED, STATUS_DELISTED, STATUS_SUSPENDED)
 
 @dataclass
 class ListingRecord:
-    isin: str
     mic: str
     issuer_name: str
     source: str
     source_url: str
+    isin: str | None = None
     issuer_lei: str | None = None
     symbol: str | None = None
     short_name: str | None = None
@@ -55,6 +55,15 @@ class ListingRecord:
     explicit_event: str | None = None  # e.g. EVENT_IPO when the source says so
     quality_status: str = "ok"
     notes: list[str] = field(default_factory=list)
+
+    @property
+    def listing_key(self) -> str | None:
+        """ISIN when valid, else a symbol key; None when neither is usable."""
+        if self.isin and is_valid_isin(self.isin):
+            return self.isin
+        if self.symbol:
+            return f"SYM:{self.symbol.strip().upper()}"
+        return None
 
     def derived_status(self, today: date) -> str:
         if self.status in STATUSES:
@@ -85,8 +94,9 @@ def _d(value: date | None) -> str | None:
     return value.isoformat() if value else None
 
 
-def event_key(isin: str, mic: str, event_type: str, event_date: date | None) -> str:
-    return hashlib.sha256(f"{isin}|{mic}|{event_type}|{_d(event_date) or ''}".encode()).hexdigest()
+def event_key(listing_key: str, mic: str, event_type: str, event_date: date | None) -> str:
+    raw = f"{listing_key}|{mic}|{event_type}|{_d(event_date) or ''}"
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 def is_valid_isin(value: str) -> bool:

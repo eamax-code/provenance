@@ -4,8 +4,8 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Adapters for the sources the research pass approved, each with a fixture test and documented terms
-- [ ] Explicit IPO and delisting events from exchange notices where available
-- [ ] Settings flags per source; data-rights entries
+- [x] Adapters for the sources the research pass approved, each with a fixture test and documented terms
+- [x] Explicit IPO and delisting events from exchange notices where available
+- [x] Settings flags per source; data-rights entries

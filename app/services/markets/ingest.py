@@ -139,12 +139,12 @@ def ingest_records(
     markets = known_markets or {m.mic: m for m in db.scalars(select(Market))}
     for rec in records:
         result.records_seen += 1
-        if not is_valid_isin(rec.isin):
+        key = rec.listing_key
+        if key is None or rec.mic not in markets:
             result.skipped += 1
             continue
-        if rec.mic not in markets:
-            result.skipped += 1
-            continue
+        if rec.isin and not is_valid_isin(rec.isin):
+            rec.isin = None  # keep the row under its symbol key; never store a bad ISIN
         if not rec.issuer_name:
             rec.issuer_name = rec.short_name or rec.isin
             rec.quality_status = "partial"
@@ -152,7 +152,7 @@ def ingest_records(
         issuer = ensure_issuer(db, rec.issuer_name, rec.issuer_lei, source, now)
         row = db.scalar(
             select(ListedInstrument).where(
-                ListedInstrument.isin == rec.isin, ListedInstrument.mic == rec.mic
+                ListedInstrument.listing_key == key, ListedInstrument.mic == rec.mic
             )
         )
         new_hash = rec.record_hash()
@@ -160,6 +160,7 @@ def ingest_records(
         if row is None:
             row = ListedInstrument(
                 isin=rec.isin,
+                listing_key=key,
                 mic=rec.mic,
                 issuer_name=rec.issuer_name,
                 issuer_lei=rec.issuer_lei or issuer.lei,
@@ -194,6 +195,7 @@ def ingest_records(
             continue
         before = _snapshot(row)
         row.issuer_name = rec.issuer_name
+        row.isin = rec.isin or row.isin
         row.issuer_lei = rec.issuer_lei or row.issuer_lei
         row.symbol = rec.symbol or row.symbol
         row.short_name = rec.short_name or row.short_name
@@ -248,7 +250,7 @@ def _add_event(
     details: dict | None = None,
     quality: str = "ok",
 ) -> bool:
-    key = event_key(row.isin, row.mic, event_type, event_date)
+    key = event_key(row.listing_key, row.mic, event_type, event_date)
     exists = db.scalar(select(ListingEvent.id).where(ListingEvent.event_key == key))
     if exists is not None:
         return False
@@ -256,6 +258,8 @@ def _add_event(
         ListingEvent(
             instrument_id=row.id,
             isin=row.isin,
+            listing_key=row.listing_key,
+            symbol=row.symbol,
             mic=row.mic,
             issuer_name=row.issuer_name,
             event_type=event_type,

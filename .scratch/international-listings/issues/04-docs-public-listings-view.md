@@ -4,8 +4,8 @@
 
 **Blocked by:** 02, 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] docs/research/international-listings-sources.md with verified sources, terms and decisions
-- [ ] docs updated; public `/v1/public/listings/events` and site view
-- [ ] Served-page tests
+- [x] docs/research/international-listings-sources.md with verified sources, terms and decisions
+- [x] docs updated; public `/v1/public/listings/events` and site view
+- [x] Served-page tests

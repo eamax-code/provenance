@@ -83,3 +83,17 @@ def company(
     if bundle is None:
         raise APIError(404, "company_not_found", "This company is not part of the public showcase.")
     return bundle
+
+
+@router.get(
+    "/listings/events",
+    responses=_ERRORS,
+    summary="Recent new listings, delistings and suspensions on covered venues (public)",
+)
+def listing_events(
+    request: Request,
+    response: Response,
+    db: Session = Depends(db_session),
+):
+    _guard(request, response)
+    return public_service.public_listing_events(db)

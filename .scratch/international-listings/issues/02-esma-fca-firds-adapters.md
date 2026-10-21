@@ -4,9 +4,9 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Register file discovery for a date, download with size bounds and caching, XML streaming parser for equity records (new/modified/terminated)
-- [ ] Venue registry for covered EU/EEA/UK MICs
-- [ ] GLEIF client with rate limiting and fixture-tested parsing; issuer enrichment
-- [ ] `scripts/ingest_markets.py`, poller integration, run and snapshot counts
+- [x] Register file discovery for a date, download with size bounds and caching, XML streaming parser for equity records (new/modified/terminated)
+- [x] Venue registry for covered EU/EEA/UK MICs
+- [x] GLEIF client with rate limiting and fixture-tested parsing; issuer enrichment
+- [x] `scripts/ingest_markets.py`, poller integration, run and snapshot counts

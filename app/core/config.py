@@ -56,6 +56,7 @@ class Settings(BaseSettings):
         "esma_firds,fca_firds,gleif"  # comma list; exchange adapters opt-in
     )
     markets_firds_days_back: int = 3
+    markets_gleif_lookups_per_run: int = 50
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12

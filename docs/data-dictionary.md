@@ -108,3 +108,36 @@ A watch binds an API key to a CIK and a destination. Webhook secrets are derived
 `WEBHOOK_SIGNING_SECRET` and the watch id (only the hash is stored). Deliveries have a stable
 `event_id` (`evt_` + hash of watch, CIK, accession) and a status of `pending`, `retrying`,
 `delivered` or `failed`.
+
+## International listings (ADR 0006)
+
+### markets
+One row per covered venue: `mic` (ISO 10383), `operating_mic`, `name`, `country`, `region`
+(`canada`, `europe`, `uk`), `source` adapter, `source_url`.
+
+### issuers
+`lei` (unique when known), `legal_name`, `country`, `jurisdiction`, `registration_status`
+(GLEIF: ISSUED, LAPSED, …), `source` (`gleif` once enriched), `first_detected_at`, `updated_at`.
+
+### listed_instruments
+One row per instrument on one venue. `listing_key` is the ISIN when the source provides a
+valid one, else `SYM:<symbol>` (Canadian exchange feeds carry no ISIN). Fields: `isin`,
+`symbol`, `issuer_name` (instrument full name from FIRDS until GLEIF supplies the legal name),
+`issuer_lei`, `short_name`, `cfi_code`, `instrument_type` (`share`, `preferred_share`,
+`listing` when the source does not say), `currency`, `admission_requested_date`,
+`admission_approved_date`, `first_trade_date`, `termination_date`, `status` (`listed`,
+`delisted`, `suspended`), `source`, `source_url` (the register file or feed URL),
+`source_record_hash`, `source_published_at`, `first_detected_at`, `last_seen_at`,
+`processed_at`, `quality_status` (`partial` when ISIN or first-trade date is missing).
+
+### listing_events
+Idempotent per (`listing_key`, `mic`, `event_type`, `event_date`). `event_type` is one of
+`new_listing` (first-trade date within 45 days of detection; `details.first_listing_for_issuer_in_our_data`
+says whether this service knew other listings of the issuer, which is **not** an IPO
+determination), `ipo` (only when a source states it), `delisting` (termination date set or
+passed), `suspended`, `reinstated`, `modified` (name or symbol change, with before/after in
+`details`). Dates older than the window seen for the first time are backfill and raise nothing.
+
+### market_source_files
+Register files already processed per source, so a delta is parsed once; `status` done or
+failed with a redacted error.

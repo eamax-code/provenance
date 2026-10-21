@@ -283,6 +283,15 @@ class DataQualitySnapshot(Base):
     universe_active: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     universe_due: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     universe_disabled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    listings_total: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    listings_listed: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    listing_events_24h: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
 
 class KeyRequest(Base):
@@ -347,14 +356,17 @@ class ListedInstrument(Base):
 
     __tablename__ = "listed_instruments"
     __table_args__ = (
-        UniqueConstraint("isin", "mic", name="uq_listed_instruments_isin_mic"),
+        UniqueConstraint("listing_key", "mic", name="uq_listed_instruments_key_mic"),
+        Index("ix_listed_instruments_isin", "isin"),
         Index("ix_listed_instruments_mic_status", "mic", "status"),
         Index("ix_listed_instruments_issuer_name", "issuer_name"),
         Index("ix_listed_instruments_issuer_lei", "issuer_lei"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    isin: Mapped[str] = mapped_column(String(12), nullable=False)
+    # ISIN when the source provides one; exchange feeds without ISINs are keyed by symbol.
+    isin: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    listing_key: Mapped[str] = mapped_column(String(40), nullable=False)  # ISIN or SYM:<symbol>
     mic: Mapped[str] = mapped_column(String(4), ForeignKey("markets.mic"), nullable=False)
     issuer_name: Mapped[str] = mapped_column(Text, nullable=False)
     issuer_lei: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -392,7 +404,9 @@ class ListingEvent(Base):
     instrument_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("listed_instruments.id"), nullable=False
     )
-    isin: Mapped[str] = mapped_column(String(12), nullable=False)
+    isin: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    listing_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    symbol: Mapped[str | None] = mapped_column(Text, nullable=True)
     mic: Mapped[str] = mapped_column(String(4), nullable=False)
     issuer_name: Mapped[str] = mapped_column(Text, nullable=False)
     event_type: Mapped[str] = mapped_column(Text, nullable=False)
@@ -403,3 +417,22 @@ class ListingEvent(Base):
     details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON text
     detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     quality_status: Mapped[str] = mapped_column(Text, nullable=False, default="ok")
+
+
+class MarketSourceFile(Base):
+    """Register/exchange files already processed, so daily deltas are parsed once."""
+
+    __tablename__ = "market_source_files"
+    __table_args__ = (UniqueConstraint("source", "file_name", name="uq_market_source_files"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    file_name: Mapped[str] = mapped_column(Text, nullable=False)
+    file_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="done")
+    records_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    records_ingested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)

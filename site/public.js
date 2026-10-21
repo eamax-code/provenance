@@ -192,5 +192,29 @@
     if (bar) bar.textContent = 'GET /v1/companies/' + c.cik + '/facts?metric=revenue&period=annual';
   }
 
-  directory(); companyPage(); statusPage(); landing();
+  /* ---- listings page ---- */
+  function listingsPage() {
+    var tbl = $('listings-table'); if (!tbl) return;
+    getJSON('/v1/public/listings/events').then(function (res) {
+      if (!res.ok) throw new Error(res.status);
+      var tb = tbl.querySelector('tbody'); tb.innerHTML = '';
+      if (!res.body.data.length) { setState('listings-state', 'No listing events yet. Run scripts/ingest_markets.py --all to pull the latest FIRDS deltas.'); return; }
+      setState('listings-state', '');
+      res.body.data.forEach(function (e) {
+        var v = res.body.venues[e.mic] || {};
+        tb.appendChild(el('tr', {}, [
+          el('td', { class: 'mono', text: fmtTs(e.detected_at) }),
+          el('td', {}, [el('span', { class: 'badge ' + ({ new_listing: 'ok', ipo: 'ok', delisting: 'failed', suspended: 'partial' }[e.event_type] || ''), text: e.event_type })]),
+          el('td', { class: 'wrap', text: e.issuer_name }),
+          el('td', { class: 'mono', text: e.isin || e.symbol || e.listing_key }),
+          el('td', { text: e.mic + ' · ' + (v.name || '') + (v.country ? ' (' + v.country + ')' : '') }),
+          el('td', { class: 'mono', text: e.event_date || 'null' }),
+          el('td', {}, [el('a', { href: e.source_url, target: '_blank', rel: 'noopener', text: e.source + ' ↗' })])
+        ]));
+      });
+      var m = $('listings-meta'); if (m) m.textContent = res.body.data.length + ' events · generated ' + fmtTs(res.body.generated_at);
+    }).catch(function () { setState('listings-state', 'Live data unavailable right now.'); });
+  }
+
+  directory(); companyPage(); statusPage(); landing(); listingsPage();
 })();
