@@ -302,3 +302,104 @@ class KeyRequest(Base):
     approved_key_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     rejected_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     key_delivered_via: Mapped[str | None] = mapped_column(Text, nullable=True)  # email | operator
+
+
+# ---- International listings (Canada / Europe / UK) ----------------------------------------
+
+
+class Market(Base):
+    """A trading venue identified by its ISO 10383 MIC."""
+
+    __tablename__ = "markets"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    mic: Mapped[str] = mapped_column(String(4), nullable=False, unique=True)
+    operating_mic: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    country: Mapped[str] = mapped_column(String(2), nullable=False)  # ISO 3166-1 alpha-2
+    region: Mapped[str] = mapped_column(Text, nullable=False)  # canada | europe | uk
+    source: Mapped[str] = mapped_column(Text, nullable=False)  # esma_firds | fca_firds | tsx ...
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class Issuer(Base):
+    """Legal entity behind listed instruments, keyed by LEI when known."""
+
+    __tablename__ = "issuers"
+    __table_args__ = (Index("ix_issuers_legal_name", "legal_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    lei: Mapped[str | None] = mapped_column(String(20), nullable=True, unique=True)
+    legal_name: Mapped[str] = mapped_column(Text, nullable=False)
+    country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    jurisdiction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    registration_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    first_detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class ListedInstrument(Base):
+    """One instrument (ISIN) admitted to one venue (MIC); the unit of listing lifecycle."""
+
+    __tablename__ = "listed_instruments"
+    __table_args__ = (
+        UniqueConstraint("isin", "mic", name="uq_listed_instruments_isin_mic"),
+        Index("ix_listed_instruments_mic_status", "mic", "status"),
+        Index("ix_listed_instruments_issuer_name", "issuer_name"),
+        Index("ix_listed_instruments_issuer_lei", "issuer_lei"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    isin: Mapped[str] = mapped_column(String(12), nullable=False)
+    mic: Mapped[str] = mapped_column(String(4), ForeignKey("markets.mic"), nullable=False)
+    issuer_name: Mapped[str] = mapped_column(Text, nullable=False)
+    issuer_lei: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    symbol: Mapped[str | None] = mapped_column(Text, nullable=True)
+    short_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cfi_code: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    instrument_type: Mapped[str] = mapped_column(Text, nullable=False, default="share")
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    admission_requested_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    admission_approved_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    first_trade_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    termination_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False)  # listed | delisted | suspended
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    source_record_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_published_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    first_detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    processed_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    quality_status: Mapped[str] = mapped_column(Text, nullable=False, default="ok")
+
+
+class ListingEvent(Base):
+    """Detected lifecycle change for an instrument on a venue, idempotent per key."""
+
+    __tablename__ = "listing_events"
+    __table_args__ = (
+        UniqueConstraint("event_key", name="uq_listing_events_key"),
+        Index("ix_listing_events_type_date", "event_type", "event_date"),
+        Index("ix_listing_events_detected", "detected_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    instrument_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("listed_instruments.id"), nullable=False
+    )
+    isin: Mapped[str] = mapped_column(String(12), nullable=False)
+    mic: Mapped[str] = mapped_column(String(4), nullable=False)
+    issuer_name: Mapped[str] = mapped_column(Text, nullable=False)
+    event_type: Mapped[str] = mapped_column(Text, nullable=False)
+    event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    event_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON text
+    detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    quality_status: Mapped[str] = mapped_column(Text, nullable=False, default="ok")
