@@ -20,6 +20,26 @@ services:
         generateValue: true
       - key: ADMIN_TOKEN
         sync: false
+  # Daily international-listings job as a native cron (so the worker does not also run it).
+  - type: cron
+    name: provenance-markets-daily
+    runtime: docker
+    plan: starter
+    schedule: "45 9 * * *"          # 09:45 UTC, after ESMA/FCA publish their deltas
+    dockerCommand: python scripts/ingest_markets.py --all
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase: { name: provenance-db, property: connectionString }
+      - key: SEC_USER_AGENT
+        sync: false
+      - key: API_KEY_PEPPER
+        sync: false
+      - key: WEBHOOK_SIGNING_SECRET
+        sync: false
+      - key: MARKETS_SOURCES_ENABLED
+        value: esma_firds,fca_firds,gleif
   - type: worker
     name: provenance-poller
     runtime: docker
@@ -28,6 +48,8 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      - key: MARKETS_DAILY_ENABLED
+        value: "false"
       - key: DATABASE_URL
         fromDatabase: { name: provenance-db, property: connectionString }
       - key: SEC_USER_AGENT

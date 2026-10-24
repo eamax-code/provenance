@@ -33,6 +33,18 @@ generated pepper and webhook secret into the worker's environment so both proces
 `docker compose up -d` runs db, migrate, api and poller. Put a TLS-terminating proxy (Caddy or
 nginx) in front of port 8000 and set `.env` from `.env.example` with real secrets.
 
+## Daily international-listings job
+
+- **Fly.io and Docker Compose**: the poller process runs it (`MARKETS_DAILY_ENABLED=true`) once
+  per UTC day after `MARKETS_DAILY_HOUR_UTC` (default 10:00, after ESMA/FCA publish). No extra
+  machine. The poller's single-run lock prevents duplicates if two pollers ever overlap.
+- **Render**: `provenance-markets-daily` is a native cron service (`45 9 * * *` UTC) running
+  `scripts/ingest_markets.py --all`; the worker has `MARKETS_DAILY_ENABLED=false` so it does
+  not run twice.
+- **Plain cron**: `45 9 * * * cd /app && python scripts/ingest_markets.py --all`.
+- Either way the run is recorded under `ingestion_runs.source = markets:daily`, so a second
+  trigger on the same day is a no-op.
+
 ## After the first deploy
 
 1. `GET /readyz` must return `ready`; it lists any configuration problem (never secret values).

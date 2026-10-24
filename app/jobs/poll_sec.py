@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import Company, CompanyWatch, utcnow
+from app.jobs import markets as markets_job
 from app.services import quality, universe
 from app.services.ingestion import finish_run, start_run
 from app.services.notifications import deliver_pending
@@ -132,6 +133,9 @@ def run_forever(session_maker, settings: Settings, include_all_companies: bool =
         db = session_maker()
         try:
             run_once(db, settings, include_all_companies=include_all_companies)
+            with single_run_guard(db, lock_file=".markets_daily.lock") as acquired:
+                if acquired:
+                    markets_job.maybe_run(db, settings)
         except Exception:  # noqa: BLE001
             logger.exception("poll iteration crashed")
         finally:

@@ -77,8 +77,8 @@ to PostgreSQL before scaling out.
 
 ## International listings job
 
-`python scripts/ingest_markets.py --all` once a day (after 09:30 UTC, when ESMA and FCA deltas
-are published) processes the last `MARKETS_FIRDS_DAYS_BACK` days of delta files per register
+The poller runs the listings job once per UTC day after `MARKETS_DAILY_HOUR_UTC` (or a
+platform cron runs `python scripts/ingest_markets.py --all`; see docs/deployment.md). It processes the last `MARKETS_FIRDS_DAYS_BACK` days of delta files per register
 (each delta part is 10-100 MB zipped; parsing streams the XML and keeps only covered venues and
 share CFI codes), then enriches up to `MARKETS_GLEIF_LOOKUPS_PER_RUN` issuers from GLEIF. Files
 already processed are skipped (`market_source_files`). Run `--source esma_firds --full` once

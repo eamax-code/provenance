@@ -6,6 +6,7 @@
   python scripts/ingest_markets.py --source gleif [--limit 50]      # issuer enrichment
   python scripts/ingest_markets.py --source tsx | cse   # only when enabled (see below)
   python scripts/ingest_markets.py --all                 # every enabled source, in order
+  python scripts/ingest_markets.py --loop                # daily at MARKETS_DAILY_HOUR_UTC, forever
 
 Sources run only when listed in MARKETS_SOURCES_ENABLED. Exchange feeds (tsx, cse) carry
 non-commercial terms; enabling them states that you hold the required permission.
@@ -16,9 +17,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 
 from _bootstrap import bootstrap
 
+from app.jobs import markets as markets_job
 from app.services.markets import canada, firds, gleif
 from app.services.markets.http import MarketHttp
 
@@ -31,13 +34,31 @@ def main() -> int:
     )
     parser.add_argument("--source", choices=ORDER)
     parser.add_argument("--all", action="store_true")
+    parser.add_argument("--loop", action="store_true", help="Run --all once per day, forever")
     parser.add_argument("--days-back", type=int, default=None)
     parser.add_argument("--limit", type=int, default=None, help="GLEIF lookups this run")
     parser.add_argument("--full", action="store_true", help="FIRDS: also process FULINS files")
     args = parser.parse_args()
-    if not args.source and not args.all:
-        parser.error("choose --source or --all")
+    if not args.source and not args.all and not args.loop:
+        parser.error("choose --source, --all or --loop")
     settings, Session = bootstrap()
+    if args.loop:
+        while True:
+            db = Session()
+            try:
+                out = markets_job.maybe_run(db, settings)
+                if out is not None:
+                    print(json.dumps(out, default=str))
+            finally:
+                db.close()
+            time.sleep(min(3600, markets_job.seconds_until_next_run(settings)))
+    if args.all:
+        db = Session()
+        try:
+            print(json.dumps(markets_job.run_all(db, settings), default=str))
+            return 0
+        finally:
+            db.close()
     enabled = {s.strip() for s in settings.markets_sources_enabled.split(",") if s.strip()}
     sources = [s for s in ORDER if s in enabled] if args.all else [args.source]
     db = Session()

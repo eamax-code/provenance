@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     )
     markets_firds_days_back: int = 3
     markets_gleif_lookups_per_run: int = 50
+    # Daily scheduler: the poller runs all enabled sources once per UTC day after this hour
+    # (ESMA and FCA publish deltas by 09:00 CET/UTC). Set false where a platform cron runs it.
+    markets_daily_enabled: bool = True
+    markets_daily_hour_utc: int = 10
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12

@@ -41,16 +41,20 @@ services:
 
   poller:
     build: .
+    # Also runs the daily international-listings job (MARKETS_DAILY_ENABLED, default true).
     command: ["python", "scripts/poll_sec.py"]
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://companydata:companydata@db:5432/companydata
+      MARKETS_CACHE_DIR: /app/.markets_cache
     depends_on:
       migrate:
         condition: service_completed_successfully
     volumes:
       - seccache:/app/.sec_cache
+      - marketscache:/app/.markets_cache
 
 volumes:
   pgdata:
   seccache:
+  marketscache:

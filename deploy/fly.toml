@@ -8,6 +8,12 @@ primary_region = "iad"          # close to data.sec.gov (US East)
 
 [env]
   APP_ENV = "production"
+  # Daily international-listings job runs inside the poller process (MARKETS_DAILY_ENABLED)
+  # after MARKETS_DAILY_HOUR_UTC; no extra machine needed. Fly has no native cron.
+  MARKETS_DAILY_ENABLED = "true"
+  MARKETS_DAILY_HOUR_UTC = "10"
+  MARKETS_SOURCES_ENABLED = "esma_firds,fca_firds,gleif"
+  MARKETS_CACHE_DIR = "/data/markets_cache"
   APP_NAME = "Provenance"
   LOG_JSON = "true"
   SEC_MIN_REQUEST_INTERVAL_SECONDS = "0.25"
