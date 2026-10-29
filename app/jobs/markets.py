@@ -30,11 +30,15 @@ def enabled_sources(settings: Settings) -> list[str]:
     return [s for s in ORDER if s in enabled]
 
 
-def run_all(db: Session, settings: Settings, http: MarketHttp | None = None) -> dict:
+def run_all(
+    db: Session, settings: Settings, http: MarketHttp | None = None, now: datetime | None = None
+) -> dict:
     """Run every enabled source in order; records a markets:daily run. Commits."""
     own = http is None
     http = http or MarketHttp(settings)
     run = start_run(db, source=DAILY_SOURCE)
+    if now is not None:
+        run.started_at = now  # the scheduler's clock decides which day this run belongs to
     db.commit()
     results: dict = {}
     errors: list[str] = []
@@ -90,7 +94,7 @@ def maybe_run(
 ) -> dict | None:
     if not is_due(db, settings, now):
         return None
-    return run_all(db, settings, http=http)
+    return run_all(db, settings, http=http, now=now)
 
 
 def seconds_until_next_run(settings: Settings, now: datetime | None = None) -> int:
