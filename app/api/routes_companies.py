@@ -115,6 +115,54 @@ def _company_out(c: Company, match_type: str | None = None) -> CompanyOut:
     return out
 
 
+@router.get(
+    "",
+    response_model=CompanyList,
+    responses=_ERRORS,
+    summary="List companies with filters (paginated)",
+)
+def list_companies(
+    exchange: str | None = Query(None, max_length=20, description="e.g. Nasdaq, NYSE"),
+    sic: str | None = Query(None, max_length=4, description="SEC SIC code"),
+    state: str | None = Query(None, max_length=2, description="State of incorporation"),
+    ingested: bool | None = Query(None, description="Only companies with filings ingested"),
+    sort: str = Query("name", pattern="^(name|cik|last_processed)$"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0, le=1_000_000),
+    db: Session = Depends(db_session),
+    _key: ApiKey = Depends(require_api_key),
+):
+    stmt = select(Company)
+    if exchange:
+        stmt = stmt.where(func.upper(Company.exchange) == exchange.upper())
+    if sic:
+        stmt = stmt.where(Company.sic_code == sic)
+    if state:
+        stmt = stmt.where(func.upper(Company.state_of_incorporation) == state.upper())
+    if ingested is True:
+        stmt = stmt.where(Company.last_processed_at.is_not(None))
+    elif ingested is False:
+        stmt = stmt.where(Company.last_processed_at.is_(None))
+    total = int(db.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
+    order = {
+        "name": (Company.legal_name, Company.cik),
+        "cik": (Company.cik,),
+        "last_processed": (Company.last_processed_at.desc().nulls_last(), Company.cik),
+    }[sort]
+    rows = db.scalars(stmt.order_by(*order).offset(offset).limit(limit)).all()
+    has_more = offset + len(rows) < total
+    return CompanyList(
+        data=[_company_out(c) for c in rows],
+        meta=PageMeta(
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
+            next_offset=offset + limit if has_more else None,
+            total_matched=total,
+        ),
+    )
+
+
 @router.get("/search", response_model=CompanyList, responses=_ERRORS)
 def search(
     q: str = Query(min_length=1, max_length=100, description="Ticker, CIK, or company name"),

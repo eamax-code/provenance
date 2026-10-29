@@ -10,11 +10,13 @@
 - Timestamps ISO 8601 UTC with Z. Dates YYYY-MM-DD. Missing data is null, never 0.
 
 ## Endpoints
+- GET /v1/companies?exchange=&sic=&state=&ingested=true|false&sort={name|cik|last_processed}&limit<=200&offset=
 - GET /v1/companies/search?q={ticker|cik|name}&limit=1..50
 - GET /v1/companies/{cik}  (202 + Retry-After while on-demand ingestion runs; 404 if unknown)
 - GET /v1/companies/{cik}/filings?limit=1..100&form_type=&since=YYYY-MM-DD&offset=
 - GET /v1/companies/{cik}/facts?metric={revenue|operating_income|net_income|total_assets|operating_cash_flow}&period={annual|quarterly|all}&from=&to=&form_type=&include_derived=false&include_all_observations=false
 - GET /v1/companies/{cik}/freshness
+- GET /v1/facts/screen?metric=&year=YYYY&period={annual|quarterly}&unit=USD&order={desc|asc}  one row per company, latest period ending in that calendar year
 - POST /v1/watches {"cik","destination_type":"webhook|email","destination"} ; GET /v1/watches ; DELETE /v1/watches/{id} ; GET /v1/watches/{id}/deliveries
 - GET /v1/developer/usage?from=&to= ; GET/DELETE /v1/developer/api-keys
 - GET /v1/exports/facts?metric=&ciks=a,b&format={csv|json}&limit<=1000

@@ -14,6 +14,8 @@ file.
 | Capability | Endpoint |
 | --- | --- |
 | Company lookup by ticker, CIK or name | `GET /v1/companies/search?q=` |
+| Company list with filters (exchange, SIC, state, ingested) | `GET /v1/companies` |
+| Cross-company screen: rank one metric across all companies for a year | `GET /v1/facts/screen?metric=&year=` |
 | Company profile, on-demand ingestion (`202`) | `GET /v1/companies/{cik}` |
 | Recent filings with SEC source links and honest timestamps | `GET /v1/companies/{cik}/filings` |
 | Normalized facts: revenue, operating income, net income, total assets, operating cash flow | `GET /v1/companies/{cik}/facts` |
