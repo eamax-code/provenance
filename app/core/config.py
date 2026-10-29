@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     sec_base_data_url: str = "https://data.sec.gov"
     sec_base_www_url: str = "https://www.sec.gov"
     sec_live_tests: bool = False
+    # Nightly SEC bulk archives (all filers in two downloads); stored here between runs
+    sec_bulk_dir: str = ".sec_bulk"
+    sec_bulk_max_bytes: int = 6 * 1024 * 1024 * 1024
 
     ingestion_poll_interval_seconds: int = 300
     # Newly detected filings older than this are treated as backfill and never notified

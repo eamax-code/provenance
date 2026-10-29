@@ -6,6 +6,18 @@ One API process (`uvicorn app.main:app`), one poller (`python scripts/poll_sec.p
 PostgreSQL database. The poller takes a PostgreSQL advisory lock (`pg_try_advisory_lock`) so
 duplicate concurrent runs skip themselves; cron with `--once` is also safe.
 
+## Full coverage from SEC bulk archives
+
+The SEC rebuilds `submissions.zip` and `companyfacts.zip` nightly
+(`https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip`,
+`https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip`). `scripts/sec_bulk.py
+--download` fetches both with the declared User-Agent (two requests; `If-Modified-Since` makes
+re-runs cheap), and `--scope facts` ingests every XBRL filer through the normal pipeline via an
+archive-backed client, so results are identical to the per-company API path. Scopes: `known`
+(companies in the database), `facts` (every XBRL filer), `universe`, `ciks`. Each archive is over
+a gigabyte and the database grows to tens of millions of fact rows at full coverage: check disk and
+database plan first, start with `--limit`, and run `--dry-run` to see counts.
+
 ## Universe and bulk ingestion
 
 `universe_members` holds every CIK the deployment keeps fresh: seeded from a file, the SEC

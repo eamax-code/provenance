@@ -30,6 +30,7 @@ file.
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
 | Universe: seed CIKs, budgeted resumable bulk ingestion with backoff | `scripts/bulk_ingest.py`, poller refreshes due members |
+| All public companies from SEC nightly bulk archives (submissions.zip, companyfacts.zip) | `scripts/sec_bulk.py` |
 | Quality snapshots per run, SEC request metrics, retention purge | `scripts/quality_report.py`, `scripts/retention.py`, `/v1/stats.quality_snapshot` |
 
 OpenAPI: `/openapi.json`, Swagger UI: `/docs`. All `/v1` endpoints require `X-API-Key`.
@@ -53,6 +54,11 @@ alembic upgrade head                    # apply migrations
 python scripts/create_api_key.py you@example.com --plan builder   # prints the key once
 python scripts/import_tickers.py        # optional: seed ~10k company identities from the SEC ticker file
 python scripts/ingest_company.py 320193 # ingest one company (filings + facts) from the SEC
+
+# all public companies from the SEC nightly bulk archives (2 SEC requests, each file over 1 GB)
+python scripts/sec_bulk.py --download
+python scripts/sec_bulk.py --scope facts --dry-run   # how many XBRL filers (about every operating public company)
+python scripts/sec_bulk.py --scope facts             # ingest them all through the same pipeline as the API path
 
 # bulk coverage: define a universe, then ingest it within an SEC request budget (resumable)
 python scripts/bulk_ingest.py --seed-file data/universe.sample.txt --seed-only

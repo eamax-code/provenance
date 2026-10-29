@@ -16,3 +16,4 @@ build/
 .DS_Store
 .poll_sec.lock
 .markets_cache/
+.sec_bulk/

@@ -353,6 +353,94 @@ class SecClient:
         base = min(60.0, 1.0 * (2**attempt))
         return base + random.uniform(0, base * 0.25)
 
+    # -- bulk files --------------------------------------------------------------------------
+    def download_file(self, url: str, dest: Path, max_bytes: int | None = None) -> dict:
+        """Stream a large SEC file to disk under the same fair-access rules as get_json.
+
+        Sends If-Modified-Since when a previous copy exists and keeps it on 304. Returns
+        {"path", "bytes", "last_modified", "from_cache"}. Retries 408/429/5xx with backoff.
+        """
+        dest = Path(dest)
+        meta_path = dest.with_suffix(dest.suffix + ".meta.json")
+        limit = max_bytes or self.settings.sec_bulk_max_bytes
+        headers = {"Accept": "application/zip, */*"}
+        meta = {}
+        if dest.exists() and meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text("utf-8"))
+            except ValueError:
+                meta = {}
+            if meta.get("last_modified_raw"):
+                headers["If-Modified-Since"] = meta["last_modified_raw"]
+        attempt = 0
+        while True:
+            self._limiter.wait()
+            self.metrics.requests += 1
+            if attempt:
+                self.metrics.retries += 1
+            started = time.monotonic()
+            tmp = dest.with_suffix(dest.suffix + ".part")
+            try:
+                with self.http.stream("GET", url, headers=headers) as resp:
+                    status = resp.status_code
+                    if status == 304 and dest.exists():
+                        self.metrics.cached += 1
+                        return {
+                            "path": dest,
+                            "bytes": dest.stat().st_size,
+                            "last_modified": _parse_http_date(meta.get("last_modified_raw")),
+                            "from_cache": True,
+                        }
+                    if status in RETRY_STATUSES:
+                        retry_after = resp.headers.get("Retry-After")
+                    elif status == 404:
+                        self.metrics.errors += 1
+                        raise SecNotFound("Bulk file not found at SEC", status_code=404, url=url)
+                    elif status != 200:
+                        self.metrics.errors += 1
+                        raise SecClientError(
+                            f"SEC bulk download returned {status}", status_code=status, url=url
+                        )
+                    else:
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        size = 0
+                        with tmp.open("wb") as fh:
+                            for chunk in resp.iter_bytes(1024 * 1024):
+                                size += len(chunk)
+                                if size > limit:
+                                    raise SecClientError(
+                                        "SEC bulk file exceeded size limit", url=url
+                                    )
+                                fh.write(chunk)
+                        tmp.replace(dest)
+                        lm_raw = resp.headers.get("Last-Modified")
+                        meta_path.write_text(
+                            json.dumps({"url": url, "last_modified_raw": lm_raw}), "utf-8"
+                        )
+                        self.metrics.duration_ms += int((time.monotonic() - started) * 1000)
+                        log_event(logger, logging.INFO, "sec bulk downloaded", url=url, bytes=size)
+                        return {
+                            "path": dest,
+                            "bytes": size,
+                            "last_modified": _parse_http_date(lm_raw),
+                            "from_cache": False,
+                        }
+            except httpx.HTTPError as exc:
+                tmp.unlink(missing_ok=True)
+                retry_after = None
+                if attempt >= self.settings.sec_max_retries:
+                    self.metrics.errors += 1
+                    raise SecUnavailable("SEC bulk download failed after retries", url=url) from exc
+            except SecClientError:
+                tmp.unlink(missing_ok=True)
+                raise
+            self.metrics.duration_ms += int((time.monotonic() - started) * 1000)
+            if attempt >= self.settings.sec_max_retries:
+                self.metrics.errors += 1
+                raise SecUnavailable("SEC bulk download unavailable after retries", url=url)
+            self._sleep(self._backoff(attempt, retry_after))
+            attempt += 1
+
     # -- convenience -----------------------------------------------------------------------
     def fetch_submissions(self, cik: str) -> SecResponse:
         return self.get_json(submissions_url(cik, self.settings.sec_base_data_url))
