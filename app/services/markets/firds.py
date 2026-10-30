@@ -133,7 +133,15 @@ def list_fca_files(
     return _sorted(out)
 
 
+def _relevant(f: FirdsFile) -> bool:
+    """Full files are split by CFI first letter (FULINS_<letter>_...); only equities (E) matter."""
+    if f.file_type == "FULINS":
+        return f.file_name.upper().startswith("FULINS_E_")
+    return True
+
+
 def _sorted(files: list[FirdsFile]) -> list[FirdsFile]:
+    files = [f for f in files if _relevant(f)]
     return sorted(
         files, key=lambda f: (f.publication_date or datetime.min.replace(tzinfo=UTC), f.file_name)
     )
