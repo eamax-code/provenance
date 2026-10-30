@@ -64,3 +64,16 @@ the stated date; sample files were downloaded and inspected. Decisions feed ADR 
 - Attribution text used on the site and in API notes: "Listing data from ESMA FIRDS, FCA FIRDS and GLEIF; Provenance is independent and not affiliated with ESMA, the FCA, GLEIF, the CSA, TMX, the CSE or any exchange."
 
 Sample files inspected during research: `DLTINS_20261021_01of04.zip` (ESMA), `t7-xetr-allTradableInstruments.csv` (Xetra), TSX directory/recent/delisted/suspended JSON, CSE listed-companies JSON, GLEIF records for Canadian issuers. Trimmed copies of the real records are the test fixtures under `tests/fixtures/markets/`.
+
+## Venue codes (verified 2026-10-30)
+
+Counting share records by MIC in the ESMA full equities file of 2026-10-24 (195,592 share
+records across 185 MICs) showed that FIRDS reports home listings under **segment** MICs: Xetra
+`XETA`, Frankfurt `FRAA`, Euronext Milan `MTAA`, Wiener Börse `WBAH`, Euronext Dublin `XMSM`.
+The operating MICs (`XETR`, `XFRA`, `XMIL`, `XWBO`, `XDUB`) are ISO category NSPD and carry no
+listings. Most records are secondary trading lines on German regional exchanges and pan-European
+MTFs (for example Frankfurt `FRAB` has 12,230 share lines), which the registry deliberately
+excludes. The `IssrReq=true` flag (admission requested by the issuer) matched the home-market
+segments almost exactly and is a candidate primary-listing signal. SIX (`XSWX`) is absent from
+EU FIRDS. Registry version 1.1.0 applies these findings; all names and operating MICs come from
+the ISO 10383 MIC list (https://www.iso20022.org/market-identifier-codes).

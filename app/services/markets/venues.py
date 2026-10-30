@@ -13,7 +13,11 @@ from sqlalchemy.orm import Session
 from app.db.models import Market
 from app.services.markets.ingest import ensure_market
 
-VENUE_REGISTRY_VERSION = "1.0.0"
+VENUE_REGISTRY_VERSION = "1.1.0"
+# 1.1.0 (2026-10-30): codes verified against the ISO 10383 MIC list and the ESMA FIRDS full
+# equities file of 2026-10-24. FIRDS reports listings under segment MICs (e.g. XETA, FRAA,
+# MTAA, WBAH, XMSM), not the operating MICs (XETR, XFRA, XMIL, XWBO, XDUB, category NSPD).
+# SIX (XSWX) removed: Switzerland is outside EU FIRDS. Growth/SME markets added.
 
 
 @dataclass(frozen=True)
@@ -30,29 +34,52 @@ class Venue:
 ESMA_URL = "https://registers.esma.europa.eu/publication/searchRegister?core=esma_registers_firds"
 FCA_URL = "https://data.fca.org.uk/#/firds/files"
 
+
+def _eu(mic: str, name: str, country: str, operating: str | None = None) -> Venue:
+    return Venue(mic, name, country, "europe", "esma_firds", ESMA_URL, operating or mic)
+
+
 VENUES: tuple[Venue, ...] = (
     # EU / EEA regulated markets (ESMA FIRDS)
-    Venue("XPAR", "Euronext Paris", "FR", "europe", "esma_firds", ESMA_URL),
-    Venue("XAMS", "Euronext Amsterdam", "NL", "europe", "esma_firds", ESMA_URL),
-    Venue("XBRU", "Euronext Brussels", "BE", "europe", "esma_firds", ESMA_URL),
-    Venue("XLIS", "Euronext Lisbon", "PT", "europe", "esma_firds", ESMA_URL),
-    Venue("XDUB", "Euronext Dublin", "IE", "europe", "esma_firds", ESMA_URL),
-    Venue("XOSL", "Oslo Børs", "NO", "europe", "esma_firds", ESMA_URL),
-    Venue("XMIL", "Borsa Italiana (Euronext Milan)", "IT", "europe", "esma_firds", ESMA_URL),
-    Venue("XETR", "Xetra (Deutsche Börse)", "DE", "europe", "esma_firds", ESMA_URL, "XETR"),
-    Venue("XFRA", "Frankfurt Stock Exchange", "DE", "europe", "esma_firds", ESMA_URL, "XFRA"),
-    Venue("XMAD", "Bolsa de Madrid", "ES", "europe", "esma_firds", ESMA_URL, "BMEX"),
-    Venue("XSTO", "Nasdaq Stockholm", "SE", "europe", "esma_firds", ESMA_URL),
-    Venue("XHEL", "Nasdaq Helsinki", "FI", "europe", "esma_firds", ESMA_URL),
-    Venue("XCSE", "Nasdaq Copenhagen", "DK", "europe", "esma_firds", ESMA_URL),
-    Venue("XWBO", "Wiener Börse", "AT", "europe", "esma_firds", ESMA_URL),
-    Venue("XWAR", "Warsaw Stock Exchange", "PL", "europe", "esma_firds", ESMA_URL),
-    Venue("XATH", "Athens Exchange", "GR", "europe", "esma_firds", ESMA_URL),
-    Venue("XPRA", "Prague Stock Exchange", "CZ", "europe", "esma_firds", ESMA_URL),
-    Venue("XBUD", "Budapest Stock Exchange", "HU", "europe", "esma_firds", ESMA_URL),
-    Venue("XSWX", "SIX Swiss Exchange", "CH", "europe", "esma_firds", ESMA_URL),
+    _eu("XPAR", "Euronext Paris", "FR"),
+    _eu("XAMS", "Euronext Amsterdam", "NL"),
+    _eu("XBRU", "Euronext Brussels", "BE"),
+    _eu("XLIS", "Euronext Lisbon", "PT"),
+    _eu("XMSM", "Euronext Dublin", "IE", "XDUB"),
+    _eu("MTAA", "Euronext Milan", "IT", "XMIL"),
+    _eu("XOSL", "Oslo Børs", "NO"),
+    _eu("XOAS", "Euronext Expand Oslo", "NO", "XOSL"),
+    _eu("XETA", "Xetra (regulated market)", "DE", "XETR"),
+    _eu("FRAA", "Börse Frankfurt (regulated market)", "DE", "XFRA"),
+    _eu("XMAD", "Bolsa de Madrid", "ES", "BMEX"),
+    _eu("XSTO", "Nasdaq Stockholm", "SE"),
+    _eu("XHEL", "Nasdaq Helsinki", "FI"),
+    _eu("XCSE", "Nasdaq Copenhagen", "DK"),
+    _eu("XICE", "Nasdaq Iceland", "IS"),
+    _eu("XRIS", "Nasdaq Riga", "LV"),
+    _eu("XTAL", "Nasdaq Tallinn", "EE"),
+    _eu("XLIT", "Nasdaq Vilnius", "LT"),
+    _eu("WBAH", "Wiener Börse (official market)", "AT", "XWBO"),
+    _eu("XWAR", "Warsaw Stock Exchange (main market)", "PL"),
+    _eu("XATH", "Athens Exchange", "GR", "ASEX"),
+    _eu("XPRA", "Prague Stock Exchange", "CZ"),
+    _eu("XBUD", "Budapest Stock Exchange", "HU"),
+    _eu("XBSE", "Bucharest Stock Exchange (regulated market)", "RO"),
+    _eu("XZAG", "Zagreb Stock Exchange", "HR"),
+    _eu("XLJU", "Ljubljana Stock Exchange", "SI"),
+    _eu("XBRA", "Bratislava Stock Exchange", "SK"),
+    _eu("XLUX", "Luxembourg Stock Exchange", "LU"),
+    _eu("XCYS", "Cyprus Stock Exchange", "CY"),
+    _eu("XMAL", "Malta Stock Exchange", "MT"),
+    # EU growth / SME markets (where many IPOs happen)
+    _eu("ALXP", "Euronext Growth Paris", "FR", "XPAR"),
+    _eu("EXGM", "Euronext Growth Milan", "IT", "XMIL"),
+    _eu("XESM", "Euronext Growth Dublin", "IE", "XDUB"),
+    _eu("SSME", "Nasdaq First North Sweden", "SE", "XSTO"),
+    _eu("XNCO", "NewConnect (Warsaw)", "PL", "XWAR"),
+    _eu("GROW", "BME Growth", "ES", "BMEX"),
     # United Kingdom (FCA FIRDS)
-    Venue("XLON", "London Stock Exchange", "GB", "uk", "fca_firds", FCA_URL),
+    Venue("XLON", "London Stock Exchange", "GB", "uk", "fca_firds", FCA_URL, "XLON"),
     Venue("AIMX", "AIM (London Stock Exchange)", "GB", "uk", "fca_firds", FCA_URL, "XLON"),
     # Canada (exchange-direct adapters; enabled per source terms)
     Venue("XTSE", "Toronto Stock Exchange", "CA", "canada", "tsx", "https://www.tsx.com/"),

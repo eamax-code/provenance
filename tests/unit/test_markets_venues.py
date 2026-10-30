@@ -20,3 +20,15 @@ def test_seed_is_idempotent_and_filterable(db):
     venues.seed_venues(db, source="esma_firds")
     db.commit()
     assert db.scalar(select(func.count(Market.id))) == len(venues.VENUES)
+
+
+def test_registry_uses_segment_mics_not_operating_only_codes():
+    # ISO 10383 category NSPD (operating-level, not where FIRDS reports listings)
+    operating_only = {"XETR", "XFRA", "XMIL", "XWBO", "XDUB"}
+    assert not operating_only & set(venues.BY_MIC)
+    assert "XSWX" not in venues.BY_MIC  # Switzerland is outside EU FIRDS
+    assert (
+        venues.BY_MIC["MTAA"].operating_mic == "XMIL"
+        and venues.BY_MIC["XETA"].operating_mic == "XETR"
+    )
+    assert venues.VENUE_REGISTRY_VERSION == "1.1.0"
