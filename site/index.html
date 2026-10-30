@@ -303,10 +303,10 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
         <a class="btn" href="/llms.txt">llms.txt</a>
       </div>
       <div class="facts" aria-label="Live coverage" id="live-facts" data-source="/v1/stats">
-        <div><b data-stat="companies">—</b>companies ingested</div>
-        <div><b data-stat="filings">—</b>filings indexed</div>
+        <div><b data-stat="companies">—</b>US companies ingested</div>
         <div><b data-stat="facts">—</b>normalized facts</div>
-        <div><b data-stat="fetch_age">—</b>since last SEC fetch</div>
+        <div><b data-stat="listings">—</b>CA/EU/UK listings tracked</div>
+        <div><b data-stat="listing_events">—</b>listing events detected</div>
       </div>
       <p class="muted mono" id="live-note" style="font-size:.74rem;margin-top:10px">Loading live coverage from /v1/stats…</p>
     </div>
@@ -765,6 +765,8 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
     var ingested = d.companies.ingested;
     set('companies', fmt(ingested)); set('filings', fmt(d.filings.total)); set('facts', fmt(d.facts.total));
     set('fetch_age', age(d.freshness.last_successful_fetch_age_seconds));
+    var L = d.listings || {}, evs = L.events_by_type || {}, evTotal = Object.keys(evs).reduce(function (a, k) { return a + evs[k]; }, 0);
+    set('listings', fmt(L.instruments)); set('listing_events', fmt(evTotal));
     set('health', d.service.health);
     set('health_note', { ok: 'Last SEC fetch within the staleness window.', stale: 'Last successful fetch is older than ' + age(d.freshness.stale_after_seconds) + '.', degraded: 'The most recent ingestion run failed; data is from the last success.', empty: 'Nothing ingested yet.' }[d.service.health] || '');
     var q = d.facts.by_quality || {}, total = d.facts.total || 0;
@@ -778,10 +780,10 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
     set('mapping', d.mapping_version);
     document.getElementById('status-empty').hidden = ingested > 0;
     document.getElementById('status-error').hidden = true;
-    if (note) note.textContent = ingested > 0 ? 'Live from /v1/stats · generated ' + d.generated_at.replace('T', ' ').slice(0, 19) + ' UTC' : 'No companies ingested yet. Live from /v1/stats.';
+    if (note) note.textContent = 'Live from /v1/stats · generated ' + d.generated_at.replace('T', ' ').slice(0, 19) + ' UTC' + (ingested > 0 ? '' : ' · no US companies ingested yet') + ((L.instruments || 0) > 0 ? '' : ' · no international listings yet');
   }
   function fail() {
-    ['companies', 'filings', 'facts', 'fetch_age'].forEach(function (k) { set(k, 'n/a'); });
+    ['companies', 'filings', 'facts', 'fetch_age', 'listings', 'listing_events'].forEach(function (k) { set(k, 'n/a'); });
     document.getElementById('status-error').hidden = false;
     if (note) note.textContent = 'Live stats unavailable; showing static content.';
   }

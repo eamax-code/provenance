@@ -130,7 +130,7 @@
       if (!res.ok) throw new Error(res.status);
       var d = res.body; grid.innerHTML = '';
       var kv = function (k, v) { grid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
-      kv('health', d.service.health); kv('version', d.service.version);
+      kv('US filings health', d.service.health); kv('version', d.service.version);
       kv('companies', fmtInt(d.companies.ingested) + ' ingested / ' + fmtInt(d.companies.known) + ' known'); kv('filings', fmtInt(d.filings.total) + ' (' + fmtInt(d.filings.with_acceptance_timestamp) + ' with SEC acceptance time)');
       kv('facts', fmtInt(d.facts.total)); kv('facts by quality', Object.keys(d.facts.by_quality).sort().map(function (k) { return k + ' ' + fmtInt(d.facts.by_quality[k]); }).join(' · ') || '—');
       kv('last successful SEC fetch', fmtTs(d.freshness.last_successful_fetch_at)); kv('poll interval', d.freshness.poll_interval_seconds + ' s');
@@ -145,7 +145,18 @@
         qkv('oldest pending delivery', q.notifications.oldest_pending_age_seconds == null ? 'none' : q.notifications.oldest_pending_age_seconds + ' s'); qkv('universe', fmtInt(q.universe.active) + ' active · ' + fmtInt(q.universe.due) + ' due · ' + fmtInt(q.universe.disabled) + ' disabled');
       }
       var g = $('status-generated'); if (g) g.textContent = 'generated ' + fmtTs(d.generated_at) + ' · cached ' + d.cache_ttl_seconds + ' s';
-      setState('status-state', d.service.health === 'empty' ? 'Nothing has been ingested yet.' : '');
+      var L = d.listings || {}, lgrid = $('listings-kv');
+      if (lgrid) {
+        lgrid.innerHTML = '';
+        var lkv = function (k, v) { lgrid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
+        var evs = L.events_by_type || {};
+        lkv('venues covered', fmtInt(L.venues)); lkv('instruments tracked', fmtInt(L.instruments));
+        lkv('events by type', Object.keys(evs).sort().map(function (k) { return k + ' ' + fmtInt(evs[k]); }).join(' · ') || 'none yet');
+        lkv('latest event detected', fmtTs(L.latest_event_detected_at));
+        setState('listings-status-state', (L.instruments || 0) > 0 ? '' : 'No international listings ingested yet. Run scripts/ingest_markets.py --all.');
+      }
+      var usEmpty = d.service.health === 'empty';
+      setState('status-state', usEmpty && (L.instruments || 0) === 0 ? 'Nothing has been ingested yet.' : (usEmpty ? 'US filings: none ingested yet (SEC access needs a contact address in the User-Agent). International listings are live below.' : ''));
     }).catch(function () { setState('status-state', 'Live status unavailable right now.'); });
   }
 
