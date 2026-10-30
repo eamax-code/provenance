@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import db_session, require_api_key
+from app.api.dependencies import db_session, require_reader
 from app.core.errors import APIError
-from app.db.models import ApiKey, Issuer, ListedInstrument, ListingEvent, Market
+from app.db.models import Issuer, ListedInstrument, ListingEvent, Market
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.markets import (
     InstrumentDetail,
@@ -40,7 +40,7 @@ NOTES = [
 
 
 @router.get("/", response_model=MarketList, responses=_ERRORS, summary="Venues covered")
-def markets(db: Session = Depends(db_session), _key: ApiKey = Depends(require_api_key)):
+def markets(db: Session = Depends(db_session), _key=Depends(require_reader)):
     rows = db.scalars(select(Market).order_by(Market.region, Market.country, Market.mic)).all()
     counts = {
         (mic, status): int(n)
@@ -81,7 +81,7 @@ def instruments(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0, le=100_000),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     stmt = select(ListedInstrument).join(Market, Market.mic == ListedInstrument.mic)
     if mic:
@@ -129,7 +129,7 @@ def instruments(
 def instrument(
     isin: str = Path(min_length=12, max_length=12),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     isin = isin.upper()
     if not is_valid_isin(isin):
@@ -165,7 +165,7 @@ def events(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0, le=100_000),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     if type is not None and type not in EVENT_TYPES:
         raise APIError(422, "invalid_parameter", f"type must be one of: {', '.join(EVENT_TYPES)}.")
@@ -208,7 +208,7 @@ def events(
 def issuer(
     lei: str = Path(min_length=20, max_length=20),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     row = db.scalar(select(Issuer).where(Issuer.lei == lei.upper()))
     if row is None:

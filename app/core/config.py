@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     # (ESMA and FCA publish deltas by 09:00 CET/UTC). Set false where a platform cron runs it.
     markets_daily_enabled: bool = True
     markets_daily_hour_utc: int = 10
+    # Public demo key ("demo"): read-only endpoints, showcase companies, small pages, per-IP limits
+    demo_key_enabled: bool = True
+    demo_rate_limit_per_minute: int = 20
+    demo_requests_per_day: int = 300
+    demo_max_limit: int = 10
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12

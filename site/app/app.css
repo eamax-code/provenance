@@ -9,6 +9,7 @@
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #f3f6fb; --bg-2: #e9eef7; --panel: #fff; --line: #cfd8e8; --fg: #0b1324; --muted: #4f5d78; --accent: #007a99; --accent-2: #b36a00; --accent-ink: #fff; --good: #178a5e; --warn: #b36a00; --bad: #b3261e; color-scheme: light; } }
 :root[data-theme="light"] { --bg: #f3f6fb; --bg-2: #e9eef7; --panel: #fff; --line: #cfd8e8; --fg: #0b1324; --muted: #4f5d78; --accent: #007a99; --accent-2: #b36a00; --accent-ink: #fff; --good: #178a5e; --warn: #b36a00; --bad: #b3261e; color-scheme: light; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-body);
   background-image: linear-gradient(to right, color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px); background-size: 56px 56px; }
 a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }

@@ -41,6 +41,8 @@ jobs:
             for (const m of s.matchAll(/<script type=\"application\/ld\+json\">([\s\S]*?)<\/script>/g)) JSON.parse(m[1]);
           }
           for (const f of fs.existsSync('site/app') ? fs.readdirSync('site/app').filter(f=>f.endsWith('.js')) : []) new Function(fs.readFileSync('site/app/'+f,'utf8'));
+          for (const f of fs.readdirSync('site').filter(f=>f.endsWith('.js'))) new Function(fs.readFileSync('site/'+f,'utf8'));
+          for (const d of ['companies','status','listings','playground']) { const f='site/'+d+'/index.html'; if (fs.existsSync(f)) for (const m of fs.readFileSync(f,'utf8').matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(m[1]); }
           console.log('site scripts ok');"
       - name: Tests (SQLite)
         run: pytest -q

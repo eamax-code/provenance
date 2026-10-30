@@ -9,9 +9,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import db_session, require_api_key
+from app.api.dependencies import db_session, require_reader
 from app.core.errors import APIError
-from app.db.models import ApiKey, Company, FinancialFact
+from app.db.models import Company, FinancialFact
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.public import LatestRevenueCard
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS
@@ -53,7 +53,7 @@ def screen(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0, le=1_000_000),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     if metric not in SUPPORTED_METRICS:
         raise APIError(

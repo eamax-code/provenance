@@ -29,6 +29,7 @@ file.
 | Public showcase API: plans, companies, per-company bundle (no key, cached 60 s, never calls the SEC) | `GET /v1/public/plans`, `/v1/public/companies`, `/v1/public/companies/{cik}` |
 | Public pages driven by the API: directory, company pages, status | `GET /companies/`, `/companies/{cik}`, `/status/` |
 | International listings (Canada, Europe, UK): venues, issuers (LEI), instruments, new listings / delistings / suspensions / name changes | `GET /v1/markets/`, `/v1/markets/instruments`, `/v1/markets/instruments/{isin}`, `/v1/markets/events`, `/v1/markets/issuers/{lei}` |
+| API playground with the public `demo` key (read-only, showcase companies, 10 rows, 20 req/min) | `GET /playground/` |
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
 | Universe: seed CIKs, budgeted resumable bulk ingestion with backoff | `scripts/bulk_ingest.py`, poller refreshes due members |

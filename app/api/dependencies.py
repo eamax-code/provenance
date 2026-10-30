@@ -114,3 +114,84 @@ def enforce_ip_limit(limiter: FixedWindowRateLimiter, key: str, limit: int, mess
             message,
             headers={"Retry-After": str(decision.retry_after_seconds)},
         )
+
+
+# ---- public demo key ---------------------------------------------------------------------
+
+DEMO_KEY = "demo"
+demo_minute_limiter = FixedWindowRateLimiter(window_seconds=60)
+demo_day_limiter = FixedWindowRateLimiter(window_seconds=86400)
+DEMO_UPGRADE = "Request a free key at /#contact for full access."
+
+
+class DemoPrincipal:
+    """Stand-in for an ApiKey on read-only endpoints when the public demo key is used."""
+
+    id = None
+    plan = "demo"
+    key_prefix = "demo"
+
+
+def require_reader(
+    request: Request,
+    raw_key: str | None = Depends(api_key_header),
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+):
+    """Read-only endpoints: a real key, or the public demo key with tight limits.
+
+    The demo key may be passed as ?api_key=demo so example URLs work in a browser; real keys are
+    never accepted from the query string.
+    """
+    is_demo = raw_key == DEMO_KEY or (
+        not raw_key and request.query_params.get("api_key") == DEMO_KEY
+    )
+    if not is_demo:
+        return require_api_key(request, raw_key, db, settings)
+    if not settings.demo_key_enabled:
+        raise APIError(401, "invalid_api_key", "The demo key is disabled on this deployment.")
+    ip = client_ip(request)
+    enforce_ip_limit(
+        demo_minute_limiter,
+        "demo-min:" + ip,
+        settings.demo_rate_limit_per_minute,
+        f"Demo key rate limit reached ({settings.demo_rate_limit_per_minute}/minute). "
+        f"Request a free key for 60/minute: {DEMO_UPGRADE}",
+    )
+    enforce_ip_limit(
+        demo_day_limiter,
+        "demo-day:" + ip,
+        settings.demo_requests_per_day,
+        f"Demo key daily limit reached. Request a free key for full access: {DEMO_UPGRADE}",
+    )
+    raw_limit = request.query_params.get("limit")
+    if raw_limit and raw_limit.isdigit() and int(raw_limit) > settings.demo_max_limit:
+        raise APIError(
+            403,
+            "demo_limit",
+            f"The demo key returns at most limit={settings.demo_max_limit} rows. {DEMO_UPGRADE}",
+        )
+    cik = request.path_params.get("cik")
+    if cik is not None:
+        from app.services.public import showcase_ciks
+        from app.services.sec_client import normalize_cik
+
+        try:
+            wanted = normalize_cik(cik)
+        except ValueError:
+            wanted = None
+        allowed, _ = showcase_ciks(db, settings)
+        if wanted not in allowed:
+            raise APIError(
+                403,
+                "demo_scope",
+                "The demo key covers the public showcase companies only"
+                + (
+                    f" ({', '.join(allowed[:5])}{'…' if len(allowed) > 5 else ''})"
+                    if allowed
+                    else ""
+                )
+                + f". {DEMO_UPGRADE}",
+            )
+    request.state.demo = True
+    return DemoPrincipal()

@@ -4,6 +4,7 @@
 > affiliated with, the U.S. Securities and Exchange Commission. No market data, no advice.
 
 ## Use
+- Try without signup: header `X-API-Key: demo` (or `?api_key=demo`) on read-only endpoints; showcase companies only, limit<=10, 20 requests/minute. Playground: /playground/
 - Base URL: this host. All /v1 endpoints need header `X-API-Key`.
 - OpenAPI 3.1: /openapi.json . Swagger UI: /docs .
 - Errors: {"error": {"code": str, "message": str, "request_id": str}}. 429 carries Retry-After.

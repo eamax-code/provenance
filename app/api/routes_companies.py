@@ -10,10 +10,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Path, Query, Request, R
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import db_session, require_api_key, settings_dep
+from app.api.dependencies import db_session, require_reader, settings_dep
 from app.core.config import Settings
 from app.core.errors import APIError
-from app.db.models import ApiKey, Company, Filing, FinancialFact, utcnow
+from app.db.models import Company, Filing, FinancialFact, utcnow
 from app.db.session import session_factory
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.companies import (
@@ -130,7 +130,7 @@ def list_companies(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0, le=1_000_000),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     stmt = select(Company)
     if exchange:
@@ -168,7 +168,7 @@ def search(
     q: str = Query(min_length=1, max_length=100, description="Ticker, CIK, or company name"),
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     hits, has_more = search_companies(db, q, limit)
     return CompanyList(
@@ -189,12 +189,17 @@ def profile(
     cik: str = Path(max_length=13),
     db: Session = Depends(db_session),
     settings: Settings = Depends(settings_dep),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     cik = _parse_cik_param(cik)
     company = db.scalar(select(Company).where(Company.cik == cik))
+    demo = getattr(request.state, "demo", False)
     if company is None:
-        if settings.on_demand_ingestion_enabled and _schedule_ingestion(cik, background, request):
+        if (
+            not demo
+            and settings.on_demand_ingestion_enabled
+            and _schedule_ingestion(cik, background, request)
+        ):
             response.status_code = 202
             response.headers["Retry-After"] = "10"
             return CompanyProfile(
@@ -216,8 +221,10 @@ def profile(
         db.scalar(select(func.count(FinancialFact.id)).where(FinancialFact.cik == cik)) or 0
     )
     if company.last_processed_at is None:
-        scheduled = settings.on_demand_ingestion_enabled and _schedule_ingestion(
-            cik, background, request
+        scheduled = (
+            (not demo)
+            and settings.on_demand_ingestion_enabled
+            and _schedule_ingestion(cik, background, request)
         )
         out.ingestion_status = (
             "processing" if scheduled else ("failed" if company.last_fetch_error else "pending")
@@ -236,7 +243,7 @@ def filings(
     form_type: str | None = Query(None, max_length=20),
     since: date | None = Query(None, description="Only filings with filing_date >= since"),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     cik = _parse_cik_param(cik)
     _require_company(db, cik)
@@ -283,7 +290,7 @@ def facts(
         "the latest-filed preferred observation per period",
     ),
     db: Session = Depends(db_session),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     cik = _parse_cik_param(cik)
     _require_company(db, cik)
@@ -371,7 +378,7 @@ def freshness(
     cik: str = Path(max_length=13),
     db: Session = Depends(db_session),
     settings: Settings = Depends(settings_dep),
-    _key: ApiKey = Depends(require_api_key),
+    _key=Depends(require_reader),
 ):
     cik = _parse_cik_param(cik)
     company = _require_company(db, cik)

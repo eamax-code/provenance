@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Provenance API Playground</title>
+<meta name="description" content="Try the Provenance API in your browser with the public demo key: SEC filings, normalized facts and Canada/EU/UK listing events, with curl, Python and JavaScript snippets.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/app/app.css">
+<link rel="stylesheet" href="/public.css">
+<link rel="stylesheet" href="/playground.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="/"><span class="dot" aria-hidden="true"></span>Provenance</a>
+    <nav class="views" aria-label="Site"><a class="view-btn" href="/companies/">Companies</a><a class="view-btn" href="/playground/">Playground</a><a class="view-btn" href="/listings/">Listings</a><a class="view-btn" href="/status/">Status</a><a class="view-btn" href="/#pricing">Pricing</a><a class="view-btn" href="/app/">Explorer</a><a class="view-btn" href="/docs">API docs</a></nav>
+  </header>
+  <div class="pub-head">
+    <p class="eyebrow">API playground · no signup</p>
+    <h1>Try the API with the demo key</h1>
+    <p class="muted">Pick an endpoint, adjust the parameters and send a real request to this deployment. The <code>demo</code> key works on read-only endpoints for the public showcase companies, up to 10 rows per request and 20 requests per minute. Paste your own key for full access.</p>
+  </div>
+  <main id="playground" class="pg">
+    <aside class="pg-nav" aria-label="Endpoints"><div id="pg-catalog"></div></aside>
+    <section class="pg-main">
+      <div class="panel pg-head">
+        <div class="pg-title"><span class="pg-method" id="pg-method">GET</span><code id="pg-path">/v1/...</code></div>
+        <p class="muted" id="pg-desc"></p>
+        <div class="pg-keyrow">
+          <label for="pg-key" class="eyebrow">API key</label>
+          <input id="pg-key" value="demo" autocomplete="off" spellcheck="false">
+          <button type="button" class="btn small" id="pg-use-demo">Use demo key</button>
+          <button type="button" class="btn small" id="pg-use-mine" hidden>Use my saved key</button>
+          <span class="muted small" id="pg-key-note"></span>
+        </div>
+      </div>
+      <form class="panel" id="pg-form" novalidate>
+        <h2 class="pg-h">Parameters</h2>
+        <div class="pg-params" id="pg-params"></div>
+        <div class="row"><button class="btn primary" type="submit" id="pg-send">Send request</button><span class="muted small" id="pg-hint"></span></div>
+      </form>
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2 class="pg-h">Request</h2><div class="pg-tabs" role="tablist" id="pg-tabs"><button type="button" class="tab" data-lang="curl" aria-pressed="true">curl</button><button type="button" class="tab" data-lang="python" aria-pressed="false">Python</button><button type="button" class="tab" data-lang="js" aria-pressed="false">JavaScript</button><button type="button" class="btn small" id="pg-copy-code">Copy</button></div></div>
+        <pre class="pg-code" id="pg-code"></pre>
+      </section>
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2 class="pg-h">Response</h2><div class="row small"><span class="badge" id="pg-status">not sent</span><span class="mono" id="pg-meta"></span><button type="button" class="btn small" id="pg-copy-resp" disabled>Copy JSON</button></div></div>
+        <pre class="pg-json" id="pg-response"><span class="muted">Send a request to see the live response.</span></pre>
+      </section>
+    </section>
+  </main>
+  <div class="cta-bar"><strong>Ready for every company, quarterly data, exports and alerts?</strong><a class="btn primary small" href="/#contact">Get a free key</a><a class="btn small" href="/docs">Full OpenAPI reference</a></div>
+  <footer class="foot muted small">Data from SEC EDGAR, ESMA FIRDS, FCA FIRDS and GLEIF. Provenance is independent and not affiliated with or endorsed by the SEC, ESMA, the FCA or GLEIF. Not investment advice. <a href="/docs">API docs</a> · <a href="/llms.txt">llms.txt</a></footer>
+</div>
+<script src="/playground.js"></script>
+</body>
+</html>
