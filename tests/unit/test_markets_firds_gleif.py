@@ -263,3 +263,37 @@ def test_gleif_parse_and_enrichment(db, settings, tmp_path):
     )
     assert db.scalar(select(ListedInstrument)).issuer_name == "TotalEnergies SE"
     assert gleif.enrich_issuers(db, settings, http, now=NOW)["looked_up"] == 0  # already enriched
+
+
+def test_full_file_listing_keeps_only_equities_part(settings, tmp_path):
+    docs = [
+        {
+            "file_name": n,
+            "file_type": "FULINS",
+            "publication_date": "2026-10-24T00:00:00Z",
+            "download_link": "https://firds.esma.europa.eu/firds/" + n,
+        }
+        for n in (
+            "FULINS_D_20261024_01of03.zip",
+            "FULINS_E_20261024_01of02.zip",
+            "FULINS_E_20261024_02of02.zip",
+            "FULINS_C_20261024_01of01.zip",
+        )
+    ]
+    http = MarketHttp(
+        settings,
+        http=httpx.Client(
+            transport=httpx.MockTransport(
+                lambda r: httpx.Response(200, json={"response": {"docs": docs}})
+            )
+        ),
+        cache_dir=tmp_path,
+        sleep=lambda s: None,
+    )
+    names = [
+        f.file_name
+        for f in firds.list_esma_files(
+            http, date(2026, 10, 20), date(2026, 10, 30), file_types=("FULINS",)
+        )
+    ]
+    assert names == ["FULINS_E_20261024_01of02.zip", "FULINS_E_20261024_02of02.zip"]
