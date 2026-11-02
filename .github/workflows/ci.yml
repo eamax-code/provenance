@@ -29,8 +29,8 @@ jobs:
           pip install -e ".[dev]"
       - name: Lint
         run: |
-          ruff check app tests scripts
-          ruff format --check app tests scripts
+          ruff check app tests scripts clients
+          ruff format --check app tests scripts clients
       - name: Site scripts parse
         run: |
           node -e "
