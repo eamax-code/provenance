@@ -198,3 +198,61 @@ def ingested_aapl(db, sec_client):
     from app.services.ingestion import ingest_company
 
     return ingest_company(db, sec_client, "320193")
+
+
+# FY2023 revenue as first filed (10-K 2023-11-03) and as restated in the FY2024 10-K (2024-11-01).
+REVENUE_ORIGINAL = 383_285_000_000
+REVENUE_RESTATED = 383_000_000_000
+REVENUE_TAG = "RevenueFromContractWithCustomerExcludingAssessedTax"
+
+
+@pytest.fixture
+def restated_aapl(db, sec_client, fake_sec, facts_aapl):
+    """AAPL ingested with FY2023 revenue restated in the FY2024 10-K."""
+    import copy
+
+    from app.services.ingestion import ingest_company
+
+    payload = copy.deepcopy(facts_aapl)
+    for tag in (REVENUE_TAG, "Revenues"):  # both revenue tags, or the mapping turns ambiguous
+        for obs in payload["facts"]["us-gaap"][tag]["units"]["USD"]:
+            if obs["end"] == "2023-09-30" and obs["accn"] == "0000320193-24-000123":
+                obs["val"] = REVENUE_RESTATED
+    fake_sec.add("https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json", payload)
+    return ingest_company(db, sec_client, "320193")
+
+
+@pytest.fixture
+def add_listings(db):
+    """Ingest new listings (one listing event each) for symbols on a venue, today."""
+    from datetime import date
+
+    from app.services.markets import ingest as markets_ingest
+    from app.services.markets.records import ListingRecord
+
+    def _add(symbols, mic="XPAR"):
+        markets_ingest.ensure_market(
+            db,
+            mic,
+            "Venue " + mic,
+            "FR",
+            "europe",
+            "esma_firds",
+            "https://registers.esma.europa.eu/",
+        )
+        db.commit()
+        records = [
+            ListingRecord(
+                isin=None,
+                symbol=s,
+                mic=mic,
+                issuer_name=f"{s} SA",
+                source="esma_firds",
+                source_url="https://registers.esma.europa.eu/x",
+                first_trade_date=date.today(),
+            )
+            for s in symbols
+        ]
+        markets_ingest.ingest_records(db, records, "esma_firds")
+
+    return _add

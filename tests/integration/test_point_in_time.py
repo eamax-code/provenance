@@ -2,27 +2,9 @@
 
 from __future__ import annotations
 
-import copy
-
-import pytest
-
-RESTATED = 383_000_000_000
-ORIGINAL = 383_285_000_000
-TAG = "RevenueFromContractWithCustomerExcludingAssessedTax"
-
-
-@pytest.fixture
-def restated_aapl(db, sec_client, fake_sec, facts_aapl):
-    """AAPL with FY2023 revenue restated in the FY2024 10-K (filed 2024-11-01)."""
-    payload = copy.deepcopy(facts_aapl)
-    for tag in (TAG, "Revenues"):  # both revenue tags, or the mapping turns ambiguous
-        for obs in payload["facts"]["us-gaap"][tag]["units"]["USD"]:
-            if obs["end"] == "2023-09-30" and obs["accn"] == "0000320193-24-000123":
-                obs["val"] = RESTATED
-    fake_sec.add("https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json", payload)
-    from app.services.ingestion import ingest_company
-
-    return ingest_company(db, sec_client, "320193")
+from tests.conftest import REVENUE_ORIGINAL as ORIGINAL
+from tests.conftest import REVENUE_RESTATED as RESTATED
+from tests.conftest import REVENUE_TAG as TAG
 
 
 def _fy(data, end):

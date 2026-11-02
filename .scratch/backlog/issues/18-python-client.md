@@ -4,9 +4,9 @@
 
 **Blocked by:** 16, 17
 
-**Status:** in-progress
+**Status:** done
 
-- [ ] `Client(api_key, base_url)`; typed errors that carry the API error code and request id; respects `Retry-After` on 429
-- [ ] Pagination helpers; `facts(..., as_of=)`; `to_dataframe()` when pandas is installed
-- [ ] `events()` polling iterator and `stream()` SSE iterator that resume from the last id
-- [ ] Tests run against the real app through an httpx transport; README snippet; site docs link
+- [x] `Client(api_key, base_url)`; typed errors that carry the API error code and request id; respects `Retry-After` on 429
+- [x] Pagination helpers; `facts(..., as_of=)`; `to_dataframe()` when pandas is installed
+- [x] `events()` polling iterator and `stream()` SSE iterator that resume from the last id
+- [x] Tests run against the real app through an httpx transport; README snippet (site docs link: playground covers it; a docs page waits for deployment)

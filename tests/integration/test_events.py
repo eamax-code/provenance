@@ -11,8 +11,6 @@ from sqlalchemy import select, update
 from app.db.models import Filing, ListingEvent
 from app.services import events as feed
 from app.services.ingestion import ingest_company
-from app.services.markets import ingest as markets_ingest
-from app.services.markets.records import ListingRecord
 
 SINCE = "&since=" + (datetime.now(UTC) - timedelta(days=1)).isoformat().replace("+00:00", "Z")
 
@@ -42,26 +40,6 @@ def _new_filing(fake_sec, submissions, accession, form="8-K"):
         "https://data.sec.gov/submissions/CIK0000320193.json",
         {**submissions, "filings": {"recent": recent}},
     )
-
-
-def _listings(db, symbols, mic="XPAR"):
-    markets_ingest.ensure_market(
-        db, mic, "Venue " + mic, "FR", "europe", "esma_firds", "https://registers.esma.europa.eu/"
-    )
-    db.commit()
-    records = [
-        ListingRecord(
-            isin=None,
-            symbol=s,
-            mic=mic,
-            issuer_name=f"{s} SA",
-            source="esma_firds",
-            source_url="https://registers.esma.europa.eu/x",
-            first_trade_date=date.today(),
-        )
-        for s in symbols
-    ]
-    markets_ingest.ingest_records(db, records, "esma_firds")
 
 
 def _poll_all(client, auth, query="", limit=3):
@@ -107,8 +85,8 @@ def test_settle_delay_hides_rows_until_they_settle(
     assert len(client.get("/v1/events?" + SINCE[1:], headers=auth).json()["data"]) == 1
 
 
-def test_pending_rows_wait_for_publication_sweep(client, auth, db):
-    _listings(db, ["AAA"])
+def test_pending_rows_wait_for_publication_sweep(add_listings, client, auth, db):
+    add_listings(["AAA"])
     db.execute(update(ListingEvent).values(stream_status="pending", stream_at=None))
     db.commit()
     assert client.get("/v1/events?" + SINCE[1:], headers=auth).json()["data"] == []
@@ -118,9 +96,11 @@ def test_pending_rows_wait_for_publication_sweep(client, auth, db):
     assert data[0]["data"]["listing_key"] == "SYM:AAA" and data[0]["data"]["mic"] == "XPAR"
 
 
-def test_paging_has_no_gaps_or_duplicates_when_timestamps_tie(client, auth, db, sec_client):
+def test_paging_has_no_gaps_or_duplicates_when_timestamps_tie(
+    add_listings, client, auth, db, sec_client
+):
     ingest_company(db, sec_client, "320193")
-    _listings(db, ["AAA", "BBB", "CCC", "DDD", "EEE"])
+    add_listings(["AAA", "BBB", "CCC", "DDD", "EEE"])
     tie = datetime.now(UTC) - timedelta(minutes=5)
     ids = [f.id for f in db.scalars(select(Filing))]
     assert len(ids) >= 4  # enough to span several pages
@@ -143,17 +123,17 @@ def test_paging_has_no_gaps_or_duplicates_when_timestamps_tie(client, auth, db, 
     # Caught up: the cursor returns nothing until something new is published.
     body = client.get(f"/v1/events?after={cursor}", headers=auth).json()
     assert body["data"] == [] and body["has_more"] is False
-    _listings(db, ["FFF"])
+    add_listings(["FFF"])
     body = client.get(f"/v1/events?after={body['next_cursor']}", headers=auth).json()
     assert [e["data"]["listing_key"] for e in body["data"]] == ["SYM:FFF"]
 
 
-def test_filters(client, auth, db, sec_client, fake_sec, submissions_aapl):
+def test_filters(add_listings, client, auth, db, sec_client, fake_sec, submissions_aapl):
     ingest_company(db, sec_client, "320193")
     _new_filing(fake_sec, submissions_aapl, "0000320193-26-000103", form="8-K")
     ingest_company(db, sec_client, "320193")
-    _listings(db, ["AAA"], mic="XPAR")
-    _listings(db, ["BBB"], mic="XETA")
+    add_listings(["AAA"], mic="XPAR")
+    add_listings(["BBB"], mic="XETA")
 
     def kinds(q):
         r = client.get("/v1/events?" + q + SINCE, headers=auth)
@@ -211,8 +191,8 @@ def _read_sse(client, auth, query="", last_event_id=None):
     return events, last_id, text
 
 
-def test_sse_stream_delivers_and_resumes_with_last_event_id(client, auth, db):
-    _listings(db, ["AAA", "BBB"])
+def test_sse_stream_delivers_and_resumes_with_last_event_id(add_listings, client, auth, db):
+    add_listings(["AAA", "BBB"])
     events, last_id, text = _read_sse(client, auth, SINCE[1:])
     assert text.startswith("retry: ")
     assert [e[1] for e in events] == ["listing.new_listing", "listing.new_listing"]
@@ -220,13 +200,13 @@ def test_sse_stream_delivers_and_resumes_with_last_event_id(client, auth, db):
     assert ": heartbeat" in text  # idle connection keeps moving Last-Event-ID
 
     # Reconnecting with the last id replays nothing old and picks up what is new.
-    _listings(db, ["CCC"])
+    add_listings(["CCC"])
     events, _, _ = _read_sse(client, auth, last_event_id=last_id)
     assert [e[2]["data"]["listing_key"] for e in events] == ["SYM:CCC"]
 
 
-def test_sse_default_start_is_now(client, auth, db):
-    _listings(db, ["AAA"])
+def test_sse_default_start_is_now(add_listings, client, auth, db):
+    add_listings(["AAA"])
     db.execute(update(ListingEvent).values(stream_at=datetime.now(UTC) - timedelta(minutes=1)))
     db.commit()
     events, _, _ = _read_sse(client, auth)
