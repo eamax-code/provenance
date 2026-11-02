@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     demo_rate_limit_per_minute: int = 20
     demo_requests_per_day: int = 300
     demo_max_limit: int = 10
+    # Event feed (ADR 0007): rows reach readers only after settling, so no committed event is
+    # skipped by a reader that has already moved past its publication time.
+    events_settle_seconds: float = 5.0
+    events_stream_poll_seconds: float = 2.0
+    events_stream_heartbeat_seconds: float = 15.0
+    events_stream_max_seconds: float = 900.0
+    events_max_since_days: int = 30
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12
@@ -139,13 +146,14 @@ class Settings(BaseSettings):
 PLAN_LIMITS: dict[str, dict[str, int]] = {
     # Advertised on the pricing page; keep in sync with site/index.html.
     # rate limit per minute, requests per calendar month, export rows per request,
-    # distinct watched CIKs, total active watch rows (destinations)
+    # distinct watched CIKs, total active watch rows (destinations), concurrent event streams
     "free": {
         "rate_limit_per_minute": 60,
         "monthly_request_quota": 10_000,
         "max_export_rows": 1000,
         "max_watches": 5,
         "max_active_watches": 10,
+        "max_event_streams": 1,
     },
     "builder": {
         "rate_limit_per_minute": 300,
@@ -153,6 +161,7 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
         "max_export_rows": 1000,
         "max_watches": 50,
         "max_active_watches": 100,
+        "max_event_streams": 3,
     },
     "team": {
         "rate_limit_per_minute": 1000,
@@ -160,6 +169,7 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
         "max_export_rows": 1000,
         "max_watches": 500,
         "max_active_watches": 1000,
+        "max_event_streams": 10,
     },
     "enterprise": {
         "rate_limit_per_minute": 3000,
@@ -167,6 +177,7 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
         "max_export_rows": 1000,
         "max_watches": 5000,
         "max_active_watches": 10_000,
+        "max_event_streams": 50,
     },
     "internal": {
         "rate_limit_per_minute": 1000,
@@ -174,6 +185,7 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
         "max_export_rows": 1000,
         "max_watches": 5000,
         "max_active_watches": 10_000,
+        "max_event_streams": 50,
     },
 }
 # Legacy name from the first release; keys created as "pilot" keep Builder-level limits.

@@ -17,6 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.api import (
     routes_companies,
     routes_developer,
+    routes_events,
     routes_exports,
     routes_key_requests,
     routes_markets,
@@ -124,6 +125,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_key_requests.router)
     app.include_router(routes_public.router)
     app.include_router(routes_markets.router)
+    app.include_router(routes_events.router)
     app.include_router(routes_screen.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")

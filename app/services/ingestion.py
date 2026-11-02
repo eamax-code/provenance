@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.logging import log_event
 from app.db.models import Company, FinancialFact, IngestionRun, utcnow
 from app.db.models import Filing as FilingRow
-from app.services import notifications
+from app.services import events, notifications
 from app.services.fact_normalizer import NormalizedFact, normalize_company_facts
 from app.services.sec_client import (
     SecClient,
@@ -645,6 +645,7 @@ def _ingest_company(
     # Notifications: one per active watch per newly detected filing (idempotent event ids).
     # Backfill never notifies (ADR 0004): not the company's first ingestion, not rows that came
     # from older-filings history pages, and not filings older than NOTIFY_MAX_FILING_AGE_DAYS.
+    # The same rows, and only those, go to the event feed (ADR 0007).
     first_ingestion = company.last_processed_at is None
     if not first_ingestion:
         history_accessions = {r.accession_number for r in filing_recs if r.from_history_page}
@@ -654,6 +655,7 @@ def _ingest_company(
                 continue
             if row.filing_date is not None and (now.date() - row.filing_date) > max_age:
                 continue
+            row.stream_status = "pending"
             created = notifications.create_deliveries_for_filing(db, row, now)
             result.notifications_created += created
     result.new_filing_ids = [r.id for r in new_rows]
@@ -689,6 +691,7 @@ def _ingest_company(
             "; ".join(result.errors) or None,
         )
     db.commit()
+    events.publish_pending(db)
     log_event(
         logger,
         logging.INFO,

@@ -15,9 +15,11 @@
 - GET /v1/companies/search?q={ticker|cik|name}&limit=1..50
 - GET /v1/companies/{cik}  (202 + Retry-After while on-demand ingestion runs; 404 if unknown)
 - GET /v1/companies/{cik}/filings?limit=1..100&form_type=&since=YYYY-MM-DD&offset=
-- GET /v1/companies/{cik}/facts?metric={revenue|operating_income|net_income|total_assets|operating_cash_flow}&period={annual|quarterly|all}&from=&to=&form_type=&include_derived=false&include_all_observations=false
+- GET /v1/companies/{cik}/facts?metric={revenue|operating_income|net_income|total_assets|operating_cash_flow}&period={annual|quarterly|all}&from=&to=&form_type=&include_derived=false&include_all_observations=false&as_of=YYYY-MM-DD  (as_of: only observations filed by that date; restatements filed later are invisible)
 - GET /v1/companies/{cik}/freshness
-- GET /v1/facts/screen?metric=&year=YYYY&period={annual|quarterly}&unit=USD&order={desc|asc}  one row per company, latest period ending in that calendar year
+- GET /v1/facts/screen?metric=&year=YYYY&period={annual|quarterly}&unit=USD&order={desc|asc}&as_of=YYYY-MM-DD  one row per company, latest period ending in that calendar year
+- GET /v1/events?after={cursor}&since=&types={filing|listing}&cik=&form_type=&mic=&event_type=&limit<=100  one ordered feed of new SEC filings and listing events; pass next_cursor as after
+- GET /v1/events/stream  same feed as Server-Sent Events (X-API-Key header; resume with Last-Event-ID; demo key not accepted)
 - POST /v1/watches {"cik","destination_type":"webhook|email","destination"} ; GET /v1/watches ; DELETE /v1/watches/{id} ; GET /v1/watches/{id}/deliveries
 - GET /v1/developer/usage?from=&to= ; GET/DELETE /v1/developer/api-keys
 - GET /v1/exports/facts?metric=&ciks=a,b&format={csv|json}&limit<=1000

@@ -4,11 +4,12 @@
 
 **Blocked by:** none
 
-**Status:** in-progress
+**Status:** done
 
-- [ ] `filings.is_backfill` set at ingestion (first ingestion, history pages, older than the notify age); existing rows migrated as backfill
-- [ ] Opaque cursor over (detected time, kind, id); stable order across both sources, with no gaps or duplicates when many rows share a timestamp
-- [ ] Filters: `types`, `cik`, `form_type`, `mic`, `event_type`; `since` bounded to 30 days
-- [ ] SSE: heartbeats, poll interval and maximum connection time from settings, concurrent streams per key limited by plan; the demo key cannot stream
-- [ ] Event ids match the cursor, so `Last-Event-ID` resumes exactly
-- [ ] Tests for ordering, resume, filters, backfill exclusion, stream limits; docs and playground entry
+- [x] `filings.stream_status` set at ingestion (only rows that would notify stream); existing rows migrated as skipped
+- [x] Opaque cursor over (detected time, kind, id); stable order across both sources, with no gaps or duplicates when many rows share a timestamp
+- [x] Filters: `types`, `cik`, `form_type`, `mic`, `event_type`; `since` bounded to 30 days
+- [x] SSE: heartbeats, poll interval and maximum connection time from settings, concurrent streams per key limited by plan; the demo key cannot stream
+- [x] Event ids match the cursor, so `Last-Event-ID` resumes exactly
+- [x] Tests for ordering, resume, filters, backfill exclusion, stream limits; docs and playground entry
+- [x] Ordered by publication time stamped after commit, not detection time (ADR 0007)

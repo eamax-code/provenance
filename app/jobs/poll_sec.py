@@ -21,6 +21,7 @@ from app.core.logging import log_event
 from app.db.models import Company, CompanyWatch, utcnow
 from app.jobs import markets as markets_job
 from app.services import quality, universe
+from app.services.events import publish_pending
 from app.services.ingestion import finish_run, start_run
 from app.services.notifications import deliver_pending
 from app.services.sec_client import SecClient
@@ -112,6 +113,8 @@ def run_once(
                 status = "partial"
             finish_run(db, run, status, "; ".join(errors)[:2000] or None)
             db.commit()
+            # Sweep: publishes feed rows left pending if an ingestion stopped after its commit.
+            summary["events_published"] = publish_pending(db)
             summary["deliveries"] = deliver_pending(db, settings, sender=sender)
             snap = quality.take_snapshot(db, settings, run_id=run.id)
             db.commit()

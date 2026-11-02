@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logging import log_event
 from app.db.models import Issuer, ListedInstrument, ListingEvent, Market, utcnow
+from app.services.events import publish_pending
 from app.services.markets.records import (
     EVENT_DELISTING,
     EVENT_IPO,
@@ -216,6 +217,7 @@ def ingest_records(
         result.updated += 1
         _events_for_change(db, row, before, rec, now, result)
     db.commit()
+    publish_pending(db)  # after the commit, so the feed never runs ahead of visible rows
     log_event(
         logger,
         logging.INFO,

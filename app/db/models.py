@@ -69,6 +69,8 @@ class Filing(Base):
         UniqueConstraint("cik", "accession_number", name="uq_filings_cik_accession"),
         Index("ix_filings_cik_filing_date", "cik", "filing_date"),
         Index("ix_filings_cik_first_detected", "cik", "first_detected_at"),
+        Index("ix_filings_stream_status", "stream_status"),
+        Index("ix_filings_stream_at", "stream_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -87,6 +89,11 @@ class Filing(Base):
     ingestion_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     quality_status: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    # Event feed (ADR 0007): pending -> published once committed; backfill rows are skipped.
+    stream_status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="skipped", server_default="skipped"
+    )
+    stream_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
 
 class FinancialFact(Base):
@@ -398,6 +405,8 @@ class ListingEvent(Base):
         UniqueConstraint("event_key", name="uq_listing_events_key"),
         Index("ix_listing_events_type_date", "event_type", "event_date"),
         Index("ix_listing_events_detected", "detected_at"),
+        Index("ix_listing_events_stream_status", "stream_status"),
+        Index("ix_listing_events_stream_at", "stream_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -417,6 +426,11 @@ class ListingEvent(Base):
     details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON text
     detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     quality_status: Mapped[str] = mapped_column(Text, nullable=False, default="ok")
+    # Event feed (ADR 0007): stamped with stream_at after the ingesting transaction commits.
+    stream_status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="pending", server_default="published"
+    )
+    stream_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
 
 class MarketSourceFile(Base):
