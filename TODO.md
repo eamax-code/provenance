@@ -34,6 +34,7 @@ decision or account; **ready-for-agent** can be built now; **needs-triage** is a
 | --- | --- |
 | 13 | [Canadian reporting issuers from OSC open data](.scratch/backlog/issues/13-canada-reporting-issuers.md) |
 | 14 | [Company event feed (information, not signals)](.scratch/backlog/issues/14-event-feed-idea.md) |
+| 20 | [Officer-change analysis from 8-K Item 5.02 (evidence, not signals)](.scratch/backlog/issues/20-officer-change-analysis.md) |
 
 Outside this repo: the DistrictLens cyclone module spec is at
 `apps/research/districtlens-cyclone-impact-spec.md`; it needs a repo location before tickets,
