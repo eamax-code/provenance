@@ -311,7 +311,7 @@ def test_export_csv_and_json_with_limits(client, auth, ingested_aapl, db):
         and body["meta"]["truncated"] is True
         and r.headers["X-Export-Truncated"] == "true"
     )
-    assert body["meta"]["mapping_version"] == "1.0.0"
+    assert body["meta"]["mapping_version"] == "1.1.0"
 
     r = client.get("/v1/exports/facts?metric=revenue&limit=1001", headers=auth)
     assert r.status_code == 413 and r.json()["error"]["code"] == "export_limit_exceeded"

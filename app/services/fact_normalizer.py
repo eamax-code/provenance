@@ -4,8 +4,10 @@ Mapping is versioned (MAPPING_VERSION). Rules (see AGENTS.md §6):
 - Absent facts stay absent; values are never defaulted to 0; sign is preserved.
 - Every candidate tag's observations are kept. The highest-precedence tag with data for a
   given (unit, period) is "preferred" and gets `ok`; alternates get `ambiguous_mapping`.
-  If candidate tags disagree on value for the same period, the preferred one is also
-  `ambiguous_mapping`.
+  If candidate tags disagree on value for the same period within the same filing, the
+  preferred one is also `ambiguous_mapping`. Conflicts are judged per filing (1.1.0), so a
+  later restatement never changes the quality of an earlier filing's observation and
+  point-in-time (`as_of`) answers carry the status that was true on that date.
 - Period class is derived from the actual duration, not from the SEC `fp` label, so a
   year-to-date 6/9-month fact is never presented as a quarter.
 - Quarter derivation by subtraction is explicit, opt-in at query time, and marked
@@ -21,7 +23,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-MAPPING_VERSION = "1.0.0"
+MAPPING_VERSION = "1.1.0"
 
 # Ordered by precedence (first wins when several tags cover the same period).
 CONCEPT_MAP: dict[str, dict[str, Any]] = {
@@ -288,6 +290,10 @@ def _normalize_observation(
     )
 
 
+def _filing_key(nf: NormalizedFact) -> str:
+    return nf.accession_number or f"filed:{nf.filed_date}"
+
+
 def _apply_precedence(candidates: list[tuple[int, NormalizedFact]]) -> None:
     """Mark non-preferred and conflicting candidate tags as ambiguous_mapping (in place)."""
     by_period: dict[tuple, list[tuple[int, NormalizedFact]]] = {}
@@ -299,14 +305,12 @@ def _apply_precedence(candidates: list[tuple[int, NormalizedFact]]) -> None:
         if len(tags_present) <= 1:
             continue
         best_prec = min(prec for prec, _ in group)
-        # latest filed value per tag for conflict detection
-        latest_by_tag: dict[str, NormalizedFact] = {}
+        # Conflicts are judged within one filing: the tags one filing reports for the period.
+        values_by_filing: dict[str, set] = {}
         for _, nf in group:
-            cur = latest_by_tag.get(nf.source_tag)
-            if cur is None or (nf.filed_date or date.min) > (cur.filed_date or date.min):
-                latest_by_tag[nf.source_tag] = nf
-        values = {nf.value for nf in latest_by_tag.values() if nf.value is not None}
-        conflict = len(values) > 1
+            if nf.value is not None:
+                values_by_filing.setdefault(_filing_key(nf), set()).add(nf.value)
+        conflicting = {k for k, values in values_by_filing.items() if len(values) > 1}
         for prec, nf in group:
             if nf.quality_status == "invalid_source_value":
                 continue
@@ -315,7 +319,7 @@ def _apply_precedence(candidates: list[tuple[int, NormalizedFact]]) -> None:
                 nf.notes.append(
                     "alternate candidate tag; a higher-precedence tag covers this period"
                 )
-            elif conflict:
+            elif _filing_key(nf) in conflicting:
                 nf.quality_status = "ambiguous_mapping"
                 nf.notes.append("candidate tags disagree on value for this period")
 

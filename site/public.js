@@ -195,7 +195,7 @@
     var lines = [
       ['metric', '"revenue"', 's'], ['value', String(r.value), 'n'], ['unit', JSON.stringify(r.unit), 's'], ['period_start', JSON.stringify(r.period_start), 's'], ['period_end', JSON.stringify(r.period_end), 's'],
       ['period_class', '"annual"', 's'], ['form_type', JSON.stringify(r.form_type), 's'], ['accession_number', JSON.stringify(r.accession_number), 's'], ['source_tag', JSON.stringify(r.source_tag), 's'], ['source_url', JSON.stringify(r.source_url), 's'],
-      ['mapping_version', '"1.0.0"', 's'], ['quality_status', JSON.stringify(r.quality_status), 's'], ['derived', 'false', 'n']
+      ['mapping_version', '"1.1.0"', 's'], ['quality_status', JSON.stringify(r.quality_status), 's'], ['derived', 'false', 'n']
     ];
     pre.innerHTML = ''; pre.appendChild(document.createTextNode('{\n'));
     lines.forEach(function (l, i) { pre.appendChild(document.createTextNode('  ')); pre.appendChild(span('k', '"' + l[0] + '"')); pre.appendChild(document.createTextNode(': ')); pre.appendChild(span(l[2], l[1])); pre.appendChild(document.createTextNode(i < lines.length - 1 ? ',\n' : '\n')); });

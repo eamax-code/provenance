@@ -145,7 +145,7 @@ def test_facts_annual_default_with_provenance(client, auth, ingested_aapl):
     r = client.get("/v1/companies/320193/facts?metric=revenue", headers=auth)
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["mapping_version"] == "1.0.0"
+    assert body["mapping_version"] == "1.1.0"
     data = body["data"]
     assert [d["period_end"] for d in data] == ["2024-09-28", "2023-09-30"]
     latest = data[0]

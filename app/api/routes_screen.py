@@ -15,6 +15,7 @@ from app.db.models import Company, FinancialFact
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.public import LatestRevenueCard
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS
+from app.services.point_in_time import as_of_note, known_by
 
 router = APIRouter(prefix="/v1/facts", tags=["facts"])
 
@@ -33,6 +34,7 @@ class ScreenResult(BaseModel):
     year: int
     period: str
     unit: str
+    as_of: date | None = None
     data: list[ScreenRow]
     meta: PageMeta
     notes: list[str]
@@ -52,6 +54,9 @@ def screen(
     order: str = Query("desc", pattern="^(asc|desc)$"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0, le=1_000_000),
+    as_of: date | None = Query(
+        None, description="Point in time: use only observations filed on or before this date"
+    ),
     db: Session = Depends(db_session),
     _key=Depends(require_reader),
 ):
@@ -59,18 +64,19 @@ def screen(
         raise APIError(
             422, "invalid_parameter", f"metric must be one of: {', '.join(SUPPORTED_METRICS)}."
         )
-    rows = db.scalars(
-        select(FinancialFact).where(
-            FinancialFact.metric == metric,
-            FinancialFact.period_class == period,
-            FinancialFact.unit == unit,
-            FinancialFact.derived.is_(False),
-            FinancialFact.quality_status.in_(["ok", "partial"]),
-            FinancialFact.value.is_not(None),
-            FinancialFact.period_end >= date(year, 1, 1),
-            FinancialFact.period_end <= date(year, 12, 31),
-        )
-    ).all()
+    stmt = select(FinancialFact).where(
+        FinancialFact.metric == metric,
+        FinancialFact.period_class == period,
+        FinancialFact.unit == unit,
+        FinancialFact.derived.is_(False),
+        FinancialFact.quality_status.in_(["ok", "partial"]),
+        FinancialFact.value.is_not(None),
+        FinancialFact.period_end >= date(year, 1, 1),
+        FinancialFact.period_end <= date(year, 12, 31),
+    )
+    if as_of:
+        stmt = known_by(stmt, as_of)
+    rows = db.scalars(stmt).all()
     # Per company: the latest period ending in the year, then the latest-filed observation.
     best: dict[str, FinancialFact] = {}
     for f in rows:
@@ -115,11 +121,22 @@ def screen(
             )
         )
     has_more = offset + limit < len(ranked)
+    notes = [
+        "One row per company: the latest reported period whose period_end falls in the "
+        "requested calendar year, using the latest-filed preferred observation.",
+        "Fiscal years differ between companies; compare period_start and period_end before "
+        "treating rows as the same period.",
+        "Only companies this deployment has ingested appear. ambiguous_mapping and "
+        "invalid_source_value observations are excluded; values in other units are excluded.",
+    ]
+    if as_of:
+        notes.append(as_of_note(as_of))
     return ScreenResult(
         metric=metric,
         year=year,
         period=period,
         unit=unit,
+        as_of=as_of,
         data=out,
         meta=PageMeta(
             limit=limit,
@@ -128,12 +145,5 @@ def screen(
             next_offset=offset + limit if has_more else None,
             total_matched=len(ranked),
         ),
-        notes=[
-            "One row per company: the latest reported period whose period_end falls in the "
-            "requested calendar year, using the latest-filed preferred observation.",
-            "Fiscal years differ between companies; compare period_start and period_end before "
-            "treating rows as the same period.",
-            "Only companies this deployment has ingested appear. ambiguous_mapping and "
-            "invalid_source_value observations are excluded; values in other units are excluded.",
-        ],
+        notes=notes,
     )

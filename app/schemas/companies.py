@@ -114,6 +114,9 @@ class FactList(BaseModel):
     data: list[FactOut]
     meta: PageMeta
     mapping_version: str
+    as_of: date | None = Field(
+        None, description="Point-in-time date the response was restricted to, if any"
+    )
     notes: list[str] = []
 
 

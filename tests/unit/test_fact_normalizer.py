@@ -170,3 +170,29 @@ def test_derive_quarters_by_subtraction(facts_aapl):
     # derived facts never feed further derivation and are never produced for instants
     assert all(d.period_type == "duration" for d in derived)
     assert derive_quarters(derived) == []
+
+
+def test_later_restatement_does_not_change_earlier_filing_quality(facts_aapl):
+    """Conflicts are judged per filing, so as_of answers keep the status true at the time."""
+    import copy
+
+    payload = copy.deepcopy(facts_aapl)
+    tag = "RevenueFromContractWithCustomerExcludingAssessedTax"
+    for obs in payload["facts"]["us-gaap"][tag]["units"]["USD"]:
+        if obs["end"] == "2023-09-30" and obs["accn"] == "0000320193-24-000123":
+            obs["val"] = 383_000_000_000  # the 2024 10-K restates only the preferred tag
+    facts = normalize_company_facts(payload, "0000320193")
+    fy23 = {
+        f.accession_number: f.quality_status
+        for f in _by(facts, "revenue", period_end=date(2023, 9, 30), source_tag=tag)
+    }
+    assert fy23 == {"0000320193-23-000106": "ok", "0000320193-24-000123": "ok"}
+
+    # Tags that disagree inside one filing are still flagged.
+    for obs in payload["facts"]["us-gaap"]["Revenues"]["units"]["USD"]:
+        obs["val"] = 1
+    facts = normalize_company_facts(payload, "0000320193")
+    original = _by(
+        facts, "revenue", period_end=date(2023, 9, 30), accession_number="0000320193-23-000106"
+    )
+    assert {f.quality_status for f in original} == {"ambiguous_mapping"}

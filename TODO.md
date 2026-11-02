@@ -1,6 +1,6 @@
 # TODO
 
-Pending work as of 2026-10-30. One ticket per item in `.scratch/backlog/issues/`; tracker
+Pending work as of 2026-11-03. One ticket per item in `.scratch/backlog/issues/`; tracker
 conventions in `docs/agents/issue-tracker.md`. Labels: **ready-for-human** needs an owner
 decision or account; **ready-for-agent** can be built now; **needs-triage** is an idea.
 
@@ -13,6 +13,7 @@ decision or account; **ready-for-agent** can be built now; **needs-triage** is a
 | 04 | [TMX / CSE permissions for Canadian feeds](.scratch/backlog/issues/04-canadian-exchange-permissions.md) | Non-commercial terms |
 | 05 | [Legal review of data rights; final name](.scratch/backlog/issues/05-legal-and-brand.md) | Before selling bulk access |
 | 06 | [Email provider](.scratch/backlog/issues/06-email-provider.md) | Account and sender domain |
+| 19 | [Bulk Parquet snapshots](.scratch/backlog/issues/19-parquet-snapshots.md) | Changes the bounded-export rule; legal review (05) |
 
 ## Ready for agent
 | # | Item |
@@ -24,6 +25,9 @@ decision or account; **ready-for-agent** can be built now; **needs-triage** is a
 | 11 | [Close partial review items: usage series, SEC metrics, latency](.scratch/backlog/issues/11-console-and-metrics-gaps.md) |
 | 12 | [Multi-replica rate limits, retention schedule, alerts](.scratch/backlog/issues/12-multi-replica-and-ops.md) |
 | 15 | [Test-suite hygiene](.scratch/backlog/issues/15-test-suite-hygiene.md) |
+| 16 | [Point-in-time facts (`as_of`)](.scratch/backlog/issues/16-point-in-time-facts.md) |
+| 17 | [Live event stream: filings and listing events (SSE + polling)](.scratch/backlog/issues/17-live-event-stream.md) |
+| 18 | [Python client](.scratch/backlog/issues/18-python-client.md) |
 
 ## Ideas
 | # | Item |

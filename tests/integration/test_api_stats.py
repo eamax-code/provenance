@@ -18,7 +18,7 @@ def test_stats_is_public_and_shaped(client, ingested_aapl):
         body["notifications"]["pending_deliveries"] == 0
         and body["notifications"]["active_watches"] == 0
     )
-    assert body["mapping_version"] == "1.0.0" and body["generated_at"].endswith("Z")
+    assert body["mapping_version"] == "1.1.0" and body["generated_at"].endswith("Z")
     assert body["cache_ttl_seconds"] >= 1
     assert body["source"] == "SEC EDGAR" and "not affiliated" in body["disclaimer"]
     assert "X-API-Key" not in r.request.headers

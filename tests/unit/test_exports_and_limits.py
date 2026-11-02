@@ -29,7 +29,7 @@ def _fact(**overrides):
         source_tag="Revenues",
         source_taxonomy="us-gaap",
         source_url="https://www.sec.gov/x",
-        mapping_version="1.0.0",
+        mapping_version="1.1.0",
         quality_status="ok",
         derived=False,
         observation_key="k",

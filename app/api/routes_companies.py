@@ -30,6 +30,7 @@ from app.services import freshness as freshness_service
 from app.services.company_lookup import search_companies
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS, derive_quarters
 from app.services.ingestion import ingest_company
+from app.services.point_in_time import as_of_note, known_by
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
 
 logger = logging.getLogger("app.api.companies")
@@ -289,6 +290,11 @@ def facts(
         description="Return every stored observation (restatements, alternate tags) instead of "
         "the latest-filed preferred observation per period",
     ),
+    as_of: date | None = Query(
+        None,
+        description="Point in time: use only observations filed with the SEC on or before this "
+        "date, so restatements filed later are not visible",
+    ),
     db: Session = Depends(db_session),
     _key=Depends(require_reader),
 ):
@@ -309,6 +315,8 @@ def facts(
         stmt = stmt.where(func.upper(FinancialFact.form_type) == form_type.upper())
     if period != "all":
         stmt = stmt.where(FinancialFact.period_class == period)
+    if as_of:
+        stmt = known_by(stmt, as_of)
     rows = db.scalars(stmt).all()
 
     notes = [
@@ -336,6 +344,8 @@ def facts(
         )
         if metric:
             base_stmt = base_stmt.where(FinancialFact.metric == metric)
+        if as_of:
+            base_stmt = known_by(base_stmt, as_of)
         source_rows = db.scalars(base_stmt).all()
         nfs = [_row_to_normalized(r) for r in source_rows]
         derived = derive_quarters([n for n in nfs if isinstance(n, NormalizedFact)])
@@ -351,6 +361,8 @@ def facts(
             "Derived quarter values (derived=true) are computed by this service by subtracting "
             "two reported year-to-date observations; they are not reported by the issuer."
         )
+    if as_of:
+        notes.append(as_of_note(as_of))
 
     selected.sort(
         key=lambda f: (f.period_end, f.period_start or date.min, f.metric, f.source_tag),
@@ -369,6 +381,7 @@ def facts(
             total_matched=total,
         ),
         mapping_version=MAPPING_VERSION,
+        as_of=as_of,
         notes=notes,
     )
 

@@ -486,13 +486,18 @@ def upsert_facts(
                 )
             )
             inserted += 1
-        elif row.source_payload_hash != h or row.quality_status != nf.quality_status:
+        elif (
+            row.source_payload_hash != h
+            or row.quality_status != nf.quality_status
+            or row.mapping_version != nf.mapping_version
+        ):
             row.value = nf.value
             row.fiscal_year = nf.fiscal_year
             row.fiscal_period = nf.fiscal_period
             row.form_type = nf.form_type
             row.filed_date = nf.filed_date
             row.quality_status = nf.quality_status
+            row.mapping_version = nf.mapping_version
             row.period_class = nf.period_class
             row.source_payload_hash = h
             row.processed_at = now

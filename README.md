@@ -19,6 +19,7 @@ file.
 | Company profile, on-demand ingestion (`202`) | `GET /v1/companies/{cik}` |
 | Recent filings with SEC source links and honest timestamps | `GET /v1/companies/{cik}/filings` |
 | Normalized facts: revenue, operating income, net income, total assets, operating cash flow | `GET /v1/companies/{cik}/facts` |
+| Point-in-time facts and screen: only what had been filed by a date, for backtests | `?as_of=YYYY-MM-DD` on `/facts` and `/v1/facts/screen` |
 | Freshness: fetch age, detection/processing times, status | `GET /v1/companies/{cik}/freshness` |
 | Watches and signed webhook deliveries | `POST/GET/DELETE /v1/watches`, `GET /v1/watches/{id}/deliveries` |
 | API keys and usage | `POST/GET/DELETE /v1/developer/api-keys`, `GET /v1/developer/usage` |
@@ -140,7 +141,7 @@ A fact looks like this (values illustrative):
   "accession_number": "0000320193-24-000123",
   "source_tag": "RevenueFromContractWithCustomerExcludingAssessedTax", "source_taxonomy": "us-gaap",
   "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.html",
-  "mapping_version": "1.0.0", "quality_status": "ok", "derived": false,
+  "mapping_version": "1.1.0", "quality_status": "ok", "derived": false,
   "revision_count": 1, "first_detected_at": "2026-10-17T12:05:00Z", "processed_at": "2026-10-17T12:05:02Z"
 }
 ```
@@ -158,6 +159,13 @@ Errors always use `{"error": {"code", "message", "request_id"}}`; every response
 - `include_derived=true` adds standalone quarters computed as `YTD(n) - YTD(n-1)` with
   `derived=true`, `quality_status=derived` and the two source observations in `derivation`.
 - Absent facts are absent. Unparseable values are `null` with `invalid_source_value`.
+- `as_of=YYYY-MM-DD` answers as of that date: observations filed after it (and observations
+  without a filing date) are ignored, so a later restatement is invisible and `revision_count`
+  counts only revisions known then. `filed_date` has no time of day, so a filing accepted after
+  the close on `as_of` is included; pass the previous day for a strict backtest.
+- Mapping 1.1.0 judges tag conflicts within one filing. Before, a later restatement could mark
+  an earlier filing's observation `ambiguous_mapping` with hindsight. Stored rows pick up the
+  new version on their next ingestion.
 
 ## Onboarding
 

@@ -101,7 +101,7 @@ def test_company_bundle(client, ingested_aapl, fake_sec):
     assert [f["period_end"] for f in rev] == ["2024-09-28", "2023-09-30"]
     assert (
         rev[0]["value"] == 391035000000
-        and rev[0]["mapping_version"] == "1.0.0"
+        and rev[0]["mapping_version"] == "1.1.0"
         and rev[0]["quality_status"] == "ok"
     )
     assert rev[0]["source_tag"] and rev[0]["source_url"].startswith("https://www.sec.gov/")
