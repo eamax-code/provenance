@@ -32,6 +32,8 @@ file.
 | Public pages driven by the API: directory, company pages, status | `GET /companies/`, `/companies/{cik}`, `/status/` |
 | International listings (Canada, Europe, UK): venues, issuers (LEI), instruments, new listings / delistings / suspensions / name changes | `GET /v1/markets/`, `/v1/markets/instruments`, `/v1/markets/instruments/{isin}`, `/v1/markets/events`, `/v1/markets/issuers/{lei}` |
 | API playground with the public `demo` key (read-only, showcase companies, 10 rows, 20 req/min) | `GET /playground/` |
+| Company-intelligence chat: cited brief from SEC data (annual metrics with growth, recent filings, 8-K item 5.02 leadership changes), phrased by a local language model (Ollama, Qwen3 4B Instruct) and checked against the data | `POST /v1/chat`, page `/chat/` |
+| 8-K item codes on filings (e.g. 5.02 officer changes) | `items` on `/filings` and on the event feed |
 | Python client: companies, point-in-time facts, screen, listings, event feed (polling and SSE), DataFrames | `clients/python` |
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
@@ -150,6 +152,14 @@ A fact looks like this (values illustrative):
 
 Errors always use `{"error": {"code", "message", "request_id"}}`; every response carries
 `X-Request-ID`. Rate limits return `429` with `Retry-After`.
+
+### Local language model (chat)
+
+The chat works without a model: it returns the cited data brief. To add written answers, run
+[Ollama](https://ollama.com) on the same host or network, `ollama pull qwen3:4b-instruct`, and set
+`LLM_ENABLED=true` (optional: `LLM_BASE_URL`, `LLM_MODEL`). The model sees only the brief, never
+the internet, and every answer is checked: citations must exist and every number must appear in
+the cited data, or the reply is flagged. Measured on an M4 Pro: about 2.5 to 6 s per answer.
 
 ### Facts semantics worth knowing
 

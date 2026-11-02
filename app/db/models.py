@@ -82,6 +82,7 @@ class Filing(Base):
     accepted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     source_published_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     primary_document: Mapped[str | None] = mapped_column(Text, nullable=True)
+    items: Mapped[str | None] = mapped_column(Text, nullable=True)  # 8-K items, "5.02,9.01"
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     source_payload_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     first_detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)

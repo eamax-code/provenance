@@ -15,6 +15,7 @@ from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import (
+    routes_chat,
     routes_companies,
     routes_developer,
     routes_events,
@@ -126,6 +127,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_public.router)
     app.include_router(routes_markets.router)
     app.include_router(routes_events.router)
+    app.include_router(routes_chat.router)
     app.include_router(routes_screen.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")

@@ -1,0 +1,1843 @@
+{
+ "family": "Debt and securities offerings",
+ "agent_status": "done",
+ "forms": [
+  {
+   "form": "424B2",
+   "plain_english": "Final prospectus supplement filed within 2 business days of pricing/first use under Rule 424(b)(2) when only price-dependent terms are added to a base shelf prospectus. Used for bond tranches by MSFT, AAPL, GOOGL; also structured notes by banks.",
+   "who_files_when": "Issuer, within 2 business days after pricing (Rule 424(b)(2)/(b)(5)). MSFT priced Oct 29 2026 and filed Nov 2; AAPL priced May 5 2025 and filed May 5-6 2025 (two filings: preliminary/final pairs appear). Cadence: AAPL about 1 deal per year (May), GOOGL 2-3 per year, MSFT rare (previous 2017, then Oct 2026).",
+   "companies": [
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-11-02",
+     "accession": "0001193125-26-442618",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526442618/",
+     "frequency": "irregular (2015,2016,2017, then 2026)"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2025-05-06",
+     "accession": "0001140361-25-017543",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036125017543/",
+     "frequency": "about annual (2021,2022,2023,2025)"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-08-07",
+     "accession": "0001193125-26-340264",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526340264/",
+     "frequency": "several per year (Apr/May 2025, Nov 2025, Feb 2026, May 2026, Aug 2026)"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2021-05-12",
+     "accession": "0001193125-21-157863",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000119312521157863/",
+     "frequency": "Amazon now uses 424B5 instead"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2019-06-13",
+     "accession": "0001193125-19-172618",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312519172618/",
+     "frequency": "BRK moved to 424B5 for recent yen deals"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2026-07-20",
+     "accession": "0001193125-26-308392",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526308392/",
+     "frequency": "2024, 2026"
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML main doc (500-650 KB) + inline XBRL EX-FILING FEES (htm and _htm.xml) + R1-R3.htm viewer pages. Prospectus body itself is NOT XBRL tagged; tranche terms must be parsed from HTML tables or taken from the FWP.",
+    "structured_fields": [
+     "securities title",
+     "principal amount",
+     "price per unit",
+     "aggregate offering price",
+     "fee rate",
+     "fee amount",
+     "registration file number (333-xxxxxx)",
+     "payment method Rule 457(r)/456(b)"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Microsoft Oct 2026: $25.0bn, ten tranches (2 FRN + 8 fixed) from 2028 to 2066, shelf 333-283760, trustee BNY Mellon, settlement Nov 4 2026.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526442618/d150456d424b2.htm",
+      "quote": "The net proceeds from the sale of the notes will be used for general corporate purposes"
+     },
+     {
+      "detail": "Alphabet Aug 2026: $25.0bn, ten tranches 2028-2066 incl. 2 SOFR FRNs, shelf 333-296395, settle Aug 10 2026.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526340264/d32286d424b2.htm",
+      "quote": "We intend to use the net proceeds from these sales for general corporate purposes"
+     },
+     {
+      "detail": "Apple May 2025: four fixed tranches totalling $4.5bn (4.000% 2028, 4.200% 2030, 4.500% 2032, 4.750% 2035), shelf 333-282937.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036125017543/ny20048442x3_424b2.htm"
+     },
+     {
+      "detail": "Netflix Jul 2026: single $1.0bn 5.250% Senior Notes due Aug 15 2036 at 99.255, shelf 333-281071.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526310568/d171956d424b5.htm",
+      "quote": "repayment at maturity of the 4.375% Senior Notes and for general corporate purposes"
+     },
+     {
+      "detail": "Amazon Sep 2026 sterling deal: GBP 4.25bn in four tranches (5.200% 2029 1.25bn, 5.550% 2032, 6.250% 2038, 6.650% 2045 each 1.0bn), Nasdaq Bond Exchange listing intended, shelf 333-293246.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926107122/tm2624614-3_424b5.htm"
+     }
+    ],
+    "executives": [],
+    "growth": [
+     {
+      "detail": "Debt-funded scale: Microsoft's first big issuance since 2017 is $25bn with 40-year (2066) tail; Alphabet issued the same $25bn size 3 months earlier, same maturity ladder 2028-2066 and same 2/8 FRN/fixed split. Hyperscaler capex-funding pattern.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526442618/d150456d424b2.htm"
+     },
+     {
+      "detail": "Alphabet 2066 tranche coupon 6.500% vs Microsoft 6.350% on a 40-year, a 15 bp coupon gap, and Alphabet 2056 6.375% vs MSFT 6.250%.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526340264/d32286d424b2.htm"
+     }
+    ],
+    "signals": [
+     {
+      "detail": "Use of proceeds disclosure: Netflix refinancing named notes (4.375% due Nov 15 2026) is an event a risk user can map to a maturity wall.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526310568/d171956d424b5.htm",
+      "quote": "Certain of the underwriters (or their affiliates) may hold the 4.375% Senior Notes."
+     },
+     {
+      "detail": "Apple states buybacks and dividends among permitted uses: debt-funded capital return signal.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036125017543/ny20048442x3_424b2.htm",
+      "quote": "repurchases of our common stock"
+     },
+     {
+      "detail": "Microsoft FWP lists CUSIPs 594918 CX0 to DG6 for all ten tranches, enabling instant security-master mapping.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526439794/d799291dfwp.htm"
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Microsoft tranche economics: 2028 4.850% price 99.964 underwriting 0.080%; 2066 6.350% price 99.914 underwriting 0.400%. Underwriting discount rises with tenor 8 to 40 bps.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526442618/d150456d424b2.htm"
+     },
+     {
+      "detail": "Make-whole spreads: MSFT +5bp (2028) up to +20bp (2066); Apple +5bp/+10bp; Alphabet 5-20bp. Par call dates 1-3 months before maturity (AAPL 2028 notes par call Apr 12 2028).",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036125017543/ny20048442x3_424b2.htm"
+     },
+     {
+      "detail": "Apple underwriting: Goldman Sachs largest allocee ($525m of 2028, $350m of each other series) and 8 joint book-runners.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036125017543/ny20048442x3_424b2.htm"
+     },
+     {
+      "detail": "Amazon sterling: underwriting discount 0.100% (2029) to 0.300% (2045); total proceeds GBP 4,234.8m before expenses.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926107122/tm2624614-3_424b5.htm"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "Corporate bond new-issue feed",
+     "description": "Poll EDGAR per-CIK 424B2/424B5/424B3/FWP, parse tranche tables (coupon, maturity, size, price, discount, bookrunners, use of proceeds) into JSON, link to EX-FILING FEES XBRL for exact amounts. Alert within minutes of filing.",
+     "buyers": "Credit funds, bond ETF desks, treasury teams, fintech apps, sell-side credit sales",
+     "decision_supported": "Which issuer came to market, size, tenor curve, new-issue concession",
+     "latency": "minutes (EDGAR acceptance); bond pricing happens 1-4 days earlier via FWP",
+     "build_difficulty": "medium",
+     "competitors": "Bloomberg NIM, Refinitiv, Mergent FISD, Octus, Selectica; free: EDGAR full-text",
+     "legal_notes": "EDGAR public domain. Do not scrape CUSIPs for resale as CGS database (CUSIP Global Services licence applies); ISIN derived from CUSIP is also restricted in redistribution."
+    }
+   ],
+   "suggestion": "Ship a 'new bond issue' event in the Provenance event feed: on any 424B2/424B5 or FWP from a tracked CIK, emit tranches[] (title, principal, coupon, maturity, price, underwriter discount) parsed from HTML, plus fee exhibit totals as a cross-check.",
+   "value_score": 5,
+   "caveats": [
+    "Prospectus body is not XBRL: tranche extraction is HTML parsing; WebFetch summaries read only first 100,000 characters of each document.",
+    "Filing-fee exhibit (EX-FILING FEES) is inline XBRL with a companion *_htm.xml file in each 2024+ 424B folder; fee rate 0.000087 (MSFT Nov 2026) and 0.0001381 (BRK Apr 2026) differ by fiscal-year SEC fee rate.",
+    "Microsoft and Alphabet 424B2 do not state the Treasury benchmark; spread is only in the FWP.",
+    "Berkshire euro notes not found in last 10 424B5 results; only yen verified."
+   ]
+  },
+  {
+   "form": "FWP",
+   "plain_english": "Free writing prospectus (Rule 433). For bonds it is the one-page pricing term sheet: trade date, benchmark Treasury, spread in bps, yield, CUSIP/ISIN, ratings. This is where spread to Treasuries lives.",
+   "who_files_when": "Issuer on pricing day or morning after (MSFT trade Oct 29 2026, FWP filed Oct 30 2026), no later than the first use. Not required for every deal.",
+   "companies": [
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-10-30",
+     "accession": "0001193125-26-439794",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526439794/d799291dfwp.htm",
+     "frequency": "with each jumbo deal (2012-2017, 2026)"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-08-07",
+     "accession": "0001193125-26-338750",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526338750/0001193125-26-338750-index.htm",
+     "frequency": "with each deal plus other FWPs (10 in Nov 2025-Aug 2026)"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML only, no XBRL (small, about 50 KB)",
+    "structured_fields": [
+     "trade date",
+     "settlement date",
+     "tranche principal",
+     "coupon",
+     "YTM",
+     "benchmark Treasury",
+     "spread bps",
+     "price",
+     "CUSIP/ISIN",
+     "ratings",
+     "bookrunners"
+    ]
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Microsoft rated Aaa/AAA stable at pricing.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526439794/d799291dfwp.htm",
+      "quote": "Moody's: Aaa (stable outlook); S&P: AAA (stable outlook)"
+     },
+     {
+      "detail": "Settlement T+4 (trade Oct 29, settle Nov 4 2026), unusual versus Alphabet T+2.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526439794/d799291dfwp.htm"
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "MSFT spreads to Treasuries: 2028 +25bp (UST 4.75% 9/30/28, yield 4.869%); 2029 +35; 2031 +45; 2033 +55; 2036 +65; 2046 +85; 2056 +95; 2066 +105. Curve is linear 10bp per step.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526439794/d799291dfwp.htm"
+     },
+     {
+      "detail": "Fixed-rate tranche yields 4.869% (2028) to 6.356% (2066); FRNs priced at compounded SOFR +35bp (2028) and +53bp (2029).",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526439794/d799291dfwp.htm"
+     },
+     {
+      "detail": "The 2066 tranche's benchmark is printed as a May 15 2056 Treasury, same as the 2056, possibly a typo in the term sheet; validate parsed spreads.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526439794/d799291dfwp.htm"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "Cost-of-debt tracker",
+     "description": "Per company time series of new-issue spread to Treasuries by tenor from FWPs (MSFT AAA curve: +25bp to +105bp), vs peers (AAPL/GOOGL/AMZN).",
+     "buyers": "Corporate treasurers, credit analysts, rating-adjacent researchers",
+     "decision_supported": "Relative value, funding-cost benchmarking",
+     "latency": "minutes after FWP",
+     "build_difficulty": "medium",
+     "competitors": "Bloomberg, MarketAxess/Trace analytics, Mergent FISD",
+     "legal_notes": "Public EDGAR; yields are issuer-published."
+    }
+   ],
+   "suggestion": "Use FWP as primary source for spread and benchmark; fall back to 424B2 for fee/discount data and to compute implied yield.",
+   "value_score": 4,
+   "caveats": [
+    "Only MSFT and GOOGL FWP checked in atom; Alphabet FWP contents not opened.",
+    "Many issuers (AAPL) price without a FWP in the recent list."
+   ]
+  },
+  {
+   "form": "424B5",
+   "plain_english": "Prospectus supplement under Rule 424(b)(5) for takedowns off a shelf that is not a 424B2/B3 case; same function as 424B2 for debt. AMZN, BRK, NFLX, GOOGL (older) use it. Often filed twice: preliminary then final.",
+   "who_files_when": "Within 2 business days of pricing or first use. AMZN filed preliminary (Sep 9 2026, blanks) then final (Sep 11 2026). BRK files yen notes about April and Oct/Nov each year.",
+   "companies": [
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-04-14",
+     "accession": "0001193125-26-154274",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526154274/",
+     "frequency": "2-3 filings per year (Apr, Oct/Nov)"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-09-11",
+     "accession": "0001104659-26-107122",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926107122/",
+     "frequency": "several per year (Mar, Jun, Jul, Sep 2026)"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2026-07-21",
+     "accession": "0001193125-26-310568",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526310568/",
+     "frequency": "2024, 2026"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML + EX-FILING FEES inline XBRL (_htm.xml)",
+    "structured_fields": [
+     "security title",
+     "amount registered",
+     "fee rate",
+     "offering price",
+     "net fee due",
+     "USD conversion rate for non-USD notes"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Berkshire April 2026: JPY 272.3bn in six tranches (2.077% 2029 JPY128.9bn; 2.465% 2031 JPY86.8bn; 2.739% 2033 JPY22.3bn; 3.084% 2036 JPY27.3bn; 3.452% 2041 JPY2.0bn; 4.037% 2056 JPY5.0bn), shelf 333-284622, unlisted.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526154274/d81172d424b5.htm",
+      "quote": "The notes will not be listed on any securities exchange."
+     },
+     {
+      "detail": "Berkshire Nov 2025: JPY 210.1bn in four tranches (1.510% 2028 JPY123.7bn, 1.826% 2030, 2.422% 2035, 2.810% 2040), settlement Nov 20 2025.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312525286108/d26131d424b5.htm"
+     }
+    ],
+    "executives": [],
+    "growth": [
+     {
+      "detail": "Berkshire funds a minority stake in Tokio Marine with yen proceeds, a currency-matched hedge.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526154274/d81172d424b5.htm",
+      "quote": "This offering is not contingent upon our investment in Tokio Marine."
+     }
+    ],
+    "signals": [
+     {
+      "detail": "Use of proceeds refinances JPY40bn 0.173% notes due Apr 15 2026 and JPY93.9bn 0.907% notes due Apr 20 2026: maturity-wall mapping possible.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526154274/d81172d424b5.htm"
+     },
+     {
+      "detail": "Nov 2025 deal refinances JPY55bn 0.783% notes maturing Dec 8 2025.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312525286108/d26131d424b5.htm"
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Yen coupon moves up: 2029 tenor coupon 2.077% (Apr 2026) vs 2028 1.510% (Nov 2025); long 2056 at 4.037%. Mizuho and BofA run every deal; Mizuho stabilizing manager.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526154274/d81172d424b5.htm"
+     },
+     {
+      "detail": "Fee exhibit converts yen to USD at JPY159.6400 per USD (Apr 3 2026): total registered $1,703,160,548.82; net fee due $235,206.48 at rate 0.0001381.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526154274/d81172dexfilingfees.htm"
+     },
+     {
+      "detail": "Netflix 5.250% 2036 notes: price 99.255, discount 0.400%, 14 underwriters; four lead banks took $175m each.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526310568/d171956d424b5.htm"
+     },
+     {
+      "detail": "Amazon sterling tranches priced at 99.970/99.945/99.775/99.563, make-whole 10-15bp over comparable gilt.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926107122/tm2624614-3_424b5.htm"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "FX-denominated debt tracker",
+     "description": "Track yen, sterling, euro issuance by US issuers with USD-equivalent size from fee exhibit and refinanced notes from use of proceeds.",
+     "buyers": "Macro/FX hedgers, Japan regional banks, credit analysts",
+     "decision_supported": "Cross-currency funding and hedge cost",
+     "latency": "minutes",
+     "build_difficulty": "medium",
+     "competitors": "Bloomberg, Dealogic",
+     "legal_notes": "Public data."
+    }
+   ],
+   "suggestion": "Parse use-of-proceeds sentences that name refinanced notes (coupon, maturity, amount) to auto-link each new issue to the retired debt, building a maturity-wall roll-forward.",
+   "value_score": 4,
+   "caveats": [
+    "Berkshire euro notes: not seen in the latest 10 424B5 listings; only yen verified. Treat 'BRK issues euro notes' as unverified.",
+    "Berkshire April 2026 filing 0001193125-26-138654 (Apr 2) is a separate 424B5 for the same file prefix; not opened."
+   ]
+  },
+  {
+   "form": "424B3",
+   "plain_english": "Prospectus under Rule 424(b)(3) for changes not covered by other 424(b) paragraphs; for these companies mostly exchange offers or resale prospectuses.",
+   "who_files_when": "Within 2 business days of use.",
+   "companies": [
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-08-18",
+     "accession": "0001104659-26-098339",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926098339/",
+     "frequency": "occasional"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2009-12-22",
+     "accession": "0001193125-09-258000",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312509258000/",
+     "frequency": "rare"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Amazon 424B3 on 2026-08-18, content not opened; sits between the July and September debt takedowns.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926098339/"
+     }
+    ],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Treat as low-priority; include in the general offerings event type.",
+   "value_score": 1,
+   "caveats": [
+    "Amazon 424B3 not opened: purpose unknown."
+   ]
+  },
+  {
+   "form": "424B4",
+   "plain_english": "Final IPO or follow-on prospectus filed under Rule 424(b)(4) after pricing, including price per share, discount, underwriters and use of proceeds.",
+   "who_files_when": "Within 2 business days after pricing. One-time per IPO.",
+   "companies": [
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2002-05-23",
+     "accession": "0001012870-02-002475",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000101287002002475/d424b4.htm",
+     "frequency": "once (IPO)"
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML/SGML text, no XBRL (2002)",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Netflix IPO: 5,500,000 shares at $15.00 on Nasdaq NFLX, all primary, option for 825,000 more.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000101287002002475/d424b4.htm"
+     }
+    ],
+    "executives": [],
+    "growth": [
+     {
+      "detail": "FY2001 revenue $75.9m, net loss $38.6m, 456 thousand subscribers (as returned from the document).",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000101287002002475/d424b4.htm"
+     }
+    ],
+    "signals": [],
+    "financial_intelligence": [
+     {
+      "detail": "Underwriting discount $1.05 per share ($5,775,000); proceeds $76.7m gross, about $74.7m net; about $14.1m repays subordinated notes. Underwriters Merrill Lynch, Thomas Weisel Partners, U.S. Bancorp Piper Jaffray.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000101287002002475/d424b4.htm"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "IPO history layer",
+     "description": "Historic IPO terms for point-in-time facts and share-count baseline",
+     "buyers": "Quant researchers",
+     "decision_supported": "split-adjusted cost basis, founder dilution",
+     "latency": "static",
+     "build_difficulty": "high (OCR/HTML text only)",
+     "competitors": "Renaissance, IPOScoop",
+     "legal_notes": "Public"
+    }
+   ],
+   "suggestion": "Backfill IPO price, date and underwriters as static company facts for point-in-time API.",
+   "value_score": 2,
+   "caveats": [
+    "Pro forma share count in the document conflicts internally (20,648,074 vs 20,560,797)."
+   ]
+  },
+  {
+   "form": "424B1",
+   "plain_english": "Final prospectus under Rule 424(b)(1), used when the price is within the registered range; the old form for Amazon's IPO.",
+   "who_files_when": "Within 2 business days of pricing.",
+   "companies": [
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "1997-05-15",
+     "accession": "0000891020-97-000868",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/0000891020-97-000868.txt",
+     "frequency": "once (IPO)"
+    }
+   ],
+   "machine_readable": {
+    "format": "plain text SGML, no XBRL",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Amazon IPO: 3,000,000 shares at $18.00, all primary, 450,000 overallotment, Nasdaq AMZN.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/0000891020-97-000868.txt"
+     }
+    ],
+    "executives": [],
+    "growth": [
+     {
+      "detail": "1996 net sales about $15.7m, net loss about $5.8m; about 340,000 customer accounts in over 100 countries at March 31 1997.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/0000891020-97-000868.txt",
+      "quote": "approximately 340,000 customer accounts in over 100 countries"
+     }
+    ],
+    "signals": [],
+    "financial_intelligence": [
+     {
+      "detail": "Discount $1.26 per share ($3,780,000); proceeds $50.22m, net about $49.4m. Underwriters Deutsche Morgan Grenfell, Alex. Brown, Hambrecht & Quist.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/0000891020-97-000868.txt",
+      "quote": "The Company has no specific plan for the net proceeds of this offering."
+     }
+    ]
+   },
+   "products": [],
+   "suggestion": "Same static IPO fact layer as Netflix.",
+   "value_score": 2,
+   "caveats": [
+    "Not in the 424B4 list; the Amazon IPO final prospectus is a 424B1."
+   ]
+  },
+  {
+   "form": "S-1 and S-1/A",
+   "plain_english": "Registration statement for an IPO or other non-shelf offering; amendments respond to SEC comments and set the price range.",
+   "who_files_when": "Before an IPO; once. Netflix S-1 filed Mar 6 2002 with 5 amendments to May 20 2002; Amazon S-1 Mar 24 1997 with 6 amendments to May 14 1997.",
+   "companies": [
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2002-05-20",
+     "accession": "0001012870-02-002403",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000101287002002403/0001012870-02-002403-index.htm",
+     "frequency": "IPO only (also an earlier S-1 filed 2000-04-18, 0001012870-00-002191)"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "1997-05-14",
+     "accession": "0000891020-97-000847",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/0000891020-97-000847-index.html",
+     "frequency": "IPO only"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML/text, no XBRL",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Netflix filed an S-1 in April 2000 (before the 2002 IPO), indicating an abandoned first IPO attempt.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/0001012870-00-002191-index.html"
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low value for these six; the S-1 matters for new IPO calendar products on other issuers.",
+   "value_score": 2,
+   "caveats": [
+    "Contents of S-1 not opened; April 2000 withdrawal inferred from later S-1, not verified."
+   ]
+  },
+  {
+   "form": "S-3ASR",
+   "plain_english": "Automatic shelf registration for well-known seasoned issuers: effective on filing, covers unlimited debt/equity, fees paid pay-as-you-go at each takedown (Rule 456(b)/457(r)).",
+   "who_files_when": "Every 3 years (shelf expiry); MSFT Dec 2024, Dec 2021, AAPL Nov 1 2024, AMZN Feb 6 2026, GOOGL Jun 1 2026 (earlier Apr 25 2025), BRK Jan 31 2025.",
+   "companies": [
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2024-12-12",
+     "accession": "0001193125-24-277062",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312524277062/",
+     "frequency": "3-yearly (2018,2021,2024)"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2024-11-01",
+     "accession": "0001140361-24-044880",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036124044880/",
+     "frequency": "3-yearly"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-06-01",
+     "accession": "0001193125-26-251560",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526251560/",
+     "frequency": "about 3 yearly with early refile in 2025/26"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-02-06",
+     "accession": "0001104659-26-011240",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926011240/",
+     "frequency": "3-yearly"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2025-01-31",
+     "accession": "0001193125-25-018070",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312525018070/",
+     "frequency": "3-yearly (2013,2016,2019,2022,2025)"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML + EX-FILING FEES XBRL",
+    "structured_fields": [
+     "registration number",
+     "securities types"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Shelf file numbers linked to deals: MSFT 333-283760 (prospectus Dec 12 2024), AAPL 333-282937 (Nov 1 2024), GOOGL 333-296395 (Jun 1 2026), AMZN 333-293246 (Feb 6 2026), BRK 333-284622 (Jan 31 2025).",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526442618/d150456d424b2.htm"
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Fresh S-3ASR filing precedes the next takedown: Alphabet shelf 333-296395 dated Jun 1 2026 was used Aug 2026.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526340264/d32286d424b2.htm"
+     }
+    ],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Use the shelf expiry (3 years) as a predictor of refile timing in the issuance feed.",
+   "value_score": 2,
+   "caveats": [
+    "MSFT S-3ASR dates verified: 2021-12-10 and 2024-12-12.",
+    "Netflix shelf 333-281071 (Jul 29 2024) form type not verified here."
+   ]
+  },
+  {
+   "form": "Form D and REGDEX",
+   "plain_english": "Form D is a notice of an exempt (Reg D) private placement, with XML since 2009; REGDEX is a legacy paper-era code. Filers are funds and private issuers, not large public companies.",
+   "who_files_when": "Within 15 days of first sale.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "XML (primary_doc.xml)",
+    "structured_fields": [
+     "issuer",
+     "industry group",
+     "total offering amount",
+     "amount sold",
+     "investors",
+     "exemption 506(b)/(c)",
+     "related persons"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "No exact Form D appears for GOOGL, AAPL, MSFT, BRK or AMZN: the prefix query type=D returned only DEF 14A/DEFA14A in the latest 10 entries each. Not verified beyond page one.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/"
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [
+    {
+     "name": "Private placement monitor",
+     "description": "Form D XML feed of private raises by sector (including funds sponsored by big tech employees, GV, M12 are separate filers, not verified).",
+     "buyers": "VCs, recruiters, data vendors",
+     "decision_supported": "Deal flow",
+     "latency": "15 days",
+     "build_difficulty": "low",
+     "competitors": "PitchBook, Crunchbase, Form D Lookup",
+     "legal_notes": "Public; no personal data scrape rules."
+    }
+   ],
+   "suggestion": "Skip for the six tracked CIKs; a Form D feed is a separate product for non-listed issuers.",
+   "value_score": 1,
+   "caveats": [
+    "The prefix match limits the evidence: type=D sorted entries by date; older Form Ds not checked. GV/M12/Amazon Industrial Innovation Fund filing as separate CIKs is an unverified hypothesis."
+   ]
+  },
+  {
+   "form": "S-3",
+   "plain_english": "Short-form shelf registration for seasoned issuers. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "S-3 and S-3/A: earlier non-automatic shelves seen (AAPL 1996-1997, AMZN 1998-1999, MSFT 2003, BRK 2002) are historic only."
+   ]
+  },
+  {
+   "form": "S-3/A",
+   "plain_english": "Amendment to S-3. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "S-3 and S-3/A: earlier non-automatic shelves seen (AAPL 1996-1997, AMZN 1998-1999, MSFT 2003, BRK 2002) are historic only."
+   ]
+  },
+  {
+   "form": "S-3MEF",
+   "plain_english": "Short registration adding securities to an effective shelf (Rule 462(b)). (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "POSASR",
+   "plain_english": "Post-effective amendment to an automatic shelf. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "POS AM",
+   "plain_english": "Post-effective amendment to a registration statement. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "POS AMI",
+   "plain_english": "Post-effective amendment (item-limited) to registration. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "424A",
+   "plain_english": "Preliminary prospectus before effectiveness. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "424B7",
+   "plain_english": "Resale prospectus supplement for selling security holders. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "305B2",
+   "plain_english": "Trustee eligibility statement (Form T-1 notice) for debt; filed by trustee. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "RW",
+   "plain_english": "Request to withdraw a registration statement. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "EFFECT",
+   "plain_english": "SEC notice that a registration became effective. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "D/A",
+   "plain_english": "Amendment to Form D. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  },
+  {
+   "form": "REGDEX",
+   "plain_english": "Regulation D legacy exemption filing. (definition from general knowledge)",
+   "who_files_when": "Not verified",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": null
+    }
+   ],
+   "machine_readable": {
+    "format": "unverified",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only EFFECT/RW could feed an IPO calendar for other issuers.",
+   "value_score": 1,
+   "caveats": [
+    "Not verified; no atom check performed within budget."
+   ]
+  }
+ ],
+ "notes": [
+  "Sources reached: EDGAR Atom lists, folder indexes, 424B2/424B5/FWP docs, fee exhibits. Dates are as returned by EDGAR (current date 2026-11-03).",
+  "Spread to Treasuries is only in the FWP; 424B2 gives only make-whole spreads.",
+  "WebFetch read only the first 100,000 characters of each prospectus.",
+  "Recent 24 months debt deals found: MSFT $25bn (Oct 2026), GOOGL $25bn (Aug 2026), AMZN GBP4.25bn (Sep 2026), BRK JPY272.3bn (Apr 2026), NFLX $1bn (Jul 2026), AAPL $4.5bn (May 2025).",
+  "Top ideas: (1) bond new-issue feed with FWP spreads; (2) maturity wall via use-of-proceeds refinance links plus cost-of-debt tracker. Underwriter league table from the bookrunner lists is a free by-product."
+ ]
+}

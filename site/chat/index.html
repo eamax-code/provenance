@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Company Intelligence Chat</title>
+<meta name="description" content="Ask about a US public company. Answers come from SEC filings, every figure is cited, and a local language model writes the summary.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/app/app.css">
+<link rel="stylesheet" href="/public.css">
+<link rel="stylesheet" href="/chat.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="/"><span class="dot" aria-hidden="true"></span>Provenance</a>
+    <nav class="views" aria-label="Site"><a class="view-btn" href="/companies/">Companies</a><a class="view-btn" href="/chat/" aria-current="page">Chat</a><a class="view-btn" href="/playground/">Playground</a><a class="view-btn" href="/listings/">Listings</a><a class="view-btn" href="/status/">Status</a><a class="view-btn" href="/#pricing">Pricing</a><a class="view-btn" href="/app/">Explorer</a><a class="view-btn" href="/docs">API docs</a></nav>
+  </header>
+  <div class="pub-head">
+    <p class="eyebrow">Company intelligence · cited from SEC filings</p>
+    <h1>Ask about a company</h1>
+    <p class="muted">Type a ticker or name and a question. You get the figures and filings behind the answer, each linked to the SEC record. The summary is written by a small language model running on this server, and it is checked against the cited data.</p>
+  </div>
+  <main class="chat">
+    <section class="chat-main">
+      <div class="panel chat-log" id="chat-log" aria-live="polite">
+        <p class="muted" id="chat-empty">Try: <button type="button" class="chip" data-q="How is Apple's revenue growing?">How is Apple's revenue growing?</button> <button type="button" class="chip" data-q="Any leadership changes at MSFT?">Any leadership changes at MSFT?</button> <button type="button" class="chip" data-q="Summarise Microsoft's latest filings">Summarise Microsoft's latest filings</button></p>
+      </div>
+      <form class="panel chat-form" id="chat-form" novalidate>
+        <label class="sr-only" for="chat-input">Question</label>
+        <input id="chat-input" maxlength="500" autocomplete="off" placeholder="e.g. AAPL revenue growth, or: leadership changes at Microsoft" required>
+        <label class="small muted" for="chat-asof">As of</label>
+        <input id="chat-asof" type="date" class="chat-date" title="Answer from what had been filed by this date">
+        <button class="btn primary" type="submit" id="chat-send">Ask</button>
+      </form>
+      <div class="row small muted chat-keyrow">
+        <label for="chat-key">API key</label><input id="chat-key" value="demo" autocomplete="off" spellcheck="false">
+        <span>The demo key covers the showcase companies.</span>
+      </div>
+    </section>
+    <aside class="chat-side" id="chat-side" hidden>
+      <div class="panel">
+        <p class="eyebrow">Company</p>
+        <h2 id="side-name"></h2>
+        <p class="muted small" id="side-meta"></p>
+      </div>
+      <div class="panel"><h3 class="pg-h">Financials (annual)</h3><div id="side-metrics" class="metric-grid"></div></div>
+      <div class="panel"><h3 class="pg-h">Leadership changes (8-K item 5.02)</h3><ul id="side-leaders" class="list"></ul></div>
+      <div class="panel"><h3 class="pg-h">Recent filings</h3><ul id="side-filings" class="list"></ul></div>
+    </aside>
+  </main>
+  <footer class="foot muted small">Answers come from SEC EDGAR data this service has loaded; the language model runs locally and sees only the cited context. Check the filings before relying on an answer. Not investment advice. Provenance is not affiliated with the SEC.</footer>
+</div>
+<script src="/chat.js"></script>
+</body>
+</html>

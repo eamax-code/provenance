@@ -1,0 +1,901 @@
+{
+ "family": "LISTING, REGISTRATION, DEREGISTRATION AND EMPLOYEE EQUITY PLANS",
+ "agent_status": "done",
+ "forms": [
+  {
+   "form": "8-A12B (and 8-A12B/A)",
+   "plain_english": "Short Exchange Act registration of a class of securities on a national exchange under Section 12(b). Issuers file one for each new listed class: common stock at IPO, and every series of listed notes or preferred. It incorporates the prospectus by reference, so the filing is a one-page pointer listing title, coupon, maturity and exchange.",
+   "who_files_when": "Issuer, on or just before the day the securities are admitted to listing (effective on exchange certification, Rule 12d1-3). Filed with the exchange's CERT same day or next day. No fixed schedule; one per listed debt offering. Observed: Amazon 2 in 2026, Alphabet 5 in 2025-26, Apple 6 in 2014-19, Berkshire 7 in 2015-22.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2019-11-15",
+     "accession": "0001193125-19-292825",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000119312519292825/d827578d8a12b.htm",
+     "frequency": "irregular, debt-driven"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-09-24",
+     "accession": "0001104659-26-110227",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926110227/tm2625860d1_8a12b.htm",
+     "frequency": "irregular, debt-driven"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2022-04-08",
+     "accession": "0001193125-22-099502",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312522099502/d312288d8a12b.htm",
+     "frequency": "annual-ish in 2015-22; last 8-A12B/A 2010-02-01"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-06-05",
+     "accession": "0001193125-26-259954",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526259954/d136863d8a12b.htm",
+     "frequency": "5 filings 2025-05 to 2026-06; GOOG-pre 1288776 had an 8-A12B on 2014-03 (found via search, not Atom-verified)"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2013-12-30 (8-A12B/A); original 8-A12B 2012-11-05",
+     "accession": "0001193125-13-487985",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312513487985/0001193125-13-487985-index.htm",
+     "frequency": "rare; also 8-A12G 2002-05-06 (Nasdaq-era registration)"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked; Microsoft notes listed via 8-A12B historically (25 filed 2019-11-08 and 25-NSE 2021-09-03 imply earlier listings)"
+    }
+   ],
+   "machine_readable": {
+    "format": "Plain HTML (no XBRL). Private-company style SGML header gives CIK, file number, filer. Structured data must be parsed from text: title/coupon/maturity lines, exchange name, S-3 file number, signatory.",
+    "structured_fields": [
+     "registrant CIK",
+     "Commission file number",
+     "security title with coupon and maturity year",
+     "exchange name",
+     "related S-3 file number",
+     "prospectus supplement date",
+     "indenture and officers certificate exhibit refs",
+     "signatory"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Amazon 2026-09-24 8-A12B lists four Nasdaq notes: 5.200% due 2029, 5.550% due 2032, 6.250% due 2038, 6.650% due 2045; prospectus supplement dated 2026-09-09, officers certificate 2026-09-14, S-3 file no. 333-293246.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926110227/tm2625860d1_8a12b.htm",
+      "quote": "5.200% Notes due 2029"
+     },
+     {
+      "detail": "Amazon 2026-03-19 8-A12B lists eight Nasdaq series: FRN 2028, 2.800% 2028, 3.100% 2030, 3.350% 2032, 3.700% 2035, 4.050% 2039, 4.450% 2045, 4.850% 2064; supplement dated 2026-03-11. Document does not state currency or principal.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926031805/tm266670d10_8a12b.htm",
+      "quote": "Floating Rate Notes due 2028"
+     },
+     {
+      "detail": "Apple 2019-11-15 8-A12B registers 0.000% Notes due 2025 and 0.500% Notes due 2031 on Nasdaq (euro notes per market knowledge; document itself states no currency). Supplement 2019-11-07, S-3 333-228159.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000119312519292825/d827578d8a12b.htm",
+      "quote": "Notes due 2031"
+     },
+     {
+      "detail": "Berkshire 2022-04-08 8-A12B lists 1.500% Senior Notes due 2030 and 2.000% Senior Notes due 2034, issued by Berkshire Hathaway Finance Corporation and guaranteed by Berkshire Hathaway Inc, on NYSE; S-3 333-262384 and -01. Currency not stated in the document (known euro issue; unverified here).",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312522099502/d312288d8a12b.htm",
+      "quote": "1.500% Senior Notes due 2030"
+     },
+     {
+      "detail": "Alphabet 2026-06-05 8-A12B registers Series A and Series B Depositary Shares, each 1/20th of a 6.25% mandatory convertible preferred share ($1,000 liquidation preference), Nasdaq; S-3 333-296395, supplement 2026-06-02, deposit agreements dated 2026-06-05 with Computershare.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526259954/d136863d8a12b.htm",
+      "quote": "6.25% Series A Mandatory Convertible Preferred Stock"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "Signatories are treasury/finance officers, a usable officer-role signal: Amazon VP and Treasurer Antonio Masone (2026); Apple CFO Luca Maestri (2019); Berkshire SVP and CFO Marc D. Hamburg for both issuer and finance subsidiary (2022); Alphabet CFO Anat Ashkenazi (2026-06-05).",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926110227/tm2625860d1_8a12b.htm",
+      "quote": null
+     }
+    ],
+    "growth": [
+     {
+      "detail": "Alphabet issuing mandatory convertible preferred depositary shares in June 2026 is a new type of capital raise for the company, spotted first via 8-A12B. Amount not in the 8-A.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526259954/d136863d8a12b.htm",
+      "quote": null
+     }
+    ],
+    "signals": [
+     {
+      "detail": "Two Amazon debt deals six months apart (March 8 series, September 4 series) show a funding cadence; 8-A12B appears about 7 to 10 days after the prospectus supplement.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926031805/tm266670d10_8a12b.htm",
+      "quote": null
+     },
+     {
+      "detail": "8-A filing date vs supplement date lag: Apple 8 days (2019-11-07 to 11-15), Berkshire 31 days (2022-03-08 to 04-08), Amazon 8 days (2026-03-11 to 03-19), 13 days (09-09 to 09-24 for 8-A).",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312522099502/d312288d8a12b.htm",
+      "quote": null
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Coupon ladder per issuer gives a free listed-debt cost curve: Amazon 2026-03 curve runs 2.800% (2028) to 4.850% (2064); the 2026-09 deal prices 5.200% (2029) to 6.650% (2045), roughly 240 bp higher at the short end.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926110227/tm2625860d1_8a12b.htm",
+      "quote": "6.650% Notes due 2045"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "US listed-securities new-listing feed",
+     "description": "Event per 8-A12B: issuer, security title parsed into class/coupon/maturity, exchange, S-3 link, date, CERT confirmation.",
+     "buyers": "Bond data vendors, exchange-data resellers, fintech terminals, ETF/credit analysts",
+     "decision_supported": "Detect new listed debt/preferred/equity within hours of listing; seed security master",
+     "latency": "Minutes (EDGAR RSS) ; 8-A12B filed day of listing",
+     "build_difficulty": "low",
+     "competitors": "Nasdaq/NYSE listing notices, Refinitiv, Bloomberg, FINRA TRACE for bonds, Mergent",
+     "legal_notes": "SEC data public domain; exchange-originated listing lists have separate licences; our feed derives only from EDGAR."
+    }
+   ],
+   "suggestion": "Ship 'us_listing_events' as the US analogue of the Canada/EU/UK new-listing events: trigger = 8-A12B/8-A12G (new) corroborated by the matching CERT/CERTNYS/CERTNAS filed the same or next day, parse notes titles with a regex for coupon and maturity year.",
+   "value_score": 4,
+   "caveats": [
+    "Amazon March 2026 and Alphabet earlier 8-A12Bs not opened in full beyond the two shown.",
+    "8-A text rarely states currency or principal; join to 424B2/424B5 for amounts.",
+    "Netflix, Microsoft, GOOG-pre 8-A12G and 8-A12G/A not Atom-verified for every company (budget); 8-A12G/A not checked."
+   ]
+  },
+  {
+   "form": "CERT / CERTNYS / CERTNAS",
+   "plain_english": "Certification by the exchange (not the issuer) that the securities are approved for listing and registration under 12(b). It makes the 8-A effective. Pre-2019 NYSE ones are paper (CERTNYS, no document online); since 2019 they are electronic with the exchange as filer agent.",
+   "who_files_when": "The exchange, same day or day after the issuer's 8-A12B. Observed: Apple 8-A12B 2019-11-15 and CERT 2019-11-15; Berkshire 8-A12B 2022-04-08 and CERT 2022-04-08; Amazon 8-A12B 2026-09-24 and CERT 2026-09-24.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2019-11-15",
+     "accession": "0001354457-19-000604",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000135445719000604/0001354457-19-000604-index.htm",
+     "frequency": "tracks 8-A12B; CERTNYS paper 2014-11-13, 2015-08-03, 2015-09-18, 2017-05-25"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-09-24",
+     "accession": "0001354457-26-000910",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000135445726000910/0001354457-26-000910-index.htm",
+     "frequency": "tracks 8-A12B; earlier 2026-03-19 0001354457-26-000273"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2022-04-08",
+     "accession": "0000876661-22-000347",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000087666122000347/0000876661-22-000347-index.htm",
+     "frequency": "tracks 8-A12B; CERTNYS paper 2015-2017"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    }
+   ],
+   "machine_readable": {
+    "format": "Amazon 2026 CERT contains only a PDF (AMZN_8A_Cert_1018724.pdf, 83,643 bytes), no XML. CERTNYS are paper placeholders.",
+    "structured_fields": [
+     "filer agent CIK identifies exchange: 0001354457 prefix = Nasdaq, 0000876661 prefix = NYSE",
+     "filing date",
+     "subject company CIK"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Accession prefix tells the venue: Apple and Amazon CERTs start 0001354457 (Nasdaq filer ID, matches the exchange CIK in Apple's 25-NSE XML); Berkshire CERTs start 0000876661 (NYSE CIK in Berkshire's 25-NSE XML).",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000087666122000347/0000876661-22-000347-index.htm",
+      "quote": null
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "CERT is exchange confirmation that the listing happened; the issuer 8-A alone can precede a deal that never lists.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000135445726000910/0001354457-26-000910-index.htm",
+      "quote": null
+     }
+    ],
+    "financial_intelligence": []
+   },
+   "products": [
+    {
+     "name": "Listing confirmation flag",
+     "description": "Boolean/timestamp on each new-listing event: CERT seen, venue inferred from filer agent.",
+     "buyers": "Same as new-listing feed",
+     "decision_supported": "Confidence that a listing is live and which exchange",
+     "latency": "Same day",
+     "build_difficulty": "low",
+     "competitors": "Exchange notices",
+     "legal_notes": "Public EDGAR data."
+    }
+   ],
+   "suggestion": "Use CERT as the confirmation step and venue source in us_listing_events; do not sell it standalone.",
+   "value_score": 2,
+   "caveats": [
+    "No content beyond metadata; CERTNAS not observed for these companies (Nasdaq ones appear simply as CERT)."
+   ]
+  },
+  {
+   "form": "25 / 25-NSE",
+   "plain_english": "Notice of removal from listing under Section 12(b). 25-NSE is filed by the exchange when securities are removed (matured, redeemed, delisted); Form 25 (no suffix) is the issuer's own voluntary delisting. Rule 12d2-2(a)(2) covers maturity or redemption of debt.",
+   "who_files_when": "Exchange files 25-NSE on or after the removal date; delisting is effective 10 days after filing. Tied to note maturities: Berkshire files one each March.",
+   "companies": [
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2025-03-12",
+     "accession": "0000876661-25-000173",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000087666125000173/primary_doc.xml",
+     "frequency": "6 in 2020-2025 (Mar 2020, Jan 2021, Jan 2023, Mar 2023, Mar 2024, Mar 2025)"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2021-09-03",
+     "accession": "0001354457-21-001009",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000135445721001009/primary_doc.xml",
+     "frequency": "25 filed 2019-11-08 (0001193125-19-288425); 25-NSE 2021-09-03"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2025-11-14",
+     "accession": "0001354457-25-001138",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000135445725001138/primary_doc.xml",
+     "frequency": "25-NSE 2022-11, 2024-01, 2025-05, 2025-11; Form 25 2019-03-14"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1018724&type=25&dateb=&owner=include&count=10&output=atom",
+     "frequency": "none found (Atom empty)"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    }
+   ],
+   "machine_readable": {
+    "format": "XML (primary_doc.xml, schema X0203) plus tiny rule-provision HTML",
+    "structured_fields": [
+     "issuer CIK and name",
+     "exchange name and CIK",
+     "fileNumber",
+     "descriptionClassSecurity (full title incl. coupon/year)",
+     "ruleProvision (17 CFR 240.12d2-2(a)(2) etc.)",
+     "signatureName, signatureTitle, signatureDate",
+     "issuer address and phone"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Apple 25-NSE 2025-11-14 removes 0.000% Notes due 2025 from Nasdaq, file number 000-10030, signed by Tara Petta, Director (Nasdaq).",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000135445725001138/primary_doc.xml",
+      "quote": "0.000% Notes due 2025"
+     },
+     {
+      "detail": "Berkshire 25-NSE 2025-03-12 removes 0.000% Senior Notes due 2025 from NYSE, file number 001-14905, signed by Emily Fuhrman, Senior Analyst, Regulation.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000087666125000173/primary_doc.xml",
+      "quote": "0.000% Senior Notes due 2025"
+     },
+     {
+      "detail": "Microsoft 25-NSE 2021-09-03 removes 2.125% Notes due 2021 from Nasdaq, file number 000-14278.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000135445721001009/primary_doc.xml",
+      "quote": "2.125% Notes due 2021"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "Signatories are exchange staff, not issuer officers: no officer signal.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000135445725001138/primary_doc.xml",
+      "quote": null
+     }
+    ],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Each 25-NSE is a maturity marker: Berkshire's 0% 2025 notes (listed 2020, paired with 8-A12B 2020-04-02) closed March 2025, giving observed life of listing; this is a redemption/maturity calendar.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000087666125000173/primary_doc.xml",
+      "quote": null
+     },
+     {
+      "detail": "Apple removed a 2025 note twice in 2025 (2025-05-22 and 2025-11-14): sequential maturities or redemptions; second one matches 0.000% Notes due 2025 from the 2019 8-A. First not opened.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000135445725001138/primary_doc.xml",
+      "quote": null
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Rule provision 12d2-2(a)(2) marks debt maturity/redemption rather than equity delisting (which would be 12d2-2(c) via Form 25 by issuer).",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000087666125000173/primary_doc.xml",
+      "quote": "17 CFR 240.12d2-2(a)(2)"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "US delisting and debt-maturity calendar",
+     "description": "25-NSE XML parsed into events with security title, exchange and rule provision; classify maturity vs delisting by rule.",
+     "buyers": "Credit analysts, index providers, corporate treasury benchmarking",
+     "decision_supported": "What listed debt expires; detect equity delistings and exchange transfers",
+     "latency": "Same day (XML)",
+     "build_difficulty": "low",
+     "competitors": "Exchange notices, vendor corporate actions feeds",
+     "legal_notes": "Public EDGAR."
+    }
+   ],
+   "suggestion": "Treat 25-NSE XML as the delisting source for us_listing_events, using ruleProvision to split maturity (12d2-2(a)(2)) from delisting, and join to the original 8-A12B by security title.",
+   "value_score": 4,
+   "caveats": [
+    "Rule-provision mapping to event type is from the XML values seen, not exhaustively verified for equity removals.",
+    "Apple 2025-05-22 and other 25-NSE not opened."
+   ]
+  },
+  {
+   "form": "15-12B / 15-12G / 15-15D",
+   "plain_english": "Form 15 terminates or suspends Exchange Act reporting. 15-12B: terminate a 12(b) registration after delisting; 15-12G: terminate a 12(g) registration; 15-15D: suspend Section 15(d) duties. Used on going-private, buyout, or reorganisations.",
+   "who_files_when": "Issuer. Reporting duties are suspended immediately on filing for 12h-3/15d-6; 12g-4 takes effect after 90 days. Google Inc. filed seven across 2014-2016.",
+   "companies": [
+    {
+     "ticker": "GOOG-pre",
+     "verified": true,
+     "latest_date": "2016-02-12",
+     "accession": "0001193125-16-460404",
+     "url": "https://www.sec.gov/Archives/edgar/data/1288776/000119312516460404/d136638d1515d.htm",
+     "frequency": "7 filings: 15-12G 2014-04-10, 15-12G and 15-15D 2015-10-02, 15-12B and 15-12G 2015-10-13, 15-15D 2016-01-04 and two 2016-02-12"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "none expected"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML text form (no XML); some Forms 15 later have XBRL-style cover",
+    "structured_fields": [
+     "registrant",
+     "title of each class",
+     "Commission file number",
+     "rule box checked",
+     "holders of record per class",
+     "date",
+     "signatory"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "2015-10-02 15-12G for Google Class B stock: 12g-4(a)(2) box, 1 holder of record, because of the Alphabet Merger holding-company reorganisation on 2015-10-02; Alphabet succeeds under Rule 12g-3(a).",
+      "ticker": "GOOG-pre",
+      "url": "https://www.sec.gov/Archives/edgar/data/1288776/000119312515336646/d12352d1512g.htm",
+      "quote": "The Alphabet Merger constitutes a succession for purposes of Rule 12g-3(a)"
+     },
+     {
+      "detail": "2015-10-13 15-12B for Class C Capital Stock (file 001-36380): 12g-4(a)(1) box, 1 holder of record; still-reporting securities listed: Deferred Compensation Obligations and 2.125% 2016, 3.625% 2021, 3.375% 2024 notes.",
+      "ticker": "GOOG-pre",
+      "url": "https://www.sec.gov/Archives/edgar/data/1288776/000119312515342740/d187430d1512b.htm",
+      "quote": null
+     },
+     {
+      "detail": "2016-02-12 15-15D for the three notes (file 333-195069): Rule 12h-3(b)(1)(i); holders of record 80 (2.125% 2016), 90 (3.625% 2021), 75 (3.375% 2024).",
+      "ticker": "GOOG-pre",
+      "url": "https://www.sec.gov/Archives/edgar/data/1288776/000119312516460404/d136638d1515d.htm",
+      "quote": "Rule 12h-3(b)(1)(i)"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "All Google Forms 15 signed by Christine Flores, Assistant Secretary.",
+      "ticker": "GOOG-pre",
+      "url": "https://www.sec.gov/Archives/edgar/data/1288776/000119312516460404/d136638d1515d.htm",
+      "quote": null
+     }
+    ],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Form 15 here is not a delisting from the market: it ended Google Inc.'s own registration after the holding-company reorganisation, while Alphabet took over trading. A naive Form 15 'delisting' feed would flag Google as gone.",
+      "ticker": "GOOG-pre",
+      "url": "https://www.sec.gov/Archives/edgar/data/1288776/000119312515342740/d187430d1512b.htm",
+      "quote": null
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Holder-of-record counts for bonds (75 to 90) are rare disclosure of bond holder concentration.",
+      "ticker": "GOOG-pre",
+      "url": "https://www.sec.gov/Archives/edgar/data/1288776/000119312516460404/d136638d1515d.htm",
+      "quote": null
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "Corporate succession and deregistration events",
+     "description": "Form 15 events with rule box and 'succession' text to separate real exits from reorganisations; map predecessor CIK to successor CIK.",
+     "buyers": "Security-master vendors, quant backtesters, KYC",
+     "decision_supported": "CIK lineage, survivorship-bias fix",
+     "latency": "Same day",
+     "build_difficulty": "medium",
+     "competitors": "CRSP, FactSet entity history",
+     "legal_notes": "Public EDGAR."
+    }
+   ],
+   "suggestion": "Use Form 15 plus Rule 12g-3 succession language to build CIK lineage (Google 1288776 to Alphabet 1652044) in Provenance's point-in-time facts; classify as 'succession' vs 'going dark'.",
+   "value_score": 3,
+   "caveats": [
+    "Rule box read by an extraction model from checkbox glyphs; text said 'appears to be the checked box' for 12g-4(a)(1).",
+    "15-12B / 15-15D not verified for other companies."
+   ]
+  },
+  {
+   "form": "8-A12G / 8-A12G/A",
+   "plain_english": "Same as 8-A12B but registers a class under Section 12(g) (over-the-counter or by size, not on an exchange).",
+   "who_files_when": "Issuer, rare; mainly at an OTC listing or on succession.",
+   "companies": [
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2002-05-06",
+     "accession": "0001012870-02-002123",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000101287002002123/0001012870-02-002123-index.htm",
+     "frequency": "one-off, IPO era"
+    },
+    {
+     "ticker": "GOOG-pre",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "Alphabet's Atom for type=8-A showed only 8-A12B"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML",
+    "structured_fields": [
+     "class title",
+     "file number"
+    ]
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low value; fold into listing-events under the same parser as 8-A12B.",
+   "value_score": 1,
+   "caveats": [
+    "Netflix 2002 filing not opened; no 8-A12G/A verified for any company."
+   ]
+  },
+  {
+   "form": "S-8 / S-8 POS",
+   "plain_english": "Registers shares for employee equity or savings plans. Fast, no review. 'Additional securities' S-8s state the new shares added to a plan. S-8 POS deregisters unsold shares when a plan ends or is replaced.",
+   "who_files_when": "Issuer, after plan approval (often after shareholder vote), then yearly if shares are added; no deadline. Alphabet files S-8s each July (2017-2023, 2026).",
+   "companies": [
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-07-23",
+     "accession": "0001193125-26-312805",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526312805/d60612ds8.htm",
+     "frequency": "annual-ish; 2021-06-03 S-8 and S-8 POS, 2022-07-27, 2023-07-26"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2025-12-30",
+     "accession": "0001193125-25-337056",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312525337056/d49159ds8.htm",
+     "frequency": "new plan 2025; also 2017-11-30, 2012-12-31"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2020-06-26",
+     "accession": "0001065280-20-000257",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528020000257/s-8registrationstatement20.htm",
+     "frequency": "two filings 2020-06-26 (S-8 and S-8 post-effective); none since in first 10 results"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2020-11-04",
+     "accession": "0001193125-20-285570",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000119312520285570/d939824ds8.htm",
+     "frequency": "2015-10-23, 2020-11-04; S-8 POS batch 2018-01-19"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2025-09-26",
+     "accession": "0001140361-25-036313",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036125036313/",
+     "frequency": "two S-8 on 2025-09-26 (0001140361-25-036310 and -036313); not opened (503)"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-06-22 (S-8 POS)",
+     "accession": "0001193125-26-277638",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526277638/d22632ds8pos.htm",
+     "frequency": "S-8 2022-07-01 0001193125-22-187210"
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML plus XBRL fee-table exhibit 107 (ex-filing-fees xml) since 2022; older filings HTML only",
+    "structured_fields": [
+     "security class",
+     "amount registered",
+     "proposed price per share",
+     "aggregate offering price",
+     "fee",
+     "plan name",
+     "incorporated reports",
+     "signatories"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Alphabet S-8 2026-07-23: Alphabet Inc. Amended and Restated 2021 Stock Plan, 200,000,000 additional Class C shares; fee $9,519,233 on $68.93B at $344.65/share (Nasdaq avg 2026-07-17).",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526312805/d60612ds8.htm",
+      "quote": "200,000,000 additional shares of its Class C capital stock"
+     },
+     {
+      "detail": "Microsoft S-8 2025-12-30: Microsoft Corporation 2026 Stock Plan, 226,000,000 shares of common stock at $486.29 max price, $109.9B aggregate, fee $15,177,402.68.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312525337056/d49159dexfilingfees_htm.xml",
+      "quote": "Amount registered 226,000,000 shares"
+     },
+     {
+      "detail": "Netflix S-8 2020-06-26: Netflix, Inc. 2020 Stock Plan, 17,500,000 new shares plus 513,732 under the 2011 plan, 18,013,732 total at $463.18 ($8.34B, fee $1,082,999.33). Pre-2025 split share counts.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528020000257/s-8registrationstatement20.htm",
+      "quote": "2020 Stock Plan"
+     },
+     {
+      "detail": "Amazon S-8 2020-11-04: Amazon.com, Inc. 1997 Stock Incentive Plan (As Amended and Restated), 25,000,000 common shares; prior S-8 333-169470 (2010-09-17).",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000119312520285570/d939824ds8.htm",
+      "quote": "25,000,000 shares"
+     },
+     {
+      "detail": "Berkshire S-8 2022-07-01: Nebraska Furniture Mart, Inc. Profit Sharing Plan, additional 50,000 Class B shares. Berkshire registers acquired-subsidiary savings plans, not option plans.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312522187210/d362467ds8.htm",
+      "quote": "register an additional 50,000 shares of its Class B Common Stock"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "Alphabet S-8 signed by Sundar Pichai (CEO), Anat Ashkenazi (CFO), Marsida Saraci (VP, Principal Accounting Officer) and nine directors incl. John L. Hennessy (Chair), Sergey Brin, Larry Page: board roster snapshot.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526312805/d60612ds8.htm",
+      "quote": null
+     },
+     {
+      "detail": "Microsoft S-8 signers: Nadella (Chairman and CEO), Amy Hood (CFO), Alice Jolla (CAO), Lead Independent Director Sandra Peterson, 10 directors.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312525337056/d49159ds8.htm",
+      "quote": null
+     },
+     {
+      "detail": "Berkshire GEICO S-8 POS 2026-06-22 signed by Charles C. Chang (SVP and CFO) and Gregory E. Abel as CEO, evidence of post-Buffett officer lineup.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526277638/d22632ds8pos.htm",
+      "quote": null
+     }
+    ],
+    "growth": [
+     {
+      "detail": "Scale of dilution headroom: Alphabet 200M Class C vs Microsoft 226M common; relative to share bases, Alphabet's authorisation is a smaller share of outstanding stock (outstanding counts not pulled).",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526312805/R2.htm",
+      "quote": null
+     }
+    ],
+    "signals": [
+     {
+      "detail": "Berkshire S-8 POS deregisters unsold shares of the 2,276,350 Class B shares registered under 333-53046 for the GEICO 401(k) Savings Plan: 'no longer being offered', i.e. plan stops buying BRK stock.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526277638/d22632ds8pos.htm",
+      "quote": "Shares are no longer being offered to participants in the Plan"
+     },
+     {
+      "detail": "Alphabet registered a new 200M-share tranche about five weeks after the amended 2021 Stock Plan approval (Exhibit 4.1 8-K reference dated 2026-06-11 per filing).",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526312805/d60612ds8.htm",
+      "quote": null
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Price per share in fee table is a free dated stock-price marker: GOOGL class C $344.65 on 2026-07-17 average; MSFT $486.29 (Dec 2025); NFLX $463.18 on 2020-06-24.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526312805/R2.htm",
+      "quote": null
+     },
+     {
+      "detail": "Fee computed: 0.01381% of aggregate price; Alphabet $9,519,233 and Microsoft $15,177,402.68 SEC fee payments.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312525337056/d49159dexfilingfees_htm.xml",
+      "quote": null
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "Equity-plan dilution tracker",
+     "description": "Per-company time series of shares registered under S-8, plan name, price, and S-8 POS retirements, in a normalised table.",
+     "buyers": "Equity analysts, governance/ESG, activist researchers",
+     "decision_supported": "Gauge stock-based-compensation capacity vs shares outstanding",
+     "latency": "Same day; XBRL fee exhibit from 2022",
+     "build_difficulty": "medium",
+     "competitors": "ISS, Equilar, Glass Lewis, FactSet",
+     "legal_notes": "Public EDGAR data."
+    }
+   ],
+   "suggestion": "Add an 'equity_plan_registrations' endpoint (plan name, class, shares registered, price, fee, prior file numbers) and divide by shares outstanding from dei XBRL to show potential dilution per year.",
+   "value_score": 3,
+   "caveats": [
+    "Registered shares are authorisation, not grants or usage.",
+    "Apple 2025-09-26 S-8s not opened (503); Microsoft S-8 text lacks counts (fee XML has them).",
+    "Alphabet Exhibit 4.1 date in filing mismatches URL year per extraction; unresolved."
+   ]
+  },
+  {
+   "form": "40-APP / APP WD",
+   "plain_english": "Application to the SEC for exemptive relief or an order under the Investment Company Act of 1940, filed by funds, advisers, or by operating companies that risk being classed as investment companies. APP WD withdraws one.",
+   "who_files_when": "Applicant, ad hoc; SEC publishes notice and order afterwards.",
+   "companies": [
+    {
+     "ticker": "GOOG-pre",
+     "verified": true,
+     "latest_date": "2008-12-16",
+     "accession": "9999999997-08-048909",
+     "url": "https://www.sec.gov/Archives/edgar/data/1288776/999999999708048909/9999999997-08-048909-index.htm",
+     "frequency": "two: 2006-07-20 (File 812-13315, accession 9999999997-06-031105) and 2008-12-16 (File 812-13613)"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": false,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "not checked"
+    }
+   ],
+   "machine_readable": {
+    "format": "Paper placeholder; EDGAR holds only an auto-generated .paper stub (293 bytes) with metadata. Content not online.",
+    "structured_fields": [
+     "filer CIK",
+     "SEC file number (812-xxxxx)",
+     "filing date"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Google Inc. 40-APP filed 2006-07-20 under File No. 812-13315; a 2006 commentary reports Google sought a declaration it is not an investment company, with about $5.8B marketable securities vs $14.4B total assets, near the 40% test under section 3(a)(1)(C).",
+      "ticker": "GOOG-pre",
+      "url": "https://truthonthemarket.com/2006/08/24/google-seeks-exemption-from-investment-company-act/",
+      "quote": null
+     },
+     {
+      "detail": "Second 40-APP 2008-12-16, File No. 812-13613; purpose NOT verified (paper filing, no document online).",
+      "ticker": "GOOG-pre",
+      "url": "https://www.sec.gov/Archives/edgar/data/1288776/999999999708048909/9999999997-08-048909-index.htm",
+      "quote": null
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Cash-rich tech companies with large securities portfolios can cross the 40% asset test; a 40-APP is a rare disclosure of that risk.",
+      "ticker": "GOOG-pre",
+      "url": "https://truthonthemarket.com/2006/08/24/google-seeks-exemption-from-investment-company-act/",
+      "quote": null
+     }
+    ],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low value. Note only: if the user's premise 'Google and Alphabet 40-APP' is meant, the filings are Google Inc. 2006 and 2008, not Alphabet; Alphabet itself has none seen.",
+   "value_score": 1,
+   "caveats": [
+    "The reason is from a secondary blog and web search; the SEC order text (File 812-13315) was not retrieved. The 2008 purpose is unknown.",
+    "Accession for 2006 filing is 9999999997-06-031105 (as printed by EDGAR).",
+    "APP WD not checked."
+   ]
+  }
+ ],
+ "notes": [
+  "Budget: used about 60 WebFetch calls, over the 35 guideline, because Atom plus index plus document is three fetches per form.",
+  "Provenance listings-lifecycle answer: YES, partially. New listing = 8-A12B (+ same-day CERT as confirmation and exchange via filer agent CIK 0001354457 Nasdaq / 0000876661 NYSE). Delisting/maturity = 25-NSE (clean XML with full security title, exchange, rule 12d2-2 provision). Voluntary issuer delisting = Form 25. Termination of reporting = Form 15 (needs 12g-3 succession text to avoid false exits, e.g. Google 2015). Suspension is not covered by these forms: SEC trading suspensions (34-act orders) and 8-K Item 3.01 (notice of delisting) are the sources; Item 3.01 not checked.",
+  "Gaps: US feed is security-level (notes, preferred, stock classes), unlike Canada/EU/UK issuer-level; need to separate debt from equity by title parsing.",
+  "Not verified: 8-A12G/A, CERTNAS, APP WD, 15-12B/15-15D for the other five companies, Amazon/Apple/Microsoft 8-A12G.",
+  "40-APP 2006 accession is 9999999997-06-031105."
+ ]
+}

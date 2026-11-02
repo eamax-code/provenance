@@ -1,0 +1,880 @@
+{
+ "family": "PERIODIC FINANCIAL REPORTS",
+ "agent_status": "done",
+ "forms": [
+  {
+   "form": "10-K",
+   "plain_english": "Annual report: audited financials, business description, risk factors, MD&A, segment data, controls, auditor opinion. The core SEC periodic document.",
+   "who_files_when": "All reporting companies. Large accelerated filers: 60 days after fiscal year end. Observed: AAPL (Sept FYE) Oct 31 2025; MSFT (June FYE) Jul 29 2026; GOOGL Feb 5 2026; NFLX Jan 23 2026; AMZN Feb 6 2026; BRK Mar 2 2026. Once a year.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2025-10-31",
+     "accession": "0000320193-25-000079",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/",
+     "frequency": "annual"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-07-29",
+     "accession": "0001193125-26-323660",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/",
+     "frequency": "annual"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-02-05",
+     "accession": "0001652044-26-000018",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/",
+     "frequency": "annual"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2026-01-23",
+     "accession": "0001065280-26-000034",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000034/",
+     "frequency": "annual"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-03-02",
+     "accession": "0001193125-26-083899",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526083899/",
+     "frequency": "annual"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-02-06",
+     "accession": "0001018724-26-000004",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/",
+     "frequency": "annual"
+    }
+   ],
+   "machine_readable": {
+    "format": "Inline XBRL (primary doc .htm) + R pages + FilingSummary.xml + data.sec.gov companyconcept/frames API",
+    "structured_fields": [
+     "us-gaap Revenues / RevenueFromContractWithCustomerExcludingAssessedTax",
+     "segment-dimensioned facts (StatementBusinessSegmentsAxis)",
+     "dei cover page: shares outstanding, public float, auditor name/location/ID (AuditorName, AuditorFirmId)",
+     "RemainingPerformanceObligation",
+     "PaymentsForRepurchaseOfCommonStock, PaymentsOfDividends",
+     " NumberOfEmployees only in text, not tagged"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Apple: approx 166,000 FTE employees at Sept 27 2025; segments are geographic (Americas, Europe, Greater China, Japan, Rest of Asia Pacific)",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+      "quote": "approximately 166,000 full-time equivalent employees",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Amazon: approx 1,576,000 full- and part-time employees at Dec 31 2025; segments North America, International, AWS",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm",
+      "quote": "approximately 1,576,000 full-time and part-time employees",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Microsoft: approx 223,000 full-time employees at June 30 2026 (121,000 US, 102,000 international)",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+      "quote": "approximately 223,000 people on a full-time basis",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Alphabet: 190,820 employees at Dec 31 2025; international 52% of revenue; online advertising >70% of revenue",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm",
+      "quote": "Alphabet had 190,820 employees",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Apple risk-factor themes: tariffs/trade, single-source components, outsourcing partners, antitrust scrutiny, carriers/resellers, cybersecurity",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Amazon risk-factor themes: competition, international ops, seller fraud, FX, data center/fulfillment optimization, evolving regulation",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "Auditors: Amazon = Ernst & Young Seattle since 1996 (report Feb 5 2026); Alphabet = Ernst & Young San Jose since 1999 (reports Feb 4 2026)",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Alphabet sole critical audit matter: Loss Contingencies; Amazon sole CAM: Uncertain Tax Positions ($6.6B accrued tax contingencies)",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm",
+      "quote": "Significant judgment is required to determine both the likelihood and the estimated amount of a loss",
+      "source_method": "text-summary"
+     }
+    ],
+    "growth": [
+     {
+      "detail": "Total revenue growth latest FY (XBRL): AAPL FY25 416.161B (+6.4% vs 391.035B); MSFT FY26 331.839B (+17.8% vs 281.724B); GOOGL 2025 402.836B (+15.1% vs 350.018B); NFLX 2025 45.183B (+15.9% vs 39.001B); AMZN 2025 716.924B (+12.4% vs 637.959B); BRK 2025 371.444B (+0.0% vs 371.433B)",
+      "ticker": "ALL",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/RevenueFromContractWithCustomerExcludingAssessedTax.json",
+      "quote": "",
+      "source_method": "xbrl"
+     },
+     {
+      "detail": "Latest 10-Q YoY: MSFT qtr to 2026-09-30 92.279B vs 77.673B (+18.8%); AMZN Q3 2026 201.944B vs 180.169B (+12.1%); NFLX Q3 2026 12.874B vs 11.510B (+11.8%)",
+      "ticker": "ALL",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0001065280/us-gaap/Revenues.json",
+      "quote": "",
+      "source_method": "xbrl"
+     },
+     {
+      "detail": "AWS net sales 128.725B in 2025 vs 107.556B (+19.7%); AWS operating income 45.606B vs 39.834B",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Google Cloud revenue 58.705B vs 43.229B (+36%); operating income 13.910B vs 6.112B; Other Bets loss 7.515B",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Microsoft: Azure and other cloud services revenue up 41% FY2026; Productivity and Business Processes 139.996B",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+      "quote": "Azure and other cloud services revenue increased 41%",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Apple Services net sales 109.158B vs 96.169B (+14%); gross margin 75.4% vs 73.9%; Greater China -4%, Japan +15%",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "signals": [
+     {
+      "detail": "Microsoft commercial RPO up 84% to $678 billion at June 30 2026 (backlog signal for cloud/AI demand)",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+      "quote": "Commercial remaining performance obligation increased 84% to $678 billion",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Alphabet capex $91.4B in 2025 vs $52.5B in 2024; Amazon cash capex $128.3B in 2025 vs $77.7B (AI infrastructure build)",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Apple EU State Aid: one-time $10.2B net tax charge in FY2024 after ECJ ruling Sept 10 2024; $8.8B TCJA deemed repatriation payable within 12 months",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Apple FY2025 buybacks $89.3B and dividends/equivalents $15.4B; May 2025 $100B program ~ $99.8B remaining at Sept 27 2025; dividend raised $0.25 to $0.26 in May 2025; 22,429 holders of record",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Alphabet 2025 buybacks $45.4B ($6.5B Class A, $38.9B Class C); dividends ~ $10.0B across classes",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Microsoft: ~$40.63B repurchase authorization remaining June 30 2026; quarterly dividend $0.91 declared June 10 2026 ($6.759B)",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/msft-20260630.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Amazon Item 5: no issuer repurchases; no dividend paid",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000004/amzn-20251231.htm",
+      "quote": "None.",
+      "source_method": "text-summary"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "Point-in-time standardized fundamentals + segment API",
+     "description": "Normalize us-gaap and segment-axis facts, with filed-date vintage (restatement-aware: e.g., BRK 2022 revenue 302,089M original vs 302,020M later).",
+     "buyers": "Quant funds, fintech apps, AI agents",
+     "decision_supported": "Backtesting, screening, comps",
+     "latency": "Minutes after filing",
+     "build_difficulty": "medium",
+     "competitors": "Sec-api.io, FMP, Intrinio, XBRL US, Calcbench",
+     "legal_notes": "SEC data public domain; custom extension tags need mapping."
+    },
+    {
+     "name": "Risk-factor change diff and human-capital/backlog tracker",
+     "description": "YoY diff of Item 1A headings, headcount, RPO/backlog, buyback authorization extracted from 10-K/10-Q text.",
+     "buyers": "Hedge funds, risk and compliance teams",
+     "decision_supported": "Event/risk monitoring",
+     "latency": "Same day",
+     "build_difficulty": "medium",
+     "competitors": "AlphaSense, Sentieo, Calcbench",
+     "legal_notes": "Filing text public; LLM extraction needs verification."
+    }
+   ],
+   "suggestion": "Sell a 'Cloud/AI backlog and capex tracker' dataset: MSFT commercial RPO ($678B), Alphabet capex, Amazon AWS segment and capex, extracted per filing and refreshed within minutes via the Provenance facts API.",
+   "value_score": 5,
+   "caveats": [
+    "Narrative figures come from WebFetch summaries of large filings (only 100k chars per read), not full XBRL R pages; verify before shipping.",
+    "Alphabet companyconcept fetch lacked FY2025 and quarter data; used the 10-K text for 2025 revenue.",
+    "Amazon/Alphabet XBRL frames response was truncated; Microsoft segment dollars for IC and MPC and Alphabet backlog not captured.",
+    "Berkshire and Netflix 10-K text were not read deeply (budget).",
+    "Headcount is not an XBRL-tagged fact in these filings."
+   ]
+  },
+  {
+   "form": "10-Q",
+   "plain_english": "Quarterly unaudited financial report for Q1-Q3 (no Q4; that is in the 10-K). Contains condensed financials, MD&A, risk-factor updates, controls and repurchase table.",
+   "who_files_when": "Large accelerated filers: 40 days after quarter end. Three per year. Observed lag: MSFT Oct 28 2026 for quarter ended Sep 30; AMZN Oct 30 2026; NFLX Oct 21 2026; GOOGL Oct 29 2026; AAPL Jul 31 2026; BRK Aug 10 2026.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2026-07-31",
+     "accession": "0000320193-26-000020",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/",
+     "frequency": "quarterly"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-10-28",
+     "accession": "0001193125-26-436133",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436133/",
+     "frequency": "quarterly"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-10-29",
+     "accession": "0001652044-26-000084",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000084/",
+     "frequency": "quarterly"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2026-10-21",
+     "accession": "0001065280-26-000291",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000291/",
+     "frequency": "quarterly"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-08-10",
+     "accession": "0001193125-26-341032",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526341032/",
+     "frequency": "quarterly"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-10-30",
+     "accession": "0001018724-26-000040",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000040/",
+     "frequency": "quarterly"
+    }
+   ],
+   "machine_readable": {
+    "format": "Inline XBRL + HTML; R pages; companyconcept/frames API",
+    "structured_fields": [
+     "Revenues (3-month and YTD contexts)",
+     "segment facts",
+     "cover dei shares outstanding",
+     "RPO",
+     "repurchase and dividend cash flows"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Berkshire's Q3 2026 10-Q (due ~Nov 2026) not yet in Atom feed; latest is 2026-08-10 (Q2). Berkshire files 10-Q only for Q1-Q3 like others.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526341032/",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [],
+    "growth": [
+     {
+      "detail": "MSFT quarter ended 2026-09-30 revenue 92.279B vs 77.673B prior-year quarter",
+      "ticker": "MSFT",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000789019/us-gaap/RevenueFromContractWithCustomerExcludingAssessedTax.json",
+      "quote": "",
+      "source_method": "xbrl"
+     },
+     {
+      "detail": "Apple Q3 FY26 (to Jun 27 2026) 109.417B vs 94.036B Q3 FY25 (+16.4%); Q1 FY26 143.756B",
+      "ticker": "AAPL",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/RevenueFromContractWithCustomerExcludingAssessedTax.json",
+      "quote": "",
+      "source_method": "xbrl"
+     },
+     {
+      "detail": "Berkshire Q2 2026 revenue 101.808B vs 92.515B Q2 2025 (+10.0%)",
+      "ticker": "BRK",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0001067983/us-gaap/Revenues.json",
+      "quote": "",
+      "source_method": "xbrl"
+     },
+     {
+      "detail": "Netflix quarterly revenue: Q1 12.250B, Q2 12.560B, Q3 12.874B (2026)",
+      "ticker": "NFLX",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0001065280/us-gaap/Revenues.json",
+      "quote": "",
+      "source_method": "xbrl"
+     },
+     {
+      "detail": "Amazon quarterly revenue 2026: Q1 181.519B, Q2 200.606B, Q3 201.944B",
+      "ticker": "AMZN",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0001018724/us-gaap/RevenueFromContractWithCustomerExcludingAssessedTax.json",
+      "quote": "",
+      "source_method": "xbrl"
+     }
+    ],
+    "signals": [
+     {
+      "detail": "XBRL frames show 10-Qs restate prior periods (MSFT 2025-09-30 quarter appears under both the Oct 2025 and Oct 2026 10-Q accessions)",
+      "ticker": "MSFT",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000789019/us-gaap/RevenueFromContractWithCustomerExcludingAssessedTax.json",
+      "quote": "",
+      "source_method": "xbrl"
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Quarterly cadence enables YoY and sequential growth calc from 3-month contexts; Q4 must be derived as FY minus 9-month (no standalone Q4 value)",
+      "ticker": "ALL",
+      "url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0001018724/us-gaap/RevenueFromContractWithCustomerExcludingAssessedTax.json",
+      "quote": "",
+      "source_method": "xbrl"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "Earnings-day structured quarterlies",
+     "description": "Parse 10-Q XBRL and derive Q4 and TTM, flag restatements.",
+     "buyers": "Quants, retail fintechs",
+     "decision_supported": "Trading/screening",
+     "latency": "Minutes",
+     "build_difficulty": "low",
+     "competitors": "FMP, EODHD, Polygon",
+     "legal_notes": "Public domain."
+    }
+   ],
+   "suggestion": "Provide derived Q4 and TTM series with restatement-vintage flags, since XBRL has no standalone Q4.",
+   "value_score": 5,
+   "caveats": [
+    "No 10-Q document deep-read; relied on XBRL concept API via WebFetch summarizer.",
+    "Berkshire Q3 2026 10-Q not yet filed as of 2026-11-03 Atom check."
+   ]
+  },
+  {
+   "form": "10-K/A",
+   "plain_english": "Amendment to a 10-K: either full restatement or Part III info / exhibit fix.",
+   "who_files_when": "Ad hoc.",
+   "companies": [
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2019-02-06",
+     "accession": "0001193125-19-028757",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312519028757/",
+     "frequency": "ad hoc"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2019-02-08",
+     "accession": "0001065280-19-000079",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528019000079/",
+     "frequency": "ad hoc"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2018-02-05",
+     "accession": "0001628280-18-000941",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000162828018000941/",
+     "frequency": "ad hoc"
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML/iXBRL if financials amended",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Seen in 10-K Atom feeds only for GOOGL (2019-02-06, a day after 10-K) and NFLX (2019-02-08, 2018-02-05); AAPL, MSFT, AMZN, BRK none in last 10 filings; purpose of each not read",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312519028757/",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Use as amendment flag in point-in-time facts: superseded accession marks.",
+   "value_score": 2,
+   "caveats": [
+    "Content of amendments not read; Atom checked via 10-K prefix with count 10 so older amendments for others may exist."
+   ]
+  },
+  {
+   "form": "10-K405",
+   "plain_english": "Pre-2003 variant of the 10-K checked a box that Item 405 insider-delinquency disclosure was omitted. Discontinued in 2003.",
+   "who_files_when": "Historic, 1990s-2002.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2001-12-21",
+     "accession": "0000912057-01-544436",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=320193&type=10-K405&dateb=&owner=include&count=10&output=atom",
+     "frequency": "historic: 2001-12-21, 1998-12-23 (0001047469-98-044981)"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2002-01-24",
+     "accession": "0001032210-02-000059",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1018724&type=10-K405&dateb=&owner=include&count=10&output=atom",
+     "frequency": "historic: 2002-01-24, 2001-03-23 (0001032210-01-500087), 1998-03-30 (0000891020-98-000448)"
+    }
+   ],
+   "machine_readable": {
+    "format": "Plain text SGML",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Only for backfill of 1990s history; map to 10-K in form-type normalization.",
+   "value_score": 1,
+   "caveats": [
+    "AAPL and AMZN verified; MSFT, BRK, GOOGL, NFLX not checked. Form discontinued 2003."
+   ]
+  },
+  {
+   "form": "NT 10-K / NT 10-Q",
+   "plain_english": "Notification of late filing; gives extra 15 (10-K) or 5 (10-Q) calendar days. Distress signal.",
+   "who_files_when": "Within one business day after the due date when filing will be late.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2006-12-15",
+     "accession": "0001104659-06-081617",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=320193&type=NT+10&dateb=&owner=include&count=10&output=atom",
+     "frequency": "NT 10-K 2006-12-15 and NT 10-Q 2006-08-11 (0001104659-06-053743), only two ever; none since"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=789019&type=NT+10&dateb=&owner=include&count=10&output=atom",
+     "frequency": "none found"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1652044&type=NT+10&dateb=&owner=include&count=10&output=atom",
+     "frequency": "none found"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1065280&type=NT+10&dateb=&owner=include&count=10&output=atom",
+     "frequency": "none found"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1067983&type=NT+10&dateb=&owner=include&count=10&output=atom",
+     "frequency": "none found"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1018724&type=NT+10&dateb=&owner=include&count=10&output=atom",
+     "frequency": "none found"
+    }
+   ],
+   "machine_readable": {
+    "format": "Text/HTML",
+    "structured_fields": [
+     "reason for late filing",
+     "expected results"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Atom type=NT 10 (prefix) returned zero entries for Netflix and Berkshire",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1065280&type=NT+10&output=atom",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Apple filed NT 10-Q on 2006-08-11 and NT 10-K on 2006-12-15; no other company has any NT 10 filing",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=320193&type=NT+10&dateb=&owner=include&count=10&output=atom",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "financial_intelligence": []
+   },
+   "products": [
+    {
+     "name": "Late-filer alert feed",
+     "description": "Real-time NT 10-K/Q alerts for small caps",
+     "buyers": "Short sellers, credit funds",
+     "decision_supported": "Distress",
+     "latency": "Seconds",
+     "build_difficulty": "low",
+     "competitors": "Audit Analytics, Bloomberg",
+     "legal_notes": "Public"
+    }
+   ],
+   "suggestion": "Include NT filings in event feed, but these six mega-caps never trigger it.",
+   "value_score": 2,
+   "caveats": [
+    "Atom type=NT 10 prefix covers NT 10-K and NT 10-Q. Apple's 2006 pair coincides with its late filings during the 2006 stock-option review (inference, contents not read)."
+   ]
+  },
+  {
+   "form": "ARS",
+   "plain_english": "Annual report to shareholders sent with proxy; filed on EDGAR for reference.",
+   "who_files_when": "Annually with proxy, as paper-copy submission.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=320193&type=ARS&dateb=&owner=include&count=10&output=atom",
+     "frequency": "none found"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-10-21",
+     "accession": "0001193125-26-427876",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=789019&type=ARS&dateb=&owner=include&count=10&output=atom",
+     "frequency": "annual (Oct; 2023-2026 electronic, 2010-2015 paper)"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-04-24",
+     "accession": "0001308179-26-000344",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1652044&type=ARS&dateb=&owner=include&count=10&output=atom",
+     "frequency": "annual (2023-2026)"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2026-04-16",
+     "accession": "0001193125-26-159306",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1065280&type=ARS&dateb=&owner=include&count=10&output=atom",
+     "frequency": "annual (2023-2026; paper 2003, 2004)"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-03-13",
+     "accession": "0001193125-26-106284",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1067983&type=ARS&dateb=&owner=include&count=10&output=atom",
+     "frequency": "annual (2023-2026)"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-04-09",
+     "accession": "0001104659-26-041036",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1018724&type=ARS&dateb=&owner=include&count=10&output=atom",
+     "frequency": "annual (2023-2026; paper 2010-2015)"
+    }
+   ],
+   "machine_readable": {
+    "format": "PDF/HTML",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "ARS filed by five of six; Apple none. Latest: MSFT 2026-10-21, GOOGL 2026-04-24, NFLX 2026-04-16, BRK 2026-03-13, AMZN 2026-04-09",
+      "ticker": "ALL",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=789019&type=ARS&dateb=&owner=include&count=10&output=atom",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low value; link as document type for shareholder letters (Berkshire letter).",
+   "value_score": 2,
+   "caveats": [
+    "Contents not read. Entries labeled [Paper] are paper-only submissions with 9999999997 accession prefix."
+   ]
+  },
+  {
+   "form": "11-K",
+   "plain_english": "Annual report of employee stock purchase, savings and similar plans, with audited plan financials (Form 5500 may substitute).",
+   "who_files_when": "Within 180 days of plan year end; MSFT files in March and June.",
+   "companies": [
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-06-25",
+     "accession": "0001193125-26-282817",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526282817/",
+     "frequency": "annual"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2003-04-25",
+     "accession": "0000891020-03-001334",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000089102003001334/",
+     "frequency": "historic only (last 2003)"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "none found"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": null,
+     "frequency": "none found"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-06-25",
+     "accession": "0001193125-26-282257",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1067983&type=11-K&dateb=&owner=include&count=10&output=atom",
+     "frequency": "annual; at least 10 plan filings May-Jun 2026"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": null,
+     "accession": null,
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1065280&type=11-K&dateb=&owner=include&count=10&output=atom",
+     "frequency": "none found"
+    }
+   ],
+   "machine_readable": {
+    "format": "Inline XBRL (MSFT) + HTML",
+    "structured_fields": [
+     "plan net assets",
+     "employer stock shares and fair value",
+     "contributions"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "MSFT One Microsoft Puerto Rico Retirement Plan: net assets $38,763,986 (2025) vs $33,868,148 (2024); auditor Deloitte & Touche since 1999",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526282817/msft-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Plan holds 11,889 MSFT shares worth $5,749,758; new investment in MSFT stock discontinued July 2016",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526282817/msft-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "MSFT filed 3 plan 11-Ks on 2026-06-25 (two) and 2026-03-24, i.e., multiple plans",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526120090/",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "2025 contributions total $1,286,499 (employer $324,569, participant $885,867)",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526282817/msft-20251231.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Low priority; only offer plan-level holdings as long-tail dataset.",
+   "value_score": 2,
+   "caveats": [
+    "Participant counts not in this plan's filing.",
+    "Berkshire has many subsidiary plan 11-Ks (about 10 between 2026-05-28 and 2026-06-25); contents not read. Netflix none found. Alphabet/Apple none, Amazon last 2003."
+   ]
+  },
+  {
+   "form": "10-Q/A",
+   "plain_english": "Amendment to 10-Q.",
+   "who_files_when": "Ad hoc.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2009-04-27",
+     "accession": "0001193125-09-087629",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=320193&type=10-Q%2FA&dateb=&owner=include&count=10&output=atom",
+     "frequency": "rare; also 1997-10-07 (0000320193-97-000021)"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2002-03-15",
+     "accession": "0000950150-02-000219",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1067983&type=10-Q%2FA&dateb=&owner=include&count=10&output=atom",
+     "frequency": "rare; one only"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2012-01-27",
+     "accession": "0001193125-12-026864",
+     "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=789019&type=10-Q%2FA&dateb=&owner=include&count=10&output=atom",
+     "frequency": "rare; 6 total: 2012-01-27, 2006-03-03, 2002-03-25 (x2), 1998-06-03, 1994-11-16"
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "10-Q/A counts: AAPL 2 (latest 2009-04-27), BRK 1 (2002-03-15), MSFT 6 (latest 2012-01-27); none in last 10 years",
+      "ticker": "ALL",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=789019&type=10-Q%2FA&dateb=&owner=include&count=10&output=atom",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Treat as amendment flag.",
+   "value_score": 1,
+   "caveats": [
+    "AAPL, BRK, MSFT checked. GOOGL, NFLX, AMZN not checked. Contents not read."
+   ]
+  },
+  {
+   "form": "11-K/A",
+   "plain_english": "Amendment to 11-K.",
+   "who_files_when": "Ad hoc.",
+   "companies": [],
+   "machine_readable": {
+    "format": "HTML",
+    "structured_fields": []
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Treat as amendment flag.",
+   "value_score": 1,
+   "caveats": [
+    "Unverified; not checked (budget)."
+   ]
+  }
+ ],
+ "notes": [
+  "Used about 37 WebFetch calls. Narrative extracts come from a summarizer model; verify.",
+  "Dates as of 2026-11-03.",
+  "source_method: xbrl = value from data.sec.gov companyconcept (still passed through a summarizer); text-summary = from narrative filing text. Revision 2 added Atom verification for NT, ARS, 11-K, 10-Q/A, 10-K405."
+ ]
+}

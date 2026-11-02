@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from app.schemas.common import ORMModel, PageMeta
 
@@ -57,10 +57,23 @@ class FilingOut(ORMModel):
         description="Always null for now: the SEC source does not expose a dissemination timestamp"
     )
     primary_document: str | None = None
+    items: list[str] = Field(
+        default_factory=list,
+        description="8-K item codes from the SEC submissions data, e.g. 5.02 (officer changes)",
+    )
     source_url: str
     first_detected_at: datetime
     processed_at: datetime | None
     quality_status: str
+
+    @field_validator("items", mode="before")
+    @classmethod
+    def _split_items(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [i for i in value.split(",") if i]
+        return value
 
 
 class FilingList(BaseModel):

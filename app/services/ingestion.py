@@ -22,6 +22,7 @@ from app.db.models import Company, FinancialFact, IngestionRun, utcnow
 from app.db.models import Filing as FilingRow
 from app.services import events, notifications
 from app.services.fact_normalizer import NormalizedFact, normalize_company_facts
+from app.services.form8k import normalize_items
 from app.services.sec_client import (
     SecClient,
     SecClientError,
@@ -67,6 +68,7 @@ class FilingRecord:
     quality_status: str
     notes: list[str] = field(default_factory=list)
     from_history_page: bool = False
+    items: str | None = None  # 8-K item codes, e.g. "5.02,9.01"
 
     def payload_hash(self) -> str:
         return hashlib.sha256(
@@ -207,6 +209,7 @@ def parse_filings_block(
     report_dates = col("reportDate")
     accepted = col("acceptanceDateTime")
     primary_docs = col("primaryDocument")
+    item_codes = col("items")
 
     seen: set[str] = set()
     for i in range(n):
@@ -238,6 +241,7 @@ def parse_filings_block(
                 source_url=filing_index_url(cik, accn, www_base),
                 quality_status=quality,
                 notes=notes,
+                items=normalize_items(item_codes[i]),
             )
         )
     return filings
@@ -413,13 +417,15 @@ def upsert_filings(
                 processed_at=now,
                 ingestion_run_id=run_id,
                 quality_status=rec.quality_status,
+                items=rec.items,
                 created_at=now,
             )
             db.add(row)
             existing[rec.accession_number] = row
             new_rows.append(row)
             inserted += 1
-        elif row.source_payload_hash != h:
+        elif row.source_payload_hash != h or row.items != rec.items:
+            row.items = rec.items
             row.form_type = rec.form_type
             row.filing_date = rec.filing_date
             row.report_date = rec.report_date

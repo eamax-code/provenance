@@ -76,6 +76,14 @@ class Settings(BaseSettings):
     events_stream_heartbeat_seconds: float = 15.0
     events_stream_max_seconds: float = 900.0
     events_max_since_days: int = 30
+    # Local language model (Ollama API) for the company-intelligence chat and extraction.
+    # Off by default; the chat still returns the deterministic brief without it.
+    llm_enabled: bool = False
+    llm_base_url: str = "http://127.0.0.1:11434"
+    llm_model: str = "qwen3:4b-instruct"
+    llm_timeout_seconds: float = 90.0
+    llm_max_answer_tokens: int = 700
+    chat_rate_limit_per_minute: int = 10
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12

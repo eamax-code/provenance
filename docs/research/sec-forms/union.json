@@ -1,0 +1,576 @@
+{
+ "4": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "SCHEDULE 13G/A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOGL",
+  "NFLX"
+ ],
+ "SCHEDULE 13G": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOGL",
+  "NFLX"
+ ],
+ "SCHEDULE 13D/A": [
+  "BRK-A"
+ ],
+ "SC 13G/A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "SC 13G": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "SC 13D/A": [
+  "AMZN",
+  "BRK-A",
+  "MSFT",
+  "NFLX"
+ ],
+ "SC 13D": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "MSFT",
+  "NFLX"
+ ],
+ "13F-HR": [
+  "BRK-A",
+  "GOOGL"
+ ],
+ "13F-HR/A": [
+  "BRK-A"
+ ],
+ "13FCONP": [
+  "BRK-A"
+ ],
+ "8-K": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "8-K/A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "10-Q": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "10-Q/A": [
+  "AAPL",
+  "BRK-A",
+  "MSFT"
+ ],
+ "10-K": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "11-K": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "MSFT"
+ ],
+ "11-K/A": [
+  "AAPL",
+  "BRK-A",
+  "MSFT"
+ ],
+ "S-8 POS": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "S-8": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "S-3ASR": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "S-3": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "MSFT"
+ ],
+ "S-3/A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "MSFT"
+ ],
+ "S-4": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT"
+ ],
+ "S-4/A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT"
+ ],
+ "S-4MEF": [
+  "BRK-A"
+ ],
+ "POS AM": [
+  "AMZN",
+  "BRK-A",
+  "MSFT"
+ ],
+ "EFFECT": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT"
+ ],
+ "424B2": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "424B3": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT"
+ ],
+ "424B5": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "NFLX"
+ ],
+ "FWP": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "SD": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT"
+ ],
+ "3": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "3/A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "4/A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "5": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "5/A": [
+  "BRK-A",
+  "GOOGL",
+  "MSFT"
+ ],
+ "144": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "ARS": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "DEF 14A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "PRE 14A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "PRER14A": [
+  "BRK-A",
+  "GOOG-pre"
+ ],
+ "DEFA14A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "25-NSE": [
+  "AAPL",
+  "BRK-A",
+  "GOOG-pre",
+  "MSFT"
+ ],
+ "425": [
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "PX14A6G": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "SC TO-T": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "MSFT"
+ ],
+ "SC TO-T/A": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "MSFT"
+ ],
+ "SC TO-C": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "MSFT"
+ ],
+ "8-A12B": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT"
+ ],
+ "8-A12B/A": [
+  "BRK-A"
+ ],
+ "UPLOAD": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "CORRESP": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT",
+  "NFLX"
+ ],
+ "LETTER": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "MSFT"
+ ],
+ "NO ACT": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOG-pre",
+  "MSFT",
+  "NFLX"
+ ],
+ "IRANNOTICE": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOGL",
+  "MSFT"
+ ],
+ "REGDEX": [
+  "BRK-A"
+ ],
+ "RW": [
+  "BRK-A",
+  "NFLX"
+ ],
+ "CERT": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "GOOGL",
+  "MSFT"
+ ],
+ "CERTNYS": [
+  "AAPL",
+  "AMZN",
+  "BRK-A",
+  "MSFT"
+ ],
+ "10-K/A": [
+  "AAPL",
+  "AMZN",
+  "GOOG-pre",
+  "GOOGL",
+  "NFLX"
+ ],
+ "10-K405": [
+  "AAPL",
+  "AMZN"
+ ],
+ "144/A": [
+  "AAPL",
+  "AMZN",
+  "GOOGL",
+  "NFLX"
+ ],
+ "15-12G": [
+  "AMZN",
+  "GOOG-pre"
+ ],
+ "305B2": [
+  "AAPL",
+  "AMZN",
+  "MSFT"
+ ],
+ "CT ORDER": [
+  "AMZN"
+ ],
+ "POS AMI": [
+  "AMZN"
+ ],
+ "S-1": [
+  "AMZN",
+  "NFLX"
+ ],
+ "S-1/A": [
+  "AMZN",
+  "NFLX"
+ ],
+ "N-PX": [
+  "AMZN",
+  "GOOGL"
+ ],
+ "SC TO-I": [
+  "AMZN",
+  "GOOG-pre",
+  "MSFT"
+ ],
+ "SC TO-I/A": [
+  "AMZN",
+  "GOOG-pre",
+  "MSFT"
+ ],
+ "424B1": [
+  "AMZN"
+ ],
+ "8-A12G": [
+  "AAPL",
+  "AMZN",
+  "GOOG-pre",
+  "MSFT",
+  "NFLX"
+ ],
+ "8-K12B": [
+  "GOOGL"
+ ],
+ "POSASR": [
+  "GOOG-pre",
+  "GOOGL",
+  "NFLX"
+ ],
+ "D": [
+  "AAPL",
+  "GOOG-pre",
+  "GOOGL",
+  "MSFT"
+ ],
+ "15-12B": [
+  "GOOG-pre"
+ ],
+ "15-15D": [
+  "GOOG-pre"
+ ],
+ "CERTNAS": [
+  "GOOG-pre"
+ ],
+ "40-APP": [
+  "GOOG-pre"
+ ],
+ "APP WD": [
+  "GOOG-pre"
+ ],
+ "424B7": [
+  "GOOG-pre"
+ ],
+ "D/A": [
+  "GOOG-pre"
+ ],
+ "424B4": [
+  "NFLX"
+ ],
+ "DFAN14A": [
+  "AAPL",
+  "MSFT",
+  "NFLX"
+ ],
+ "PX14A6N": [
+  "AAPL",
+  "MSFT"
+ ],
+ "25": [
+  "AAPL",
+  "MSFT"
+ ],
+ "NT 10-K": [
+  "AAPL",
+  "MSFT"
+ ],
+ "NT 10-Q": [
+  "AAPL",
+  "MSFT"
+ ],
+ "424A": [
+  "MSFT"
+ ],
+ "S-3MEF": [
+  "MSFT"
+ ],
+ "DEFR14A": [
+  "MSFT"
+ ],
+ "CB": [
+  "MSFT"
+ ],
+ "CB/A": [
+  "MSFT"
+ ],
+ "8-A12G/A": [
+  "MSFT"
+ ]
+}

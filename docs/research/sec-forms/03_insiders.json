@@ -1,0 +1,540 @@
+{
+ "family": "INSIDER OWNERSHIP AND SALES",
+ "agent_status": "done",
+ "forms": [
+  {
+   "form": "4 (and 4/A)",
+   "plain_english": "Statement of changes in beneficial ownership. Filed by directors, officers and 10%+ holders within 2 business days of any change (purchase, sale, grant, vesting settlement, tax withholding, gift, option exercise). Each filing carries an ownershipDocument XML with one row per transaction, a transaction code, price, post-transaction holdings, direct/indirect flag and footnotes.",
+   "who_files_when": "Section 16 insiders; due by end of 2nd business day after the transaction (Exchange Act s16(a); 10b5-1 flag box added April 2023). Filed under BOTH the reporting person's CIK and the issuer's CIK, so the issuer Atom feed with owner=include lists all insiders' filings. 4/A corrects a prior Form 4. Apple/Alphabet/Netflix/MSFT/AMZN each file several per month; clusters on vest dates (Apple Oct 1 and Apr 1, Alphabet 25th monthly, MSFT mid-month/quarter).",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2026-10-29",
+     "accession": "0001140361-26-041201",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126041201/0001140361-26-041201-index.htm",
+     "frequency": "multiple per month (10 in Oct 5-29 window)"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-10-15",
+     "accession": "0000789019-26-000228",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000078901926000228/0000789019-26-000228-index.htm",
+     "frequency": "several per month, bursts mid-Sep"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-10-30",
+     "accession": "0001193125-26-442116",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526442116/0001193125-26-442116-index.htm",
+     "frequency": "6 filings on 2026-10-27 alone (monthly GSU vest)"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2026-10-29",
+     "accession": "0001583109-26-000004",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000158310926000004/0001583109-26-000004-index.htm",
+     "frequency": "burst of ~8 on 2026-10-02 (annual director option grants), plus ad hoc"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-10-05",
+     "accession": "0001936006-26-000026",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000193600626000026/0001936006-26-000026-index.htm",
+     "frequency": "~weekly to monthly"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-10-29",
+     "accession": "0001193125-26-438090",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526438090/0001193125-26-438090-index.htm",
+     "frequency": "as reporting owner: ~1-4 per month (Berkshire list shows 10 Form 4s from 2026-08-13 to 2026-10-29). These are for OTHER issuers, e.g. DaVita"
+    }
+   ],
+   "machine_readable": {
+    "format": "XML (ownershipDocument, schema X0609) - one XML per filing, plus .txt SGML; primary xml file name varies (form4.xml, ownership.xml, wk-form4_NNN.xml) by filing agent",
+    "structured_fields": [
+     "issuer CIK/ticker",
+     "reportingOwner CIK/name/address",
+     "isDirector/isOfficer/isTenPercentOwner/officerTitle",
+     "aff10b5One (10b5-1 checkbox)",
+     "nonDerivativeTransaction: securityTitle, transactionDate, transactionCode, shares, pricePerShare, acquiredDisposed, sharesOwnedFollowingTransaction, directOrIndirectOwnership, natureOfOwnership",
+     "derivativeTransaction: conversionOrExercisePrice, exercise/expiration dates, underlying shares",
+     "nonDerivativeHolding",
+     "footnotes with id refs",
+     "signature/date"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Apple 3-year relative TSR PSU result disclosed via Form 4: TSR 90.67%, rank 115 of 480, 76.20th percentile, so 99,878 performance RSUs vested (target 58,408 = ~171%).",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126038667/form4.xml",
+      "quote": "Apple's three-year TSR was 90.67%, ranking 115 of 480 companies (76.20th percentile). (paraphrased from footnote F6)",
+      "source_method": "xml"
+     },
+     {
+      "detail": "Apple filings use filing agent 0001140361 (Broadridge-type) and Section 16 filings are signed by Sam Whittington as attorney-in-fact for all officers.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126041201/form4.xml",
+      "quote": "Attorney-in-Fact for Jennifer Newstead",
+      "source_method": "xml"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "Apple SVP/GC Jennifer Newstead sold 2,399 shares on 2026-10-27 at $343.36 (code S), 32,396 shares owned after, direct, 10b5-1 flag true; plan adopted May 5, 2026.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126041201/form4.xml",
+      "quote": "made pursuant to a Rule 10b5-1 trading plan adopted by the reporting person on May 5, 2026.",
+      "source_method": "xml"
+     },
+     {
+      "detail": "Apple COO Sabih Khan 2026-10-01: M 99,878 shares (PSU settlement), F 52,854 withheld at $330.32; holds 1,120,919 directly after and 31,632 indirectly by family trust. No shares sold.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126038667/form4.xml",
+      "quote": "No shares were sold. (footnote F2 excerpt)",
+      "source_method": "xml"
+     },
+     {
+      "detail": "Microsoft EVP/CHRO Amy Coleman 2026-10-15 code F: 31.944 shares withheld at $533.69, 50,925.4591 direct afterwards; no footnotes, 10b5-1 flag 0.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000078901926000228/form4.xml",
+      "quote": "",
+      "source_method": "xml"
+     },
+     {
+      "detail": "Amazon CEO Worldwide Stores Douglas Herrington sold 1,000 shares 2026-10-01 at $251.50 (S), 474,681 direct after plus 6,609.348 indirect in the Amazon 401(k); plan adopted 11/10/2025.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000193600626000026/wk-form4_1791230893.xml",
+      "quote": "effected pursuant to a Rule 10b5-1 trading plan adopted by the reporting person on 11/10/2025.",
+      "source_method": "xml"
+     },
+     {
+      "detail": "Netflix co-CEO Gregory Peters gifted 1,519 shares 2026-10-28 (code G, price 0), 119,412 direct after; Form 4 signed by Veronique Bourdeau as authorized signatory.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000158310926000004/wk-form4_1793310384.xml",
+      "quote": "",
+      "source_method": "xml"
+     },
+     {
+      "detail": "Alphabet CAO Marsida Saraci: 17 rows on one Form 4 (monthly GSU vests, code C then F tax withholding at $317.28), 28,851 Class C shares direct; also holds 3,660 Class A.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526434846/ownership.xml",
+      "quote": "Shares withheld to satisfy tax obligations arising out of vesting of GSUs. (F3)",
+      "source_method": "xml"
+     }
+    ],
+    "growth": [
+     {
+      "detail": "Netflix director Elinor Mertz received a 10-year non-qualified option (code A) on 922 shares, strike $67.85, dated 2026-10-01, expiring 2036-10-01.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000289/wk-form4_1790971582.xml",
+      "quote": "",
+      "source_method": "xml"
+     }
+    ],
+    "signals": [
+     {
+      "detail": "Berkshire (with Warren E. Buffett as co-reporter) SOLD 382,563 DaVita shares on 2026-10-27 at $180.4305 (code S), leaving 28,314,666 shares indirect; filed 2026-10-29 (2 business days).",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526438090/ownership.xml",
+      "quote": "Signed by /s/ Warren E. Buffett on behalf of himself and each other reporting person",
+      "source_method": "xml"
+     },
+     {
+      "detail": "Berkshire filed a Form 3 as 10% owner of Lennar (Class A 21,050,601; Class B 453,196; event date 2026-09-17, filed 2026-09-21), i.e. a new >10% position surfaced via Form 3 before any 13D/G.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526397052/ownership.xml",
+      "quote": "10% owner only",
+      "source_method": "xml"
+     },
+     {
+      "detail": "Apple Form 4s over the Oct 5 2026 window show a CEO transition: John Ternus is listed as Director and Officer, title CEO, in his initial Form 3 dated 2026-09-01.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035359/form3.xml",
+      "quote": "",
+      "source_method": "xml"
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Holdings graph data: Berkshire's DaVita stake is split GEICO 13,341,058 and two pension plans 14,973,608 (BNSF Master Retirement Trust 4,441,520; Berkshire Consolidated Pension Plan 10,532,088), disclaimed beneficial ownership; subsidiary-level holdings extractable only from footnotes (free text).",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526438090/ownership.xml",
+      "quote": "",
+      "source_method": "xml"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "Insider-trading feed API (normalized Form 4)",
+     "description": "Flatten ownershipDocument XML into transaction rows with issuer ticker, owner roles, code, price, post holdings, D/I, footnote text, 10b5-1 flag; webhook within minutes of acceptance.",
+     "buyers": "Quant funds, retail investing apps, IR/compliance teams, data resellers",
+     "decision_supported": "Trade signals, insider-selling monitoring, governance alerts",
+     "latency": "minutes (EDGAR acceptance)",
+     "build_difficulty": "medium",
+     "competitors": "sec-api.io, Quiver Quantitative, OpenInsider, Finnhub, FMP, Benzinga, Whalewisdom (13F)",
+     "legal_notes": "SEC data public domain; need fair-access (10 req/s) and declared User-Agent. Crowded market, differentiate with quality (code classification, split adjustments, amendments)."
+    },
+    {
+     "name": "Cluster-buying signal",
+     "description": "Open-market purchases (code P) only, excluding S/M/A/F/G; score by number of distinct insiders, dollar size vs holdings, officer rank, within a 30-day window. Mostly useful for small caps; our six mega-caps have almost none.",
+     "buyers": "Long-only and quant funds",
+     "decision_supported": "Idea generation",
+     "latency": "daily",
+     "build_difficulty": "low",
+     "competitors": "OpenInsider, InsiderScreener, TipRanks",
+     "legal_notes": "Not investment advice; backtested alpha is publicly documented and decaying."
+    },
+    {
+     "name": "Point-in-time insider holdings",
+     "description": "Reconstruct each insider's holdings at any date from sharesOwnedFollowingTransaction, with filing acceptance timestamp to avoid look-ahead; handle 4/A restatements and 10-for-1 splits.",
+     "buyers": "Quant researchers, litigators, M&A advisers",
+     "decision_supported": "Backtests, ownership at event date",
+     "latency": "daily",
+     "build_difficulty": "medium",
+     "competitors": "Refinitiv/FactSet insider databases (expensive)",
+     "legal_notes": "Footnote-based indirect holdings (trusts) are free text."
+    }
+   ],
+   "suggestion": "Ship 'Provenance Insider Ledger': per-issuer Form 4/3/5 normalized rows linked by accession, with explicit fields for 10b5-1 flag and adoption date parsed from footnotes, plus an issuer-level 'officer-change' event derived from Form 3 (e.g. Ternus Form 3 2026-09-01) and a Berkshire-as-owner view.",
+   "value_score": 5,
+   "caveats": [
+    "Form 4 primary XML file name varies by filing agent; always parse the index.",
+    "Pre-April-2023 forms lack the aff10b5One checkbox; use footnote text.",
+    "WebFetch summarised XML so footnote quotes are partially paraphrased; verify programmatically.",
+    "Netflix Atom check initially returned HTTP 503; retried successfully."
+   ]
+  },
+  {
+   "form": "3 (and 3/A)",
+   "plain_english": "Initial statement of beneficial ownership: the first holdings snapshot when someone becomes an officer, director or 10% owner. Holdings only, no transactions. Lists derivative holdings such as unvested RSUs with vesting schedules.",
+   "who_files_when": "Within 10 days of becoming an insider (or at IPO registration). 3/A amends. Rare: Apple 10 Form 3s listed 2019-2026 (several per year).",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2026-09-01",
+     "accession": "0001140361-26-035359",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035359/0001140361-26-035359-index.htm",
+     "frequency": "a few per year; latest 4: 2026-09-01, 2026-03-06, 2026-01-02, 2025-07-25; one 3/A on 2019-04-17"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-09-21",
+     "accession": "0001193125-26-397052",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526397052/0001193125-26-397052-index.htm",
+     "frequency": "as 10% owner of other issuers: 2026-09-21, 2026-06-10, 2026-05-05, 2026-02-17"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-05-26",
+     "accession": "0000789019-26-000077",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000078901926000077/0000789019-26-000077-index.htm",
+     "frequency": "latest is 3/A; Form 3 2026-05-18 0000789019-26-000074"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-06-05",
+     "accession": "0001193125-26-260194",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526260194/0001193125-26-260194-index.htm",
+     "frequency": "few per year"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2025-06-25",
+     "accession": "0001065280-25-000289",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528025000289/0001065280-25-000289-index.htm",
+     "frequency": "rare; 3/A 2025-04-30 0001065280-25-000205"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-10-06",
+     "accession": "0001595602-26-000009",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000159560226000009/0001595602-26-000009-index.htm",
+     "frequency": "latest is 3/A; Form 3 2026-09-09 0001595602-26-000005"
+    }
+   ],
+   "machine_readable": {
+    "format": "XML ownershipDocument (form3.xml / ownership.xml) + exhibit 24 power of attorney HTML",
+    "structured_fields": [
+     "relationship flags and officerTitle",
+     "nonDerivativeHolding rows",
+     "derivativeHolding rows with underlying shares and footnotes",
+     "event date (periodOfReport)"
+    ]
+   },
+   "findings": {
+    "company": [],
+    "executives": [
+     {
+      "detail": "John Ternus Form 3 dated 2026-09-01: Director and Officer, title CEO; 34,155 shares via trust; RSUs 22,159 + 38,938 + 43,901 + 48,932 time-based and PSU targets 58,408 + 43,901 + 48,932.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035359/form3.xml",
+      "quote": "These shares are held through Mr. Ternus' trust.",
+      "source_method": "xml"
+     }
+    ],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Berkshire Form 3 on Lennar: 21,050,601 Class A and 453,196 Class B, all indirect via insurance subsidiaries (National Indemnity 12,366,349 Class A).",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526397052/ownership.xml",
+      "quote": "10% owner only (paraphrase)",
+      "source_method": "xml"
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Form 3 derivative table reveals the full unvested equity stack of a new CEO, including PSU target and 0-200% relative-TSR payout bands.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035359/form3.xml",
+      "quote": "Payout ranges from 0% to 200% of target (paraphrase F5)",
+      "source_method": "xml"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "New-insider / officer-change alerts",
+     "description": "Form 3 filings and Form 4 title changes imply appointments before the 8-K 5.02 is parsed; build officer roster with start dates.",
+     "buyers": "Recruiters, sales intelligence, risk teams",
+     "decision_supported": "Executive change tracking",
+     "latency": "within 10 days of appointment",
+     "build_difficulty": "low",
+     "competitors": "BoardEx, Equilar, ZoomInfo",
+     "legal_notes": "public"
+    },
+    {
+     "name": "New 10% holder radar",
+     "description": "Form 3 by funds/corporates crossing 10% (e.g. Berkshire in Lennar) precedes or accompanies 13D/G.",
+     "buyers": "Event-driven funds",
+     "decision_supported": "Follow strategic investors",
+     "latency": "10 days",
+     "build_difficulty": "low",
+     "competitors": "WhaleWisdom, Fintel",
+     "legal_notes": "public"
+    }
+   ],
+   "suggestion": "Use Form 3 as a source for Provenance's officer-change module: officerTitle + event date gives structured appointment time stamps, cross-checked against 8-K Item 5.02.",
+   "value_score": 3,
+   "caveats": []
+  },
+  {
+   "form": "5 (and 5/A)",
+   "plain_english": "Annual statement catching exempt or late-reported transactions (small gifts historically, small acquisitions). Largely obsolete since gifts moved to Form 4 in 2023.",
+   "who_files_when": "Within 45 days after fiscal year end. Apple filed exactly one Form 5 in the feed, 2024-10-01 (accession 0000320193-24-000102).",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2024-10-01",
+     "accession": "0000320193-24-000102",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036124000102/0000320193-24-000102-index.htm",
+     "frequency": "rare, 1 in feed; no 5/A seen"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2020-08-07",
+     "accession": "0001819285-20-000008",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000181928520000008/0001819285-20-000008-index.htm",
+     "frequency": "rare"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-02-17",
+     "accession": "0001193125-26-055238",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526055238/0001193125-26-055238-index.htm",
+     "frequency": "annual, 2 on 2026-02-17"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2017-01-24",
+     "accession": "0001190725-17-000024",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119072517000024/0001190725-17-000024-index.htm",
+     "frequency": "rare"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2019-02-13",
+     "accession": "0000899243-19-003504",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000089924319003504/0000899243-19-003504-index.htm",
+     "frequency": "rare"
+    },
+    {
+     "ticker": "BRK",
+     "verified": false,
+     "latest_date": "",
+     "accession": "",
+     "url": "",
+     "frequency": ""
+    }
+   ],
+   "machine_readable": {
+    "format": "XML ownershipDocument",
+    "structured_fields": [
+     "same as Form 4"
+    ]
+   },
+   "findings": {
+    "company": [],
+    "executives": [],
+    "growth": [],
+    "signals": [],
+    "financial_intelligence": []
+   },
+   "products": [],
+   "suggestion": "Ingest with the same parser as Form 4 for completeness; no standalone product.",
+   "value_score": 1,
+   "caveats": [
+    "Content of the Apple Form 5 not read; only Atom list checked.",
+    "Form 5 is rare: Apple 2024, GOOGL 2026-02, others 2017-2020. Content not read."
+   ]
+  },
+  {
+   "form": "144 (and 144/A)",
+   "plain_english": "Notice of proposed sale of restricted or control securities under Rule 144. Since April 2023 filed electronically as XML (primary_doc.xml), by the seller or broker. A leading indicator that precedes the Form 4 sale.",
+   "who_files_when": "On or before placing the sell order with the broker, for affiliates selling more than 5,000 shares or $50,000 in 3 months. Apple files about 1-3 a month (10 listed 2026-04-23 to 2026-10-16).",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2026-10-16",
+     "accession": "0001950047-26-010286",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000195004726010286/0001950047-26-010286-index.htm",
+     "frequency": "monthly or more; filer agent prefixes vary (0001950047, 0001958244, 0001959173...)"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2024-12-26",
+     "accession": "0001959173-24-008838",
+     "url": "",
+     "frequency": "rare; one in feed (as a filer 144 appears under CIK; content not read)"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-09-14",
+     "accession": "0001958244-26-000598",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000195824426000598/0001958244-26-000598-index.htm",
+     "frequency": "about 1-2 per month"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-10-29",
+     "accession": "0001921094-26-001121",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000192109426001121/0001921094-26-001121-index.htm",
+     "frequency": "about monthly"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2026-10-26",
+     "accession": "0001950047-26-010410",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000195004726010410/0001950047-26-010410-index.htm",
+     "frequency": "about monthly"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-08-27",
+     "accession": "0001950047-26-008794",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000195004726008794/0001950047-26-008794-index.htm",
+     "frequency": "about monthly"
+    }
+   ],
+   "machine_readable": {
+    "format": "XML primary_doc.xml (EDGAR Form 144 schema)",
+    "structured_fields": [
+     "issuer CIK/file number",
+     "seller name and filer CIK",
+     "relationship",
+     "securities class, units to be sold, aggregate market value, units outstanding",
+     "approximate sale date, exchange, broker",
+     "acquisition date, nature (RSU, option), acquired from",
+     "gift flag",
+     "sales in past 3 months",
+     "plan adoption date (10b5-1)"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Apple units outstanding on the form: 14,594,180,000.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000195004726010286/primary_doc.xml",
+      "quote": "",
+      "source_method": "xml"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "Apple officer Kevan Parekh filed Form 144 on 2026-10-16 to sell 1,392 shares, market value $476,064 (about $342 per share), via Morgan Stanley Smith Barney Executive Financial Services; shares acquired 10/15/2026 as RSUs; plan adopted 11/21/2025.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000195004726010286/primary_doc.xml",
+      "quote": "Plan Adoption Date 11/21/2025",
+      "source_method": "xml"
+     }
+    ],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "The sale is flagged to occur on 10/16/2026 right after vest, with a plan adoption date (sale one day after RSU acquisition); the Form 144 arrives about the same day as the Form 4 and gives approximate dollar value before execution.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000195004726010286/primary_doc.xml",
+      "quote": "Approximate Sale Date 10/16/2026",
+      "source_method": "xml"
+     }
+    ],
+    "financial_intelligence": []
+   },
+   "products": [
+    {
+     "name": "Form 144 pre-trade alert + 10b5-1 plan tracker",
+     "description": "Join Form 144 (plan adoption date, units, value) to subsequent Form 4 S rows; track plans by adoption date (cooling-off 90+ days for officers), predict pending sales, flag sales without plan.",
+     "buyers": "Hedge funds, short sellers, IR teams",
+     "decision_supported": "Anticipate insider supply",
+     "latency": "same day",
+     "build_difficulty": "medium",
+     "competitors": "sec-api.io Form 144 API, Quiver",
+     "legal_notes": "public; plan adoption dates also appear in Form 4 footnotes (free text) and 10-Q Item 408 disclosures"
+    }
+   ],
+   "suggestion": "Plan-tracking table: plan_id=(owner, adoption date) linking 144 -> 4 sales -> 10-Q Item 408 plan terms.",
+   "value_score": 4,
+   "caveats": [
+    "Only one Form 144 read in depth; BRK 144 content not read.",
+    "Form 144 verified from Atom lists for AAPL, MSFT, GOOGL, AMZN, NFLX, BRK; only Apple's content read."
+   ]
+  }
+ ],
+ "notes": [
+  "Berkshire as reporting owner: YES, files Form 4/3 for portfolio issuers where >10% (DaVita Form 4 sale 2026-10-27; Lennar Form 3 2026-09-17), with Warren E. Buffett co-reporter, signed by Buffett. Indirect holdings broken down per subsidiary in footnotes.",
+  "Occidental (CIK 797468) Form 4 list shows no title naming Berkshire; Atom titles don't name owners, so unverified whether Berkshire filed there recently. Berkshire's own Form 4 list (CIK 1067983) shows 10 Form 4s Aug-Oct 2026 plus 4/A history to 2006.",
+  "Atom titles do not name owner; must open index/XML. Berkshire accessions with prefix 0001728451 are filed by a Berkshire-related filer agent ID (possibly Buffett/Abel own filings), not verified.",
+  "Netflix split history not verified here: verify split handling.",
+  "Top ideas: (1) Insider Ledger with 10b5-1 plan tracker linking 144->4->10-Q Item 408; (2) Point-in-time insider holdings and Berkshire-as-owner holdings graph from footnotes. Also: Form 3 officer-change feed; cluster-buy signal weak for mega-caps (none observed code P); gifts G appear on Form 4.",
+  "Occidental check: 3 of the latest Form 4 entries inspected via index pages (2026-10-02 Jackson Richard A.; 2026-09-29 Hollub Vicki A.; plus Atom titles of 5 recent). Berkshire/Buffett not found in 2 index pages checked (not found in 2 checked); 2026-09-29 detail not read. Recent Berkshire Form 4s seen are for DaVita, so Occidental stake likely unchanged.",
+  "source_method: 'xml' means the ownershipDocument/primary_doc XML was fetched and processed through WebFetch's summariser; no raw XML parsing was done, so all are effectively summarised."
+ ]
+}

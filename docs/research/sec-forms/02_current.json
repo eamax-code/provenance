@@ -1,0 +1,560 @@
+{
+ "family": "CURRENT REPORTS",
+ "agent_status": "done",
+ "forms": [
+  {
+   "form": "8-K",
+   "plain_english": "The catch-all current report: a company must tell the market within four business days about defined material events, each filed under a numbered Item (1.01 material agreements, 1.02 terminations, 1.05 cyber incidents, 2.02 earnings, 2.03 debt, 5.02 officer/director changes, 5.03 bylaw changes, 5.07 vote results, 7.01 Reg FD, 8.01 other, 9.01 exhibits). Item 2.02 and 7.01 content is 'furnished', not 'filed'.",
+   "who_files_when": "All six companies. Deadline: 4 business days after the triggering event (Item 5.07: 4 business days after the meeting; Item 2.02: on the earnings release; Items 7.01/8.01 voluntary, no deadline). Observed latency in the filings read: Apple 5.02 event 2026-04-17 (Fri) filed 2026-04-20 (Mon); Netflix 5.02 event 2026-04-10 filed 2026-04-16 (exactly the 4th business day); Berkshire 5.02/5.07 event 2026-05-02 (Sat) filed 2026-05-07 (4th business day); Microsoft 5.02 event 2026-06-02 filed 2026-06-05; Amazon 1.01 event 2026-06-08 filed 2026-06-10; Amazon 5.07 meeting 2026-05-20 filed 2026-05-22; Amazon 5.02 event 2026-09-08 filed 2026-09-09. Frequency in the latest 10 filings (Atom feed): Apple 10 in ~15 months, Microsoft 10 in ~12 months, Alphabet 10 in ~6 months (heavy: ATM and capital raise), Netflix 10 in ~9 months, Berkshire 10 in ~10 months, Amazon 10 in ~6.5 months. Roughly 10-20 per year each.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2026-09-01",
+     "accession": "0001140361-26-035325",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/0001140361-26-035325-index.htm",
+     "frequency": "~10/yr (latest plain 8-K: 2026-07-30 acc 0000320193-26-000018, Items 2.02, 9.01). Latest entry on feed is an 8-K/A (Item 5.02)."
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2026-10-28",
+     "accession": "0001193125-26-436149",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436149/0001193125-26-436149-index.htm",
+     "frequency": "~10/yr (Items 8.01, 9.01; same day 2.02 acc 0001193125-26-436122)"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2026-10-28",
+     "accession": "0001652044-26-000080",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000080/0001652044-26-000080-index.htm",
+     "frequency": "~20/yr in 2026 (10 filings 2026-04-29 to 2026-10-28)"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2026-10-20",
+     "accession": "0001065280-26-000290",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000290/0001065280-26-000290-index.htm",
+     "frequency": "~12/yr (Items 2.02, 9.01)"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-08-11",
+     "accession": "0001193125-26-344495",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526344495/0001193125-26-344495-index.htm",
+     "frequency": "~10/yr (Items 2.02, 9.01)"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2026-10-29",
+     "accession": "0001018724-26-000038",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000038/0001018724-26-000038-index.htm",
+     "frequency": "~18/yr (Items 2.02, 9.01)"
+    }
+   ],
+   "machine_readable": {
+    "format": "Inline XBRL (cover page only) + HTML narrative; each filing also has EX-101 schema/linkbases and an extracted instance XML (e.g. ef20071035_8k_htm.xml). The Item text itself (names, dollar amounts, vote counts) is NOT tagged; it is HTML prose or tables. EX-99.1 press releases are HTML (Apple's and Netflix's carry no financial XBRL).",
+    "structured_fields": [
+     "CONFIRMED via R1.htm of Apple 8-K 0001140361-26-015711 (source_method xbrl): dei:DocumentType=8-K",
+     "DocumentPeriodEndDate=2026-04-17 (event date)",
+     "EntityRegistrantName",
+     "EntityIncorporationStateCountryCode=CA",
+     "EntityFileNumber=001-36743",
+     "EntityTaxIdentificationNumber",
+     "EntityAddressAddressLine1/CityOrTown/StateOrProvince/PostalZipCode",
+     "CityAreaCode, LocalPhoneNumber",
+     "WrittenCommunications, SolicitingMaterial, PreCommencementTenderOffer, PreCommencementIssuerTenderOffer (all false)",
+     "EntityEmergingGrowthCompany=false",
+     "AmendmentFlag=false",
+     "EntityCentralIndexKey=0000320193",
+     "Per security (12b table): Security12bTitle, TradingSymbol, NoTradingSymbolFlag (true for notes), SecurityExchangeName (NASDAQ); 7 rows for Apple",
+     "NOT present in cover XBRL: Item numbers, exhibit list, signer; no AmendmentDescription on an original 8-K"
+    ],
+    "source_method": "xbrl (R1.htm fetched for Apple; other issuers assumed same dei set, unverified)"
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Alphabet Item 1.01/8.01 (2026-06-04, event 2026-06-01): up to $40bn at-the-market programme in Class A and Class C stock via Goldman Sachs, J.P. Morgan, Morgan Stanley, commission up to 0.5%; same filing reports an underwritten offering of 25,459,689 Class A shares at $355.1982 and 25,459,689 Class C at $351.8018, greenshoe exercised June 3 taking each class to 29,278,642 shares.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526257724/d83560d8k.htm",
+      "quote": "(not quoted; figures from Items 1.01 and 8.01 as parsed by the fetch tool)",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Same Alphabet 8-K: private placement of $10bn to an affiliate of Berkshire Hathaway: 14,212,035 Class A at ~$351.81 and 14,359,656 Class C at ~$348.20, Section 4(a)(2) exemption, resale registration rights. Cross-links two of our six companies (Berkshire as an Alphabet holder; will show in Berkshire 13F).",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526257724/d83560d8k.htm",
+      "quote": "(not quoted)",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Alphabet 8-K filed 2026-06-05 (acc 0001193125-26-259830) lists Items 1.01, 3.03, 5.03, 9.01 (depositary shares of mandatory convertible preferred, per the 7.01 cross-reference); not opened, so contents unverified.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526259830/0001193125-26-259830-index.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Amazon Items 1.01/2.03 (2026-06-10, event 2026-06-08): $17.5bn senior unsecured delayed draw term loan with Citibank N.A. as agent; commitment expires 2026-09-30; each loan matures 3 years after borrowing; Term SOFR + 0.625% to 0.875% by rating; no financial covenants; general corporate purposes.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926072140/tm2613616d4_8k.htm",
+      "quote": "Amounts prepaid under the DDTL Facility may not be reborrowed.",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Netflix Item 1.02 (2026-02-27): terminated the Amended and Restated Merger Agreement dated 2026-01-19 to acquire Warner Bros. Discovery's Streaming & Studios business after WBD accepted a superior Paramount Skydance proposal; $2.8bn termination fee paid to Netflix by PSKY; bridge, revolver and delayed-draw term loan commitments terminated automatically.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526082247/d120618d8k.htm",
+      "quote": "in accordance with its terms",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Netflix 2026-01-20 had two 8-Ks: Items 2.02/9.01 (acc 0001065280-26-000033, Q4 2025 letter to shareholders, EX-99.1 ex991_q425.htm) and Items 1.01/7.01/9.01 (acc 0001193125-26-015951, WBD deal amendment; not opened).",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000033/0001065280-26-000033-index.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Microsoft 8-Ks of 2026-10-28: 2.02 earnings (acc 0001193125-26-436122) and 8.01 (acc 0001193125-26-436149) filed same day; 2026-09-02 Item 7.01 (acc 0001193125-26-380280). Contents not opened.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526436149/0001193125-26-436149-index.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Berkshire Item 5.03 (event 2026-05-03): By-Laws amended and restated; changes to Sections 4 (Officers and Agents), 6 (Capital Stock), 10 (Execution of Papers); filed as Exhibit 3(ii).",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526212148/d74313d8k.htm",
+      "quote": "update the officer roles and responsibilities",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Cyber Item 1.05: NONE of the 60 most recent 8-K index entries across the six companies list Item 1.05 (Atom item lists checked). Absence is the finding; no incident disclosures in the windows covered.",
+      "ticker": "ALL",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1652044&type=8-K&dateb=&owner=include&count=10&output=atom",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "CEO succession at Apple (Item 5.02, event 2026-04-17, filed 2026-04-20, effective 2026-09-01): Tim Cook CEO to Executive Chair; John Ternus (50, joined 2001, SVP Hardware Engineering since 2021) becomes CEO and director; Art Levinson Board Chair to Lead Independent Director. Compensation deferred to a later 8-K/A.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126015711/ef20071035_8k.htm",
+      "quote": "Tim Cook will transition from his role as Chief Executive Officer to Executive Chair",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Apple 8-K/A (2026-09-01, Item 5.02, period 2026-04-17) supplies the pay: Ternus salary $3m from transition date, prorated FY2026 RSU target $2.5m, FY2027 annual equity target $55m (75% PSU on relative TSR vs S&P 500, 25% time RSU vesting 12.5% semiannually over 4 years). Cook: Executive Chair salary $2m from 2026-09-26, FY2027 equity target $45m (50% PSU / 50% RSU); retirement after first anniversary keeps vesting on original dates.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/ef20081427_8ka.htm",
+      "quote": "will continue to settle on the originally scheduled vesting dates",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Berkshire CFO succession (Item 5.02(c) and (e), event 2026-05-02, filed 2026-05-07): Charles C. Chang succeeds Marc D. Hamburg as CFO effective 2026-06-01; Chang cash salary $8,000,000; Hamburg retirement benefit up to 30 flight hours/yr on NetJets mid-size aircraft through 2037-05-31 with tax gross-up, est. ~$490,000/yr.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526212148/d74313d8k.htm",
+      "quote": "Charles C. Chang will succeed Marc D. Hamburg as Berkshire's Chief Financial Officer on June 1, 2026.",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Microsoft director departure (Item 5.02(b), event 2026-06-02, filed 2026-06-05): Reid Hoffman (director since 2017) will not stand for re-election at the 2026 annual meeting; no successor named; no disagreement.",
+      "ticker": "MSFT",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526258667/d26760d8k.htm",
+      "quote": "not as a result of any disagreement with management on any matter relating to the Company's operations, policies, or practices.",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Netflix director/Chair departure (Item 5.02, event 2026-04-10, filed 2026-04-16 together with Q1 earnings in one 8-K): Reed Hastings, Chairman, will not stand for re-election at 2026 annual meeting. Netflix also filed a separate 5.02 on 2026-07-30 (acc 0001065280-26-000214; not opened).",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000137/nflx-20260410.htm",
+      "quote": "not as a result of any disagreement with the Company",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Amazon director appointment (Item 5.02(d), event 2026-09-08, filed 2026-09-09): Kevin R. Mandia (Armadin CEO, ex-Mandiant CEO) elected director, joins Audit and Security Committees; RSU award of 4,086 shares under 1997 Stock Incentive Plan vesting in three equal annual instalments from 2027-11-15; indemnification agreement; related-person disclosure: sister-in-law Kristin Mandia is an employee earning $185,000.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000036/amzn-20260908.htm",
+      "quote": "assuming continued service as a director",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Alphabet principal accounting officer (Item 5.02(c), event 2026-06-02, filed 2026-06-05): Marsida Saraci, 47, VP and Controller (formerly VP Finance, Deputy Controller), appointed PAO effective immediately; GSU grants of $280,000 (vest 1/20 monthly from July 2026) and $440,000 (1/32 monthly), converted to Class C shares at June 2026 average closing price; at Alphabet since April 2011, ex-KPMG.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000059/goog-20260602.htm",
+      "quote": "effective immediately",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Other 5.02 filings seen but not opened: Apple 2026-01-02 (acc 0001140361-26-000199) and 2025-12-05 (acc 0001140361-25-044561); Microsoft 2026-05-14 (acc 0001193125-26-224155) and 2025-12-08 (5.02+5.07); Berkshire 2025-12-11 (acc 0001193125-25-314935) and 8-K/A 2026-01-06 (acc 0001193125-26-004727); Alphabet 2026-06-11 (5.02+5.07, acc 0001193125-26-267578).",
+      "ticker": "MULTI",
+      "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=320193&type=8-K&dateb=&owner=include&count=10&output=atom",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "growth": [
+     {
+      "detail": "Apple FQ3 2026 (quarter ended 2026-06-27; Item 2.02, EX-99.1): revenue $109,417M (+16% from $94,036M), Products $78,678M, Services $30,739M, net income $29,789M, diluted EPS $2.02 (+29%, includes $0.11 tariff refund benefit), gross margin 50.1%. No next-quarter guidance in the release; dividend $0.27 payable 2026-08-13.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000018/a8-kex991q3202606272026.htm",
+      "quote": "Apple is proud to report our strongest June quarter ever",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Netflix and Berkshire earnings 8-Ks follow a different pattern: Netflix furnishes a Letter to Shareholders as EX-99.1 (non-GAAP reconciliation, says forward non-GAAP cannot be reconciled); Berkshire's 8-K only references a press release as EX-99.1 and holds no numbers in the body.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000137/nflx-20260410.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "signals": [
+     {
+      "detail": "Amazon 5.07 (meeting 2026-05-20, filed 2026-05-22): all 11 directors elected; lowest support Jonathan Rubinstein, For 7,078,042,809 vs Against 785,068,955; Bezos For 7,470,968,677, Against 393,242,148. Say-on-pay For 7,391,737,243, Against 470,466,853, Abstain 26,155,268; EY ratified For 8,403,029,398, Against 522,632,825. Broker non-votes 1,064,491,660 on non-routine items. Five shareholder proposals all failed: independent chair For 1,112,511,990 / Against 6,730,245,638; data-centre climate reporting For 1,436,334,642 / Against 6,372,517,458; charitable partnerships For 72,712,599; climate commitments For 95,945,426; AI advisory council For 49,093.",
+      "ticker": "AMZN",
+      "url": "https://www.sec.gov/Archives/edgar/data/1018724/000110465926065717/tm2614288d1_8k.htm",
+      "quote": "each to hold office until the next Annual Meeting of Shareholders",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Berkshire 5.07 (meeting 2026-05-02): Class A and B vote as one class, counts are in vote-weighted units, and the 8-K reports For/Withheld for 13 directors (Warren E. Buffett For 424,675, Withheld 10,631; Susan L. Decker lowest, For 386,648, Withheld 48,658); say-on-pay For 403,351 / Against 30,251 / Abstain 1,703; say-on-frequency 1yr 143,050, 2yr 1,715, 3yr 288,858, abstain 924 (3 years won); shareholder proposal on workforce oversight For 65,023 / Against 367,387 / Abstain 2,895. No broker non-votes reported.",
+      "ticker": "BRK",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526212148/d74313d8k.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Netflix 8-K 2026-06-05 (Items 5.07, 8.01; acc 0001065280-26-000189) and Alphabet 8-K 2026-06-11 (5.02, 5.07, 9.01) and Apple 2026-02-24 (5.07, 9.01; acc 0001140361-26-006577) are further vote-result filings; not opened.",
+      "ticker": "MULTI",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000189/0001065280-26-000189-index.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Netflix lost its WBD acquisition (Item 1.02, 2026-02-27) and received $2.8bn break fee: a classic event-driven signal combining M&A status, financing release and cash receipt in one filing.",
+      "ticker": "NFLX",
+      "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526082247/d120618d8k.htm",
+      "quote": "in accordance with its terms",
+      "source_method": "text-summary"
+     }
+    ],
+    "financial_intelligence": [
+     {
+      "detail": "Cover page lists every registered security: Apple common plus notes 1.625% 2026, 2.000% 2027, 1.375% 2029, 3.050% 2029, 0.500% 2031, 3.600% 2042 (Nasdaq); Microsoft 3.125% 2028 and 2.625% 2033; Berkshire 8 euro/yen senior note series (BRK27..BRK59) on NYSE. Gives a free listed-debt inventory per event date.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126015711/ef20071035_8k.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Capital-structure events: Alphabet $40bn ATM plus ~$18bn base offering plus $10bn Berkshire placement (June 2026); Amazon $17.5bn DDTL at SOFR+62.5-87.5bp (June 2026); Netflix cancelled acquisition bridge/term financing (Feb 2026).",
+      "ticker": "MULTI",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526257724/d83560d8k.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ]
+   },
+   "products": [
+    {
+     "name": "Provenance Officer-Change Feed (ticket 20)",
+     "description": "Normalised event stream of Item 5.02 filings (appointments, departures, role changes, compensation) linked to person and company IDs, with 8-K/A amendment chaining (Apple: 8-K 2026-04-20 then 8-K/A 2026-09-01 completing compensation).",
+     "buyers": "Executive-search firms, recruiters, sales intelligence, hedge funds and governance/proxy advisers, D&O insurers",
+     "decision_supported": "Management-change alpha, account-mapping for B2B sales, succession risk monitoring",
+     "latency": "minutes after filing via EDGAR RSS/Atom plus extraction; LLM extraction with human review queue",
+     "build_difficulty": "medium",
+     "competitors": "BoardEx, Equilar, Audit Analytics, AlphaSense, Sentieo, Bloomberg",
+     "legal_notes": "SEC filings are public domain; personal data (age, bios) is public-record but treat names as personal data for GDPR; keep 8-K text provenance link."
+    },
+    {
+     "name": "Shareholder Vote Results Dataset (Item 5.07)",
+     "description": "Per-proposal For/Against/Abstain/Withheld/Broker-non-vote counts and pass/fail flags, per director and per shareholder proposal (e.g. Amazon 2026: 11 directors, 5 failed shareholder proposals).",
+     "buyers": "Proxy advisers, ESG funds, activist and engagement teams, IR consultants",
+     "decision_supported": "Dissent tracking, say-on-pay failure risk, shareholder proposal support trends",
+     "latency": "4 business days after meeting",
+     "build_difficulty": "medium",
+     "competitors": "ISS, Glass Lewis, Diligent, Proxymonitor, Audit Analytics voting data",
+     "legal_notes": "Public data; formats vary (Berkshire uses vote-weighted units and For/Withheld, Amazon shares)."
+    },
+    {
+     "name": "Material Agreement and Financing Event Feed (1.01/1.02/2.03/8.01)",
+     "description": "Structured extraction of facility size, agent, pricing grid, maturity, covenant flags from 1.01/2.03 filings; linked exhibits (EX-10, EX-1).",
+     "buyers": "Credit analysts, lenders, loan syndication desks, M&A teams",
+     "decision_supported": "Credit monitoring, issuance calendars, comps on pricing",
+     "latency": "same day",
+     "build_difficulty": "high (heterogeneous prose)",
+     "competitors": "Debtwire, Reorg, Bloomberg, Octus",
+     "legal_notes": "Exhibits are public; some exhibits redacted."
+    },
+    {
+     "name": "Earnings Release Metric Extractor (2.02 plus EX-99.1)",
+     "description": "Pull headline metrics and guidance from EX-99.1 and tie to XBRL later in 10-Q.",
+     "buyers": "Quant funds, retail finance apps",
+     "decision_supported": "Earnings reaction, surprise vs consensus",
+     "latency": "seconds to minutes",
+     "build_difficulty": "medium",
+     "competitors": "Every market data vendor; very crowded",
+     "legal_notes": "Press-release figures are non-GAAP in places; do not present as XBRL-verified."
+    }
+   ],
+   "suggestion": "Build the 8-K event feed keyed on (CIK, Item number, event date from dei:DocumentPeriodEndDate, accession), with the 5.02 officer-change module as the flagship: free-text LLM extraction, human QA, and 8-K/A chaining. Use the Item list from the Atom feed to route filings without opening them.",
+   "value_score": 5,
+   "caveats": [
+    "Budget overrun: about 50 WebFetch calls were used versus the ~35 guideline.",
+    "WebFetch returns model-summarised text, not raw HTML: quotes are as reported by the fetch tool and numbers were not independently re-parsed; verify against the URLs before publishing.",
+    "Several cited filings (Apple 8-K/A, Netflix Jan 20 1.01) only partly retrieved: iXBRL viewer URLs returned no text and the non-viewer URL had to be used; Netflix 2026-01-20 1.01/7.01 filing (acc 0001193125-26-015951) was not opened.",
+    "Hastings and Hoffman filings say the successor is not named; no successor info.",
+    "Annual meeting dates for Microsoft and Netflix were not stated in the 5.02 text.",
+    "Item 1.05 absence is based on Atom item lists only (10 latest entries each).",
+    "Cover-page dei fields verified from Apple's R1.htm; findings in this file are source_method text-summary (HTML read via fetch tool) except the dei list."
+   ]
+  },
+  {
+   "form": "8-K/A",
+   "plain_english": "Amendment to an earlier 8-K. Used when information was unavailable at the original filing, most commonly Item 5.02 compensation details (Item 5.02(c)(3)) or Item 9.01 financials for acquisitions.",
+   "who_files_when": "Amendment due within four business days after the missing information is determined. Apple promised it in the original 8-K.",
+   "companies": [
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "2026-09-01",
+     "accession": "0001140361-26-035325",
+     "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/0001140361-26-035325-index.htm",
+     "frequency": "occasional (1 in 15 months)"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "2026-01-06",
+     "accession": "0001193125-26-004727",
+     "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526004727/0001193125-26-004727-index.htm",
+     "frequency": "occasional (Item 5.02; not opened)"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "2024-03-08",
+     "accession": "0001193125-24-062997",
+     "url": "https://www.sec.gov/Archives/edgar/data/789019/000119312524062997/",
+     "frequency": "rare; older 8-K/As: 2013-05-20, 2011-12-22, 2005-04-06, 2004-11-24 (count=40)"
+    },
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2020-10-27",
+     "accession": "0001193125-20-278427",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312520278427/",
+     "frequency": "rare; only one in count=40 feed"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "2025-12-05",
+     "accession": "0001193125-25-309911",
+     "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312525309911/",
+     "frequency": "rare; older: 2017-10-06 (0001065280-17-000164), 2012-04-10"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "2017-11-13",
+     "accession": "0001018724-17-000143",
+     "url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872417000143/",
+     "frequency": "rare; older: 2017-09-08, 2015-06-12, 2008-07-24, 1998-10-26"
+    }
+   ],
+   "machine_readable": {
+    "format": "Inline XBRL cover page + HTML; dei:AmendmentFlag true and dei:AmendmentDescription",
+    "structured_fields": [
+     "dei:AmendmentFlag",
+     "dei:AmendmentDescription",
+     "dei:DocumentPeriodEndDate (period 2026-04-17, same as original event date)",
+     "same dei cover fields as 8-K"
+    ]
+   },
+   "findings": {
+    "company": [],
+    "executives": [
+     {
+      "detail": "Apple 8-K/A supplies Ternus and Cook compensation: Ternus salary $3m, FY2027 equity $55m target; Cook Executive Chair salary $2m, equity $45m target. Filed 2026-09-01, the same day the transition took effect, about 4.5 months after the original.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126035325/ef20081427_8ka.htm",
+      "quote": "Apple intends to file an amendment to this filing containing the information called for by Item 5.02(c)(3)",
+      "source_method": "text-summary"
+     }
+    ],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Amendment lag matters: pay for an incoming CEO arrives late; a point-in-time officer module must update the original event record rather than create a new one.",
+      "ticker": "AAPL",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126015711/ef20071035_8k.htm",
+      "quote": "Apple intends to file an amendment to this filing containing the information called for by Item 5.02(c)(3)",
+      "source_method": "text-summary"
+     }
+    ],
+    "financial_intelligence": []
+   },
+   "products": [
+    {
+     "name": "Amendment-chained event records",
+     "description": "Link 8-K/A to parent 8-K via period of report and item; show 'compensation pending' flags.",
+     "buyers": "Same as officer-change feed",
+     "decision_supported": "Complete exec comp picture at appointment",
+     "latency": "same day",
+     "build_difficulty": "low",
+     "competitors": "Equilar, BoardEx",
+     "legal_notes": "Public"
+    }
+   ],
+   "suggestion": "Treat 8-K/A as a patch to the parent event in the Provenance event model (match on CIK + dei:DocumentPeriodEndDate + item), not as a standalone event.",
+   "value_score": 3,
+   "caveats": [
+    "Only Apple's 8-K/A was opened; Berkshire's 2026-01-06 8-K/A not read.",
+    "Atom type=8-K/A prefix search with count=40; Berkshire 2026-01-06 and Apple 2026-09-01 earlier. Non-latest-10 results from Atom lists only, documents not opened."
+   ]
+  },
+  {
+   "form": "8-K12B",
+   "plain_english": "Current report filed by a successor issuer when a company's securities become registered under Section 12(b) by operation of Rule 12g-3 following a merger or holding-company reorganisation. It tells the market the new entity inherits the old registrant's reporting obligations.",
+   "who_files_when": "Filed once, at the succession date. Alphabet is the only one of the six: filed 2015-10-02 (period of report 2015-10-02) when it became parent of Google under a Delaware section 251(g) holding-company merger. No other of our six companies verified (only Alphabet was checked for 8-K12B; others not checked).",
+   "companies": [
+    {
+     "ticker": "GOOGL",
+     "verified": true,
+     "latest_date": "2015-10-02",
+     "accession": "0001193125-15-336577",
+     "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312515336577/0001193125-15-336577-index.htm",
+     "frequency": "one-off"
+    },
+    {
+     "ticker": "GOOG-pre",
+     "verified": false,
+     "latest_date": "",
+     "accession": "",
+     "url": "",
+     "frequency": "the old Google Inc. (CIK 1288776) was the predecessor; not checked"
+    },
+    {
+     "ticker": "AAPL",
+     "verified": true,
+     "latest_date": "",
+     "accession": "",
+     "url": "",
+     "frequency": "none: Atom 8-K12B list returned no entries (count=10)"
+    },
+    {
+     "ticker": "MSFT",
+     "verified": true,
+     "latest_date": "",
+     "accession": "",
+     "url": "",
+     "frequency": "none: Atom 8-K12B list returned no entries (count=10)"
+    },
+    {
+     "ticker": "NFLX",
+     "verified": true,
+     "latest_date": "",
+     "accession": "",
+     "url": "",
+     "frequency": "none: Atom 8-K12B list returned no entries (count=10)"
+    },
+    {
+     "ticker": "BRK",
+     "verified": true,
+     "latest_date": "",
+     "accession": "",
+     "url": "",
+     "frequency": "none: Atom 8-K12B list returned no entries (count=10)"
+    },
+    {
+     "ticker": "AMZN",
+     "verified": true,
+     "latest_date": "",
+     "accession": "",
+     "url": "",
+     "frequency": "none: Atom 8-K12B list returned no entries (count=10)"
+    }
+   ],
+   "machine_readable": {
+    "format": "HTML (2015, pre cover-page XBRL requirement) with 21 documents including EX-2.1 merger agreement, EX-3.1/3.2 charter and bylaws, EX-4.x transfer restriction agreements",
+    "structured_fields": [
+     "Items 1.01, 3.03, 5.02, 5.03, 5.05, 8.01, 9.01",
+     "Form header: filer CIK 1652044, period of report 2015-10-02",
+     "No dei cover XBRL (2015)"
+    ]
+   },
+   "findings": {
+    "company": [
+     {
+      "detail": "Why filed: holding-company reorganisation. Merger Sub (Maple Technologies Inc.) merged into Google; Google survived as direct wholly owned subsidiary of Alphabet; one-for-one automatic conversion into corresponding Alphabet shares; no stockholder vote required under DGCL 251(g); shares keep trading on Nasdaq as GOOG and GOOGL with new CUSIPs; Alphabet deemed registered under 12(b).",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312515336577/d82837d8k12b.htm",
+      "quote": "for the purpose of establishing Alphabet as the successor issuer",
+      "source_method": "text-summary"
+     },
+     {
+      "detail": "Form covers Rule 12g-3(a) succession and Item 3.03 holder-rights change with Transfer Restriction Agreements binding Larry Page, Sergey Brin and Eric Schmidt; Founder Equal Treatment Provision never terminates.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312515336577/d82837d8k12b.htm",
+      "quote": "became the successor issuer to Google pursuant to 12g-3(a)",
+      "source_method": "text-summary"
+     }
+    ],
+    "executives": [
+     {
+      "detail": "Item 5.02: directors and executive officers of Alphabet are the same as Google's; Compensation Plan Agreement assumed Google's equity plans; Director Arrangements Agreement filed as EX-10.2.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312515336577/d82837d8k12b.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "growth": [],
+    "signals": [
+     {
+      "detail": "Successor filing is the trigger to remap CIK identity: Google Inc. (1288776) history continues under Alphabet (1652044); a facts API must stitch the two for pre-2015 data.",
+      "ticker": "GOOGL",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312515336577/0001193125-15-336577-index.htm",
+      "quote": "",
+      "source_method": "text-summary"
+     }
+    ],
+    "financial_intelligence": []
+   },
+   "products": [
+    {
+     "name": "Corporate-lineage / predecessor-successor map",
+     "description": "Use 8-K12B (and 8-K12G3) to build CIK succession links so time series continue across reorganisations.",
+     "buyers": "Quant data teams, backtesting vendors, compliance",
+     "decision_supported": "Survivorship-bias-free history",
+     "latency": "event-driven, rare",
+     "build_difficulty": "low",
+     "competitors": "CRSP, Compustat, FactSet identifiers",
+     "legal_notes": "Public"
+    }
+   ],
+   "suggestion": "Add a predecessor_cik/successor_cik table seeded from 8-K12B and 8-K12G3 filings, with Google 1288776 to Alphabet 1652044 as test case, so Provenance facts stay continuous across 2015.",
+   "value_score": 2,
+   "caveats": [
+    "One filing read; other companies not checked for 8-K12B. Rare form.",
+    "Atom checks for AAPL, MSFT, NFLX, BRK, AMZN returned no 8-K12B entries. GOOG-pre (CIK 1288776) not checked."
+   ]
+  }
+ ],
+ "notes": [
+  "ITEM 5.02 EXTRACTION FIELD LIST (ticket 20): filing: accession, form (8-K vs 8-K/A), filed_at, event_date (dei:DocumentPeriodEndDate), parent_accession for amendments, deadline_met flag (business days between event and filing <=4), sub-item code (a=departure/resignation/termination, b=departure of named executive officer or director, c=appointment of principal officer, d=election of director, e=compensatory arrangement, f=NEO compensation not available at proxy time). person: full name, age, title before, title after, role type (CEO, CFO, PAO, director, chair, lead independent director, executive chair), board committees, independent flag, prior employers and tenure, tenure at company. event: change type (appointment, resignation, retirement, termination, will-not-stand-for-reelection, role change), effective date, announcement date, trigger text, reason (disagreement yes/no and quote), successor name and interim flag, predecessor name, whether successor named, next shareholder meeting reference. compensation: base salary, cash bonus, sign-on, equity award grant value or share count, vehicle type (RSU/PSU/GSU/options), vesting schedule, performance metric (e.g. relative TSR vs S&P 500), severance, retirement perqs (e.g. Berkshire NetJets 30 hours, ~$490,000/yr, through 2037-05-31), tax gross-up flag, plan name, agreement exhibit number (EX-10.x). governance: indemnification agreement flag, family relationships, related-person transactions (e.g. Amazon Mandia: sister-in-law employee $185,000 salary, 103 RSUs), amendment-promised flag (Apple: intends to file amendment under Item 5.02(c)(3)). confidence and source-span offsets.",
+  "Three-plus worked 5.02 examples are in executives findings: Apple CEO succession and 8-K/A, Berkshire CFO succession, Microsoft Hoffman, Netflix Hastings, Amazon Mandia, Alphabet Saraci.",
+  "Four-business-day rule reference: Item 5.07 deadline runs from the meeting date; 8-K/A for 5.02(c)(3) runs from the date compensation is determined.",
+  "Summary of top two ideas: (1) Officer-change feed with comp extraction and 8-K/A chaining; (2) Shareholder-vote results dataset with per-proposal counts. Third: successor/predecessor CIK lineage from 8-K12B; fourth: debt/material agreement event feed.",
+  "Follow-up done: 8-K12B exact-match checked for all six (only Alphabet filed one). 8-K/A history pulled. Apple R1.htm confirmed dei fields. Findings tagged source_method."
+ ]
+}
