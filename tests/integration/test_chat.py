@@ -229,6 +229,10 @@ def test_uncited_sentences_get_the_line_holding_their_numbers():
     assert out == (
         "Revenue grew +10.1% to $303.2 billion in the year ended 2026-08-30 [2]. Strong year."
     )
+    filed, _ = add_missing_citations("It is from the 10-K filed 2026-10-07.", lines)
+    assert filed.endswith("2026-10-07 [2].")
+    vague, _ = add_missing_citations("See the 10-K.", lines)
+    assert "[" not in vague  # a bare form number is not evidence
     same, none = add_missing_citations("Revenue was $999.0 billion.", lines)
     assert none == 0 and "[" not in same  # an unknown number is never given a citation
 

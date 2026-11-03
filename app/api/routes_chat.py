@@ -110,30 +110,39 @@ def check_answer(answer: str, context: str, n_citations: int) -> dict:
     }
 
 
-def _significant(text: str) -> set[str]:
-    text = re.sub(r"\[\d{1,3}\]|\d{4}-\d{2}-\d{2}", "", text)
-    return {
-        n for n in _numbers(text) if not (len(n) == 4 and n.isdigit() and 1900 <= int(n) <= 2100)
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _evidence(text: str) -> set[str]:
+    """Dates and figures in a sentence; years and bare small numbers (as in "10-K") are noise."""
+    text = re.sub(r"\[\d{1,3}\]", "", text)
+    dates = set(_DATE.findall(text))
+    figures = {
+        n
+        for n in _numbers(_DATE.sub("", text))
+        if "." in n or (len(n) >= 3 and not (len(n) == 4 and 1900 <= int(n) <= 2100))
     }
+    return dates | figures
 
 
 def add_missing_citations(answer: str, context_lines: list[str]) -> tuple[str, int]:
-    """Cite sentences the model left uncited when one context line holds all of their numbers."""
+    """Cite sentences the model left uncited when exactly one context line holds all of their
+    dates and figures. Anything less certain stays uncited and is flagged by the check."""
     sources = []
     for line in context_lines:
         m = re.match(r"\[(\d{1,3})\]", line)
         if m:
-            sources.append((m.group(1), _numbers(line)))
+            sources.append((m.group(1), set(_DATE.findall(line)) | _numbers(_DATE.sub("", line))))
     added = 0
     out = []
     for sentence in re.split(r"(?<=[.!?])\s+", answer):
-        nums = _significant(sentence)
-        if nums and not re.search(r"\[\d{1,3}\]", sentence):
-            n = next((n for n, have in sources if nums <= have), None)
-            if n:
+        need = _evidence(sentence)
+        if need and not re.search(r"\[\d{1,3}\]", sentence):
+            matches = {n for n, have in sources if need <= have}
+            if len(matches) == 1:
                 body = sentence.rstrip()
                 end = body[-1] if body and body[-1] in ".!?" else ""
-                sentence = f"{body[: len(body) - len(end)]} [{n}]{end}"
+                sentence = f"{body[: len(body) - len(end)]} [{matches.pop()}]{end}"
                 added += 1
         out.append(sentence)
     return " ".join(out), added
