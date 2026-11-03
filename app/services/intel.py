@@ -39,6 +39,7 @@ _LEADERSHIP_Q = re.compile(
 _PAY_Q = re.compile(
     r"\b(pay|paid|compensation|salary|salaries|bonus|stock awards?)\b", re.IGNORECASE
 )
+ANNUAL_FORMS = {"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A", "10-KT"}
 LEADERSHIP_YEARS = 3
 STALE_DAYS = 120
 
@@ -103,13 +104,15 @@ def _annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> li
     )
     if as_of:
         stmt = known_by(stmt, as_of)
+
+    def rank(f: FinancialFact) -> tuple:
+        # An annual report beats a proxy's pay-versus-performance table for the same year.
+        return (f.form_type in ANNUAL_FORMS, f.filed_date or date.min, f.accession_number or "")
+
     latest: dict[date, FinancialFact] = {}
     for f in db.scalars(stmt):
         cur = latest.get(f.period_end)
-        if cur is None or (f.filed_date or date.min, f.accession_number or "") > (
-            cur.filed_date or date.min,
-            cur.accession_number or "",
-        ):
+        if cur is None or rank(f) > rank(cur):
             latest[f.period_end] = f
     return [latest[k] for k in sorted(latest, reverse=True)]
 

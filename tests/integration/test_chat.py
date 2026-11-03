@@ -183,3 +183,29 @@ def test_chat_page_is_served_and_linked(client):
     assert r.status_code == 200 and 'src="/chat.js"' in r.text
     assert client.get("/chat.js").status_code == 200 and client.get("/chat.css").status_code == 200
     assert 'href="/chat/"' in client.get("/").text
+
+
+def test_annual_figures_prefer_the_annual_report_over_a_proxy(db, items_aapl):
+    from datetime import timedelta
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import make_transient
+
+    from app.db.models import Company, FinancialFact
+    from app.services import intel
+
+    company = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    before = next(m for m in intel.build_brief(db, company).metrics if m["metric"] == "revenue")
+    fact = db.scalar(
+        select(FinancialFact).where(FinancialFact.accession_number == before["accession_number"])
+    )
+    make_transient(fact)
+    fact.id = None
+    fact.observation_key = "proxy-copy"
+    fact.form_type = "DEF 14A"
+    fact.accession_number = "0000000000-99-000001"
+    fact.filed_date = fact.filed_date + timedelta(days=60)
+    db.add(fact)
+    db.commit()
+    after = next(m for m in intel.build_brief(db, company).metrics if m["metric"] == "revenue")
+    assert after["accession_number"] == before["accession_number"]
