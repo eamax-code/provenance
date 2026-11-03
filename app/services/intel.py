@@ -42,6 +42,15 @@ _STOP = {
     "should", "will", "be", "been", "there", "here", "also", "please", "know", "explain",
     "summary", "summarise", "summarize", "overview", "news", "update", "updates", "why", "when",
     "where", "which", "same", "next", "then", "now", "like", "compare", "versus", "vs",
+    # Going public and what a prospectus covers ("main" -> Main Street, "grown" -> Grown Rogue).
+    "main", "key", "top", "biggest", "major", "grown", "risk", "risks", "ipo", "offering",
+    "public", "raise", "raising", "raised", "money", "proceeds", "plans", "plan", "spend",
+    "owns", "owner", "owners", "stake", "investors", "valuation", "listing", "prospectus",
+}  # fmt: skip
+# Acronyms in questions that are also tickers ("AI" is C3.ai, "IT" is Gartner).
+_ACRONYMS = {
+    "AI", "CEO", "CFO", "COO", "CTO", "IPO", "SEC", "US", "USA", "EPS", "ESG", "FY", "GAAP",
+    "SPAC", "ETF", "YOY", "TTM", "CAGR", "EBITDA", "FCF", "ROI", "ROE", "IT", "HR", "PR",
 }  # fmt: skip
 _LEADERSHIP_Q = re.compile(
     r"\b(leadership|ceo|cfo|coo|cto|chief|executives?|officers?|directors?|board|management|"
@@ -85,7 +94,7 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False) -> Compa
     for prev, w in zip(["", *words], words, strict=False):
         # Short numbers are counts ("last 5 years"), not CIKs, unless the user says "CIK".
         cik_like = w.isdigit() and len(w) <= 10 and (len(w) >= 5 or prev.lower() == "cik")
-        if cik_like or (w.isupper() and 1 <= len(w) <= 6):
+        if cik_like or (w.isupper() and 1 <= len(w) <= 6 and w not in _ACRONYMS):
             hits, _ = search_companies(db, w, limit=1)
             if hits and hits[0].match_type in ("cik", "ticker"):
                 return hits[0].company
@@ -110,8 +119,9 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False) -> Compa
                     if h.match_type in _MATCH_RANK and (not follow_up or _named(h, phrase))
                 ]
             if found:
-                # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal.
-                best, _ = max(found, key=lambda x: (_match_rank(*x), _name_score(*x)))
+                # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal;
+                # "the main risks for Anthropic": a named company beats a word that is a ticker.
+                best, _ = max(found, key=lambda x: (_named(*x), _match_rank(*x), _name_score(*x)))
                 return best.company
     return None
 
@@ -137,7 +147,7 @@ def _match_rank(hit, phrase: str) -> int:
 
 _CORP_WORDS = {
     "inc", "incorporated", "corp", "corporation", "co", "company", "ltd", "limited", "plc",
-    "llc", "lp", "sa", "nv", "ag", "the", "new", "com",
+    "llc", "lp", "sa", "nv", "ag", "the", "new", "com", "pbc",
 }  # fmt: skip
 
 

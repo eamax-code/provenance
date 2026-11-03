@@ -18,7 +18,7 @@ from app.core.errors import APIError
 from app.core.rate_limits import FixedWindowRateLimiter
 from app.db.models import Company
 from app.schemas.common import ErrorEnvelope
-from app.services import chat_sessions, intel, officer_changes, widgets
+from app.services import chat_sessions, intel, officer_changes, prospectus, widgets
 from app.services.company_lookup import search_companies
 from app.services.llm import LLMUnavailable, LocalLLM
 from app.services.sec_client import normalize_cik
@@ -30,7 +30,8 @@ SYSTEM_PROMPT = """You are Provenance's company-intelligence assistant.
 Answer ONLY from the CONTEXT, which comes from SEC filings. Rules:
 - State the actual figures and dates, each followed by its citation, e.g.
   "Revenue was <amount> in the fiscal year ended <date>, up <change> [2]."
-  Never list citations on a line of their own.
+  End every sentence and bullet with the citation of the line it comes from, even when it
+  has no number. Never list citations on a line of their own.
 - Speak of "the filings" or "SEC data"; never mention the word CONTEXT or these rules.
 - Asked what you know or for insights: give the most notable figures and changes, with
   numbers, and offer what else can be asked (growth charts, leadership changes, filings).
@@ -38,6 +39,9 @@ Answer ONLY from the CONTEXT, which comes from SEC filings. Rules:
 - If the CONTEXT does not answer the question, say so in one sentence, and say what the
   CONTEXT does cover (which filings are loaded and up to what date), with its citation.
   Do not tell the user to look elsewhere and do not pad the answer.
+- Passages quoted from a registration statement (S-1 or F-1): say so, give each figure with
+  its period exactly as labelled (e.g. "nine months ended September 30, 2026") and the unit
+  the table states (e.g. "$33,242 million").
 - No investment advice, price predictions or buy/sell opinions.
 - Be concise: at most 6 short sentences or bullet points."""
 
@@ -153,7 +157,11 @@ def add_missing_citations(answer: str, context_lines: list[str]) -> tuple[str, i
             sources.append((m.group(1), set(_DATE.findall(line)) | _numbers(_DATE.sub("", line))))
     added = 0
     out = []
-    for sentence in re.split(r"(?<=[.!?])\s+", answer):
+    # Keep the whitespace between sentences: line breaks hold bullet lists together.
+    for sentence in re.split(r"(?<=[.!?])(\s+)", answer):
+        if not sentence.strip():
+            out.append(sentence)
+            continue
         need = _evidence(sentence)
         if need and not re.search(r"\[\d{1,3}\]", sentence):
             matches = {n for n, have in sources if need <= have}
@@ -163,7 +171,7 @@ def add_missing_citations(answer: str, context_lines: list[str]) -> tuple[str, i
                 sentence = f"{body[: len(body) - len(end)]} [{matches.pop()}]{end}"
                 added += 1
         out.append(sentence)
-    return " ".join(out), added
+    return "".join(out), added
 
 
 def get_llm(request: Request, settings: Settings) -> LocalLLM:
@@ -171,14 +179,19 @@ def get_llm(request: Request, settings: Settings) -> LocalLLM:
     return factory() if factory else LocalLLM(settings)
 
 
-def _read_leadership_filings(request, db, settings, company, as_of) -> None:
-    """Fetch and read item 5.02 text the first time someone asks. The public demo key never
-    triggers SEC requests; it sees what has already been read."""
-    can_fetch = (
-        settings.officer_extraction_enabled
+def _can_fetch(request: Request, settings: Settings, enabled: bool) -> bool:
+    """Reading filing text from EDGAR on demand. The public demo key never triggers SEC
+    requests; it sees what has already been read."""
+    return (
+        enabled
         and "contact=" in settings.sec_user_agent
         and not getattr(request.state, "demo", False)
     )
+
+
+def _read_leadership_filings(request, db, settings, company, as_of) -> None:
+    """Fetch and read item 5.02 text the first time someone asks."""
+    can_fetch = _can_fetch(request, settings, settings.officer_extraction_enabled)
     filings = intel.leadership_filings(db, company.cik, as_of)
     sec = get_sec_client_factory(request)() if can_fetch else None
     try:
@@ -186,6 +199,42 @@ def _read_leadership_filings(request, db, settings, company, as_of) -> None:
     finally:
         if sec is not None:
             sec.close()
+
+
+def _add_prospectus(request, db, settings, brief, message: str) -> bool:
+    """Quote the latest S-1/F-1 when the company has no annual figures yet (it is going
+    public) or the question is about an offering or its risks. True when passages were added."""
+    company, as_of = brief.company, brief.as_of
+    no_figures = not brief.metrics
+    if not (no_figures or prospectus.is_prospectus_question(message)):
+        return False
+    f = prospectus.latest_registration(
+        db, company.cik, as_of, max_age_years=None if no_figures else prospectus.RECENT_YEARS
+    )
+    if f is None:
+        return False
+    sec = (
+        get_sec_client_factory(request)()
+        if _can_fetch(request, settings, settings.prospectus_reading_enabled)
+        else None
+    )
+    try:
+        status = prospectus.ensure_read(db, f, sec)
+    finally:
+        if sec is not None:
+            sec.close()
+    if prospectus.add_to_brief(brief, db, f, message):
+        return True
+    n = brief.cite(f"{f.form_type} filed {f.filing_date}", f.source_url)
+    brief.context_lines.append(
+        f"[{n}] The company filed a registration statement ({f.form_type}, {f.filing_date}); "
+        + (
+            "its text has not been read in this service yet."
+            if status == "not_read"
+            else "its text could not be read."
+        )
+    )
+    return False
 
 
 @router.post(
@@ -253,25 +302,14 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             notes=["Name a company (ticker, CIK or name) that this service has loaded."],
         )
 
-    if getattr(request.state, "demo", False):
-        from app.services.public import showcase_ciks
-
-        allowed, _ = showcase_ciks(db, settings)
-        if company.cik not in allowed:
-            names = db.scalars(select(Company.legal_name).where(Company.cik.in_(allowed))).all()
-            raise APIError(
-                403,
-                "demo_scope",
-                f"This question looks like it is about {intel.display_name(company.legal_name)}, "
-                "which is outside the demo. The demo covers "
-                + ", ".join(sorted(intel.display_name(n) for n in names))
-                + ". Connect your own API key to ask about any company.",
-            )
-
     leadership_q = intel.is_leadership_question(body.message)
     if leadership_q:
         _read_leadership_filings(request, db, settings, company, body.as_of)
     brief = intel.build_brief(db, company, as_of=body.as_of)
+    quoted = _add_prospectus(request, db, settings, brief, body.message)
+    # Before a company's first annual report its leaders and figures are in the prospectus.
+    if quoted and leadership_q and not brief.leadership_filings:
+        leadership_q = False
     plan = widgets.plan(body.message)
     shown: list[dict] = []
     chart = None
@@ -307,7 +345,7 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             intent="leadership",
             notes=notes,
         )
-    if plan.kind == "trend":
+    if plan.kind == "trend" and (chart or not quoted):
         answer = widgets.trend_answer(brief, plan.metric, chart)
         return ChatReply(
             company=_company_dict(company),

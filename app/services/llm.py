@@ -63,6 +63,7 @@ class LocalLLM:
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens or self.settings.llm_max_answer_tokens,
+                "num_ctx": self.settings.llm_context_tokens,
             },
         }
         if schema is not None:

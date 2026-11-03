@@ -168,6 +168,17 @@ date, stated reason and successor. A person whose name is not in the text is dro
 row is traced to the filing sentence it came from, or marked unverified. The public demo key
 never triggers these fetches. `scripts/read_officer_changes.py --cik ...` reads ahead of time.
 
+Companies going public have no annual XBRL figures yet; their numbers are in the prospectus.
+When a company has no annual figures, or the question is about an offering or its risks, the
+chat quotes its latest S-1, F-1 or final prospectus (424B). The document is fetched once, cut
+into its main sections by the table of contents (summary, risk factors, use of proceeds,
+capitalization, dilution, MD&A, business, management, executive compensation, principal
+stockholders, underwriting) and stored in `filing_sections`. A question gets the company
+overview, the summary financial table with every figure labelled by its period, and the
+passages that match it best, each cited to the filing and section. The demo key answers about
+every loaded company from stored data and never fetches; `scripts/read_prospectuses.py --cik
+...` or `--recent-days 30` reads documents ahead of time.
+
 With your own API key, conversations are saved per key (`chat_sessions`, `chat_messages`) and
 listed at `GET /v1/chat/sessions`; the `/chat/` page shows them in its sidebar and restores the
 open one from the URL (`#s=<id>`). The demo key saves nothing on the server.

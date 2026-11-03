@@ -388,7 +388,8 @@
     $('side-name').textContent = displayName(c.legal_name);
     $('side-meta').textContent = [c.ticker, c.exchange, 'CIK ' + c.cik, c.sic_description].filter(Boolean).join(' · ');
     var cov = brief.coverage || {};
-    $('side-coverage').textContent = cov.filings ? 'Loaded here: ' + cov.filings + ' filings, ' + cov.first_filed + ' to ' + cov.last_filed + (cov.stale ? ' (newer filings not loaded)' : '') : 'No filings loaded for this company.';
+    $('side-coverage').textContent = (cov.filings ? 'Loaded here: ' + cov.filings + ' filings, ' + cov.first_filed + ' to ' + cov.last_filed + (cov.stale ? ' (newer filings not loaded)' : '') : 'No filings loaded for this company.') +
+      (cov.prospectus ? ' Prospectus read: ' + cov.prospectus.form_type + ' filed ' + cov.prospectus.filed_date + '.' : '');
     var m = $('side-metrics'); m.textContent = '';
     (brief.metrics || []).forEach(function (x) {
       var row = el('div', 'cx-metric'), left = el('span');

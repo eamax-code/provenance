@@ -83,9 +83,13 @@ class Settings(BaseSettings):
     llm_model: str = "qwen3:4b-instruct"
     llm_timeout_seconds: float = 90.0
     llm_max_answer_tokens: int = 700
+    # Prompt window; prospectus passages need more than Ollama's default.
+    llm_context_tokens: int = 8192
     chat_rate_limit_per_minute: int = 10
     # Read 8-K item 5.02 text from EDGAR when a chat question needs it (needs SEC_USER_AGENT).
     officer_extraction_enabled: bool = True
+    # Read a company's latest S-1/F-1 prospectus from EDGAR when a chat question needs it.
+    prospectus_reading_enabled: bool = True
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12
