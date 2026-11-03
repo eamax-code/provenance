@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from app.api.routes_chat import check_answer
+from app.api.routes_chat import add_missing_citations, check_answer
 from app.services.llm import LLMReply, LLMUnavailable
 
 
@@ -215,3 +215,69 @@ def test_annual_figures_prefer_the_annual_report_over_a_proxy(db, items_aapl):
     db.commit()
     after = next(m for m in intel.build_brief(db, company).metrics if m["metric"] == "revenue")
     assert after["accession_number"] == before["accession_number"]
+
+
+def test_uncited_sentences_get_the_line_holding_their_numbers():
+    lines = [
+        "[1] Company: Costco.",
+        "[2] Revenue, fiscal year ended 2026-08-30: $303.2 billion; prior year (ended "
+        "2025-08-31) $275.2 billion; change +10.1%. Filed 2026-10-07 (10-K).",
+    ]
+    text = "Revenue grew +10.1% to $303.2 billion in the year ended 2026-08-30. Strong year."
+    out, added = add_missing_citations(text, lines)
+    assert added == 1
+    assert out == (
+        "Revenue grew +10.1% to $303.2 billion in the year ended 2026-08-30 [2]. Strong year."
+    )
+    same, none = add_missing_citations("Revenue was $999.0 billion.", lines)
+    assert none == 0 and "[" not in same  # an unknown number is never given a citation
+
+
+def test_leadership_answer_counts_all_filings_not_just_those_listed(
+    app, client, auth, db, items_aapl
+):
+    from datetime import date, timedelta
+
+    from sqlalchemy import select
+
+    from app.db.models import Filing
+
+    base = db.scalar(select(Filing).where(Filing.items.like("%5.02%")))
+    for i in range(6):
+        db.add(
+            Filing(
+                cik=base.cik,
+                accession_number=f"0000320193-24-90000{i}",
+                form_type="8-K",
+                filing_date=date(2024, 6, 1) + timedelta(days=i),
+                items="5.02",
+                source_url=base.source_url,
+                first_detected_at=base.first_detected_at,
+                quality_status="ok",
+            )
+        )
+    db.commit()
+    body = client.post(
+        "/v1/chat", json={"message": "Apple CEO change?", "as_of": "2024-12-31"}, headers=auth
+    ).json()
+    assert "filed 7 8-Ks" in body["answer"] and "the latest 5" in body["answer"]
+
+
+def test_name_match_prefers_the_listed_company(db, items_aapl):
+    from sqlalchemy import select
+
+    from app.db.models import Company
+    from app.services import intel
+
+    listed = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    db.add(
+        Company(
+            cik="0000999991",
+            legal_name="Apple A Holdings",
+            ticker=None,
+            source_url="https://data.sec.gov/submissions/CIK0000999991.json",
+            first_detected_at=listed.first_detected_at,
+        )
+    )
+    db.commit()
+    assert intel.resolve_company(db, "how is apple doing").cik == "0000320193"

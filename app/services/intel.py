@@ -78,9 +78,12 @@ def resolve_company(db: Session, text: str) -> Company | None:
             phrase = " ".join(useful[i : i + size])
             if len(phrase) < 3:
                 continue
-            hits, _ = search_companies(db, phrase, limit=1)
-            if hits and hits[0].match_type in ("ticker", "name_exact", "name_prefix"):
-                return hits[0].company
+            hits, _ = search_companies(db, phrase, limit=10)
+            good = [h for h in hits if h.match_type in ("ticker", "name_exact", "name_prefix")]
+            if good:
+                # "Hawaiian Electric" names a parent and a subsidiary; prefer the listed one.
+                best = [h for h in good if h.match_type == good[0].match_type]
+                return next((h.company for h in best if h.company.ticker), best[0].company)
     return None
 
 
@@ -209,6 +212,13 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
         )
         if LEADERSHIP_ITEM in split_items(f.items)
     ]
+    b.coverage["leadership_since"] = db.scalar(
+        select(func.count()).select_from(
+            stmt.where(Filing.items.like(f"%{LEADERSHIP_ITEM}%"), Filing.filing_date >= since)
+            .with_only_columns(Filing.id)
+            .subquery()
+        )
+    )
     for f in leadership:
         n = b.cite(f"8-K item 5.02 filed {f.filing_date}", f.source_url)
         b.leadership_filings.append(_filing_card(f, split_items(f.items), n))
@@ -256,10 +266,15 @@ def leadership_answer(b: Brief) -> str:
     since = cov["since"]
     if b.leadership_filings:
         refs = ", ".join(f"{f['filing_date']} [{f['citation']}]" for f in b.leadership_filings)
-        k = len(b.leadership_filings)
+        total = max(cov.get("leadership_since") or 0, len(b.leadership_filings))
+        shown = (
+            ""
+            if total == len(b.leadership_filings)
+            else f"; the latest {len(b.leadership_filings)}"
+        )
         lines = [
-            f"{name} filed {_count(k, '8-K')} reporting a change of directors or "
-            f"officers (item 5.02) since {since}: {refs}.",
+            f"{name} filed {_count(total, '8-K')} reporting a change of directors or "
+            f"officers (item 5.02) since {since}{shown}: {refs}.",
             "Who joined or left is written in each filing; this service does not extract names "
             "yet, so open the linked filing for the details.",
         ]

@@ -110,6 +110,35 @@ def check_answer(answer: str, context: str, n_citations: int) -> dict:
     }
 
 
+def _significant(text: str) -> set[str]:
+    text = re.sub(r"\[\d{1,3}\]|\d{4}-\d{2}-\d{2}", "", text)
+    return {
+        n for n in _numbers(text) if not (len(n) == 4 and n.isdigit() and 1900 <= int(n) <= 2100)
+    }
+
+
+def add_missing_citations(answer: str, context_lines: list[str]) -> tuple[str, int]:
+    """Cite sentences the model left uncited when one context line holds all of their numbers."""
+    sources = []
+    for line in context_lines:
+        m = re.match(r"\[(\d{1,3})\]", line)
+        if m:
+            sources.append((m.group(1), _numbers(line)))
+    added = 0
+    out = []
+    for sentence in re.split(r"(?<=[.!?])\s+", answer):
+        nums = _significant(sentence)
+        if nums and not re.search(r"\[\d{1,3}\]", sentence):
+            n = next((n for n, have in sources if nums <= have), None)
+            if n:
+                body = sentence.rstrip()
+                end = body[-1] if body and body[-1] in ".!?" else ""
+                sentence = f"{body[: len(body) - len(end)]} [{n}]{end}"
+                added += 1
+        out.append(sentence)
+    return " ".join(out), added
+
+
 def get_llm(request: Request, settings: Settings) -> LocalLLM:
     factory = getattr(request.app.state, "llm_factory", None)
     return factory() if factory else LocalLLM(settings)
@@ -205,8 +234,10 @@ def chat(
                 },
             ]
         )
-        answer, model = reply.text, reply.model
+        answer, auto_cited = add_missing_citations(reply.text, brief.context_lines)
+        model = reply.model
         checks = check_answer(answer, brief.context(), len(brief.citations))
+        checks["auto_cited"] = auto_cited
         if not checks["grounded"]:
             notes.append(
                 "Parts of the answer could not be matched to the cited data; they are listed "
