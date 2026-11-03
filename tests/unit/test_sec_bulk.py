@@ -57,6 +57,22 @@ def test_scope_facts_ingests_xbrl_filers_and_matches_api_path(db, settings, tmp_
     assert run.status == "succeeded" and run.sec_cached > 0
 
 
+def test_one_broken_company_does_not_stop_the_load(db, settings, tmp_path, monkeypatch):
+    subs, facts = _build_archives(tmp_path)
+    real = sec_bulk.ingest_company
+
+    def flaky(db, client, cik, **kw):
+        if cik == "0000320193":
+            raise KeyError("unexpected payload shape")
+        return real(db, client, cik, **kw)
+
+    monkeypatch.setattr(sec_bulk, "ingest_company", flaky)
+    summary = sec_bulk.bulk_ingest(db, settings, subs, facts, scope="facts")
+    assert summary["failed"] == 1 and summary["ingested"] == 1
+    assert summary["errors"][0].startswith("0000320193:")
+    assert db.scalar(select(func.count(Company.id)).where(Company.cik == "0000789019")) == 1
+
+
 def test_scope_known_and_ciks_and_limit(db, settings, tmp_path, tickers_payload):
     from app.services.ingestion import import_ticker_mapping
 

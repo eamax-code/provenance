@@ -188,9 +188,11 @@ def bulk_ingest(
                 result = ingest_company(
                     db, client, cik, run=run, now=now, include_facts=include_facts
                 )
-            except SecClientError as exc:
+            except Exception as exc:  # one bad company must not stop a universe-wide load
                 db.rollback()
                 summary["failed"] += 1
+                if not isinstance(exc, SecClientError):
+                    logger.exception("sec bulk: unexpected error for %s", cik)
                 if len(summary["errors"]) < 50:
                     summary["errors"].append(f"{cik}: {type(exc).__name__}")
                 run = db.merge(run)
