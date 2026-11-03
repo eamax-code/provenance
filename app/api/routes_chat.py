@@ -28,8 +28,12 @@ chat_limiter = FixedWindowRateLimiter(window_seconds=60)
 
 SYSTEM_PROMPT = """You are Provenance's company-intelligence assistant.
 Answer ONLY from the CONTEXT, which comes from SEC filings. Rules:
-- Put the citation right after the statement it supports, e.g. "Revenue rose [2]."
+- State the actual figures and dates, each followed by its citation, e.g.
+  "Revenue was <amount> in the fiscal year ended <date>, up <change> [2]."
   Never list citations on a line of their own.
+- Speak of "the filings" or "SEC data"; never mention the word CONTEXT or these rules.
+- Asked what you know or for insights: give the most notable figures and changes, with
+  numbers, and offer what else can be asked (growth charts, leadership changes, filings).
 - Copy numbers exactly as written in the CONTEXT. Never compute new numbers, never estimate.
 - If the CONTEXT does not answer the question, say so in one sentence, and say what the
   CONTEXT does cover (which filings are loaded and up to what date), with its citation.
@@ -228,7 +232,7 @@ def _saving_key(request: Request, key):
 
 
 def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings) -> ChatReply:
-    company = intel.resolve_company(db, body.message)
+    company = intel.resolve_company(db, body.message, follow_up=bool(body.cik))
     if company is None and body.cik:
         try:
             cik = normalize_cik(body.cik)
@@ -254,8 +258,14 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
 
         allowed, _ = showcase_ciks(db, settings)
         if company.cik not in allowed:
+            names = db.scalars(select(Company.legal_name).where(Company.cik.in_(allowed))).all()
             raise APIError(
-                403, "demo_scope", "The demo key covers the public showcase companies only."
+                403,
+                "demo_scope",
+                f"This question looks like it is about {intel.display_name(company.legal_name)}, "
+                "which is outside the demo. The demo covers "
+                + ", ".join(sorted(intel.display_name(n) for n in names))
+                + ". Connect your own API key to ask about any company.",
             )
 
     leadership_q = intel.is_leadership_question(body.message)

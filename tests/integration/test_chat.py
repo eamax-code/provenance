@@ -406,3 +406,48 @@ def test_a_common_word_that_is_a_ticker_loses_to_a_named_company(db, items_aapl)
     db.commit()
     assert intel.resolve_company(db, "How fast is Apple growing?").cik == "0000320193"
     assert intel.resolve_company(db, "FAST revenue").cik == "0000999995"
+
+
+def test_follow_up_stays_on_the_company_unless_another_is_named(db, items_aapl):
+    from sqlalchemy import select
+
+    from app.db.models import Company
+    from app.services import intel
+
+    listed = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    for cik, name, ticker in [
+        ("0000999996", "Youdao, Inc.", "DAO"),
+        ("0000999997", "Canaan Inc.", "CAN"),
+        ("0000999998", "Moregain Pictures, Inc.", None),
+    ]:
+        db.add(
+            Company(
+                cik=cik,
+                legal_name=name,
+                ticker=ticker,
+                source_url=f"https://data.sec.gov/submissions/CIK{cik}.json",
+                first_detected_at=listed.first_detected_at,
+            )
+        )
+    db.commit()
+    for q in [
+        "What other information do you have?",
+        "Any insights that can be shared",
+        "Tell me more",
+    ]:
+        assert intel.resolve_company(db, q) is None, q
+        assert intel.resolve_company(db, q, follow_up=True) is None, q
+    assert intel.resolve_company(db, "what about youdao", follow_up=True).cik == "0000999996"
+    assert intel.resolve_company(db, "And Canaan?", follow_up=True).cik == "0000999997"
+    assert intel.resolve_company(db, "how is CAN doing", follow_up=True).cik == "0000999997"
+    assert intel.resolve_company(db, "how are apples sales", follow_up=True).cik == "0000320193"
+
+
+def test_follow_up_without_a_company_uses_the_current_one(app, client, auth, items_aapl):
+    app.state.llm_factory = lambda: FakeLLM()
+    body = client.post(
+        "/v1/chat",
+        json={"message": "What other information do you have?", "cik": "320193"},
+        headers=auth,
+    ).json()
+    assert body["company"]["cik"] == "0000320193" and body["answer"]

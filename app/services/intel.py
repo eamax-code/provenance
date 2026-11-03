@@ -35,6 +35,13 @@ _STOP = {
     "history", "sales", "profit", "profits", "earnings", "income", "net", "operating", "cash",
     "flow", "assets", "total", "grow", "growing", "grew", "much", "many", "since", "with",
     "at", "to", "by", "from", "any", "change", "changes", "changed", "quickly",
+    # Conversation words that begin company names ("you" -> Youdao, "more" -> Moregain).
+    "you", "your", "we", "our", "us", "i", "it", "they", "them", "this", "that", "these", "those",
+    "other", "others", "else", "more", "most", "some", "all", "information", "info", "data",
+    "details", "detail", "insight", "insights", "share", "shared", "can", "could", "would",
+    "should", "will", "be", "been", "there", "here", "also", "please", "know", "explain",
+    "summary", "summarise", "summarize", "overview", "news", "update", "updates", "why", "when",
+    "where", "which", "same", "next", "then", "now", "like", "compare", "versus", "vs",
 }  # fmt: skip
 _LEADERSHIP_Q = re.compile(
     r"\b(leadership|ceo|cfo|coo|cto|chief|executives?|officers?|directors?|board|management|"
@@ -68,8 +75,11 @@ class Brief:
         return "\n".join(self.context_lines)
 
 
-def resolve_company(db: Session, text: str) -> Company | None:
-    """Find the company a free-text question is about: ticker or CIK first, then names."""
+def resolve_company(db: Session, text: str, *, follow_up: bool = False) -> Company | None:
+    """Find the company a free-text question is about: ticker or CIK first, then names.
+
+    In a follow-up (a company is already under discussion) only a clearly named company
+    switches it: a ticker in capitals, a whole name, or a capitalised start of a name."""
     text = re.sub(r"['\u2019]s\b", "", text)  # "Apple's" -> "Apple"
     words = [w.rstrip(".") for w in re.findall(r"[A-Za-z0-9][A-Za-z0-9.&-]*", text)]
     for prev, w in zip(["", *words], words, strict=False):
@@ -94,7 +104,11 @@ def resolve_company(db: Session, text: str) -> Company | None:
                 if len(phrase) < 3:
                     continue
                 hits, _ = search_companies(db, phrase, limit=50)
-                found += [(h, phrase) for h in hits if h.match_type in _MATCH_RANK]
+                found += [
+                    (h, phrase)
+                    for h in hits
+                    if h.match_type in _MATCH_RANK and (not follow_up or _named(h, phrase))
+                ]
             if found:
                 # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal.
                 best, _ = max(found, key=lambda x: (_match_rank(*x), _name_score(*x)))
@@ -103,6 +117,15 @@ def resolve_company(db: Session, text: str) -> Company | None:
 
 
 _MATCH_RANK = {"ticker": 3, "name_exact": 2, "name_prefix": 1}
+
+
+def _named(hit, phrase: str) -> bool:
+    """Whether the phrase clearly names this company rather than merely starting its name."""
+    if hit.match_type == "ticker":
+        return phrase.isupper()
+    if hit.match_type == "name_exact" or _core_name(hit.company.legal_name) == _core_name(phrase):
+        return True
+    return phrase[:1].isupper()
 
 
 def _match_rank(hit, phrase: str) -> int:
@@ -114,7 +137,7 @@ def _match_rank(hit, phrase: str) -> int:
 
 _CORP_WORDS = {
     "inc", "incorporated", "corp", "corporation", "co", "company", "ltd", "limited", "plc",
-    "llc", "lp", "sa", "nv", "ag", "the", "new",
+    "llc", "lp", "sa", "nv", "ag", "the", "new", "com",
 }  # fmt: skip
 
 
