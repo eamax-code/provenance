@@ -25,24 +25,6 @@ class DownLLM:
         raise LLMUnavailable("The local language model could not be reached.")
 
 
-@pytest.fixture
-def items_aapl(db, sec_client, fake_sec, submissions_aapl):
-    """AAPL with 8-K item codes, including an officer change (item 5.02)."""
-    recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
-    recent["items"] = ["" for _ in recent["accessionNumber"]]
-    for i, form in enumerate(recent["form"]):
-        if form == "8-K":
-            recent["items"][i] = "5.02,9.01"
-            break
-    fake_sec.add(
-        "https://data.sec.gov/submissions/CIK0000320193.json",
-        {**submissions_aapl, "filings": {"recent": recent}},
-    )
-    from app.services.ingestion import ingest_company
-
-    return ingest_company(db, sec_client, "320193")
-
-
 def test_filings_expose_8k_items(client, auth, items_aapl):
     data = client.get("/v1/companies/320193/filings?form_type=8-K", headers=auth).json()["data"]
     assert ["5.02", "9.01"] in [f["items"] for f in data]
@@ -264,7 +246,7 @@ def test_leadership_answer_counts_all_filings_not_just_those_listed(
     body = client.post(
         "/v1/chat", json={"message": "Apple CEO change?", "as_of": "2024-12-31"}, headers=auth
     ).json()
-    assert "filed 7 8-Ks" in body["answer"] and "the latest 5" in body["answer"]
+    assert "7 8-Ks with item 5.02" in body["answer"] and "the latest 5" in body["answer"]
 
 
 def test_name_match_prefers_the_listed_company(db, items_aapl):
@@ -285,3 +267,14 @@ def test_name_match_prefers_the_listed_company(db, items_aapl):
     )
     db.commit()
     assert intel.resolve_company(db, "how is apple doing").cik == "0000320193"
+    db.add(
+        Company(
+            cik="0000999992",
+            legal_name="Apple Hospitality REIT, Inc.",
+            ticker="APLE",
+            source_url="https://data.sec.gov/submissions/CIK0000999992.json",
+            first_detected_at=listed.first_detected_at,
+        )
+    )
+    db.commit()
+    assert intel.resolve_company(db, "leadership changes at Apple").cik == "0000320193"

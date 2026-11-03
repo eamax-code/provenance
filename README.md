@@ -161,6 +161,13 @@ The chat works without a model: it returns the cited data brief. To add written 
 the internet, and every answer is checked: citations must exist and every number must appear in
 the cited data, or the reply is flagged. Measured on an M4 Pro: about 2.5 to 6 s per answer.
 
+Leadership questions ("What are the recent leadership changes at Microsoft?") are answered from
+8-K item 5.02 text. The first time a filing is needed, its item 5.02 section is fetched from
+EDGAR (needs `SEC_USER_AGENT`) and stored; the model lists who, role, what changed, effective
+date, stated reason and successor. A person whose name is not in the text is dropped, and each
+row is traced to the filing sentence it came from, or marked unverified. The public demo key
+never triggers these fetches. `scripts/read_officer_changes.py --cik ...` reads ahead of time.
+
 ### Facts semantics worth knowing
 
 - `period=annual|quarterly|all` filters on `period_class`, which is computed from the reported

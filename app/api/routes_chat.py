@@ -11,12 +11,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import db_session, require_reader, settings_dep
+from app.api.routes_companies import get_sec_client_factory
 from app.core.config import Settings
 from app.core.errors import APIError
 from app.core.rate_limits import FixedWindowRateLimiter
 from app.db.models import Company
 from app.schemas.common import ErrorEnvelope
-from app.services import intel
+from app.services import intel, officer_changes
 from app.services.company_lookup import search_companies
 from app.services.llm import LLMUnavailable, LocalLLM
 from app.services.sec_client import normalize_cik
@@ -153,6 +154,23 @@ def get_llm(request: Request, settings: Settings) -> LocalLLM:
     return factory() if factory else LocalLLM(settings)
 
 
+def _read_leadership_filings(request, db, settings, company, as_of) -> None:
+    """Fetch and read item 5.02 text the first time someone asks. The public demo key never
+    triggers SEC requests; it sees what has already been read."""
+    can_fetch = (
+        settings.officer_extraction_enabled
+        and "contact=" in settings.sec_user_agent
+        and not getattr(request.state, "demo", False)
+    )
+    filings = intel.leadership_filings(db, company.cik, as_of)
+    sec = get_sec_client_factory(request)() if can_fetch else None
+    try:
+        officer_changes.ensure_extracted(db, filings, sec=sec, llm=get_llm(request, settings))
+    finally:
+        if sec is not None:
+            sec.close()
+
+
 @router.post(
     "",
     response_model=ChatReply,
@@ -205,6 +223,9 @@ def chat(
                 403, "demo_scope", "The demo key covers the public showcase companies only."
             )
 
+    leadership_q = intel.is_leadership_question(body.message)
+    if leadership_q:
+        _read_leadership_filings(request, db, settings, company, body.as_of)
     brief = intel.build_brief(db, company, as_of=body.as_of)
     brief_out = {
         "as_of": body.as_of.isoformat() if body.as_of else None,
@@ -220,7 +241,7 @@ def chat(
             f"The latest {company.legal_name} filing loaded here was filed {cov['last_filed']}; "
             "newer filings are not included."
         )
-    if intel.is_leadership_question(body.message):
+    if leadership_q:
         answer = intel.leadership_answer(brief)
         return ChatReply(
             company=_company_dict(company),

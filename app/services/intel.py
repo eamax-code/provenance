@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, Filing, FinancialFact
+from app.services import officer_changes
 from app.services.company_lookup import search_companies
 from app.services.form8k import ITEM_TITLES, LEADERSHIP_ITEM, split_items
 from app.services.point_in_time import known_by
@@ -78,13 +79,28 @@ def resolve_company(db: Session, text: str) -> Company | None:
             phrase = " ".join(useful[i : i + size])
             if len(phrase) < 3:
                 continue
-            hits, _ = search_companies(db, phrase, limit=10)
+            hits, _ = search_companies(db, phrase, limit=50)
             good = [h for h in hits if h.match_type in ("ticker", "name_exact", "name_prefix")]
             if good:
-                # "Hawaiian Electric" names a parent and a subsidiary; prefer the listed one.
                 best = [h for h in good if h.match_type == good[0].match_type]
-                return next((h.company for h in best if h.company.ticker), best[0].company)
+                return max(best, key=lambda h: _name_score(h.company, phrase)).company
     return None
+
+
+_CORP_WORDS = {
+    "inc", "incorporated", "corp", "corporation", "co", "company", "ltd", "limited", "plc",
+    "llc", "lp", "sa", "nv", "ag", "the", "new",
+}  # fmt: skip
+
+
+def _core_name(name: str) -> str:
+    words = re.findall(r"[a-z0-9&]+", name.lower())
+    return " ".join(w for w in words if w not in _CORP_WORDS)
+
+
+def _name_score(c: Company, phrase: str) -> tuple:
+    """ "Apple" means Apple Inc., not Apple REIT Six; "Hawaiian Electric" the listed parent."""
+    return (bool(c.ticker), _core_name(c.legal_name) == _core_name(phrase), -len(c.legal_name))
 
 
 def _money(v: Decimal | float) -> str:
@@ -203,15 +219,7 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
         b.context_lines.append(line + ".")
 
     since = date.fromisoformat(cov["since"])
-    leadership = [
-        f
-        for f in db.scalars(
-            stmt.where(Filing.items.like(f"%{LEADERSHIP_ITEM}%"), Filing.filing_date >= since)
-            .order_by(Filing.filing_date.desc())
-            .limit(5)
-        )
-        if LEADERSHIP_ITEM in split_items(f.items)
-    ]
+    leadership = leadership_filings(db, company.cik, as_of)
     b.coverage["leadership_since"] = db.scalar(
         select(func.count()).select_from(
             stmt.where(Filing.items.like(f"%{LEADERSHIP_ITEM}%"), Filing.filing_date >= since)
@@ -219,15 +227,50 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
             .subquery()
         )
     )
+    readings = officer_changes.changes_by_accession(db, [f.accession_number for f in leadership])
     for f in leadership:
         n = b.cite(f"8-K item 5.02 filed {f.filing_date}", f.source_url)
-        b.leadership_filings.append(_filing_card(f, split_items(f.items), n))
-        b.context_lines.append(
-            f"[{n}] Leadership change disclosed: 8-K filed {f.filing_date} under item 5.02 "
-            "(departure or appointment of directors or officers). Names are in the filing text, "
-            "which is not summarised here."
-        )
+        card = _filing_card(f, split_items(f.items), n)
+        reading = readings.get(f.accession_number)
+        card["reading"] = reading["status"] if reading else "not_read"
+        card["changes"] = [
+            officer_changes.change_dict(c) for c in (reading or {}).get("changes", [])
+        ]
+        b.leadership_filings.append(card)
+        if card["changes"]:
+            for c in reading["changes"]:
+                flag = "" if c.verified else " (details not confirmed against the filing text)"
+                b.context_lines.append(
+                    f"[{n}] Leadership change in 8-K filed {f.filing_date} (item 5.02): "
+                    f"{officer_changes.describe(c)}{flag}"
+                )
+        else:
+            b.context_lines.append(
+                f"[{n}] Leadership filing: 8-K filed {f.filing_date} under item 5.02 "
+                "(directors or officers). "
+                + (
+                    "It names no individual director or officer change."
+                    if card["reading"] == "ok"
+                    else "Its text has not been read here."
+                )
+            )
     return b
+
+
+def leadership_filings(db: Session, cik: str, as_of: date | None, limit: int = 5) -> list[Filing]:
+    """The latest 8-Ks with item 5.02 within the leadership window."""
+    ref = as_of or date.today()
+    stmt = select(Filing).where(
+        Filing.cik == cik,
+        Filing.items.like(f"%{LEADERSHIP_ITEM}%"),
+        Filing.filing_date >= ref - timedelta(days=LEADERSHIP_YEARS * 365),
+    )
+    if as_of:
+        stmt = stmt.where(Filing.filing_date <= as_of)
+    rows = db.scalars(
+        stmt.order_by(Filing.filing_date.desc(), Filing.accession_number.desc()).limit(limit)
+    )
+    return [f for f in rows if LEADERSHIP_ITEM in split_items(f.items)]
 
 
 def _coverage(db: Session, cik: str, as_of: date | None) -> dict:
@@ -265,7 +308,6 @@ def leadership_answer(b: Brief) -> str:
     name, cov = b.company.legal_name, b.coverage
     since = cov["since"]
     if b.leadership_filings:
-        refs = ", ".join(f"{f['filing_date']} [{f['citation']}]" for f in b.leadership_filings)
         total = max(cov.get("leadership_since") or 0, len(b.leadership_filings))
         shown = (
             ""
@@ -273,11 +315,38 @@ def leadership_answer(b: Brief) -> str:
             else f"; the latest {len(b.leadership_filings)}"
         )
         lines = [
-            f"{name} filed {_count(total, '8-K')} reporting a change of directors or "
-            f"officers (item 5.02) since {since}{shown}: {refs}.",
-            "Who joined or left is written in each filing; this service does not extract names "
-            "yet, so open the linked filing for the details.",
+            f"Recent leadership changes at {name}: {_count(total, '8-K')} with item 5.02 "
+            f"(directors and officers) since {since}{shown}.",
+            "",
         ]
+        unverified = unread = False
+        for f in b.leadership_filings:
+            ref = f"[{f['citation']}]"
+            if f["changes"]:
+                for c in f["changes"]:
+                    mark = "" if c["verified"] else " (unverified)"
+                    unverified |= not c["verified"]
+                    lines.append(f"• {f['filing_date']}: {c['sentence']}{mark} {ref}")
+            elif f["reading"] == "ok":
+                lines.append(
+                    f"• {f['filing_date']}: names no individual director or officer change "
+                    f"(often a pay plan or arrangement) {ref}"
+                )
+            else:
+                unread = True
+                lines.append(f"• {f['filing_date']}: filing text not read yet {ref}")
+        lines.append("")
+        lines.append(
+            "Names and reasons are read from each filing's text by the local model and checked "
+            "against it."
+            + (
+                ' "Unverified" means the quoted sentence could not be matched exactly.'
+                if unverified
+                else ""
+            )
+            + (" Unread filings need SEC access to be read." if unread else "")
+        )
+        return "\n".join(lines)
     elif cov["eight_ks_since"] and cov["eight_ks_with_items"] == cov["eight_ks_since"]:
         lines = [
             f"None of the {_count(cov['eight_ks_since'], '8-K')} loaded for {name} since {since} "

@@ -4,15 +4,16 @@
 
 **Blocked by:** 01 (live EDGAR polling needs the SEC contact address); owner decisions below.
 
-**Status:** needs-triage
+**Status:** in progress (extraction done 2026-11-03; feed, tenure context and backtests remain)
 
 Research (2026-11-03): no free news API allows commercial use (NewsAPI, GNews, Finnhub, Alpha Vantage, Marketaux, Polygon/Massive and Tiingo free tiers are personal or non-commercial). PR Newswire and Business Wire forbid redistribution and data mining. Google News and Yahoo forbid automated commercial use. GDELT allows commercial use but gives headlines, URLs and tone only, with no article text. SEC EDGAR is free and redistributable; an 8-K appeared in the latest-filings feed about 2 minutes after acceptance. Item 5.02 must be filed within four business days.
 
 - [ ] Owner: confirm framing as evidence-backed event records, not buy/sell signals (US publisher exclusion; get Indian counsel's view on SEBI research-analyst and investment-adviser rules)
-- [ ] Owner: LLM provider and monthly budget
-- [ ] Store 8-K `items` on filings; `items=` filter on `/v1/events`
+- [x] Owner: LLM provider and monthly budget (local Ollama qwen3:4b-instruct, no API cost)
+- [x] Store 8-K `items` on filings
+- [ ] `items=` filter on `/v1/events`
 - [ ] Poll EDGAR latest-filings (8-K) every 30-60 s within fair-access limits
-- [ ] Extraction with verbatim evidence spans (each span checked against the filing text); low-confidence results marked
+- [x] Extraction with verbatim evidence spans (each span traced to a filing sentence); unverified rows marked (`app/services/officer_changes.py`, tables `filing_sections`, `officer_changes`)
 - [ ] Tenure context from point-in-time facts; peer comparison by SIC
 - [ ] Before any score or weighting: backtest historical 5.02 events with `as_of` to measure base rates, and publish base rates instead of hand-set weights
 - [ ] Optional: GDELT headline links as corroboration (metadata only, with attribution)

@@ -108,11 +108,11 @@ class FakeSEC:
     """httpx MockTransport serving fixture payloads for SEC URLs with ETag support."""
 
     def __init__(self):
-        self.routes: dict[str, tuple[int, dict | None]] = {}
+        self.routes: dict[str, tuple[int, dict | str | None]] = {}
         self.calls: list[str] = []
         self.fail_statuses: list[int] = []
 
-    def add(self, url: str, payload: dict | None, status: int = 200):
+    def add(self, url: str, payload: dict | str | None, status: int = 200):
         self.routes[url] = (status, payload)
 
     def handler(self, request: httpx.Request) -> httpx.Response:
@@ -126,7 +126,8 @@ class FakeSEC:
         status, payload = self.routes[url]
         if status != 200:
             return httpx.Response(status)
-        body = json.dumps(payload).encode()
+        text = isinstance(payload, str)  # an EDGAR document rather than JSON
+        body = payload.encode() if text else json.dumps(payload).encode()
         etag = '"' + str(hash(body)) + '"'
         if request.headers.get("If-None-Match") == etag:
             return httpx.Response(304)
@@ -136,7 +137,7 @@ class FakeSEC:
             headers={
                 "ETag": etag,
                 "Last-Modified": "Fri, 01 Nov 2024 06:05:00 GMT",
-                "Content-Type": "application/json",
+                "Content-Type": "text/html" if text else "application/json",
             },
         )
 
@@ -256,3 +257,21 @@ def add_listings(db):
         markets_ingest.ingest_records(db, records, "esma_firds")
 
     return _add
+
+
+@pytest.fixture
+def items_aapl(db, sec_client, fake_sec, submissions_aapl):
+    """AAPL with 8-K item codes, including an officer change (item 5.02)."""
+    recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
+    recent["items"] = ["" for _ in recent["accessionNumber"]]
+    for i, form in enumerate(recent["form"]):
+        if form == "8-K":
+            recent["items"][i] = "5.02,9.01"
+            break
+    fake_sec.add(
+        "https://data.sec.gov/submissions/CIK0000320193.json",
+        {**submissions_aapl, "filings": {"recent": recent}},
+    )
+    from app.services.ingestion import ingest_company
+
+    return ingest_company(db, sec_client, "320193")

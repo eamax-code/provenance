@@ -84,6 +84,8 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 90.0
     llm_max_answer_tokens: int = 700
     chat_rate_limit_per_minute: int = 10
+    # Read 8-K item 5.02 text from EDGAR when a chat question needs it (needs SEC_USER_AGENT).
+    officer_extraction_enabled: bool = True
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12

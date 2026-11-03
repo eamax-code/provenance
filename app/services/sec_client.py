@@ -219,8 +219,15 @@ class SecClient:
 
     # -- fetch -------------------------------------------------------------------------
     def get_json(self, url: str) -> SecResponse:
+        return self._get(url, as_text=False)
+
+    def get_text(self, url: str) -> SecResponse:
+        """An EDGAR document (HTML or text) as a string in `data`, cached like JSON."""
+        return self._get(url, as_text=True)
+
+    def _get(self, url: str, as_text: bool) -> SecResponse:
         cached = self._cache_read(url)
-        headers: dict[str, str] = {}
+        headers: dict[str, str] = {"Accept": "text/html, text/plain"} if as_text else {}
         if cached:
             if cached.get("etag"):
                 headers["If-None-Match"] = cached["etag"]
@@ -312,10 +319,13 @@ class SecClient:
             body_bytes = resp.content
             if len(body_bytes) > self.settings.sec_max_response_bytes:
                 raise SecClientError("SEC response exceeded size limit", url=url)
-            try:
-                data = json.loads(body_bytes)
-            except ValueError as exc:
-                raise SecClientError("SEC response was not valid JSON", url=url) from exc
+            if as_text:
+                data = body_bytes.decode(resp.encoding or "utf-8", errors="replace")
+            else:
+                try:
+                    data = json.loads(body_bytes)
+                except ValueError as exc:
+                    raise SecClientError("SEC response was not valid JSON", url=url) from exc
 
             payload_hash = hashlib.sha256(body_bytes).hexdigest()
             etag = resp.headers.get("ETag")

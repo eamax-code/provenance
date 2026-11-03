@@ -451,3 +451,56 @@ class MarketSourceFile(Base):
     records_ingested: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     processed_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class FilingSection(Base):
+    """One item of a filing's text, fetched once and kept so it can be re-read without SEC."""
+
+    __tablename__ = "filing_sections"
+    __table_args__ = (
+        UniqueConstraint("accession_number", "item", name="uq_filing_sections_accession_item"),
+        Index("ix_filing_sections_cik", "cik"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    item: Mapped[str] = mapped_column(String(10), nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)  # ok, no_section, fetch_failed
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    # Extraction from the text, rerun when the extractor version changes.
+    extractor_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extraction_status: Mapped[str | None] = mapped_column(Text, nullable=True)  # ok, failed
+    extracted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    model: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class OfficerChange(Base):
+    """A change of a director or officer read from an 8-K item 5.02, with its evidence."""
+
+    __tablename__ = "officer_changes"
+    __table_args__ = (
+        UniqueConstraint("accession_number", "seq", name="uq_officer_changes_accession_seq"),
+        Index("ix_officer_changes_cik_filing_date", "cik", "filing_date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    person: Mapped[str | None] = mapped_column(Text, nullable=True)
+    role: Mapped[str | None] = mapped_column(Text, nullable=True)
+    change_type: Mapped[str] = mapped_column(Text, nullable=False)
+    what: Mapped[str | None] = mapped_column(Text, nullable=True)
+    effective: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    successor: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    extractor_version: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extracted_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
