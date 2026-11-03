@@ -49,6 +49,10 @@
     var c = body.company;
     $('side-name').textContent = c.legal_name;
     $('side-meta').textContent = [c.ticker, c.exchange, 'CIK ' + c.cik, c.sic_description].filter(Boolean).join(' · ');
+    var cov = body.brief.coverage || {};
+    $('side-coverage').textContent = cov.filings
+      ? 'Loaded here: ' + cov.filings + ' filings, ' + cov.first_filed + ' to ' + cov.last_filed + (cov.stale ? ' (newer filings not loaded)' : '')
+      : 'No filings loaded for this company.';
     var m = $('side-metrics'); m.textContent = '';
     (body.brief.metrics || []).forEach(function (x) {
       var row = el('div', 'metric');
@@ -63,7 +67,12 @@
     (body.brief.leadership_filings || []).forEach(function (f) {
       var li = el('li'); li.appendChild(link(f.source_url, f.form_type + ' · ' + f.filing_date)); lead.appendChild(li);
     });
-    if (!lead.childNodes.length) lead.appendChild(el('li', 'muted', 'None in the last three years of loaded filings.'));
+    if (!lead.childNodes.length) {
+      var why = !cov.eight_ks_since ? 'No 8-Ks loaded since ' + cov.since + ', so unknown.'
+        : cov.eight_ks_with_items < cov.eight_ks_since ? 'Some loaded 8-Ks lack item codes, so unknown.'
+        : 'None among ' + cov.eight_ks_since + ' 8-Ks loaded since ' + cov.since + '.';
+      lead.appendChild(el('li', 'muted', why));
+    }
     var fl = $('side-filings'); fl.textContent = '';
     (body.brief.filings || []).forEach(function (f) {
       var li = el('li');
@@ -114,13 +123,17 @@
         else out.appendChild(el('p', 'muted', 'The language model is not available right now; the data for ' + b.company.legal_name + ' is shown on the right.'));
         if (b.answer && b.checks) {
           var ok = b.checks.grounded;
-          var msg = ok ? 'Every number and citation matches the SEC data shown.' :
+          var msg = ok ? 'Numbers and citations checked against the SEC data shown.' :
             'Check carefully: ' + [b.checks.unverified_numbers && b.checks.unverified_numbers.length ? 'numbers not found in the data: ' + b.checks.unverified_numbers.join(', ') : '',
               b.checks.unknown_citations && b.checks.unknown_citations.length ? 'unknown citations: ' + b.checks.unknown_citations.join(', ') : '',
+              b.checks.bare_citation_lines && b.checks.bare_citation_lines.length ? 'citations not attached to any statement' : '',
               !(b.checks.citations_used || []).length ? 'no citations given' : ''].filter(Boolean).join('; ');
           out.appendChild(el('div', 'checks ' + (ok ? 'ok' : 'warn'), msg));
         }
-        if (b.model) out.appendChild(el('div', 'model', 'Written by ' + b.model + ' (local) · ' + (b.brief.as_of ? 'as of ' + b.brief.as_of : 'latest data')));
+        var when = b.brief.as_of ? 'as of ' + b.brief.as_of : 'latest data';
+        if (b.answered_by === 'data') out.appendChild(el('div', 'model', 'Answered directly from the SEC data loaded here · ' + when));
+        else if (b.model) out.appendChild(el('div', 'model', 'Written by ' + b.model + ' (local) · ' + when));
+        (b.notes || []).slice(1).forEach(function (n) { out.appendChild(el('div', 'model', n)); });
         addMsg('bot', out);
       })
       .catch(function () { pending.remove(); addMsg('bot', 'Network error. Try again.'); })

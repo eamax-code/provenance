@@ -121,6 +121,63 @@ def test_check_answer_accepts_form_names_from_prompt():
     assert check_answer(answer, "[1] Company: Apple Inc.", 1)["grounded"]
 
 
+def test_leadership_question_is_answered_from_data(app, client, auth, items_aapl):
+    fake = FakeLLM()
+    app.state.llm_factory = lambda: fake
+    body = client.post(
+        "/v1/chat",
+        json={"message": "Any leadership changes at AAPL?", "as_of": "2024-12-31"},
+        headers=auth,
+    ).json()
+    assert body["answered_by"] == "data" and body["model"] is None and not fake.calls
+    lead = body["brief"]["leadership_filings"][0]
+    assert f"[{lead['citation']}]" in body["answer"] and "item 5.02" in body["answer"]
+    assert body["checks"]["grounded"] is True
+
+
+def test_leadership_answer_admits_missing_item_codes(app, client, auth, ingested_aapl):
+    app.state.llm_factory = lambda: FakeLLM()
+    body = client.post(
+        "/v1/chat", json={"message": "Did Apple's CFO resign?", "as_of": "2024-12-31"}, headers=auth
+    ).json()
+    assert body["answered_by"] == "data"
+    assert "can't be ruled out" in body["answer"]
+    cov = body["brief"]["coverage"]
+    assert cov["eight_ks_since"] >= 1 and cov["eight_ks_with_items"] == 0
+
+
+def test_leadership_answer_without_8ks_states_coverage(app, client, auth, items_aapl):
+    body = client.post(
+        "/v1/chat",
+        json={"message": "Who is the CEO?", "cik": "320193", "as_of": "2023-12-31"},
+        headers=auth,
+    ).json()
+    assert "No 8-K filings" in body["answer"] and "latest filed 2023-11-03" in body["answer"]
+    assert not any("newer filings" in n for n in body["notes"])  # 58 days old: not stale
+
+
+def test_pay_question_goes_to_model(app, client, auth, items_aapl):
+    fake = FakeLLM()
+    app.state.llm_factory = lambda: fake
+    body = client.post(
+        "/v1/chat", json={"message": "What is Apple's executive pay?"}, headers=auth
+    ).json()
+    assert body["answered_by"] == "model" and fake.calls
+
+
+def test_check_answer_flags_citations_on_their_own_line():
+    ctx = "[1] Company: Apple Inc.\n[2] Revenue: $391.0 billion."
+    checks = check_answer("Not shown in the data.\n[1][2]", ctx, 2)
+    assert checks["bare_citation_lines"] == ["[1][2]"] and checks["grounded"] is False
+
+
+def test_brief_context_states_coverage(app, client, auth, items_aapl):
+    fake = FakeLLM()
+    app.state.llm_factory = lambda: fake
+    client.post("/v1/chat", json={"message": "Summarise AAPL"}, headers=auth)
+    assert "Filings loaded in this service for the company: " in fake.calls[0][1]["content"]
+
+
 def test_chat_page_is_served_and_linked(client):
     r = client.get("/chat/")
     assert r.status_code == 200 and 'src="/chat.js"' in r.text

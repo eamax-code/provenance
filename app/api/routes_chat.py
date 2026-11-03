@@ -26,10 +26,12 @@ chat_limiter = FixedWindowRateLimiter(window_seconds=60)
 
 SYSTEM_PROMPT = """You are Provenance's company-intelligence assistant.
 Answer ONLY from the CONTEXT, which comes from SEC filings. Rules:
-- Every sentence with a fact or number ends with its citation in square brackets, e.g. [2].
+- Put the citation right after the statement it supports, e.g. "Revenue rose [2]."
+  Never list citations on a line of their own.
 - Copy numbers exactly as written in the CONTEXT. Never compute new numbers, never estimate.
-- If the CONTEXT does not contain the answer, say that the filings loaded here do not show it,
-  and suggest which SEC form would (for example 10-K, 8-K item 5.02, DEF 14A, Form 4).
+- If the CONTEXT does not answer the question, say so in one sentence, and say what the
+  CONTEXT does cover (which filings are loaded and up to what date), with its citation.
+  Do not tell the user to look elsewhere and do not pad the answer.
 - No investment advice, price predictions or buy/sell opinions.
 - Be concise: at most 6 short sentences or bullet points."""
 
@@ -56,6 +58,9 @@ class ChatReply(BaseModel):
     citations: list[dict]
     checks: dict
     model: str | None
+    answered_by: str | None = Field(
+        None, description="'data' for a direct lookup, 'model' when the local model wrote it"
+    )
     suggestions: list[dict] = []
     notes: list[str]
 
@@ -72,6 +77,10 @@ def _company_dict(c: Company) -> dict:
     }
 
 
+# Form and item names a correct answer may mention without them being figures.
+FORM_NAMES = "10-K 10-Q 8-K item 5.02 DEF 14A Form 3 4 5 13F 13D 13G S-1 S-3 424B 20-F 6-K"
+
+
 def _numbers(text: str) -> set[str]:
     return {m.replace(",", "") for m in re.findall(r"\d[\d,]*(?:\.\d+)?", text)}
 
@@ -80,7 +89,12 @@ def check_answer(answer: str, context: str, n_citations: int) -> dict:
     """Flag citations that do not exist and numbers that do not appear in the context."""
     cited = {int(c) for c in re.findall(r"\[(\d{1,3})\]", answer)}
     unknown = sorted(c for c in cited if c < 1 or c > n_citations)
-    known_numbers = _numbers(context) | _numbers(SYSTEM_PROMPT)  # form names: 5.02, 14A
+    known_numbers = _numbers(context) | _numbers(SYSTEM_PROMPT) | _numbers(FORM_NAMES)
+    bare = [
+        line.strip()
+        for line in answer.splitlines()
+        if line.strip() and not re.sub(r"[\s,;.]|\[\d{1,3}\]", "", line)
+    ]
     stripped = re.sub(r"\[\d{1,3}\]", "", answer)
     unverified = sorted(
         n
@@ -91,7 +105,8 @@ def check_answer(answer: str, context: str, n_citations: int) -> dict:
         "citations_used": sorted(cited),
         "unknown_citations": unknown,
         "unverified_numbers": unverified,
-        "grounded": not unknown and not unverified and bool(cited),
+        "bare_citation_lines": bare,
+        "grounded": not unknown and not unverified and not bare and bool(cited),
     }
 
 
@@ -158,8 +173,27 @@ def chat(
         "metrics": brief.metrics,
         "filings": brief.filings,
         "leadership_filings": brief.leadership_filings,
+        "coverage": brief.coverage,
     }
     notes = [DISCLAIMER]
+    cov = brief.coverage
+    if cov["stale"] and cov["last_filed"]:
+        notes.append(
+            f"The latest {company.legal_name} filing loaded here was filed {cov['last_filed']}; "
+            "newer filings are not included."
+        )
+    if intel.is_leadership_question(body.message):
+        answer = intel.leadership_answer(brief)
+        return ChatReply(
+            company=_company_dict(company),
+            answer=answer,
+            brief=brief_out,
+            citations=brief.citations,
+            checks=check_answer(answer, brief.context(), len(brief.citations)),
+            model=None,
+            answered_by="data",
+            notes=notes,
+        )
     answer, model, checks = None, None, {}
     try:
         reply = get_llm(request, settings).chat(
@@ -175,8 +209,8 @@ def chat(
         checks = check_answer(answer, brief.context(), len(brief.citations))
         if not checks["grounded"]:
             notes.append(
-                "Some statements in the answer could not be matched to the cited data; they are "
-                "listed under checks. Prefer the figures in the brief."
+                "Parts of the answer could not be matched to the cited data; they are listed "
+                "under checks. Prefer the figures in the brief."
             )
     except LLMUnavailable as exc:
         notes.append(f"{exc} Showing the data brief only.")
@@ -187,5 +221,6 @@ def chat(
         citations=brief.citations,
         checks=checks,
         model=model,
+        answered_by="model" if answer else None,
         notes=notes,
     )

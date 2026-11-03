@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, Filing, FinancialFact
@@ -31,6 +31,16 @@ _STOP = {
     "who", "tell", "me", "about", "show", "give", "company", "inc", "corp", "its", "their",
     "revenue", "growth", "cfo", "ceo", "filings", "latest", "did", "does", "do", "has", "have",
 }  # fmt: skip
+_LEADERSHIP_Q = re.compile(
+    r"\b(leadership|ceo|cfo|coo|cto|chief|executives?|officers?|directors?|board|management|"
+    r"resign\w*|appoint\w*|hired?|depart\w*|succession|successor|step(?:s|ped)? down|chair\w*)\b",
+    re.IGNORECASE,
+)
+_PAY_Q = re.compile(
+    r"\b(pay|paid|compensation|salary|salaries|bonus|stock awards?)\b", re.IGNORECASE
+)
+LEADERSHIP_YEARS = 3
+STALE_DAYS = 120
 
 
 @dataclass
@@ -42,6 +52,7 @@ class Brief:
     leadership_filings: list[dict] = field(default_factory=list)
     citations: list[dict] = field(default_factory=list)
     context_lines: list[str] = field(default_factory=list)
+    coverage: dict = field(default_factory=dict)
 
     def cite(self, label: str, url: str) -> int:
         self.citations.append({"n": len(self.citations) + 1, "label": label, "url": url})
@@ -119,6 +130,16 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
     b.context_lines.append("".join(parts) + ".")
     if as_of:
         b.context_lines.append(f"All figures are as known on {as_of.isoformat()}.")
+    b.coverage = _coverage(db, company.cik, as_of)
+    cov = b.coverage
+    if cov["filings"]:
+        b.context_lines.append(
+            f"[{n}] Filings loaded in this service for the company: {cov['filings']}, filed "
+            f"{cov['first_filed']} to {cov['last_filed']}; 8-K filings since {cov['since']}: "
+            f"{cov['eight_ks_since']}. Anything filed after {cov['last_filed']} is not loaded."
+        )
+    else:
+        b.context_lines.append(f"[{n}] No filings are loaded in this service for the company.")
 
     for metric, label in METRIC_LABELS.items():
         series = _annual_series(db, company.cik, metric, as_of)
@@ -175,7 +196,7 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
             )
         b.context_lines.append(line + ".")
 
-    since = (as_of or date.today()) - timedelta(days=3 * 365)
+    since = date.fromisoformat(cov["since"])
     leadership = [
         f
         for f in db.scalars(
@@ -194,6 +215,76 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
             "which is not summarised here."
         )
     return b
+
+
+def _coverage(db: Session, cik: str, as_of: date | None) -> dict:
+    """How much of the company's filing history is loaded, so answers can say what they cover."""
+    ref = as_of or date.today()
+    since = ref - timedelta(days=LEADERSHIP_YEARS * 365)
+    base = select(Filing).where(Filing.cik == cik)
+    if as_of:
+        base = base.where(Filing.filing_date <= as_of)
+    sub = base.subquery()
+    total, first, last = db.execute(
+        select(func.count(), func.min(sub.c.filing_date), func.max(sub.c.filing_date))
+    ).one()
+    eight_ks = base.where(Filing.form_type.in_(["8-K", "8-K/A"]), Filing.filing_date >= since)
+    sub8 = eight_ks.subquery()
+    n8, n8_items = db.execute(select(func.count(), func.count(sub8.c["items"]))).one()
+    stale_days = (ref - last).days if last else None
+    return {
+        "filings": total,
+        "first_filed": first.isoformat() if first else None,
+        "last_filed": last.isoformat() if last else None,
+        "since": since.isoformat(),
+        "eight_ks_since": n8,
+        "eight_ks_with_items": n8_items,
+        "stale": stale_days is None or stale_days > STALE_DAYS,
+    }
+
+
+def is_leadership_question(text: str) -> bool:
+    return bool(_LEADERSHIP_Q.search(text)) and not _PAY_Q.search(text)
+
+
+def leadership_answer(b: Brief) -> str:
+    """Answer an officer/director question straight from the data; no model needed for a lookup."""
+    name, cov = b.company.legal_name, b.coverage
+    since = cov["since"]
+    if b.leadership_filings:
+        refs = ", ".join(f"{f['filing_date']} [{f['citation']}]" for f in b.leadership_filings)
+        k = len(b.leadership_filings)
+        lines = [
+            f"{name} filed {_count(k, '8-K')} reporting a change of directors or "
+            f"officers (item 5.02) since {since}: {refs}.",
+            "Who joined or left is written in each filing; this service does not extract names "
+            "yet, so open the linked filing for the details.",
+        ]
+    elif cov["eight_ks_since"] and cov["eight_ks_with_items"] == cov["eight_ks_since"]:
+        lines = [
+            f"None of the {_count(cov['eight_ks_since'], '8-K')} loaded for {name} since {since} "
+            "reports a change of directors or officers (item 5.02) [1]."
+        ]
+    elif cov["eight_ks_since"]:
+        k, missing = cov["eight_ks_since"], cov["eight_ks_since"] - cov["eight_ks_with_items"]
+        lines = [
+            f"{name} has {_count(k, '8-K')} loaded since {since}, and {missing} of them "
+            f"{'carries' if missing == 1 else 'carry'} no item codes, so officer or director "
+            "changes can't be ruled out from this data [1].",
+            "Refreshing the company from SEC adds the item codes.",
+        ]
+    else:
+        lines = [f"No 8-K filings for {name} since {since} are loaded in this service [1]."]
+        if cov["filings"]:
+            lines.append(
+                f"It holds {cov['filings']} filings for the company, the latest filed "
+                f"{cov['last_filed']}, so it can't tell whether directors or officers changed."
+            )
+    return " ".join(lines)
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}" + ("" if n == 1 else "s")
 
 
 def _filing_card(f: Filing, items: list[str], n: int) -> dict:
