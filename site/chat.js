@@ -88,28 +88,40 @@
     departure: ['Leaving', 'out'], retirement: ['Retiring', 'out'],
     not_standing_for_reelection: ['Not standing again', 'out'], compensation: ['Pay', 'pay'], other: ['Other', '']
   };
+  function initials(name) {
+    var parts = (name || '').replace(/[^A-Za-z\s.'-]/g, '').split(/\s+/).filter(function (w) { return w && !/^(jr|sr|ii|iii|iv)\.?$/i.test(w); });
+    if (!parts.length) return '·';
+    return (parts[0].charAt(0) + (parts.length > 1 ? parts[parts.length - 1].charAt(0) : '')).toUpperCase();
+  }
+  function fact(dl, label, value) {
+    if (!value) return;
+    dl.appendChild(el('dt', null, label)); dl.appendChild(el('dd', null, value));
+  }
+  // Name first and bold, the role under it in a smaller font, then the tags and the details.
   function changeCard(f, c, byN, delay) {
-    var card = el('div', 'cx-change'); card.style.animationDelay = delay + 's';
-    var top = el('div', 'cx-change-top');
     var tag = TAGS[c.change] || TAGS.other;
-    top.appendChild(el('span', 'cx-tag ' + tag[1], tag[0]));
-    top.appendChild(el('span', 'cx-change-date', 'Filed ' + f.filing_date));
-    if (!c.verified) top.appendChild(el('span', 'cx-unverified', 'Unverified'));
-    card.appendChild(top);
-    var who = el('div'); who.appendChild(el('span', 'cx-change-who', c.person || 'Company-wide'));
-    if (c.role) { who.appendChild(document.createTextNode(' ')); who.appendChild(el('span', 'cx-change-role', c.role)); }
-    card.appendChild(who);
-    var facts = [];
-    if (c.what) facts.push(c.what.charAt(0).toUpperCase() + c.what.slice(1));
-    if (c.effective && (c.what || '').toLowerCase().indexOf(c.effective.toLowerCase().replace(/^the /, '')) < 0) facts.push('Effective ' + c.effective);
-    if (c.reason) facts.push('Reason: ' + c.reason);
-    if (c.successor) facts.push((/^(appointment|election|role_change)$/.test(c.change) ? 'Replaces ' : 'Successor: ') + c.successor);
-    if (!facts.length) facts.push(c.change_label);
-    card.appendChild(el('div', 'cx-change-text', facts.join(' · ')));
+    var card = el('article', 'cx-change ' + tag[1]); card.style.animationDelay = delay + 's';
+    var head = el('div', 'cx-change-head');
+    head.appendChild(el('span', 'cx-initials', c.person ? initials(c.person) : '·'));
+    var who = el('div');
+    who.appendChild(el('h4', 'cx-change-who', c.person || 'Company-wide'));
+    if (c.role) who.appendChild(el('p', 'cx-change-role', c.role.charAt(0).toUpperCase() + c.role.slice(1)));
+    head.appendChild(who); card.appendChild(head);
+    var tags = el('div', 'cx-change-tags');
+    tags.appendChild(el('span', 'cx-tag ' + tag[1], tag[0]));
+    tags.appendChild(el('span', 'cx-tag plain', 'Filed ' + f.filing_date));
+    if (!c.verified) { var u = el('span', 'cx-tag warn', 'Unverified'); u.title = 'The quoted sentence could not be matched exactly in the filing'; tags.appendChild(u); }
+    card.appendChild(tags);
+    var dl = el('dl', 'cx-change-facts');
+    fact(dl, 'What', c.what ? c.what.charAt(0).toUpperCase() + c.what.slice(1) : c.change_label);
+    if (c.effective && (c.what || '').toLowerCase().indexOf(c.effective.toLowerCase().replace(/^the /, '')) < 0) fact(dl, 'Effective', c.effective);
+    fact(dl, 'Reason', c.reason ? c.reason.charAt(0).toUpperCase() + c.reason.slice(1) : '');
+    if (c.successor) fact(dl, /^(appointment|election|role_change)$/.test(c.change) ? 'Replaces' : 'Successor', c.successor);
+    card.appendChild(dl);
     if (c.evidence) {
       var d = el('details'), s = el('summary', null, 'From the filing');
       d.appendChild(s);
-      var q = el('blockquote', null, c.evidence); d.appendChild(q);
+      d.appendChild(el('blockquote', null, c.evidence));
       var src = el('div', 'cx-note'); src.appendChild(document.createTextNode('Source: '));
       inline('8-K filed ' + f.filing_date + ' [' + f.citation + ']', byN, src); d.appendChild(src);
       card.appendChild(d);
@@ -125,11 +137,13 @@
       if (f.changes && f.changes.length) {
         f.changes.forEach(function (c) { box.appendChild(changeCard(f, c, byN, (k++) * 0.06)); });
       } else {
-        var card = el('div', 'cx-change'); card.style.animationDelay = (k++) * 0.06 + 's';
-        var top = el('div', 'cx-change-top');
-        top.appendChild(el('span', 'cx-tag', f.reading === 'ok' ? 'No named change' : 'Not read yet'));
-        top.appendChild(el('span', 'cx-change-date', 'Filed ' + f.filing_date));
-        card.appendChild(top);
+        var card = el('article', 'cx-change'); card.style.animationDelay = (k++) * 0.06 + 's';
+        var head = el('div', 'cx-change-head');
+        head.appendChild(el('span', 'cx-initials', '8-K'));
+        var who = el('div');
+        who.appendChild(el('h4', 'cx-change-who', f.reading === 'ok' ? 'No named change' : 'Not read yet'));
+        who.appendChild(el('p', 'cx-change-role', 'Filed ' + f.filing_date));
+        head.appendChild(who); card.appendChild(head);
         var t = el('div', 'cx-change-text');
         inline((f.reading === 'ok' ? 'The item names no individual director or officer change (often a pay plan or arrangement). ' : 'This filing has not been read yet. ') + '[' + f.citation + ']', byN, t);
         card.appendChild(t);
@@ -141,7 +155,155 @@
     if (foot) target.appendChild(el('p', 'cx-note', foot));
   }
   function isLeadership(reply) {
-    return reply.answered_by === 'data' && reply.brief && (reply.brief.leadership_filings || []).length > 0;
+    var hasFilings = reply.brief && (reply.brief.leadership_filings || []).length > 0;
+    if (reply.intent) return reply.intent === 'leadership' && hasFilings;
+    return reply.answered_by === 'data' && hasFilings; // replies saved before "intent" existed
+  }
+
+  // ---- widgets: charts and figure tiles from the cited data ----
+  var chartLib = null;
+  function loadChartLib() {
+    if (window.Chart) return Promise.resolve(window.Chart);
+    if (!chartLib) {
+      chartLib = new Promise(function (resolve, reject) {
+        var sc = document.createElement('script');
+        sc.src = '/vendor/chartjs-4.4.7/chart.umd.min.js';
+        sc.onload = function () { resolve(window.Chart); };
+        sc.onerror = function () { chartLib = null; reject(new Error('chart library unavailable')); };
+        document.head.appendChild(sc);
+      });
+    }
+    return chartLib;
+  }
+  function css(name) { return getComputedStyle(body).getPropertyValue(name).trim(); }
+  function short(v) {
+    var a = Math.abs(v), units = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+    for (var i = 0; i < units.length; i++) if (a >= units[i][0]) return (v < 0 ? '-$' : '$') + (a / units[i][0]).toFixed(a / units[i][0] >= 100 ? 0 : 1) + units[i][1];
+    return '$' + v.toFixed(0);
+  }
+  function delta(p) {
+    if (p == null) return null;
+    return el('span', 'cx-delta ' + (p >= 0 ? 'up' : 'down'), (p > 0 ? '+' : '') + p.toFixed(1) + '%');
+  }
+  function sparkline(values) {
+    if (!values || values.length < 2) return null;
+    var min = Math.min.apply(null, values), max = Math.max.apply(null, values), span = max - min || 1, w = 100, h = 30;
+    var pts = values.map(function (v, i) { return [i * w / (values.length - 1), h - 3 - (v - min) / span * (h - 6)]; });
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 ' + w + ' ' + h); s.setAttribute('preserveAspectRatio', 'none'); s.setAttribute('class', 'cx-spark'); s.setAttribute('aria-hidden', 'true');
+    var line = document.createElementNS(s.namespaceURI, 'polyline');
+    line.setAttribute('points', pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '));
+    line.setAttribute('vector-effect', 'non-scaling-stroke');
+    s.appendChild(line);
+    return s;
+  }
+  function tile(t, byN, i) {
+    var box = el('div', 'cx-tile'); box.style.animationDelay = (0.05 * i) + 's';
+    box.appendChild(el('div', 'cx-tile-label', t.label));
+    var v = el('div', 'cx-tile-value', t.value); box.appendChild(v);
+    var sub = el('div', 'cx-tile-sub');
+    var d = delta(t.change_pct); if (d) sub.appendChild(d);
+    if (t.sub) sub.appendChild(document.createTextNode(t.sub));
+    if (t.citation) inline(' [' + t.citation + ']', byN, sub);
+    box.appendChild(sub);
+    var sp = sparkline(t.spark); if (sp) box.appendChild(sp);
+    return box;
+  }
+  function statsWidget(w, byN) {
+    var box = el('section', 'cx-widget');
+    var head = el('div', 'cx-widget-head'); head.appendChild(el('h3', null, w.title)); box.appendChild(head);
+    var grid = el('div', 'cx-tiles');
+    w.items.forEach(function (t, i) { grid.appendChild(tile(t, byN, i)); });
+    box.appendChild(grid);
+    return box;
+  }
+  function chartWidget(w, byN) {
+    var box = el('section', 'cx-widget');
+    var head = el('div', 'cx-widget-head');
+    head.appendChild(el('h3', null, w.title));
+    var pts = w.points;
+    head.appendChild(el('span', 'cx-widget-sub', pts[0].label + ' – ' + pts[pts.length - 1].label + ' · from annual reports'));
+    box.appendChild(head);
+    var grid = el('div', 'cx-tiles');
+    (w.stats || []).forEach(function (t, i) { grid.appendChild(tile(t, byN, i)); });
+    box.appendChild(grid);
+    var wrap = el('div', 'cx-chart'), canvas = el('canvas');
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', w.title + ': ' + pts.map(function (p) { return p.label + ' ' + p.display; }).join(', '));
+    wrap.appendChild(canvas); box.appendChild(wrap);
+    var legend = el('div', 'cx-legend'), l1 = el('span'), l2 = el('span');
+    var i1 = el('i'); i1.style.background = css('--purple'); l1.appendChild(i1); l1.appendChild(document.createTextNode('Reported ' + w.title.split(' by ')[0].toLowerCase()));
+    var i2 = el('i'); i2.style.background = css('--orange'); i2.style.borderRadius = '50%'; l2.appendChild(i2); l2.appendChild(document.createTextNode('Change from prior year'));
+    legend.appendChild(l1); legend.appendChild(l2); box.appendChild(legend);
+    // The figures as a table, with each year's source: also the fallback if the chart cannot load.
+    var d = el('details'); d.appendChild(el('summary', null, 'Figures and sources'));
+    var table = el('table', 'cx-table'), thead = el('thead'), tr = el('tr');
+    ['Fiscal year ended', 'Value', 'Change', 'Source'].forEach(function (h) { tr.appendChild(el('th', null, h)); });
+    thead.appendChild(tr); table.appendChild(thead);
+    var tb = el('tbody');
+    pts.forEach(function (p) {
+      var r = el('tr');
+      r.appendChild(el('td', null, p.period_end)); r.appendChild(el('td', null, p.display));
+      r.appendChild(el('td', null, p.change_pct == null ? '—' : (p.change_pct > 0 ? '+' : '') + p.change_pct.toFixed(1) + '%'));
+      var src = el('td'); inline(p.form_type + ' ' + p.filed_date + ' [' + p.citation + ']', byN, src); r.appendChild(src);
+      tb.appendChild(r);
+    });
+    table.appendChild(tb); d.appendChild(table); box.appendChild(d);
+    if (w.note) box.appendChild(el('p', 'cx-note', w.note));
+    loadChartLib().then(function (Chart) { drawChart(Chart, canvas, w); })
+      .catch(function () { wrap.remove(); legend.remove(); d.open = true; });
+    return box;
+  }
+  function drawChart(Chart, canvas, w) {
+    var pts = w.points, purple = css('--purple'), orange = css('--orange'), muted = css('--muted'), line = css('--line');
+    var font = { family: css('--font-body') || 'sans-serif', size: 12 };
+    var ctx = canvas.getContext('2d');
+    var grad = ctx.createLinearGradient(0, 0, 0, canvas.parentNode.clientHeight || 280);
+    grad.addColorStop(0, purple); grad.addColorStop(1, css('--purple-2'));
+    var chart = new Chart(canvas, {
+      data: {
+        labels: pts.map(function (p) { return p.label; }),
+        datasets: [
+          { type: 'bar', label: 'Reported', data: pts.map(function (p) { return p.value; }), backgroundColor: grad, hoverBackgroundColor: css('--purple-deep'), borderRadius: 8, maxBarThickness: 56, yAxisID: 'y', order: 2 },
+          { type: 'line', label: 'Change', data: pts.map(function (p) { return p.change_pct; }), borderColor: orange, backgroundColor: orange, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2.5, tension: 0.35, spanGaps: true, yAxisID: 'pct', order: 1 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: reduced ? false : { duration: 900, easing: 'easeOutQuart' },
+        interaction: { mode: 'index', intersect: false },
+        onHover: function (e, els) { e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+        onClick: function (e, els) { if (els.length) { var p = pts[els[0].index]; if (/^https:\/\//.test(p.source_url)) window.open(p.source_url, '_blank', 'noopener'); } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#2a2346', padding: 10, cornerRadius: 10, titleFont: font, bodyFont: font,
+            callbacks: {
+              title: function (items) { return 'Fiscal year ended ' + pts[items[0].dataIndex].period_end; },
+              label: function (item) {
+                var p = pts[item.dataIndex];
+                if (item.datasetIndex === 0) return ' ' + p.display;
+                return p.change_pct == null ? null : ' ' + (p.change_pct > 0 ? '+' : '') + p.change_pct.toFixed(1) + '% from prior year';
+              },
+              footer: function (items) { var p = pts[items[0].dataIndex]; return p.form_type + ' filed ' + p.filed_date + ' · click to open'; }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: muted, font: font }, border: { color: line } },
+          y: { beginAtZero: true, grid: { color: line }, border: { display: false }, ticks: { color: muted, font: font, maxTicksLimit: 5, callback: function (v) { return short(v); } } },
+          pct: { position: 'right', grid: { display: false }, border: { display: false }, ticks: { color: orange, font: font, maxTicksLimit: 5, callback: function (v) { return v + '%'; } } }
+        }
+      }
+    });
+    canvas._chart = chart;
+  }
+  function renderWidgets(target, reply) {
+    var byN = {}; (reply.citations || []).forEach(function (c) { byN[c.n] = c; });
+    (reply.widgets || []).forEach(function (w) {
+      if (w.type === 'chart' && w.points && w.points.length) target.appendChild(chartWidget(w, byN));
+      else if (w.type === 'stats' && w.items && w.items.length) target.appendChild(statsWidget(w, byN));
+    });
   }
 
   // ---- messages ----
@@ -207,13 +369,16 @@
     }
     state.cik = reply.company.cik;
     renderSide(reply);
+    // SEC names are often upper case; read "Netflix Inc" rather than "NETFLIX INC" in the answer.
+    if (reply.answer) reply = Object.assign({}, reply, { answer: reply.answer.split(reply.company.legal_name).join(displayName(reply.company.legal_name)) });
     if (!reply.answer) {
-      content.appendChild(el('p', 'cx-note', 'The language model is not available right now; the figures for ' + reply.company.legal_name + ' are in the company panel.'));
-      meta(bot, reply); return;
+      content.appendChild(el('p', 'cx-note', 'The language model is not available right now; the figures for ' + displayName(reply.company.legal_name) + ' are below and in the company panel.'));
+      renderWidgets(content, reply); meta(bot, reply); return;
     }
     if (isLeadership(reply)) { renderLeadership(content, reply); meta(bot, reply); keepScrolled(); return; }
-    if (animate) stream(content, reply.answer, reply.citations, function () { meta(bot, reply); keepScrolled(); });
-    else { content.appendChild(renderText(reply.answer, reply.citations)); meta(bot, reply); }
+    var finish = function () { renderWidgets(content, reply); meta(bot, reply); keepScrolled(); };
+    if (animate) stream(content, reply.answer, reply.citations, finish);
+    else { content.appendChild(renderText(reply.answer, reply.citations)); finish(); }
   }
 
   // ---- company drawer ----
@@ -258,6 +423,7 @@
 
   // ---- asking ----
   var LEAD_RE = /\b(leadership|ceo|cfo|coo|chief|executives?|officers?|directors?|board|resign\w*|appoint\w*|hired?|depart\w*|succession|chair\w*)\b/i;
+  var TREND_RE = /\b(growth|grow\w*|grew|trend\w*|histor\w*|years|chart|graph|over time|yoy|cagr)\b/i;
   function headers() { return { 'Content-Type': 'application/json', 'X-API-Key': state.key }; }
 
   function ask(q) {
@@ -272,7 +438,9 @@
   function request(q, bot) {
     var steps = LEAD_RE.test(q)
       ? ['Finding the company…', 'Reading the 8-K filings…', 'Checking names against the filing text…']
-      : ['Finding the company…', 'Gathering SEC figures…', 'Writing the answer…', 'Checking every figure…'];
+      : TREND_RE.test(q)
+        ? ['Finding the company…', 'Collecting each annual report…', 'Building the chart…']
+        : ['Finding the company…', 'Gathering SEC figures…', 'Writing the answer…', 'Checking every figure…'];
     var stop = setStatus(bot, steps);
     var payload = { message: q };
     if (state.cik) payload.cik = state.cik;

@@ -31,6 +31,10 @@ _STOP = {
     "the", "a", "an", "of", "for", "and", "or", "in", "on", "is", "are", "was", "what", "how",
     "who", "tell", "me", "about", "show", "give", "company", "inc", "corp", "its", "their",
     "revenue", "growth", "cfo", "ceo", "filings", "latest", "did", "does", "do", "has", "have",
+    "last", "past", "previous", "year", "years", "fiscal", "over", "recent", "trend", "chart",
+    "history", "sales", "profit", "profits", "earnings", "income", "net", "operating", "cash",
+    "flow", "assets", "total", "grow", "growing", "grew", "much", "many", "since", "with",
+    "at", "to", "by", "from", "any", "change", "changes", "changed", "quickly",
 }  # fmt: skip
 _LEADERSHIP_Q = re.compile(
     r"\b(leadership|ceo|cfo|coo|cto|chief|executives?|officers?|directors?|board|management|"
@@ -68,23 +72,44 @@ def resolve_company(db: Session, text: str) -> Company | None:
     """Find the company a free-text question is about: ticker or CIK first, then names."""
     text = re.sub(r"['\u2019]s\b", "", text)  # "Apple's" -> "Apple"
     words = [w.rstrip(".") for w in re.findall(r"[A-Za-z0-9][A-Za-z0-9.&-]*", text)]
-    for w in words:
-        if w.isdigit() and len(w) <= 10 or (w.isupper() and 1 <= len(w) <= 6):
+    for prev, w in zip(["", *words], words, strict=False):
+        # Short numbers are counts ("last 5 years"), not CIKs, unless the user says "CIK".
+        cik_like = w.isdigit() and len(w) <= 10 and (len(w) >= 5 or prev.lower() == "cik")
+        if cik_like or (w.isupper() and 1 <= len(w) <= 6):
             hits, _ = search_companies(db, w, limit=1)
             if hits and hits[0].match_type in ("cik", "ticker"):
                 return hits[0].company
     useful = [w for w in words if w.lower() not in _STOP]
-    for size in (3, 2, 1):
-        for i in range(len(useful) - size + 1):
-            phrase = " ".join(useful[i : i + size])
-            if len(phrase) < 3:
-                continue
-            hits, _ = search_companies(db, phrase, limit=50)
-            good = [h for h in hits if h.match_type in ("ticker", "name_exact", "name_prefix")]
-            if good:
-                best = [h for h in good if h.match_type == good[0].match_type]
-                return max(best, key=lambda h: _name_score(h.company, phrase)).company
+    # Words as typed first; only then without a trailing "s" ("apples growth" means Apple), so
+    # "changes at Netflix" finds Netflix before "Change" finds another company.
+    for singular in (False, True):
+        for size in (3, 2, 1):
+            found = []
+            for i in range(len(useful) - size + 1):
+                phrase = " ".join(useful[i : i + size])
+                if singular:
+                    if len(phrase) <= 4 or phrase[-1] not in "sS" or phrase[-2] in "sS":
+                        continue
+                    phrase = phrase[:-1]
+                if len(phrase) < 3:
+                    continue
+                hits, _ = search_companies(db, phrase, limit=50)
+                found += [(h, phrase) for h in hits if h.match_type in _MATCH_RANK]
+            if found:
+                # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal.
+                best, _ = max(found, key=lambda x: (_match_rank(*x), _name_score(*x)))
+                return best.company
     return None
+
+
+_MATCH_RANK = {"ticker": 3, "name_exact": 2, "name_prefix": 1}
+
+
+def _match_rank(hit, phrase: str) -> int:
+    # A lower-case word that happens to be a ticker ("fast" is FAST) is no stronger than a prefix.
+    if hit.match_type == "ticker" and not phrase.isupper():
+        return 1
+    return _MATCH_RANK[hit.match_type]
 
 
 _CORP_WORDS = {
@@ -98,12 +123,26 @@ def _core_name(name: str) -> str:
     return " ".join(w for w in words if w not in _CORP_WORDS)
 
 
-def _name_score(c: Company, phrase: str) -> tuple:
+def _name_score(hit, phrase: str) -> tuple:
     """ "Apple" means Apple Inc., not Apple REIT Six; "Hawaiian Electric" the listed parent."""
+    c = hit.company
     return (bool(c.ticker), _core_name(c.legal_name) == _core_name(phrase), -len(c.legal_name))
 
 
-def _money(v: Decimal | float) -> str:
+_KEEP_UPPER = {"LLC", "PLC", "LP", "NV", "SA", "AG", "SE", "USA", "US", "II", "III", "IV"}
+
+
+def display_name(legal_name: str) -> str:
+    """ "COSTCO WHOLESALE CORP /NEW" reads as "Costco Wholesale Corp" in an answer."""
+    name = re.sub(r"\s*/[A-Z]{1,5}/?\s*$", "", legal_name).strip()
+    if name != name.upper():
+        return name
+    return " ".join(
+        w if w in _KEEP_UPPER or not w[:1].isalpha() else w.capitalize() for w in name.split()
+    )
+
+
+def money(v: Decimal | float) -> str:
     x = float(v)
     for div, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
         if abs(x) >= div:
@@ -111,7 +150,8 @@ def _money(v: Decimal | float) -> str:
     return f"${x:,.0f}"
 
 
-def _annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> list[FinancialFact]:
+def annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> list[FinancialFact]:
+    """One reported annual figure per fiscal year, newest first."""
     stmt = select(FinancialFact).where(
         FinancialFact.cik == cik,
         FinancialFact.metric == metric,
@@ -164,7 +204,7 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
         b.context_lines.append(f"[{n}] No filings are loaded in this service for the company.")
 
     for metric, label in METRIC_LABELS.items():
-        series = _annual_series(db, company.cik, metric, as_of)
+        series = annual_series(db, company.cik, metric, as_of)
         if not series:
             continue
         cur = series[0]
@@ -179,10 +219,10 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
                 "label": label,
                 "period_end": cur.period_end.isoformat(),
                 "value": float(cur.value),
-                "display": _money(cur.value),
+                "display": money(cur.value),
                 "prior_period_end": prev.period_end.isoformat() if prev else None,
                 "prior_value": float(prev.value) if prev else None,
-                "prior_display": _money(prev.value) if prev else None,
+                "prior_display": money(prev.value) if prev else None,
                 "growth_pct": growth,
                 "filed_date": cur.filed_date.isoformat() if cur.filed_date else None,
                 "accession_number": cur.accession_number,
@@ -194,9 +234,9 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
                 ],
             }
         )
-        line = f"[{n}] {label}, fiscal year ended {cur.period_end}: {_money(cur.value)}"
+        line = f"[{n}] {label}, fiscal year ended {cur.period_end}: {money(cur.value)}"
         if prev is not None:
-            line += f"; prior year (ended {prev.period_end}) {_money(prev.value)}"
+            line += f"; prior year (ended {prev.period_end}) {money(prev.value)}"
             if growth is not None:
                 line += f"; change {growth:+.1f}%"
         b.context_lines.append(line + f". Filed {cur.filed_date} ({cur.form_type}).")
@@ -305,7 +345,7 @@ def is_leadership_question(text: str) -> bool:
 
 def leadership_answer(b: Brief) -> str:
     """Answer an officer/director question straight from the data; no model needed for a lookup."""
-    name, cov = b.company.legal_name, b.coverage
+    name, cov = display_name(b.company.legal_name), b.coverage
     since = cov["since"]
     if b.leadership_filings:
         total = max(cov.get("leadership_since") or 0, len(b.leadership_filings))

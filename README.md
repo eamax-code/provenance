@@ -172,6 +172,15 @@ With your own API key, conversations are saved per key (`chat_sessions`, `chat_m
 listed at `GET /v1/chat/sessions`; the `/chat/` page shows them in its sidebar and restores the
 open one from the URL (`#s=<id>`). The demo key saves nothing on the server.
 
+Questions about a figure over time ("How has Apple's revenue grown over the last 5 years?") are
+answered from the data, not the model: the reply's `widgets` carries a chart of the reported
+annual figures (one cited 10-K figure per fiscal year; N years of growth uses N + 1 figures) with
+the year-on-year change, compound annual growth, best and weakest year, all computed here and
+labelled as computed. Other company questions get tiles of the latest annual figures. `intent`
+says how the question was read (`leadership`, `trend` or `question`). The page draws charts with
+Chart.js 4.4.7 (MIT), vendored in `site/vendor/chartjs-4.4.7/` and loaded only when needed; the
+figures are also listed as a table with sources.
+
 ### Facts semantics worth knowing
 
 - `period=annual|quarterly|all` filters on `period_class`, which is computed from the reported

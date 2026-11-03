@@ -33,7 +33,7 @@ def test_filings_expose_8k_items(client, auth, items_aapl):
 def test_chat_resolves_company_and_grounds_answer(app, client, auth, items_aapl):
     fake = FakeLLM()
     app.state.llm_factory = lambda: fake
-    r = client.post("/v1/chat", json={"message": "How is Apple's revenue growing?"}, headers=auth)
+    r = client.post("/v1/chat", json={"message": "What drives Apple's revenue?"}, headers=auth)
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["company"]["cik"] == "0000320193" and body["model"] == "fake:1b"
@@ -278,3 +278,131 @@ def test_name_match_prefers_the_listed_company(db, items_aapl):
     )
     db.commit()
     assert intel.resolve_company(db, "leadership changes at Apple").cik == "0000320193"
+
+
+def test_plan_reads_metric_and_years():
+    from app.services.widgets import plan
+
+    p = plan("How's apples growth in revenue for the last 5 years")
+    assert (p.kind, p.metric, p.years) == ("trend", "revenue", 5)
+    assert plan("net income over the past three years").metric == "net_income"
+    assert plan("net income over the past three years").years == 3
+    assert plan("What was Apple's operating profit?").kind == "metric"
+    assert plan("How fast is Apple growing?").metric == "revenue"
+    assert plan("Any changes to executive pay?").kind == "overview"  # "changes" alone is no trend
+
+
+def test_growth_question_is_charted_from_cited_figures(app, client, auth, items_aapl):
+    fake = FakeLLM()
+    app.state.llm_factory = lambda: fake
+    body = client.post(
+        "/v1/chat",
+        # A follow-up from another company's chat: the named company must win over the cik.
+        json={"message": "How's apples growth in revenue for the last 5 years", "cik": "1"},
+        headers=auth,
+    ).json()
+    assert body["company"]["cik"] == "0000320193"
+    assert body["answered_by"] == "data" and body["intent"] == "trend" and not fake.calls
+    chart = body["widgets"][0]
+    assert chart["type"] == "chart" and chart["metric"] == "revenue"
+    points = chart["points"]
+    assert 2 <= len(points) <= 6
+    assert [p["period_end"] for p in points] == sorted(p["period_end"] for p in points)
+    by_n = {c["n"]: c for c in body["citations"]}
+    for p in points:
+        assert by_n[p["citation"]]["url"] == p["source_url"]
+    assert points[-1]["display"] in body["answer"]
+    assert body["checks"]["grounded"] is True, body["checks"]
+
+
+def test_overview_question_gets_figure_tiles(app, client, auth, items_aapl):
+    app.state.llm_factory = lambda: FakeLLM()
+    body = client.post("/v1/chat", json={"message": "Summarise Apple"}, headers=auth).json()
+    assert body["answered_by"] == "model"
+    tiles = body["widgets"][0]
+    assert tiles["type"] == "stats"
+    rev = next(i for i in tiles["items"] if i["metric"] == "revenue")
+    assert rev["value"] == "$391.0 billion" and rev["spark"]
+
+
+def test_leadership_answers_carry_no_widgets(app, client, auth, items_aapl):
+    body = client.post(
+        "/v1/chat", json={"message": "Apple CEO change?", "as_of": "2024-12-31"}, headers=auth
+    ).json()
+    assert body["widgets"] == []
+
+
+def test_counts_in_a_question_are_not_ciks(db, items_aapl):
+    from app.services import intel
+
+    assert intel.resolve_company(db, "revenue for the last 5 years") is None
+
+
+def test_plural_words_do_not_shadow_a_named_company(db, items_aapl):
+    from sqlalchemy import select
+
+    from app.db.models import Company
+    from app.services import intel
+
+    listed = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    db.add(
+        Company(
+            cik="0000999993",
+            legal_name="Change Agents Corp",
+            ticker="CHGA",
+            source_url="https://data.sec.gov/submissions/CIK0000999993.json",
+            first_detected_at=listed.first_detected_at,
+        )
+    )
+    db.commit()
+    assert intel.resolve_company(db, "Recent leadership changes at Apple?").cik == "0000320193"
+    assert intel.resolve_company(db, "how are apples sales").cik == "0000320193"
+
+
+def test_a_whole_name_beats_a_word_that_starts_another_name(db, items_aapl):
+    from sqlalchemy import select
+
+    from app.db.models import Company
+    from app.services import intel
+
+    listed = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    db.add(
+        Company(
+            cik="0000999994",
+            legal_name="Quickturn Holdings",
+            ticker="QTH",
+            source_url="https://data.sec.gov/submissions/CIK0000999994.json",
+            first_detected_at=listed.first_detected_at,
+        )
+    )
+    db.commit()
+    assert intel.resolve_company(db, "How quick is Apple growing?").cik == "0000320193"
+
+
+def test_display_name_reads_naturally():
+    from app.services.intel import display_name
+
+    assert display_name("COSTCO WHOLESALE CORP /NEW") == "Costco Wholesale Corp"
+    assert display_name("Apple Inc.") == "Apple Inc."
+    assert display_name("ABC HOLDINGS LLC") == "Abc Holdings LLC"
+
+
+def test_a_common_word_that_is_a_ticker_loses_to_a_named_company(db, items_aapl):
+    from sqlalchemy import select
+
+    from app.db.models import Company
+    from app.services import intel
+
+    listed = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    db.add(
+        Company(
+            cik="0000999995",
+            legal_name="Fastenal Co",
+            ticker="FAST",
+            source_url="https://data.sec.gov/submissions/CIK0000999995.json",
+            first_detected_at=listed.first_detected_at,
+        )
+    )
+    db.commit()
+    assert intel.resolve_company(db, "How fast is Apple growing?").cik == "0000320193"
+    assert intel.resolve_company(db, "FAST revenue").cik == "0000999995"

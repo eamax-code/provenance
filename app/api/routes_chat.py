@@ -18,7 +18,7 @@ from app.core.errors import APIError
 from app.core.rate_limits import FixedWindowRateLimiter
 from app.db.models import Company
 from app.schemas.common import ErrorEnvelope
-from app.services import chat_sessions, intel, officer_changes
+from app.services import chat_sessions, intel, officer_changes, widgets
 from app.services.company_lookup import search_companies
 from app.services.llm import LLMUnavailable, LocalLLM
 from app.services.sec_client import normalize_cik
@@ -65,6 +65,12 @@ class ChatReply(BaseModel):
     model: str | None
     answered_by: str | None = Field(
         None, description="'data' for a direct lookup, 'model' when the local model wrote it"
+    )
+    intent: str | None = Field(
+        None, description="How the question was read: 'leadership', 'trend' or 'question'"
+    )
+    widgets: list[dict] = Field(
+        [], description="Charts and figure tiles drawn from the cited data (see the chat page)"
     )
     suggestions: list[dict] = []
     notes: list[str]
@@ -256,6 +262,14 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     if leadership_q:
         _read_leadership_filings(request, db, settings, company, body.as_of)
     brief = intel.build_brief(db, company, as_of=body.as_of)
+    plan = widgets.plan(body.message)
+    shown: list[dict] = []
+    chart = None
+    if not leadership_q:
+        if plan.metric:
+            chart = widgets.add_trend(brief, db, plan.metric, plan.years)
+        tiles = None if chart else widgets.overview(brief)
+        shown = [w for w in (chart, tiles) if w]
     brief_out = {
         "as_of": body.as_of.isoformat() if body.as_of else None,
         "metrics": brief.metrics,
@@ -280,6 +294,21 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             checks=check_answer(answer, brief.context(), len(brief.citations)),
             model=None,
             answered_by="data",
+            intent="leadership",
+            notes=notes,
+        )
+    if plan.kind == "trend":
+        answer = widgets.trend_answer(brief, plan.metric, chart)
+        return ChatReply(
+            company=_company_dict(company),
+            answer=answer,
+            brief=brief_out,
+            citations=brief.citations,
+            checks=check_answer(answer, brief.context(), len(brief.citations)),
+            model=None,
+            answered_by="data",
+            intent="trend",
+            widgets=shown,
             notes=notes,
         )
     answer, model, checks = None, None, {}
@@ -312,6 +341,8 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
         checks=checks,
         model=model,
         answered_by="model" if answer else None,
+        intent="question",
+        widgets=shown,
         notes=notes,
     )
 
