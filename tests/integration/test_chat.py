@@ -197,7 +197,13 @@ def test_annual_figures_prefer_the_annual_report_over_a_proxy(db, items_aapl):
     company = db.scalar(select(Company).where(Company.cik == "0000320193"))
     before = next(m for m in intel.build_brief(db, company).metrics if m["metric"] == "revenue")
     fact = db.scalar(
-        select(FinancialFact).where(FinancialFact.accession_number == before["accession_number"])
+        select(FinancialFact).where(
+            FinancialFact.accession_number == before["accession_number"],
+            FinancialFact.metric == "revenue",
+            FinancialFact.period_class == "annual",
+            FinancialFact.derived.is_(False),
+            FinancialFact.value == before["value"],
+        )
     )
     make_transient(fact)
     fact.id = None
