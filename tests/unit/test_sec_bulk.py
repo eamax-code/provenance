@@ -73,6 +73,19 @@ def test_one_broken_company_does_not_stop_the_load(db, settings, tmp_path, monke
     assert db.scalar(select(func.count(Company.id)).where(Company.cik == "0000789019")) == 1
 
 
+def test_combined_report_facts_load_for_both_registrants(db, settings, tmp_path):
+    """A parent and subsidiary filing one report share accession numbers, hence fact keys."""
+    subs, facts = _build_archives(tmp_path)
+    with zipfile.ZipFile(facts, "a") as zf:
+        zf.writestr("CIK0000789019.json", (FIX / "companyfacts_0000320193.json").read_text())
+    summary = sec_bulk.bulk_ingest(db, settings, subs, facts, scope="facts")
+    assert summary["failed"] == 0 and summary["ingested"] == 2
+    counts = dict(
+        db.execute(select(FinancialFact.cik, func.count()).group_by(FinancialFact.cik)).all()
+    )
+    assert counts["0000789019"] == counts["0000320193"] > 0
+
+
 def test_scope_known_and_ciks_and_limit(db, settings, tmp_path, tickers_payload):
     from app.services.ingestion import import_ticker_mapping
 

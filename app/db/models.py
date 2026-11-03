@@ -100,7 +100,7 @@ class Filing(Base):
 class FinancialFact(Base):
     __tablename__ = "financial_facts"
     __table_args__ = (
-        UniqueConstraint("observation_key", name="uq_financial_facts_observation_key"),
+        UniqueConstraint("cik", "observation_key", name="uq_financial_facts_cik_observation_key"),
         Index("ix_facts_cik_metric_period_end", "cik", "metric", "period_end"),
     )
 
