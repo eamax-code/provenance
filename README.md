@@ -168,6 +168,10 @@ date, stated reason and successor. A person whose name is not in the text is dro
 row is traced to the filing sentence it came from, or marked unverified. The public demo key
 never triggers these fetches. `scripts/read_officer_changes.py --cik ...` reads ahead of time.
 
+With your own API key, conversations are saved per key (`chat_sessions`, `chat_messages`) and
+listed at `GET /v1/chat/sessions`; the `/chat/` page shows them in its sidebar and restores the
+open one from the URL (`#s=<id>`). The demo key saves nothing on the server.
+
 ### Facts semantics worth knowing
 
 - `period=annual|quarterly|all` filters on `period_class`, which is computed from the reported

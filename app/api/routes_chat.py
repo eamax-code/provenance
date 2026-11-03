@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, Request
@@ -10,14 +11,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import db_session, require_reader, settings_dep
+from app.api.dependencies import db_session, require_api_key, require_reader, settings_dep
 from app.api.routes_companies import get_sec_client_factory
 from app.core.config import Settings
 from app.core.errors import APIError
 from app.core.rate_limits import FixedWindowRateLimiter
 from app.db.models import Company
 from app.schemas.common import ErrorEnvelope
-from app.services import intel, officer_changes
+from app.services import chat_sessions, intel, officer_changes
 from app.services.company_lookup import search_companies
 from app.services.llm import LLMUnavailable, LocalLLM
 from app.services.sec_client import normalize_cik
@@ -50,6 +51,9 @@ class ChatRequest(BaseModel):
         description="Company to use when the message names none (e.g. a follow-up question)",
     )
     as_of: date | None = Field(None, description="Answer from what was filed by this date")
+    session_id: uuid.UUID | None = Field(
+        None, description="Continue a saved conversation (own API key only)"
+    )
 
 
 class ChatReply(BaseModel):
@@ -64,6 +68,9 @@ class ChatReply(BaseModel):
     )
     suggestions: list[dict] = []
     notes: list[str]
+    session_id: str | None = Field(
+        None, description="Saved conversation id; absent for the public demo key"
+    )
 
 
 def _company_dict(c: Company) -> dict:
@@ -193,6 +200,28 @@ def chat(
             f"At most {settings.chat_rate_limit_per_minute} chat questions per minute.",
             headers={"Retry-After": str(decision.retry_after_seconds)},
         )
+    saved = _saving_key(request, key)
+    session = None
+    if body.session_id is not None:
+        if saved is None:
+            raise APIError(403, "sessions_need_key", "Saved chats need your own API key.")
+        session = chat_sessions.get_owned(db, saved, body.session_id)
+    reply = _answer(body, request, db, settings)
+    if saved is not None:
+        session = session or chat_sessions.start(db, saved, body.message, reply.company)
+        chat_sessions.append(db, session, body.message, reply.model_dump(mode="json"))
+        reply.session_id = str(session.id)
+    return reply
+
+
+def _saving_key(request: Request, key):
+    """The API key a conversation is saved under; None for the public demo key."""
+    if getattr(request.state, "demo", False):
+        return None
+    return getattr(key, "id", None)
+
+
+def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings) -> ChatReply:
     company = intel.resolve_company(db, body.message)
     if company is None and body.cik:
         try:
@@ -285,3 +314,27 @@ def chat(
         answered_by="model" if answer else None,
         notes=notes,
     )
+
+
+@router.get("/sessions", summary="Your saved conversations, newest first")
+def list_sessions(db: Session = Depends(db_session), key=Depends(require_api_key), limit: int = 50):
+    rows = chat_sessions.list_for(db, key.id, min(max(limit, 1), 200))
+    return {"data": [chat_sessions.session_dict(r) for r in rows]}
+
+
+@router.get("/sessions/{session_id}", summary="One saved conversation with its messages")
+def get_session(
+    session_id: uuid.UUID, db: Session = Depends(db_session), key=Depends(require_api_key)
+):
+    session = chat_sessions.get_owned(db, key.id, session_id)
+    return {
+        **chat_sessions.session_dict(session),
+        "messages": chat_sessions.messages(db, session),
+    }
+
+
+@router.delete("/sessions/{session_id}", status_code=204, summary="Delete a saved conversation")
+def delete_session(
+    session_id: uuid.UUID, db: Session = Depends(db_session), key=Depends(require_api_key)
+):
+    chat_sessions.delete(db, chat_sessions.get_owned(db, key.id, session_id))

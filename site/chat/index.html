@@ -5,54 +5,115 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Company Intelligence Chat</title>
 <meta name="description" content="Ask about a US public company. Answers come from SEC filings, every figure is cited, and a local language model writes the summary.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='%234fe3ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/app/app.css">
-<link rel="stylesheet" href="/public.css">
 <link rel="stylesheet" href="/chat.css">
 </head>
-<body>
-<div class="app">
-  <header class="topbar">
-    <a class="brand" href="/"><span class="dot" aria-hidden="true"></span>Provenance</a>
-    <nav class="views" aria-label="Site"><a class="view-btn" href="/companies/">Companies</a><a class="view-btn" href="/chat/" aria-current="page">Chat</a><a class="view-btn" href="/playground/">Playground</a><a class="view-btn" href="/listings/">Listings</a><a class="view-btn" href="/status/">Status</a><a class="view-btn" href="/#pricing">Pricing</a><a class="view-btn" href="/app/">Explorer</a><a class="view-btn" href="/docs">API docs</a></nav>
-  </header>
-  <div class="pub-head">
-    <p class="eyebrow">Company intelligence · cited from SEC filings</p>
-    <h1>Ask about a company</h1>
-    <p class="muted">Type a ticker or name and a question. You get the figures and filings behind the answer, each linked to the SEC record. The summary is written by a small language model running on this server, and it is checked against the cited data.</p>
-  </div>
-  <main class="chat">
-    <section class="chat-main">
-      <div class="panel chat-log" id="chat-log" aria-live="polite">
-        <p class="muted" id="chat-empty">Try: <button type="button" class="chip" data-q="How is Apple's revenue growing?">How is Apple's revenue growing?</button> <button type="button" class="chip" data-q="Any leadership changes at MSFT?">Any leadership changes at MSFT?</button> <button type="button" class="chip" data-q="Summarise Microsoft's latest filings">Summarise Microsoft's latest filings</button></p>
-      </div>
-      <form class="panel chat-form" id="chat-form" novalidate>
-        <label class="sr-only" for="chat-input">Question</label>
-        <input id="chat-input" maxlength="500" autocomplete="off" placeholder="e.g. AAPL revenue growth, or: leadership changes at Microsoft" required>
-        <label class="small muted" for="chat-asof">As of</label>
-        <input id="chat-asof" type="date" class="chat-date" title="Answer from what had been filed by this date">
-        <button class="btn primary" type="submit" id="chat-send">Ask</button>
-      </form>
-      <div class="row small muted chat-keyrow">
-        <label for="chat-key">API key</label><input id="chat-key" value="demo" autocomplete="off" spellcheck="false">
-        <span>The demo key covers the showcase companies.</span>
-      </div>
+<body class="cx" data-state="home">
+<div class="cx-shell">
+  <aside class="cx-side" id="cx-side" aria-label="Conversations">
+    <div class="cx-side-top">
+      <a class="cx-brand" href="/"><span class="dot" aria-hidden="true"></span>Provenance</a>
+      <button class="cx-icon" id="cx-collapse" type="button" title="Close sidebar" aria-label="Close sidebar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
+      </button>
+    </div>
+    <button class="cx-new" id="cx-new" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New chat
+    </button>
+    <div class="cx-sessions" id="cx-sessions">
+      <p class="cx-side-label">Chats</p>
+      <ul id="cx-session-list" class="cx-session-list"></ul>
+      <p class="cx-side-hint" id="cx-session-hint">Connect your API key to keep your chats on every device.</p>
+    </div>
+    <nav class="cx-links" aria-label="Site">
+      <a href="/companies/">Companies</a><a href="/playground/">Playground</a><a href="/listings/">Listings</a><a href="/app/">Explorer</a><a href="/docs">API docs</a>
+    </nav>
+    <button class="cx-account" id="cx-account" type="button">
+      <span class="cx-avatar" id="cx-avatar" aria-hidden="true">D</span>
+      <span class="cx-account-text"><strong id="cx-account-name">Demo mode</strong><span id="cx-account-sub">Connect API key</span></span>
+    </button>
+  </aside>
+  <div class="cx-scrim" id="cx-scrim" hidden></div>
+
+  <main class="cx-main">
+    <header class="cx-top">
+      <button class="cx-icon cx-open-side" id="cx-open-side" type="button" title="Open sidebar" aria-label="Open sidebar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
+      </button>
+      <span class="cx-title" id="cx-title">Company intelligence</span>
+      <button class="cx-company-chip" id="cx-company-chip" type="button" hidden>
+        <span id="cx-company-chip-text"></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </header>
+
+    <section class="cx-home" id="cx-home" aria-label="Start">
+      <h1 class="cx-hello">What do you want to know?</h1>
+      <p class="cx-sub">Ask about any US public company. Every figure is cited to its SEC filing.</p>
     </section>
-    <aside class="chat-side" id="chat-side" hidden>
-      <div class="panel">
-        <p class="eyebrow">Company</p>
-        <h2 id="side-name"></h2>
-        <p class="muted small" id="side-meta"></p>
-        <p class="muted small" id="side-coverage"></p>
+
+    <section class="cx-thread" id="cx-thread" aria-live="polite" aria-label="Conversation"></section>
+
+    <div class="cx-dock" id="cx-dock">
+      <form class="cx-composer" id="cx-form" novalidate>
+        <label class="sr-only" for="cx-input">Message</label>
+        <textarea id="cx-input" rows="1" maxlength="500" placeholder="Ask about a company, e.g. recent leadership changes at Microsoft" autocomplete="off"></textarea>
+        <div class="cx-composer-row">
+          <button class="cx-pill" id="cx-asof-btn" type="button" title="Answer from what had been filed by a date">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+            <span id="cx-asof-label">Latest data</span>
+          </button>
+          <input id="cx-asof" type="date" class="cx-asof-input" aria-label="As of date" hidden>
+          <button class="cx-send" id="cx-send" type="submit" aria-label="Send" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+        </div>
+      </form>
+      <div class="cx-suggest" id="cx-suggest">
+        <button type="button" class="cx-card" data-q="What are the recent leadership changes at Microsoft?"><strong>Leadership changes</strong><span>at Microsoft</span></button>
+        <button type="button" class="cx-card" data-q="How is Apple's revenue growing?"><strong>Revenue growth</strong><span>for Apple</span></button>
+        <button type="button" class="cx-card" data-q="Summarise Amazon"><strong>Summarise</strong><span>Amazon's latest figures</span></button>
+        <button type="button" class="cx-card" data-q="Did Netflix's CFO change?"><strong>CFO change?</strong><span>at Netflix</span></button>
       </div>
-      <div class="panel"><h3 class="pg-h">Financials (annual)</h3><div id="side-metrics" class="metric-grid"></div></div>
-      <div class="panel"><h3 class="pg-h">Leadership changes (8-K item 5.02)</h3><ul id="side-leaders" class="list"></ul></div>
-      <div class="panel"><h3 class="pg-h">Recent filings</h3><ul id="side-filings" class="list"></ul></div>
-    </aside>
+      <p class="cx-fine">Answers come from SEC filings loaded here; a local model writes them and every figure is checked. Not investment advice.</p>
+    </div>
   </main>
-  <footer class="foot muted small">Answers come from SEC EDGAR data this service has loaded; the language model runs locally and sees only the cited context. Check the filings before relying on an answer. Not investment advice. Provenance is not affiliated with the SEC.</footer>
+
+  <aside class="cx-drawer" id="cx-drawer" aria-label="Company details" aria-hidden="true">
+    <div class="cx-drawer-head">
+      <div>
+        <p class="cx-eyebrow">Company</p>
+        <h2 id="side-name"></h2>
+        <p class="cx-muted" id="side-meta"></p>
+      </div>
+      <button class="cx-icon" id="cx-drawer-close" type="button" aria-label="Close company details">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <p class="cx-muted cx-small" id="side-coverage"></p>
+    <h3 class="cx-h">Financials (annual)</h3><div id="side-metrics" class="cx-metrics"></div>
+    <h3 class="cx-h">Leadership changes</h3><ul id="side-leaders" class="cx-list"></ul>
+    <h3 class="cx-h">Recent filings</h3><ul id="side-filings" class="cx-list"></ul>
+  </aside>
 </div>
+
+<dialog class="cx-modal" id="cx-key-modal">
+  <form method="dialog" id="cx-key-form">
+    <h2>Connect your API key</h2>
+    <p class="cx-muted">With your own key, chats are saved to your account and open on any device, and you can ask about every company. The demo key covers six showcase companies and saves nothing.</p>
+    <label for="cx-key-input" class="cx-small">API key</label>
+    <input id="cx-key-input" autocomplete="off" spellcheck="false" placeholder="prv_live_…">
+    <p class="cx-error" id="cx-key-error" hidden></p>
+    <div class="cx-modal-row">
+      <button type="button" class="cx-ghost" id="cx-key-demo">Use demo</button>
+      <button type="submit" class="cx-primary" id="cx-key-save">Connect</button>
+    </div>
+  </form>
+</dialog>
+
 <script src="/chat.js"></script>
 </body>
 </html>
