@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -71,7 +71,12 @@ def compute_stats(db: Session, settings: Settings, now: datetime | None = None) 
         ).all()
     }
     last_fetch = db.scalar(select(func.max(Company.last_successful_fetch_at)))
-    latest_detected = db.scalar(select(func.max(Filing.first_detected_at)))
+    year_ago = now.date() - timedelta(days=365)
+    recent_filings, recent_filers = db.execute(
+        select(func.count(Filing.id), func.count(func.distinct(Filing.cik))).where(
+            Filing.filing_date >= year_ago
+        )
+    ).one()
     latest_filing_date = db.scalar(select(func.max(Filing.filing_date)))
     last_run = db.scalar(select(IngestionRun).order_by(IngestionRun.started_at.desc()).limit(1))
     pending = int(
@@ -118,17 +123,18 @@ def compute_stats(db: Session, settings: Settings, now: datetime | None = None) 
             "known": companies_known,
             "ingested": companies_ingested,
             "with_fetch_errors": companies_with_errors,
+            "filed_last_12_months": int(recent_filers or 0),
         },
         "filings": {
             "total": filings_total,
             "with_acceptance_timestamp": filings_with_accepted,
+            "last_12_months": int(recent_filings or 0),
             "latest_filing_date": latest_filing_date.isoformat() if latest_filing_date else None,
         },
         "facts": {"total": facts_total, "by_quality": by_quality, "by_metric": by_metric},
         "freshness": {
             "last_successful_fetch_at": _iso(last_fetch),
             "last_successful_fetch_age_seconds": fetch_age,
-            "latest_filing_detected_at": _iso(latest_detected),
             "stale_after_seconds": stale_after,
             "poll_interval_seconds": settings.ingestion_poll_interval_seconds,
         },

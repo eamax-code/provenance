@@ -6,12 +6,12 @@
 <meta name="theme-color" content="#2b2f33">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
 <title>Provenance Filings API</title>
-<meta name="description" content="Source-linked SEC filing facts for developers and AI agents: company identity, filings, normalized XBRL financials, freshness and signed notifications. Independent of the SEC.">
+<meta name="description" content="An API and a chat over the SEC filings of US public companies. Every figure links to the filing, accession number and XBRL tag it came from. Independent of the SEC.">
 <link rel="alternate" type="application/json" href="/openapi.json" title="OpenAPI">
 <link rel="help" href="/llms.txt">
-<link rel="stylesheet" href="/public.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&display=swap">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -27,376 +27,627 @@
   ]
 }
 </script>
+<script>document.documentElement.classList.add('js');</script>
 <style>
-/* Layout: a 12-column grid on a light mist canvas; one live data strip in the hero, everything
-   else quiet. Same palette and tokens as /app/app.css and the chat. */
+/* Direction: "The product performs" (tasteskill draw, seed 599169090). The page shows working pieces of
+   the product instead of describing it; each piece carries its record the way a catalogue card carries
+   its call number. One family (Schibsted Grotesk), five sizes, the site palette: mist ground, charcoal
+   ink, slate fields, cardinal red only on actions and the chart's latest bar. */
 :root {
-  /* Palette (60-30-10): mist canvas, charcoal and slate structure, cardinal red accent.
-     Text and buttons use --accent (deep red, 5.4:1 with white); dots, lines and charts use
-     --accent-hi, the palette's exact red. */
-  --bg: #eef2f5; --bg-2: #e6ecf0; --panel: #fff; --line: #d7dfe5; --fg: #2b2f33; --muted: #646a70;
-  --ink: #2b2f33; --brand: #627b8c; --brand-deep: #4f6575; --stone: #989397; --mist: #b8c7d2;
-  --accent: #c92f28; --accent-hi: #e83c34; --accent-2: #4f6575; --accent-ink: #fff;
-  --good: #12865a; --warn: #b45309; --bad: #b3261e;
-  --font-display: "Unbounded", "Avenir Next", "Segoe UI", sans-serif;
-  --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius: 6px;
-  --maxw: 1180px;
+  --bg: #eef2f5; --surface: #e2e9ee; --surface-2: #d5dfe6; --paper: #ffffff;
+  --ink: #2b2f33; --soft: #565e66; --slate: #627b8c; --slate-deep: #4f6575; --mist: #b8c7d2;
+  --accent: #c92f28; --accent-hi: #e83c34; --accent-ink: #ffffff;
+  --field: #4f6575; --field-ink: #ffffff; --field-soft: #dbe4ea;
+  --coupon: #2b2f33; --coupon-2: #3b4248; --coupon-ink: #ffffff; --coupon-soft: #c9d2d9;
+  --face: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --code: ui-monospace, /* taste-skill-ignore: only <pre>/<code> use it */ "SF Mono", Menlo, Consolas, monospace;
+  --step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
+  --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.5rem);
+  --step-head: clamp(2rem, 1.2rem + 2.4vw, 3.5rem);
+  --step-display: clamp(5rem, 11vw, 10.5rem);
+  --m: clamp(16px, 2.3vw, 32px);
+  --gap: 24px;
+  --radius: 4px;
+  --section: clamp(112px, 12vw, 200px);
+  --bar-h: 68px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
+  --t-press: 140ms; --t-hover: 180ms; --t-ui: 240ms;
   color-scheme: light;
 }
-
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
-body {
-  margin: 0; background: var(--bg); color: var(--fg);
-  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--line) 55%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--line) 55%, transparent) 1px, transparent 1px);
-  background-size: 56px 56px;
+html { -webkit-text-size-adjust: 100%; overflow-x: clip; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--step-body)/1.5 var(--face); letter-spacing: -0.01em; overflow-x: clip; }
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; text-decoration: underline; text-decoration-thickness: 0.07em; text-underline-offset: 0.2em; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); transition: text-decoration-color var(--t-hover) ease; }
+@media (hover: hover) and (pointer: fine) { a:hover { text-decoration-color: currentColor; } }
+h1, h2, h3, p, ul, ol, figure, dl, dd { margin: 0; }
+h1, h2 { font-weight: 800; letter-spacing: -0.045em; line-height: 0.95; }
+h2 { font-size: var(--step-head); max-width: 18ch; }
+h3 { font-size: var(--step-body); font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+:focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 3px; }
+::selection { background: var(--ink); color: var(--paper); }
+code, pre { font-family: var(--code); }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wrap { padding-inline: var(--m); max-width: 1600px; margin-inline: auto; }
+.section { padding-block: var(--section) 0; }
+
+/* buttons: one shape, flat */
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px; border: 0; border-radius: var(--radius); background: var(--accent); color: var(--accent-ink); font: 600 var(--step-body)/1 var(--face); letter-spacing: -0.01em; text-decoration: none; cursor: pointer; transition: transform var(--t-press) var(--ease-out), background-color var(--t-hover) ease; }
+.button:active { transform: scale(0.97); }
+.button.small { min-height: 40px; padding: 0 16px; font-size: var(--step-small); }
+@media (hover: hover) and (pointer: fine) { .button:hover { background: #ad2822; } }
+
+/* header: wordmark, four links, one action */
+.bar { position: sticky; top: 0; z-index: 20; background: var(--bg); }
+.bar .wrap { display: flex; align-items: center; gap: 28px; height: var(--bar-h); }
+.wordmark { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: var(--step-body); letter-spacing: -0.03em; text-decoration: none; }
+.wordmark i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-hi); }
+.bar nav { display: flex; gap: 24px; margin-left: auto; font-size: var(--step-small); font-weight: 600; }
+.bar nav a { text-decoration: none; color: var(--soft); }
+.bar nav a:hover { color: var(--ink); }
+.menu-btn { display: none; margin-left: auto; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--radius); background: var(--surface-2); color: var(--ink); font: 600 var(--step-small) var(--face); cursor: pointer; }
+@media (max-width: 760px) {
+  .menu-btn { display: inline-flex; align-items: center; }
+  .bar nav { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; gap: 0; padding: 4px var(--m) 16px; background: var(--bg); font-size: var(--step-body); }
+  .bar nav.open { display: flex; }
+  .bar nav a { padding: 10px 0; color: var(--ink); }
+  .bar .button.small { display: none; }
 }
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.wrap { max-width: var(--maxw); margin: 0 auto; padding-inline: 20px; }
-h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; letter-spacing: -0.01em; margin: 0; }
-h1 { font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1.05; font-weight: 800; }
-h2 { font-size: clamp(1.4rem, 3vw, 2.1rem); font-weight: 600; }
-h3 { font-size: 1.05rem; font-weight: 600; }
-p { margin: 0; }
-.eyebrow { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
-.muted { color: var(--muted); }
-.mono { font-family: var(--font-mono); }
-code, pre { font-family: var(--font-mono); font-size: 0.86rem; }
-pre { margin: 0; overflow-x: auto; padding: 18px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); line-height: 1.5; }
-.k { color: var(--accent); } .s { color: var(--accent-2); } .n { color: var(--good); } .c { color: var(--muted); }
 
-/* header */
-header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
-header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 14px; }
-.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; color: var(--fg); }
-.brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 14px var(--accent); }
-nav.main { display: flex; gap: 22px; font-size: 0.9rem; }
-nav.main a { color: var(--muted); }
-nav.main a:hover { color: var(--fg); text-decoration: none; }
-.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius); border: 1px solid var(--line); color: var(--fg); background: var(--panel); font-weight: 500; font-size: 0.92rem; cursor: pointer; font-family: var(--font-body); }
-.btn:hover { text-decoration: none; border-color: var(--accent); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 45%, transparent); }
-.btn.primary:hover { filter: brightness(1.08); }
-/* Below 1180px the eleven links no longer fit beside the brand: they fold into a menu under the bar. */
-.menu-btn { display: none; }
-@media (max-width: 1180px) {
-  .menu-btn { display: inline-flex; margin-left: auto; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--fg); font: 500 0.92rem var(--font-body); cursor: pointer; }
-  nav.main { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; gap: 0; padding: 6px 20px 14px; background: var(--bg); border-bottom: 1px solid var(--line); }
-  nav.main.open { display: flex; }
-  nav.main a { padding: 10px 0; font-size: 1rem; color: var(--fg); }
+/* ---------- hero: a sentence split by a frame; the frame is a reel of product fragments ---------- */
+.hero { position: relative; height: calc(100svh + 3 * 56svh); }
+.stage { position: sticky; top: var(--bar-h); height: calc(100svh - var(--bar-h)); overflow: clip; display: grid; grid-template-columns: 1fr minmax(0, 38vw) 1fr; align-items: center; padding-inline: var(--m); gap: 0 var(--gap); }
+.hero h1 { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: subgrid; align-items: center; font-size: var(--step-head); }
+.hero h1 .half { font-size: var(--step-head); font-weight: 800; letter-spacing: -0.045em; line-height: 0.95; }
+.hero h1 .half.a { grid-column: 1; justify-self: start; }
+.hero h1 .half.b { grid-column: 3; justify-self: end; text-align: right; }
+.reel { grid-column: 2; grid-row: 1; position: relative; height: 100%; }
+.strip { position: absolute; left: 0; right: 0; top: 50%; display: grid; gap: var(--gap); transition: transform 700ms var(--ease-in-out); }
+.frame { aspect-ratio: 16 / 10; border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.reel-caption { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; gap: 16px; font-size: var(--step-small); color: var(--soft); background: var(--bg); padding: 10px 0 26px; }
+.hero .lede { position: absolute; left: var(--m); bottom: 32px; width: min(30rem, calc(31vw - var(--m))); }
+.hero .lede .button { margin-top: 20px; }
+@media (max-width: 1100px) {
+  .hero { height: calc(100svh + 3 * 52svh); }
+  .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto 1fr; align-content: start; gap: 12px; padding-top: 20px; }
+  .hero h1 { grid-column: 1; grid-row: 1 / span 3; grid-template-columns: minmax(0, 1fr); grid-template-rows: subgrid; }
+  .hero h1 .half.a { grid-column: 1; grid-row: 1; }
+  .hero h1 .half.b { grid-column: 1; grid-row: 3; justify-self: end; }
+  .reel { grid-column: 1; grid-row: 2; height: auto; aspect-ratio: 4 / 3; overflow: clip; }
+  .strip { top: 0; }
+  .frame { aspect-ratio: 4 / 3; }
+  .reel-caption { position: static; grid-row: 4; background: none; padding: 0; }
+  .hero .lede { position: static; grid-row: 5; width: auto; max-width: 36rem; align-self: start; }
 }
-/* The hero's network canvas bleeds past the wrapper on purpose; clip it so the page never scrolls sideways. */
-main { overflow-x: clip; }
+@media (max-width: 1100px) and (min-width: 761px) { .reel, .frame { aspect-ratio: 16 / 10; } .reel { width: min(100%, 640px); } }
 
-/* hero */
-.hero { padding-block: 72px 48px; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; align-items: center; }
-.hero .lead { font-size: 1.12rem; color: var(--muted); max-width: 54ch; margin-top: 18px; }
-.hero .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
-.hero .facts { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 34px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); }
-.hero .facts b { display: block; color: var(--fg); font-size: 1.1rem; font-weight: 500; font-variant-numeric: tabular-nums; }
-.terminal { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); box-shadow: 0 0 0 1px var(--line), 0 30px 80px -40px color-mix(in srgb, var(--ink) 35%, transparent); }
-.terminal::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent-hi), transparent); animation: sweep 4s linear infinite; }
-@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
-.terminal .bar { display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); }
-.terminal pre { border: 0; background: transparent; }
-@media (max-width: 900px) { .hero { grid-template-columns: 1fr; padding-block: 48px 32px; } }
+/* fragments: real pieces of the product. Inside [data-ui] the product's own conventions apply. */
+[data-ui] { font-family: var(--face); font-size: 14px; line-height: 1.4; letter-spacing: 0; color: var(--ink); overflow-wrap: anywhere; }
+.ui-card { height: 100%; background: var(--paper); padding: 18px 20px; display: grid; align-content: start; gap: 10px; }
+.ui-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ui-muted { color: #5c656d; }
+.ui-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #e3efe8; color: #12663f; white-space: nowrap; }
+.ui-chip.stale { background: #fbefe2; color: #8a4410; }
+.ui-big { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.ui-kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+.ui-kv dt { color: #5c656d; }
+.ui-kv dd { overflow-wrap: anywhere; }
+.ui-link { color: #a72a24; font-weight: 600; font-size: 13px; }
+.ui-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ui-table th { text-align: left; font-weight: 600; color: #5c656d; padding: 6px 8px; border-bottom: 1px solid #d7dfe5; }
+.ui-table td { padding: 7px 8px; border-bottom: 1px solid #e6ecf0; white-space: nowrap; }
+.ui-table tr.is-hover td { background: #f3f6f8; }
+.ui-q { justify-self: end; max-width: 80%; background: #4f6575; color: #fff; padding: 9px 14px; border-radius: 14px 14px 4px 14px; font-size: 14px; }
+.ui-a p { font-size: 14px; }
+.ui-cite { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e6ecf0; color: #4f6575; font-size: 11px; font-weight: 600; vertical-align: 2px; }
+.ui-src { font-size: 13px; color: #5c656d; display: flex; gap: 8px; align-items: baseline; }
+.ui-input { /* taste-skill-ignore: data-ui field */ display: flex; align-items: center; gap: 2px; border: 1px solid #c9d3db; border-radius: 6px; padding: 9px 12px; background: #fff; font-size: 14px; }
+.ui-input .caret { width: 1px; height: 16px; background: #2b2f33; }
+.ui-list { /* taste-skill-ignore: data-ui open menu */ list-style: none; padding: 0; margin: 0; border: 1px solid #d7dfe5; border-radius: 6px; background: #fff; box-shadow: 0 10px 24px -14px rgba(43, 47, 51, .45); }
+.ui-list li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; }
+.ui-list li + li { /* taste-skill-ignore: data-ui menu rows */ border-top: 1px solid #edf1f4; }
+.ui-list li.is-hover { background: #f3f6f8; }
+.ui-code { margin: 0; padding: 14px 16px; background: #2b2f33; color: #e9eef2; font: 13px/1.55 var(--code); overflow: auto; white-space: pre; border-radius: 6px; }
+.ui-code .k { color: #b8c7d2; } .ui-code .s { color: #ffffff; } .ui-code .n { color: #ff8a84; } .ui-code .c { color: #9aa5ae; }
+.ui-chart { display: grid; grid-template-columns: repeat(8, 1fr); align-items: end; gap: 6px; height: 150px; padding-top: 18px; }
+.ui-chart .b { position: relative; background: #627b8c; border-radius: 2px 2px 0 0; }
+.ui-chart .b.last { background: #e83c34; }
+.ui-chart .b span { position: absolute; left: 50%; top: -17px; transform: translateX(-50%); font-size: 11px; color: #4f6575; white-space: nowrap; }
+.ui-hist { display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 6px; height: 64px; }
+.ui-hist a { display: grid; grid-template-rows: 1fr auto; height: 100%; gap: 3px; text-decoration: none; color: #5c656d; font-size: 11px; text-align: center; }
+.ui-hist i { align-self: end; height: var(--h); background: #b8c7d2; border-radius: 2px 2px 0 0; transition: background-color var(--t-hover) ease; }
+.ui-hist a.last i { background: #e83c34; }
+.ui-hist a:hover i { background: #627b8c; }
+.ui-axis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; font-size: 11px; color: #5c656d; text-align: center; }
 
-/* sections */
-section { padding-block: 64px; border-top: 1px solid var(--line); }
-.sec-head { display: grid; gap: 10px; max-width: 64ch; margin-bottom: 36px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-@media (max-width: 900px) { .grid3 { grid-template-columns: 1fr; } .grid2 { grid-template-columns: 1fr; } }
-.tile { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); display: grid; gap: 10px; align-content: start; min-width: 0; }
-.tile .mono { color: var(--accent-2); font-size: 0.78rem; }
-.tile p { color: var(--muted); font-size: 0.95rem; }
+/* ---------- stats: a figure set by a slider ---------- */
+.figure-field { background: var(--field); color: var(--field-ink); min-height: 92svh; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto 1fr auto; gap: 0 var(--gap); padding: clamp(56px, 7vw, 104px) var(--m) clamp(40px, 5vw, 72px); }
+.figure-field h2 { grid-column: 1 / span 8; max-width: 16ch; }
+.figure-field .control { grid-column: 1 / span 5; margin-top: 28px; width: min(400px, 100%); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 16px 18px; }
+.control label { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; font-size: 14px; }
+.control output { }
+.control input[type=range] { width: 100%; margin: 14px 0 4px; accent-color: #c92f28; height: 28px; }
+.control .ticks { display: flex; justify-content: space-between; font-size: 13px; color: #5c656d; }
+.figure-field .result { grid-column: 1 / span 8; grid-row: 4; align-self: end; display: flex; align-items: baseline; gap: 0.22em; flex-wrap: wrap; }
+.figure-field .result b { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.8; }
+.figure-field .result span { font-size: var(--step-lead); font-weight: 600; }
+.figure-field .working { grid-column: 9 / span 4; grid-row: 4; align-self: end; max-width: 30ch; color: var(--field-soft); }
+@media (max-width: 760px) {
+  .figure-field { min-height: 86svh; grid-template-columns: minmax(0, 1fr); }
+  .figure-field > * { grid-column: 1 / -1 !important; }
+  .figure-field .control { width: 100%; }
+  .figure-field .result { grid-row: auto; margin-top: 48px; flex-direction: column; gap: 6px; }
+  .figure-field .working { grid-row: auto; margin-top: 16px; }
+}
 
-/* flow */
-.flow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-.flow .step { padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); font-size: 0.85rem; min-width: 0; }
-.flow .step .mono { color: var(--accent); display: block; margin-bottom: 6px; font-size: 0.7rem; }
-@media (max-width: 900px) { .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* ---------- showcase: an index of companies and the live sheet of the selected one ---------- */
+.index-split { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 var(--gap); align-items: start; }
+.index-split > .names { grid-column: 1 / span 5; display: grid; gap: 28px; }
+.names ul { list-style: none; padding: 0; }
+.names button { display: block; padding: 2px 0; border: 0; background: none; font: 800 var(--step-head)/1.1 var(--face); letter-spacing: -0.045em; color: color-mix(in srgb, var(--ink) 62%, var(--bg)); cursor: pointer; text-align: left; transition: color var(--t-hover) ease; }
+.names button[aria-pressed="true"], .names button:hover { color: var(--ink); }
+.names p { max-width: 34ch; }
+.sheet-stage { grid-column: 7 / span 6; position: relative; height: 88svh; min-height: 620px; background: var(--surface); border-radius: var(--radius); overflow: clip; }
+.sheet { position: absolute; left: 64px; right: -48px; top: 72px; min-width: 560px; min-height: 120%; background: var(--paper); padding: 28px 30px; display: grid; align-content: start; gap: 18px; transition: opacity 200ms ease; }
+.sheet.swap { opacity: 0; }
+.sheet h3 { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
+.sheet .ui-table td:nth-child(2) { font-weight: 600; }
+.sheet .ui-table a { color: #a72a24; }
+.sheet .ui-table th:last-child, .sheet .ui-table td:last-child { text-align: right; }
+@media (max-width: 1240px) { .sheet { left: 32px; } }
+@media (max-width: 900px) {
+  .index-split > .names, .sheet-stage { grid-column: 1 / -1; }
+  .names ul { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+  .names button { font-size: var(--step-lead); }
+  .sheet-stage { margin-top: 20px; height: 70svh; min-height: 520px; }
+  .sheet { left: 16px; top: 16px; }
+}
 
-/* pricing */
-.toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--bg-2); }
-.toggle button { border: 0; background: transparent; color: var(--muted); padding: 7px 14px; border-radius: 999px; font-family: var(--font-body); font-size: 0.86rem; cursor: pointer; }
-.toggle button[aria-pressed="true"] { background: var(--panel); color: var(--fg); border: 1px solid var(--line); }
-.plans { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
-@media (max-width: 1000px) { .plans { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .plans { grid-template-columns: 1fr; } }
-.plan { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 24px 22px; display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 16px; min-width: 0; }
-.plan.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 20px 60px -30px var(--accent); }
-.plan .name { display: flex; justify-content: space-between; align-items: baseline; }
-.plan .tag { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
-.price { font-family: var(--font-display); font-size: 2.2rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
-.price small { font-family: var(--font-body); font-size: 0.85rem; color: var(--muted); font-weight: 400; }
-.plan .for { color: var(--muted); font-size: 0.9rem; min-height: 2.8em; }
-.plan ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 0.9rem; }
-.plan li { display: grid; grid-template-columns: 14px 1fr; gap: 10px; align-items: start; }
-.plan li::before { content: ""; width: 8px; height: 8px; margin-top: 7px; border-radius: 2px; background: var(--accent); }
-.plan li.quota { font-variant-numeric: tabular-nums; }
-.note { font-size: 0.85rem; color: var(--muted); max-width: 72ch; margin-top: 22px; }
+/* ---------- features: six filled cells with fragments docked in a checkerboard ---------- */
+.cells-head { margin-bottom: 56px; }
+.cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cell { min-height: 440px; background: var(--surface); border-radius: var(--radius); overflow: clip; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+.cell .dock { min-width: 0; }
+.cell .copy { padding: 24px; display: grid; gap: 8px; align-content: start; }
+.cell .copy p { max-width: 36ch; }
+.cell .dock { align-self: end; padding-left: 24px; }
+.cell.flip { grid-template-rows: 1fr auto; }
+.cell.flip .copy { order: 2; align-content: end; }
+.cell.flip .dock { align-self: start; padding: 0 24px 0 0; }
+.cell .dock > [data-ui] { border-radius: 6px 0 0 0; }
+.cell.flip .dock > [data-ui] { border-radius: 0 0 6px 0; }
+.cell .dock > pre.ui-code { border-radius: 6px 0 0 0; }
+.cell.flip .dock > pre.ui-code { border-radius: 0 0 6px 0; }
+.dock .ui-card { padding: 16px 18px; }
+@media (max-width: 1000px) {
+  .cells { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .cell, .cell.flip { min-height: 0; grid-template-rows: auto auto; }
+  .cell.flip .copy { order: 0; }
+  .cell.flip .dock { align-self: end; padding: 0 0 0 24px; }
+  .cell:nth-child(even) .dock { padding: 0 24px 0 0; }
+}
 
-/* compare table */
-.compare { overflow-x: auto; margin-top: 34px; border: 1px solid var(--line); border-radius: var(--radius); }
-table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 0.88rem; }
-th, td { padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-th { font-family: var(--font-mono); font-weight: 500; font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--bg-2); }
-td.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 0.82rem; }
-tr:last-child td { border-bottom: 0; }
+/* ---------- how it works: call and response ---------- */
+.calls { width: min(560px, 100%); margin-left: 25%; }
+.calls h2 { margin-bottom: 20px; }
+.calls > p { max-width: 46ch; margin-bottom: 56px; }
+.exchange + .exchange { margin-top: 88px; }
+.exchange > p { font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+.call { position: relative; margin-top: 16px; }
+.call .ui-code { border-radius: var(--radius); }
+.copybtn { position: absolute; top: 8px; right: 8px; min-height: 32px; padding: 0 12px; border: 0; border-radius: var(--radius); background: #4a5259; color: #fff; font: 600 13px var(--face); cursor: pointer; transition: transform var(--t-press) var(--ease-out); }
+.copybtn:active { transform: scale(0.97); }
+.response { margin: 20px 0 0 56px; }
+.response.wide { width: min(760px, calc(100vw - 2 * var(--m) - 56px)); }
+.response .ui-card { /* taste-skill-ignore: data-ui panel */ border-radius: 6px; border: 1px solid #d7dfe5; }
+@media (max-width: 900px) {
+  .calls { margin-left: 0; }
+  .response { margin-left: 0; margin-top: 24px; }
+  .response.wide { width: auto; }
+}
 
-/* faq */
-details { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 14px 18px; }
-details + details { margin-top: 10px; }
-summary { cursor: pointer; font-weight: 500; }
-details p { margin-top: 10px; color: var(--muted); font-size: 0.95rem; }
+/* ---------- pricing: plan names, one live stage ---------- */
+.plans { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 var(--gap); align-items: start; }
+.plans .names-col { grid-column: 1 / span 6; }
+.plans .names-col h2 { margin-bottom: 28px; }
+.plan-names { list-style: none; padding: 0; display: grid; gap: 4px; justify-items: start; }
+.plan-names button { display: inline-flex; align-items: center; gap: 0.28em; padding: 0; border: 0; background: none; font: 800 var(--step-head)/1.1 var(--face); letter-spacing: -0.045em; color: color-mix(in srgb, var(--ink) 62%, var(--bg)); cursor: pointer; transition: color var(--t-hover) ease; }
+.plan-names button::before { content: ""; width: 0.3em; height: 0.3em; border-radius: 50%; background: transparent; }
+.plan-names button[aria-pressed="true"], .plan-names button:hover { color: var(--ink); }
+.plan-names button[aria-pressed="true"]::before { background: var(--accent-hi); }
+.plan-stage { grid-column: 8 / span 5; position: sticky; top: 96px; display: grid; gap: 18px; transition: opacity 200ms ease; }
+.plan-stage.swap { opacity: 0; }
+.price { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.price b { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.85; }
+.price span { color: var(--soft); }
+.billing { display: inline-flex; gap: 4px; padding: 4px; background: var(--surface); border-radius: var(--radius); justify-self: start; }
+.billing button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 3px; background: none; font: 600 var(--step-small) var(--face); color: var(--soft); cursor: pointer; }
+.billing button[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
+.plan-stage ul { padding-left: 1.1em; display: grid; gap: 6px; }
+.plan-stage .button { justify-self: start; }
+.compare { margin-top: 96px; overflow-x: auto; }
+.compare table { width: 100%; border-collapse: collapse; font-size: var(--step-body); min-width: 680px; }
+.compare th, .compare td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--surface-2); }
+.compare thead th { font-weight: 600; color: var(--soft); }
+.compare td:not(:first-child) { }
+.fine { margin-top: 20px; color: var(--soft); max-width: 72ch; font-size: var(--step-small); }
+@media (max-width: 900px) {
+  .plans .names-col, .plan-stage { grid-column: 1 / -1; }
+  .plan-stage { position: static; margin-top: 32px; }
+}
 
-/* footer */
-footer { border-top: 1px solid var(--line); padding-block: 36px 48px; font-size: 0.85rem; color: var(--muted); }
-footer .wrap { display: grid; gap: 14px; }
-.disclaimer { border: 1px solid var(--line); border-left: 3px solid var(--accent-2); padding: 14px 16px; border-radius: var(--radius); background: var(--panel); color: var(--fg); font-size: 0.9rem; }
-.copybtn { font-size: 0.74rem; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-family: var(--font-mono); }
-.copybtn:hover { color: var(--fg); border-color: var(--accent); }
-.status-pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.72rem; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); }
-.status-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 8px var(--good); }
+/* ---------- faq: sticky heading, filled tiles ---------- */
+.faq { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 var(--gap); align-items: start; }
+.faq .head { grid-column: 1 / span 4; position: sticky; top: 96px; display: grid; gap: 24px; }
+.faq .head .pic { overflow: clip; border-radius: var(--radius); }
+.faq .head img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.faq .head figcaption { margin-top: 8px; font-size: var(--step-small); color: var(--soft); }
+.faq .tiles { grid-column: 5 / span 8; display: grid; gap: 8px; }
+.faq details { background: var(--surface); border-radius: var(--radius); transition: background-color var(--t-ui) ease, color var(--t-ui) ease; }
+.faq summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 20px; min-height: 72px; padding: 0 24px; font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; cursor: pointer; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary .plus { position: relative; flex: none; width: 16px; height: 16px; }
+.faq summary .plus::before, .faq summary .plus::after { content: ""; position: absolute; left: 0; top: 6.5px; width: 16px; height: 3px; background: currentColor; transition: transform var(--t-ui) var(--ease-out); }
+.faq summary .plus::after { transform: rotate(90deg); }
+.faq details[open] { background: var(--slate-deep); color: #fff; }
+.faq details[open] .plus::after { transform: rotate(0deg); }
+.faq details p { padding: 0 24px 24px; max-width: 52ch; }
+@media (max-width: 900px) {
+  .faq .head, .faq .tiles { grid-column: 1 / -1; }
+  .faq .head { position: static; margin-bottom: 28px; }
+  .faq summary { font-size: var(--step-body); min-height: 64px; padding: 12px 20px; }
+  .faq details p { padding: 0 20px 20px; font-size: var(--step-body); }
+}
 
-/* ---------- motion layer (progressive enhancement) ---------- */
-body { position: relative; overflow-x: clip; }
-.orbs { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
-.orb { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(70px); opacity: 0.32; mix-blend-mode: multiply;
-  background: radial-gradient(circle at 30% 30%, var(--brand), transparent 60%); animation: drift 26s ease-in-out infinite alternate; }
-.orb.b { background: radial-gradient(circle at 60% 40%, var(--accent-2), transparent 60%); animation-duration: 34s; animation-delay: -12s; opacity: 0.2; }
-.orb.c { background: radial-gradient(circle at 50% 50%, var(--mist), transparent 60%); animation-duration: 40s; animation-delay: -20s; opacity: 0.22; }
-@keyframes drift { 0% { transform: translate3d(-10%, -10%, 0) scale(1); } 50% { transform: translate3d(30%, 10%, 0) scale(1.15); } 100% { transform: translate3d(5%, 35%, 0) scale(0.95); } }
+/* ---------- contact: a coupon to cut out ---------- */
+.coupon-wrap { padding-block: 120px; }
+.coupon { --notch: 14px; display: grid; grid-template-columns: 46fr 54fr; width: 100%; min-height: 480px; background: var(--coupon); color: var(--coupon-ink); border-radius: 14px;
+  /* taste-skill-ignore: a mask that cuts the coupon notches, not a visible gradient */ -webkit-mask: radial-gradient(circle var(--notch) at 46% 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle var(--notch) at 46% 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+          /* taste-skill-ignore */ mask: radial-gradient(circle var(--notch) at 46% 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle var(--notch) at 46% 100%, transparent 98%, #000) bottom / 100% 51% no-repeat; }
+.coupon .left { padding: 48px; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; }
+.coupon .left h2 { color: var(--coupon-ink); max-width: 11ch; }
+.coupon .left p { max-width: 34ch; color: var(--coupon-soft); font-size: var(--step-body); }
+.coupon form { padding: 48px; border-left: 5px dotted var(--bg); display: grid; align-content: center; gap: 10px; }
+.coupon input, .coupon textarea, .coupon select { width: 100%; min-height: 52px; padding: 14px 16px; border: 0; border-radius: var(--radius); background: var(--coupon-2); color: var(--coupon-ink); font: 400 var(--step-body)/1.4 var(--face); }
+.coupon textarea { min-height: 96px; resize: vertical; }
+.coupon ::placeholder { color: #aab4bc; opacity: 1; }
+.coupon input:focus-visible, .coupon textarea:focus-visible, .coupon select:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 0; }
+.coupon .submit { min-height: 56px; width: 100%; margin-top: 6px; }
+.coupon .status { min-height: 1.4em; font-size: var(--step-body); color: var(--coupon-soft); }
+@media (max-width: 900px) {
+  .coupon-wrap { padding-block: 80px; }
+  .coupon { grid-template-columns: minmax(0, 1fr); min-height: 0;
+    /* taste-skill-ignore: a mask that cuts the coupon notches, not a visible gradient */ -webkit-mask: radial-gradient(circle var(--notch) at 0 var(--cut, 38%), transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle var(--notch) at 100% var(--cut, 38%), transparent 98%, #000) right / 51% 100% no-repeat;
+            /* taste-skill-ignore */ mask: radial-gradient(circle var(--notch) at 0 var(--cut, 38%), transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle var(--notch) at 100% var(--cut, 38%), transparent 98%, #000) right / 51% 100% no-repeat; }
+  .coupon .left { padding: 28px 20px; }
+  .coupon form { border-left: 0; border-top: 5px dotted var(--bg); padding: 28px 20px; }
+  .coupon input, .coupon select { min-height: 54px; }
+}
 
-.hero { position: relative; isolation: isolate; }
-#field { position: absolute; inset: -72px -20vw -48px; width: calc(100% + 40vw); height: calc(100% + 120px); z-index: -1; pointer-events: none; opacity: 0.9; }
+/* ---------- footer: a board of tiles ---------- */
+.board { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; padding: 8px clamp(8px, 1vw, 12px) 12px; }
+.tile { background: var(--surface); border-radius: var(--radius); padding: 24px; min-height: 220px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
+.tile.statement { grid-column: 1 / span 4; }
+.tile.statement p:first-child { font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+.tile.statement p + p { font-size: var(--step-small); color: var(--soft); }
+.tile.links { grid-column: 5 / span 3; }
+.tile.links ul { list-style: none; padding: 0; display: grid; gap: 4px; font-size: var(--step-body); }
+.tile.links a { text-decoration: none; }
+.tile.links a:hover { text-decoration: underline; }
+.tile.photo { grid-column: 8 / span 2; padding: 0; overflow: clip; justify-content: flex-start; margin: 0; }
+.tile.photo img { width: 100%; height: 100%; min-height: 220px; object-fit: cover; }
+.tile.live { grid-column: 10 / span 3; }
+.tile.live dl { display: grid; gap: 6px; }
+.tile.live dt { font-size: var(--step-small); color: var(--soft); }
+.tile.live dd { font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; }
+.tile.live .note { font-size: var(--step-small); color: var(--soft); }
+.tile.mark { grid-column: 1 / span 8; min-height: 320px; background: var(--ink); color: var(--paper); align-items: center; justify-content: center; }
+.tile.mark span { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.9; }
+.tile.go { grid-column: 9 / span 4; min-height: 320px; background: var(--accent); color: var(--accent-ink); text-decoration: none; transition: background-color var(--t-hover) ease; }
+.tile.go:hover { background: #ad2822; }
+.tile.go span { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.03em; }
+.tile.go svg { align-self: flex-end; width: 56px; height: 56px; transition: transform var(--t-ui) var(--ease-out); }
+.tile.go:hover svg { transform: translate(4px, -4px); }
+.credits { padding: 4px var(--m) 24px; font-size: var(--step-small); color: var(--soft); }
+@media (max-width: 1000px) {
+  .board { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tile { padding: 20px; min-height: 0; }
+  .tile.mark { grid-column: 1 / -1; order: -2; min-height: 160px; }
+  .tile.go { grid-column: 1 / -1; order: -1; min-height: 140px; }
+  .tile.links { grid-column: 1; } .tile.live { grid-column: 2; }
+  .tile.photo { grid-column: 1; min-height: 200px; } .tile.statement { grid-column: 2; }
+  .tile.mark span { font-size: var(--step-head); }
+}
+@media (max-width: 560px) { .tile.statement, .tile.photo, .tile.links, .tile.live { grid-column: 1 / -1; } }
 
-/* hero entrance: starts visible, settles into place */
-.hero > div:first-child > * { animation: rise 0.9s cubic-bezier(.2,.7,.2,1) both; }
-.hero > div:first-child > *:nth-child(2) { animation-delay: .08s; }
-.hero > div:first-child > *:nth-child(3) { animation-delay: .16s; }
-.hero > div:first-child > *:nth-child(4) { animation-delay: .24s; }
-.hero > div:first-child > *:nth-child(5) { animation-delay: .32s; }
-.terminal { animation: rise 1.1s cubic-bezier(.2,.7,.2,1) .2s both, hover-float 7s ease-in-out 1.3s infinite; }
-@keyframes rise { from { transform: translateY(26px); opacity: .001; } to { transform: translateY(0); opacity: 1; } }
-@keyframes hover-float { 0%, 100% { transform: translateY(0) rotateX(0) rotateY(0); } 50% { transform: translateY(-8px) rotateX(1.2deg) rotateY(-1.4deg); } }
-.hero > div:last-child { perspective: 1200px; }
-.terminal pre span { transition: text-shadow .3s; }
-.terminal pre .lit { text-shadow: 0 0 14px currentColor; }
+/* On phones the hero's fragments run edge to edge, their text on the page margins. */
+@media (max-width: 760px) {
+  .reel { margin-inline: calc(-1 * var(--m)); }
+  .frame { border-radius: 0; }
+  .reel, .frame { aspect-ratio: 1 / 1; }
+  .frame .ui-card { padding-inline: var(--m); }
+  .reel-caption { padding-inline: var(--m); }
+}
+/* On phones every text block takes the full measure between the two margins. */
+@media (max-width: 600px) {
+  h2, .figure-field h2, .figure-field .working, .names p, .cell .copy p, .coupon .left h2, .coupon .left p, .calls > p, .faq details p, .fine { max-width: none; }
+}
 
-/* gradient shimmer on headlines */
-h1, h2 { background: linear-gradient(100deg, var(--fg) 0%, var(--fg) 45%, var(--accent) 50%, var(--fg) 55%, var(--fg) 100%);
-  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 9s linear infinite; }
-@keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -130% 0; } }
-
-/* scroll-driven reveals (CSS only; browsers without support show everything at rest) */
-@supports (animation-timeline: view()) {
-  .tile, .plan, .step, details, .sec-head, .compare, .disclaimer {
-    animation: reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 70%;
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .js .hero .half, .js .hero .lede { animation: rise 800ms var(--ease-expo) both; }
+  .js .hero .half.b { animation-delay: 90ms; }
+  .js .hero .lede { animation-delay: 420ms; }
+  .js .hero .reel { animation: open 1000ms var(--ease-in-out) 150ms both; }
+  .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
+  .js [data-reveal].is-in { opacity: 1; transform: none; }
+  @supports (animation-timeline: view()) {
+    .drift img { animation: drift linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
   }
-  .grid3 .tile:nth-child(3n+2), .plan:nth-child(2), .plan:nth-child(4) { animation-range: entry 10% entry 80%; }
-  .orb { animation: drift 26s ease-in-out infinite alternate, parallax linear both; animation-timeline: auto, scroll(root); }
-  .orb.a { --py: -30vh; } .orb.b { --py: 25vh; } .orb.c { --py: -45vh; }
-  #field { animation: parallax linear both; animation-timeline: scroll(root); --py: 22vh; }
-  .flow-line path { animation: draw linear both; animation-timeline: view(); animation-range: entry 20% cover 60%; }
 }
-@keyframes reveal { from { opacity: 0; transform: translateY(34px) scale(.98); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
-@keyframes parallax { to { translate: 0 var(--py, 0); } }
-@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-
-/* pipeline connector */
-.flow-wrap { position: relative; }
-.flow-line { position: absolute; left: 0; right: 0; top: 50%; height: 0; pointer-events: none; }
-.flow-line svg { position: absolute; left: 0; top: -40px; width: 100%; height: 80px; overflow: visible; }
-.flow-line path { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 1; stroke-dashoffset: 1; pathLength: 1; filter: drop-shadow(0 0 6px var(--accent)); opacity: .55; }
-.flow .step { position: relative; background: color-mix(in srgb, var(--bg-2) 92%, transparent); transition: transform .4s cubic-bezier(.2,.7,.2,1), border-color .4s; }
-.flow .step:hover { transform: translateY(-6px); border-color: var(--accent); }
-@media (max-width: 900px) { .flow-line { display: none; } }
-
-/* cursor-tracked glow + 3D tilt on cards */
-.tile, .plan { position: relative; overflow: hidden; transform-style: preserve-3d; transition: transform .25s ease-out, border-color .3s, box-shadow .3s; }
-.tile::after, .plan::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s;
-  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%); }
-.tile:hover::after, .plan:hover::after { opacity: 1; }
-.tile:hover, .plan:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
-.plan.featured { animation: pulse-ring 3.6s ease-in-out infinite; }
-@keyframes pulse-ring { 0%, 100% { box-shadow: 0 0 0 1px var(--accent), 0 20px 60px -30px var(--accent); } 50% { box-shadow: 0 0 0 1px var(--accent), 0 28px 90px -26px var(--accent), 0 0 40px -10px var(--accent); } }
-
-/* magnetic buttons */
-.btn { transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .25s, box-shadow .25s, filter .25s; will-change: transform; }
-.btn.primary { position: relative; overflow: hidden; }
-.btn.primary::before { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%); transform: translateX(-120%); animation: sheen 5s ease-in-out 1.5s infinite; }
-@keyframes sheen { 0%, 60% { transform: translateX(-120%); } 80%, 100% { transform: translateX(120%); } }
-
-/* endpoint marquee */
-.marquee { border-block: 1px solid var(--line); background: color-mix(in srgb, var(--bg-2) 70%, transparent); overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
-.marquee .track { display: flex; gap: 48px; width: max-content; padding-block: 12px; animation: marquee 38s linear infinite; font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
-.marquee .track span b { color: var(--accent); font-weight: 500; }
-.marquee:hover .track { animation-play-state: paused; }
-@keyframes marquee { to { transform: translateX(-50%); } }
-
-/* scroll progress */
-.progress { position: fixed; left: 0; top: 0; height: 2px; width: 100%; z-index: 20; transform-origin: left; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transform: scaleX(0); pointer-events: none; }
-@supports (animation-timeline: scroll()) { .progress { animation: grow linear both; animation-timeline: scroll(root); } }
-@keyframes grow { to { transform: scaleX(1); } }
-
-.price { transition: transform .35s cubic-bezier(.2,.7,.2,1); }
-.price.flip { animation: flip .5s cubic-bezier(.2,.7,.2,1); }
-@keyframes flip { 0% { transform: rotateX(0); } 40% { transform: rotateX(90deg); opacity: .2; } 60% { transform: rotateX(-90deg); opacity: .2; } 100% { transform: rotateX(0); opacity: 1; } }
-details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
-
-@media (prefers-reduced-motion: reduce) {
-  .orbs, #field, .progress, .marquee .track { animation: none !important; }
-  h1, h2 { background: none; color: var(--fg); -webkit-text-fill-color: currentColor; }
-  .tile, .plan, .step, details, .sec-head, .compare, .disclaimer, .flow-line path { animation: none !important; opacity: 1; transform: none; filter: none; stroke-dashoffset: 0; }
-}
+@keyframes rise { from { opacity: 0; transform: translateY(24px); } }
+@keyframes open { from { clip-path: inset(30% 0 30% 0); opacity: 0; } to { clip-path: inset(0); opacity: 1; } }
+@keyframes drift { from { transform: scale(1.08) translateY(-3%); } to { transform: scale(1.08) translateY(3%); } }
+@media (prefers-reduced-motion: reduce) { .strip, .sheet, .plan-stage { transition: none; } }
+/* Without script the reel is no held stage: the frames stack and the page scrolls past them. */
+html:not(.js) .hero { height: auto; }
+html:not(.js) .stage { position: static; height: auto; padding-block: 96px 48px; align-items: start; }
+html:not(.js) .reel { height: auto; aspect-ratio: auto; }
+html:not(.js) .strip { position: static; }
+html:not(.js) .reel-caption { display: none; }
+html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; margin-top: 32px; }
 </style>
 </head>
 <body>
-<div class="progress" aria-hidden="true"></div>
-<div class="orbs" aria-hidden="true"><div class="orb a"></div><div class="orb b"></div><div class="orb c"></div></div>
 
-<header class="top">
+<header class="bar">
   <div class="wrap">
-    <a class="brand" href="#top" aria-label="Provenance Filings API home"><span class="dot" aria-hidden="true"></span>Provenance</a>
+    <a class="wordmark" href="#top"><i aria-hidden="true"></i>Provenance</a>
     <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
-    <nav class="main" id="main-nav" aria-label="Primary">
-      <a href="#product">Product</a>
-      <a href="#agents">For agents</a>
-      <a href="#pricing">Pricing</a>
-      <a href="#faq">FAQ</a>
+    <nav id="main-nav" aria-label="Primary">
       <a href="/chat/">Chat</a>
       <a href="/playground/">Playground</a>
-      <a href="/companies/">Companies</a>
-      <a href="/listings/">Listings</a>
-      <a href="/status/">Status</a>
-      <a href="/app/">Explorer</a>
+      <a href="#pricing">Pricing</a>
       <a href="/docs">API docs</a>
     </nav>
-    <a class="btn primary" href="#contact">Get an API key</a>
+    <a class="button small" href="#contact">Get an API key</a>
   </div>
 </header>
 
 <main id="top">
-  <div class="wrap hero">
-    <canvas id="field" aria-hidden="true"></canvas>
-    <div>
-      <p class="eyebrow">US public-company filings · official SEC sources</p>
-      <h1>Filing facts your code and your agents can cite.</h1>
-      <p class="lead">Company identity, recent filings, normalized financial facts, freshness and signed notifications through one documented API. Every value links back to the SEC record it came from. Nothing is inferred, estimated or marked up.</p>
-      <div class="cta">
-        <a class="btn primary" href="/playground/">Try it now, no signup</a>
-        <a class="btn" href="#pricing">Start free</a>
-        <a class="btn" href="/openapi.json" target="_blank" rel="noopener">OpenAPI schema</a>
-        <a class="btn" href="/llms.txt" target="_blank" rel="noopener">llms.txt</a>
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="stage">
+    <h1 id="hero-title"><span class="half a">Every figure</span> <span class="half b">cites a filing.</span></h1>
+    <div class="reel" aria-label="What the product returns, four examples">
+      <div class="strip" id="strip">
+
+        <div class="frame">
+          <article class="ui-card" data-ui aria-label="A figure and its record">
+            <div class="ui-row"><strong id="rec-name">Apple Inc. · AAPL</strong><span class="ui-chip">ok</span></div>
+            <div><div class="ui-big" id="rec-value">$416.2 billion</div><div class="ui-muted" id="rec-what">Revenue, fiscal year ended 2025-09-27</div></div>
+            <dl class="ui-kv">
+              <dt>Filing</dt><dd id="rec-form">10-K filed 2025-10-31</dd>
+              <dt>Accession</dt><dd id="rec-acc">0000320193-25-000079</dd>
+              <dt>XBRL tag</dt><dd id="rec-tag">us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax</dd>
+              <dt>Mapping</dt><dd>version 1.1.0, reported, not derived</dd>
+            </dl>
+            <div class="ui-hist" id="rec-hist" aria-label="Revenue for the last five fiscal years">
+              <a href="https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/0000320193-23-000106-index.html" target="_blank" rel="noopener" style="--h:87.9%"><i></i><span>2021</span></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.html" target="_blank" rel="noopener" style="--h:94.7%"><i></i><span>2022</span></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:92.1%"><i></i><span>2023</span></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:94%"><i></i><span>2024</span></a><a class="last" href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:100%"><i></i><span>2025</span></a>
+            </div>
+            <a class="ui-link" id="rec-link" href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">Open the filing on sec.gov</a>
+          </article>
+        </div>
+
+        <div class="frame">
+          <article class="ui-card" data-ui aria-label="A chat answer that cites its filing">
+            <p class="ui-q">How fast is Microsoft's revenue growing?</p>
+            <div class="ui-a"><p>Revenue rose 17.8% to $331.8 billion in the fiscal year ended June 30, 2026, from $281.7 billion the year before <span class="ui-cite">1</span>. Growth the previous year was 14.9%, from $245.1 billion <span class="ui-cite">1</span>.</p></div>
+            <div class="ui-src"><span class="ui-cite">1</span><span>10-K filed 2026-07-29 · 0001193125-26-323660</span></div>
+            <div class="ui-row"><span class="ui-chip">Every figure checked</span><span class="ui-muted">local model</span></div>
+          </article>
+        </div>
+
+        <div class="frame">
+          <article class="ui-card" data-ui aria-label="Microsoft revenue for eight fiscal years">
+            <div class="ui-row"><strong>Microsoft revenue</strong><span class="ui-muted">fiscal years ended June 30, $ billion</span></div>
+            <div class="ui-chart" role="img" aria-label="Revenue rising from $125.8 billion in 2019 to $331.8 billion in 2026">
+              <div class="b" style="height:37.9%"><span>125.8</span></div><div class="b" style="height:43.1%"><span>143.0</span></div><div class="b" style="height:50.7%"><span>168.1</span></div><div class="b" style="height:59.7%"><span>198.3</span></div><div class="b" style="height:63.9%"><span>211.9</span></div><div class="b" style="height:73.9%"><span>245.1</span></div><div class="b" style="height:84.9%"><span>281.7</span></div><div class="b last" style="height:100%"><span>331.8</span></div>
+            </div>
+            <div class="ui-axis"><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span><span>2026</span></div>
+            <div class="ui-src">Each bar links to the 10-K it came from</div>
+          </article>
+        </div>
+
+        <div class="frame">
+          <article class="ui-card" data-ui aria-label="A filing alert delivered to a webhook">
+            <div class="ui-row"><strong>New filing · MICROSOFT CORP</strong><span class="ui-chip">delivered 200</span></div>
+            <dl class="ui-kv">
+              <dt>Form</dt><dd>8-K, items 2.02 and 9.01</dd>
+              <dt>Item 2.02</dt><dd>Results of operations and financial condition</dd>
+              <dt>Filed</dt><dd>2026-10-28, accepted 20:04:44 UTC</dd>
+              <dt>Accession</dt><dd>0001193125-26-436122</dd>
+              <dt>Sent to</dt><dd>https://hooks.example.com/filings</dd>
+              <dt>Event ID</dt><dd>evt_8k_436122, the same on every retry</dd>
+              <dt>Headers</dt><dd>X-Signature-Timestamp: 1793217901<br>X-Signature: v1=HMAC-SHA256 of the timestamp and body</dd>
+            </dl>
+          </article>
+        </div>
+
       </div>
-      <div class="facts" aria-label="Live coverage" id="live-facts" data-source="/v1/stats">
-        <div><b data-stat="companies">—</b>US companies ingested</div>
-        <div><b data-stat="facts">—</b>normalized facts</div>
-        <div><b data-stat="listings">—</b>CA/EU/UK listings tracked</div>
-        <div><b data-stat="listing_events">—</b>listing events detected</div>
-      </div>
-      <p class="muted mono" id="live-note" style="font-size:.74rem;margin-top:10px">Loading live coverage from /v1/stats…</p>
+      <p class="reel-caption" aria-live="polite"><span id="reel-text">A figure and its record</span><span id="reel-count">1 of 4</span></p>
     </div>
-    <div class="terminal" aria-label="Sample API response">
-      <div class="bar"><span id="hero-sample-url">GET /v1/companies/320193/facts?metric=revenue&amp;period=annual</span><span class="status-pill"><i></i>200</span></div>
-<pre id="hero-sample">{
-  <span class="k">"metric"</span>: <span class="s">"revenue"</span>,
-  <span class="k">"value"</span>: <span class="n">391035000000</span>,
-  <span class="k">"unit"</span>: <span class="s">"USD"</span>,
-  <span class="k">"period_start"</span>: <span class="s">"2023-10-01"</span>,
-  <span class="k">"period_end"</span>: <span class="s">"2024-09-28"</span>,
-  <span class="k">"period_class"</span>: <span class="s">"annual"</span>,
-  <span class="k">"form_type"</span>: <span class="s">"10-K"</span>,
-  <span class="k">"accession_number"</span>: <span class="s">"0000320193-24-000123"</span>,
-  <span class="k">"source_tag"</span>: <span class="s">"RevenueFromContractWithCustomerExcludingAssessedTax"</span>,
-  <span class="k">"source_url"</span>: <span class="s">"https://www.sec.gov/Archives/edgar/data/320193/…"</span>,
-  <span class="k">"mapping_version"</span>: <span class="s">"1.1.0"</span>,
-  <span class="k">"quality_status"</span>: <span class="s">"ok"</span>,
-  <span class="k">"derived"</span>: <span class="n">false</span>
-}  <span class="c">// shape from the live API; values illustrative</span></pre>
+    <div class="lede">
+      <p>Provenance is an API and a chat over the SEC filings of <span data-stat="companies">20,540</span> US public companies. Each number links to the filing, accession number and XBRL tag it came from.</p>
+      <a class="button" href="/playground/">Try it, no signup</a>
     </div>
   </div>
+</section>
 
-  <div class="marquee" aria-hidden="true">
-    <div class="track">
-      <span><b>GET</b> /v1/companies/search</span><span><b>GET</b> /v1/companies/{cik}</span><span><b>GET</b> /v1/companies/{cik}/filings</span><span><b>GET</b> /v1/companies/{cik}/facts</span><span><b>GET</b> /v1/companies/{cik}/freshness</span><span><b>POST</b> /v1/watches</span><span><b>GET</b> /v1/watches/{id}/deliveries</span><span><b>GET</b> /v1/developer/usage</span><span><b>GET</b> /v1/exports/facts</span><span><b>GET</b> /openapi.json</span><span><b>GET</b> /llms.txt</span>
-      <span><b>GET</b> /v1/companies/search</span><span><b>GET</b> /v1/companies/{cik}</span><span><b>GET</b> /v1/companies/{cik}/filings</span><span><b>GET</b> /v1/companies/{cik}/facts</span><span><b>GET</b> /v1/companies/{cik}/freshness</span><span><b>POST</b> /v1/watches</span><span><b>GET</b> /v1/watches/{id}/deliveries</span><span><b>GET</b> /v1/developer/usage</span><span><b>GET</b> /v1/exports/facts</span><span><b>GET</b> /openapi.json</span><span><b>GET</b> /llms.txt</span>
+<section class="section" aria-labelledby="follow-title">
+  <div class="figure-field">
+    <h2 id="follow-title" data-reveal>How many companies do you follow?</h2>
+    <div class="control" data-ui data-reveal style="--i:1">
+      <label for="follow">Companies on your watch list <output id="follow-out" for="follow">40</output></label>
+      <input id="follow" type="range" min="1" max="500" step="1" value="40">
+      <div class="ticks"><span>1</span><span>Builder 50</span><span>Team 500</span></div>
+    </div>
+    <p class="result" aria-live="polite"><b id="follow-figure">3,148</b><span>new filings a year</span></p>
+    <p class="working" id="follow-working">Worked out from the last 12 months: 813,416 filings by 10,335 companies, about 79 each, from annual reports to insider-trade forms. Each one can reach you as a signed alert.</p>
+  </div>
+</section>
+
+<section class="section wrap" id="live-data" aria-labelledby="sheets-title">
+  <div class="index-split">
+    <div class="names">
+      <h2 id="sheets-title" data-reveal>Open a company</h2>
+      <ul id="sheet-names" aria-label="Showcase companies">
+        <li><button type="button" data-cik="320193" aria-pressed="true">Apple</button></li>
+        <li><button type="button" data-cik="789019" aria-pressed="false">Microsoft</button></li>
+        <li><button type="button" data-cik="1652044" aria-pressed="false">Alphabet</button></li>
+        <li><button type="button" data-cik="1018724" aria-pressed="false">Amazon</button></li>
+        <li><button type="button" data-cik="1065280" aria-pressed="false">Netflix</button></li>
+      </ul>
+      <p data-reveal style="--i:1">Live from /v1/public/companies, no key needed. Every value links to the filing it was taken from. <a href="/companies/">See every showcase company</a></p>
+    </div>
+    <div class="sheet-stage" data-reveal style="--i:2">
+      <article class="sheet" id="sheet" data-ui aria-live="polite">
+        <div><h3 id="sheet-name">Apple Inc.</h3><p class="ui-muted" id="sheet-meta">AAPL · Nasdaq · CIK 0000320193 · fiscal year ends September</p></div>
+        <table class="ui-table">
+          <thead><tr><th scope="col">Metric</th><th scope="col">Latest annual</th><th scope="col">Year ended</th><th scope="col">Source</th></tr></thead>
+          <tbody id="sheet-metrics">
+            <tr><td>Revenue</td><td>$416.2 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
+            <tr><td>Operating income</td><td>$133.1 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
+            <tr><td>Net income</td><td>$112.0 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
+            <tr><td>Total assets</td><td>$359.2 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
+            <tr><td>Operating cash flow</td><td>$111.5 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
+          </tbody>
+        </table>
+        <div><strong>Recent filings</strong>
+          <table class="ui-table"><tbody id="sheet-filings"><tr><td class="ui-muted">Loading the latest filings…</td></tr></tbody></table>
+        </div>
+        <p class="ui-muted" id="sheet-foot">Mapping version 1.1.0</p>
+      </article>
     </div>
   </div>
+  <p class="fine" id="live-data-state" hidden></p>
+</section>
 
-  <section id="product">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">What you get</p>
-        <h2>Seven capabilities, one contract, no market data.</h2>
-        <p class="muted">Built on SEC EDGAR filings only. No quotes, no estimates, no news, no vendor feeds, so nothing you redistribute carries someone else's licence.</p>
-      </div>
-      <div class="grid3">
-        <div class="tile"><span class="mono">GET /v1/companies/search</span><h3>Company lookup</h3><p>Ticker, CIK or name. CIKs normalize to 10 digits; tickers are case-insensitive; name matches are ranked and labelled, never claimed as definitive.</p></div>
-        <div class="tile"><span class="mono">GET /v1/companies/{cik}/filings</span><h3>Recent filings</h3><p>Form type, filing date, SEC acceptance timestamp when the source has one, accession number and the filing index URL. Newest first, stable tie-break.</p></div>
-        <div class="tile"><span class="mono">GET /v1/companies/{cik}/facts</span><h3>Normalized facts</h3><p>Revenue, operating income, net income, total assets, operating cash flow. Units, periods, source tag, mapping version and quality status on every row.</p></div>
-        <div class="tile"><span class="mono">GET /v1/companies/{cik}/freshness</span><h3>Freshness you can measure</h3><p>Last successful fetch, processing time, and latency only where two comparable timestamps exist. No invented SLA.</p></div>
-        <div class="tile"><span class="mono">POST /v1/watches</span><h3>Filing notifications</h3><p>Webhooks signed with HMAC-SHA256, at-least-once with stable event IDs, retries with backoff, delivery status you can query.</p></div>
-        <div class="tile"><span class="mono">GET /v1/exports/facts</span><h3>Bounded exports</h3><p>CSV or JSON with every provenance column, capped per request and metered by rows and bytes. Full-universe dumps are refused by design.</p></div>
-      </div>
+<section class="section wrap" id="product" aria-labelledby="cells-title">
+  <div class="cells-head"><h2 id="cells-title" data-reveal>One contract, six jobs</h2></div>
+  <div class="cells">
+
+    <article class="cell" data-reveal>
+      <div class="copy"><h3>Find any company</h3><p>Ticker, CIK or name. CIKs pad to ten digits, and a ticker is an attribute, never the identity.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Company search">
+        <div class="ui-input">microsoft<span class="caret"></span></div>
+        <ul class="ui-list">
+          <li class="is-hover"><span><strong>MICROSOFT CORP</strong> · MSFT</span><span class="ui-muted">Nasdaq</span></li>
+          <li><span class="ui-muted">CIK 0000789019</span><span class="ui-muted">match: name prefix</span></li>
+        </ul>
+      </div></div>
+    </article>
+
+    <article class="cell flip" data-reveal style="--i:1">
+      <div class="copy"><h3>Every filing, in order</h3><p>Form, filing date, the SEC acceptance time and 8-K item codes, newest first.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Recent Microsoft filings">
+        <table class="ui-table">
+          <thead><tr><th>Form</th><th>Filed</th><th>Accepted, UTC</th><th>Items</th></tr></thead>
+          <tbody>
+            <tr><td>424B2</td><td>2026-11-02</td><td>12:00:26</td><td></td></tr>
+            <tr><td>8-K</td><td>2026-10-28</td><td>20:11:03</td><td>8.01, 9.01</td></tr>
+            <tr class="is-hover"><td>10-Q</td><td>2026-10-28</td><td>20:07:39</td><td></td></tr>
+            <tr><td>8-K</td><td>2026-10-28</td><td>20:04:44</td><td>2.02, 9.01</td></tr>
+            <tr><td>8-K</td><td>2026-09-02</td><td>20:30:24</td><td>7.01, 9.01</td></tr>
+          </tbody>
+        </table>
+      </div></div>
+    </article>
+
+    <article class="cell" data-reveal style="--i:2">
+      <div class="copy"><h3>Five normalized figures</h3><p>Revenue, operating income, net income, total assets and operating cash flow, each with its tag and filing.</p></div>
+      <div class="dock"><pre class="ui-code" data-ui aria-label="One normalized fact"><span class="k">"metric"</span>: <span class="s">"revenue"</span>,
+<span class="k">"value"</span>: <span class="n">331839000000</span>,
+<span class="k">"period_end"</span>: <span class="s">"2026-06-30"</span>,
+<span class="k">"form_type"</span>: <span class="s">"10-K"</span>,
+<span class="k">"accession_number"</span>: <span class="s">"0001193125-26-323660"</span>,
+<span class="k">"source_tag"</span>: <span class="s">"RevenueFromContractWith…"</span>,
+<span class="k">"quality_status"</span>: <span class="s">"ok"</span></pre></div>
+    </article>
+
+    <article class="cell flip" data-reveal>
+      <div class="copy"><h3>Freshness you can check</h3><p>When each company was last fetched and how long processing took, with a status that admits when data is old.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Freshness for Microsoft">
+        <div class="ui-row"><strong>MICROSOFT CORP</strong><span class="ui-chip stale">stale</span></div>
+        <dl class="ui-kv">
+          <dt>Last SEC fetch</dt><dd>2026-11-03 09:06 UTC</dd>
+          <dt>Latest filing</dt><dd>424B2, accepted 2026-11-02 12:00 UTC</dd>
+          <dt>Processing</dt><dd>under 0.1 s</dd>
+          <dt>Stale after</dt><dd>24 hours without a fetch</dd>
+        </dl>
+      </div></div>
+    </article>
+
+    <article class="cell" data-reveal style="--i:1">
+      <div class="copy"><h3>Signed filing alerts</h3><p>Webhooks signed with HMAC-SHA256, with a stable event ID and up to six retries.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Webhook deliveries">
+        <table class="ui-table">
+          <thead><tr><th>Event</th><th>Form</th><th>Status</th><th>Try</th></tr></thead>
+          <tbody>
+            <tr class="is-hover"><td>evt_8k_436122</td><td>8-K</td><td>200</td><td>1</td></tr>
+            <tr><td>evt_10q_436133</td><td>10-Q</td><td>200</td><td>1</td></tr>
+            <tr><td>evt_8k_436149</td><td>8-K</td><td>503, retrying</td><td>2</td></tr>
+          </tbody>
+        </table>
+      </div></div>
+    </article>
+
+    <article class="cell flip" data-reveal style="--i:2">
+      <div class="copy"><h3>Bounded exports</h3><p>CSV or JSON with every provenance column, capped per request and metered by the row.</p></div>
+      <div class="dock"><pre class="ui-code" data-ui aria-label="A CSV export"><span class="c">cik,metric,value,period_end,form_type,accession_number</span>
+0000789019,revenue,331839000000,2026-06-30,10-K,0001193125-26-323660
+0000789019,revenue,281724000000,2025-06-30,10-K,0001193125-26-323660
+0000320193,revenue,416161000000,2025-09-27,10-K,0000320193-25-000079
+0001018724,revenue,716924000000,2025-12-31,10-K,0001018724-26-000004</pre></div>
+    </article>
+
+  </div>
+</section>
+
+<section class="section wrap" id="agents" aria-labelledby="calls-title">
+  <div class="calls">
+    <h2 id="calls-title" data-reveal>Three calls</h2>
+    <p data-reveal style="--i:1">Every endpoint is described in <a href="/openapi.json" target="_blank" rel="noopener">the OpenAPI schema</a> and summarised for models in <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a>. Errors share one envelope, and missing data stays null instead of zero.</p>
+
+    <div class="exchange" data-reveal>
+      <p>First, find the company.</p>
+      <div class="call"><pre class="ui-code"><code>curl -H "X-API-Key: $KEY" \
+  "/v1/companies/search?q=msft"</code></pre></div>
+      <div class="response"><pre class="ui-code" data-ui><span class="k">"cik"</span>: <span class="s">"0000789019"</span>,
+<span class="k">"legal_name"</span>: <span class="s">"MICROSOFT CORP"</span>,
+<span class="k">"ticker"</span>: <span class="s">"MSFT"</span>,
+<span class="k">"match_type"</span>: <span class="s">"ticker"</span></pre></div>
     </div>
-  </section>
 
-  <section id="how">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Pipeline</p>
-        <h2>From SEC payload to cited fact in six steps.</h2>
-      </div>
-      <div class="flow-wrap">
-      <div class="flow-line" aria-hidden="true"><svg viewBox="0 0 1000 80" preserveAspectRatio="none"><path pathLength="1" d="M0 40 C 120 0, 200 80, 330 40 S 540 0, 660 40 S 880 80, 1000 40"/></svg></div>
-      <div class="flow" aria-label="Ingestion pipeline">
-        <div class="step"><span class="mono">01 fetch</span>Conditional requests to the SEC with a descriptive User-Agent, rate limiting and backoff.</div>
-        <div class="step"><span class="mono">02 identify</span>CIK becomes the canonical ID. Tickers are attributes, not identity.</div>
-        <div class="step"><span class="mono">03 upsert</span>Filings keyed by CIK + accession. Re-ingestion changes nothing.</div>
-        <div class="step"><span class="mono">04 normalize</span>XBRL tags map to five metrics through a versioned, deterministic precedence list.</div>
-        <div class="step"><span class="mono">05 classify</span>Period class comes from the actual duration. A 9-month year-to-date value is never called a quarter.</div>
-        <div class="step"><span class="mono">06 notify</span>New accession numbers fan out to active watches as signed, deduplicated events.</div>
-      </div>
-      </div>
+    <div class="exchange" data-reveal>
+      <p>Then ask for a figure.</p>
+      <div class="call"><pre class="ui-code"><code>curl -H "X-API-Key: $KEY" \
+  "/v1/companies/789019/facts?metric=revenue&amp;limit=1"</code></pre></div>
+      <div class="response"><pre class="ui-code" data-ui><span class="k">"value"</span>: <span class="n">331839000000</span>,
+<span class="k">"period_end"</span>: <span class="s">"2026-06-30"</span>,
+<span class="k">"filed_date"</span>: <span class="s">"2026-07-29"</span>,
+<span class="k">"source_url"</span>: <span class="s">"https://www.sec.gov/Archives/edgar/data/789019/…"</span>,
+<span class="k">"quality_status"</span>: <span class="s">"ok"</span></pre></div>
     </div>
-  </section>
 
-  <section id="agents">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">AI friendly</p>
-        <h2>Designed to be called by a model, not just read by a person.</h2>
-        <p class="muted">Tool-calling works when the schema is strict, errors are predictable and every answer carries evidence. The API is shaped around those three things.</p>
-      </div>
-      <div class="grid2">
-        <div class="tile">
-          <h3>Machine-readable surface</h3>
-          <p>OpenAPI 3.1 at <code>/openapi.json</code> with security schemes and every response code. A plain-text <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a> summarises endpoints, limits and limitations for context windows. Stable error envelope: <code>{"error": {"code", "message", "request_id"}}</code>.</p>
-        </div>
-        <div class="tile">
-          <h3>Evidence on every row</h3>
-          <p>Each fact carries <code>source_url</code>, <code>source_tag</code>, <code>accession_number</code>, <code>mapping_version</code> and <code>quality_status</code>, so an agent can cite the filing and flag <code>ambiguous_mapping</code> or <code>derived</code> values instead of presenting them as reported.</p>
-        </div>
-        <div class="tile">
-          <h3>Honest nulls</h3>
-          <p>Missing data stays <code>null</code>. Timestamps the SEC does not publish are <code>null</code>. Values that fail to parse are <code>invalid_source_value</code>. A model that reads this API never has to guess whether zero means zero.</p>
-        </div>
-        <div class="tile" style="min-width:0">
-          <div class="name" style="display:flex;justify-content:space-between;align-items:center"><h3>Drop-in tool definition</h3><button class="copybtn" type="button" data-copy="tooldef">copy</button></div>
-<pre id="tooldef">{
+    <div class="exchange" data-reveal>
+      <p>Or give it to your agent as a tool.</p>
+      <div class="call"><button class="copybtn" type="button" data-copy="tooldef">Copy</button><pre class="ui-code" id="tooldef"><code>{
   "name": "get_company_facts",
-  "description": "Normalized SEC financial facts with source URLs. Returns null for missing data.",
+  "description": "Normalized SEC financial facts with filing links. Returns null for missing data.",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -406,410 +657,341 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
     },
     "required": ["cik", "metric"]
   }
-}</pre>
-        </div>
-      </div>
+}</code></pre></div>
+      <div class="response wide"><article class="ui-card" data-ui aria-label="An agent's answer using the tool">
+        <p class="ui-q">What was Microsoft's revenue last year?</p>
+        <p class="ui-muted">Called get_company_facts with cik 789019, metric revenue</p>
+        <div class="ui-a"><p>Microsoft's revenue was $331.8 billion for the fiscal year ended June 30, 2026, up 17.8% from $281.7 billion <span class="ui-cite">1</span>.</p></div>
+        <div class="ui-src"><span class="ui-cite">1</span><span>10-K filed 2026-07-29, accession 0001193125-26-323660, tag RevenueFromContractWithCustomerExcludingAssessedTax</span></div>
+      </article></div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section id="status">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Live status</p>
-        <h2>What this deployment has actually ingested.</h2>
-        <p class="muted">Numbers below come from <code>/v1/stats</code>, a public endpoint refreshed every 30 seconds. They describe this service's coverage, not the SEC universe.</p>
-      </div>
-      <div class="grid3" id="status-grid">
-        <div class="tile"><span class="mono">service.health</span><h3 data-stat="health">—</h3><p data-stat="health_note">Waiting for the first response.</p></div>
-        <div class="tile"><span class="mono">facts.by_quality</span><h3>Quality mix</h3><p data-stat="quality">—</p></div>
-        <div class="tile"><span class="mono">ingestion.last_run</span><h3 data-stat="run_status">—</h3><p data-stat="run_note">—</p></div>
-        <div class="tile"><span class="mono">notifications</span><h3 data-stat="watches">—</h3><p data-stat="deliveries">—</p></div>
-        <div class="tile"><span class="mono">filings.latest_filing_date</span><h3 data-stat="latest_filing">—</h3><p data-stat="accepted_share">—</p></div>
-        <div class="tile"><span class="mono">mapping_version</span><h3 data-stat="mapping">—</h3><p>Concept mapping used for every normalized fact.</p></div>
-      </div>
-      <p class="note" id="status-empty" hidden>No companies ingested yet. Run <code>scripts/ingest_company.py &lt;cik&gt;</code> or request any CIK through the API to start.</p>
-      <p class="note" id="status-error" hidden>Live stats are unavailable right now. The rest of this page is static.</p>
+<section class="section wrap" id="pricing" aria-labelledby="pricing-title">
+  <div class="plans">
+    <div class="names-col">
+      <h2 id="pricing-title" data-reveal>Pilot pricing</h2>
+      <ul class="plan-names" aria-label="Plans">
+        <li><button type="button" data-plan="free" aria-pressed="false">Free</button></li>
+        <li><button type="button" data-plan="builder" aria-pressed="true">Builder</button></li>
+        <li><button type="button" data-plan="team" aria-pressed="false">Team</button></li>
+        <li><button type="button" data-plan="enterprise" aria-pressed="false">Enterprise</button></li>
+      </ul>
+      <p class="fine" data-reveal style="--i:1">The SEC publishes the filings for free, and we say so. You pay for normalization, stable identifiers, change detection, signed delivery and a schema your tools can trust.</p>
     </div>
-  </section>
-
-  <section id="live-data">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Live data · /v1/public/companies</p>
-        <h2>Real companies, real filings, real links.</h2>
-        <p class="muted">A keyless showcase of companies this deployment has ingested. Open one to see its filings, the five normalized metrics and freshness, every row linking to the SEC source. <a href="/companies/">Browse all showcase companies →</a></p>
-      </div>
-      <p class="state" id="live-data-state">Loading live data…</p>
-      <div class="cards" id="live-data-grid"></div>
-    </div>
-  </section>
-
-  <section id="pricing">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Pricing</p>
-        <h2>Pilot pricing. Pay for provenance and monitoring, not for data you can already download.</h2>
-        <p class="muted">The SEC publishes the underlying filings for free, and we say so. You pay for normalization, stable identifiers, change detection, signed delivery and a schema your tools can trust.</p>
-      </div>
-      <div class="toggle" role="group" aria-label="Billing period">
+    <div class="plan-stage" id="plan-stage" aria-live="polite">
+      <div class="price"><b id="plan-price">$49</b><span id="plan-period">a month</span></div>
+      <div class="billing" role="group" aria-label="Billing period">
         <button type="button" id="bill-monthly" aria-pressed="true">Monthly</button>
-        <button type="button" id="bill-annual" aria-pressed="false">Annual · 2 months free</button>
+        <button type="button" id="bill-annual" aria-pressed="false">Yearly, two months free</button>
       </div>
-      <div class="plans">
-        <div class="plan" data-plan="free">
-          <div class="name"><h3>Free</h3><span class="tag">evaluate</span></div>
-          <div class="price">$0<small> forever</small></div>
-          <p class="for">Try the schema, build a prototype, run an agent demo.</p>
-          <ul>
-            <li class="quota" data-limit="rate">60 requests / minute</li>
-            <li class="quota" data-limit="monthly">10,000 requests / month</li>
-            <li class="quota" data-limit="watches">5 watched companies</li>
-            <li class="quota" data-limit="export">1,000 rows per export</li>
-            <li>OpenAPI, llms.txt, sample code</li>
-          </ul>
-          <a class="btn" href="#contact">Request a key</a>
-        </div>
-        <div class="plan featured" data-plan="builder">
-          <div class="name"><h3>Builder</h3><span class="tag">most popular</span></div>
-          <div class="price"><span data-price data-monthly="49" data-annual="41">$49</span><small> / month</small></div>
-          <p class="for">Indie fintech, research tooling, one production AI app.</p>
-          <ul>
-            <li class="quota" data-limit="rate">300 requests / minute</li>
-            <li class="quota" data-limit="monthly">250,000 requests / month</li>
-            <li class="quota" data-limit="watches">50 watched companies</li>
-            <li class="quota" data-limit="export">1,000 rows per export</li>
-            <li>Email support, 2 business days</li>
-          </ul>
-          <a class="btn primary" href="#contact">Start Builder</a>
-        </div>
-        <div class="plan" data-plan="team">
-          <div class="name"><h3>Team</h3><span class="tag">scale</span></div>
-          <div class="price"><span data-price data-monthly="199" data-annual="166">$199</span><small> / month</small></div>
-          <p class="for">Analytics SaaS and data teams monitoring a defined watch list.</p>
-          <ul>
-            <li class="quota" data-limit="rate">1,000 requests / minute</li>
-            <li class="quota" data-limit="monthly">2,000,000 requests / month</li>
-            <li class="quota" data-limit="watches">500 watched companies</li>
-            <li class="quota" data-limit="export">1,000 rows per export, higher on request</li>
-            <li>Priority support, usage reports, measured freshness report for your watch list</li>
-          </ul>
-          <a class="btn" href="#contact">Start Team</a>
-        </div>
-        <div class="plan" data-plan="enterprise">
-          <div class="name"><h3>Enterprise</h3><span class="tag">custom</span></div>
-          <div class="price">Talk to us</div>
-          <p class="for">Dedicated polling lists, custom quotas, invoicing, data-rights review.</p>
-          <ul>
-            <li>Custom rate limits and quotas</li>
-            <li>Dedicated ingestion schedule for your universe</li>
-            <li>Contractual terms, security questionnaire</li>
-            <li>Joint legal review of redistribution before bulk access</li>
-          </ul>
-          <a class="btn" href="#contact">Contact</a>
-        </div>
-      </div>
-      <p class="note mono" id="pricing-live" style="font-size:.74rem">Limits shown are the static defaults until /v1/public/plans responds.</p>
-      <p class="note">Prices are proposed pilot pricing in USD, excluding taxes, and may change after the pilot. Quotas are per API key. Freshness depends on the poll interval and SEC propagation; no latency SLA is offered during the pilot. Nothing here is investment advice.</p>
-
-      <div class="compare">
-        <table>
-          <thead><tr><th>Limit</th><th>Free</th><th>Builder</th><th>Team</th><th>Enterprise</th></tr></thead>
-          <tbody>
-            <tr data-compare="rate"><td>Requests per minute</td><td class="num" data-plan-col="free">60</td><td class="num" data-plan-col="builder">300</td><td class="num" data-plan-col="team">1,000</td><td class="num" data-plan-col="enterprise">custom</td></tr>
-            <tr data-compare="monthly"><td>Requests per month</td><td class="num" data-plan-col="free">10,000</td><td class="num" data-plan-col="builder">250,000</td><td class="num" data-plan-col="team">2,000,000</td><td class="num" data-plan-col="enterprise">custom</td></tr>
-            <tr data-compare="watches"><td>Watched companies</td><td class="num" data-plan-col="free">5</td><td class="num" data-plan-col="builder">50</td><td class="num" data-plan-col="team">500</td><td class="num" data-plan-col="enterprise">custom</td></tr>
-            <tr data-compare="export"><td>Export rows per request</td><td class="num" data-plan-col="free">1,000</td><td class="num" data-plan-col="builder">1,000</td><td class="num" data-plan-col="team">1,000+</td><td class="num" data-plan-col="enterprise">custom</td></tr>
-            <tr><td>Webhook retries</td><td class="num">6 attempts</td><td class="num">6 attempts</td><td class="num">6 attempts</td><td class="num">custom</td></tr>
-            <tr><td>Poll interval for watched companies</td><td class="num">5 min</td><td class="num">5 min</td><td class="num">5 min</td><td class="num">custom</td></tr>
-            <tr><td>Support</td><td>Docs</td><td>Email</td><td>Priority</td><td>Named contact</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <p id="plan-for">For indie fintech, research tooling and one production AI app.</p>
+      <ul id="plan-limits">
+        <li>300 requests a minute</li><li>250,000 requests a month</li><li>50 watched companies</li><li>1,000 rows per export</li><li>Email support within two business days</li>
+      </ul>
+      <a class="button" id="plan-action" href="#contact">Start Builder</a>
     </div>
-  </section>
+  </div>
 
-  <section id="faq">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">FAQ</p>
-        <h2>Straight answers.</h2>
-      </div>
-      <details open><summary>Is this real-time market data?</summary><p>No. There are no prices, quotes or trading signals anywhere in the product. The API covers SEC filings and the structured facts the SEC publishes about them.</p></details>
-      <details><summary>How fresh is "fresh"?</summary><p>Watched companies are polled every five minutes by default. The freshness endpoint reports the last successful fetch and when the latest filing was processed, and it only computes a latency figure when the SEC provides a precise acceptance timestamp to compare against.</p></details>
-      <details><summary>Which metrics and companies are covered?</summary><p>Five canonical metrics from standard us-gaap tags exposed by the SEC company-facts API, for companies that have been ingested. Coverage grows on demand: looking up a CIK triggers ingestion. IFRS filers and custom extension tags are not covered yet, and a missing value means the SEC endpoint did not expose it.</p></details>
-      <details><summary>Can I redistribute the data?</summary><p>Everything comes from SEC-hosted sources and each row links to its filing. Before building a bulk redistribution product on top, read our data-rights page and get your own legal review; we document the open questions rather than pretend they are settled.</p></details>
-      <details><summary>How do webhooks stay trustworthy?</summary><p>Each watch gets its own secret. Deliveries carry a timestamp and an HMAC-SHA256 signature over the body, a stable event ID for deduplication, and we never follow redirects or deliver to private network addresses.</p></details>
-    </div>
-  </section>
+  <div class="compare">
+    <table>
+      <caption class="vh">Plan limits compared</caption>
+      <thead><tr><th scope="col">Limit</th><th scope="col">Free</th><th scope="col">Builder</th><th scope="col">Team</th><th scope="col">Enterprise</th></tr></thead>
+      <tbody>
+        <tr data-compare="rate"><td>Requests a minute</td><td data-plan-col="free">60</td><td data-plan-col="builder">300</td><td data-plan-col="team">1,000</td><td data-plan-col="enterprise">custom</td></tr>
+        <tr data-compare="monthly"><td>Requests a month</td><td data-plan-col="free">10,000</td><td data-plan-col="builder">250,000</td><td data-plan-col="team">2,000,000</td><td data-plan-col="enterprise">custom</td></tr>
+        <tr data-compare="watches"><td>Watched companies</td><td data-plan-col="free">5</td><td data-plan-col="builder">50</td><td data-plan-col="team">500</td><td data-plan-col="enterprise">custom</td></tr>
+        <tr data-compare="export"><td>Rows per export</td><td data-plan-col="free">1,000</td><td data-plan-col="builder">1,000</td><td data-plan-col="team">1,000, more on request</td><td data-plan-col="enterprise">custom</td></tr>
+        <tr><td>Webhook retries</td><td>6 attempts</td><td>6 attempts</td><td>6 attempts</td><td>custom</td></tr>
+        <tr><td>Poll interval for watched companies</td><td>5 minutes</td><td>5 minutes</td><td>5 minutes</td><td>custom</td></tr>
+        <tr><td>Support</td><td>Docs</td><td>Email</td><td>Priority</td><td>Named contact</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="fine" id="pricing-live">Limits shown are the defaults until /v1/public/plans responds.</p>
+  <p class="fine">Prices are proposed pilot pricing in US dollars, before taxes, and may change after the pilot. Quotas are per API key. Freshness depends on the poll interval and on the SEC; no latency guarantee is offered during the pilot. Nothing here is investment advice.</p>
+</section>
 
-  <section id="contact">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Pilot</p>
-        <h2>Pilot access is open to a small number of teams.</h2>
-        <p class="muted">Tell us which companies you watch and what your code does with a filing fact. Pilot keys are issued by hand while we measure real latency and data quality.</p>
-      </div>
-      <form class="tile" style="max-width:560px" id="key-request-form" action="/v1/developer/key-requests" method="post" novalidate>
-        <label for="kr-email" class="eyebrow">Work email</label>
-        <input id="kr-email" name="email" type="email" required autocomplete="email" placeholder="you@company.com" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);color:var(--fg);font:inherit">
-        <label for="kr-use" class="eyebrow">What will your code do with filing facts?</label>
-        <textarea id="kr-use" name="use_case" required minlength="12" rows="3" placeholder="e.g. monitor 40 issuers for 10-Q filings and pull quarterly revenue into our dashboard" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);color:var(--fg);font:inherit;resize:vertical"></textarea>
-        <label for="kr-plan" class="eyebrow">Plan</label>
-        <select id="kr-plan" name="plan" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-2);color:var(--fg);font:inherit">
-          <option value="free">Free</option><option value="builder">Builder</option><option value="team">Team</option>
-        </select>
-        <div style="position:absolute;left:-9999px" aria-hidden="true"><label for="kr-website">Website</label><input id="kr-website" name="website" tabindex="-1" autocomplete="off"></div>
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit" id="kr-submit">Request a key</button><span class="muted" id="kr-status" role="status" aria-live="polite"></span></div>
-        <p class="muted" style="font-size:.85rem">Requests are reviewed by hand during the pilot. Your key is delivered once to this address. No marketing email.</p>
-      </form>
+<section class="section wrap" id="faq" aria-labelledby="faq-title">
+  <div class="faq">
+    <div class="head">
+      <h2 id="faq-title" data-reveal>Straight answers</h2>
+      <figure class="drift" data-reveal style="--i:1"><div class="pic"><img src="/img/ask-the-librarian.jpg" width="1600" height="1200" alt="A blue guide card in a library card catalogue drawer: if you do not find here what you want, ask the librarian at the information desk." loading="lazy"></div><figcaption>A guide card in the Indiana State Library catalogue.</figcaption></figure>
     </div>
-  </section>
+    <div class="tiles">
+      <details name="faq" open data-reveal><summary>Is this market data?<span class="plus" aria-hidden="true"></span></summary><p>No. There are no prices, quotes or trading signals anywhere in the product. It covers SEC filings and the financial figures companies report in them.</p></details>
+      <details name="faq" data-reveal><summary>Where do the figures come from?<span class="plus" aria-hidden="true"></span></summary><p>From the XBRL financial data inside each company's 10-K and 10-Q filings. Every value keeps the filing's accession number and its XBRL tag, and links to the filing's page on sec.gov.</p></details>
+      <details name="faq" data-reveal><summary>How fresh is fresh?<span class="plus" aria-hidden="true"></span></summary><p>Watched companies are checked every five minutes by default. The freshness endpoint reports the last successful fetch and when the latest filing was processed, and it only gives a latency figure when the SEC provides an exact acceptance time to compare against.</p></details>
+      <details name="faq" data-reveal><summary>Which companies and metrics are covered?<span class="plus" aria-hidden="true"></span></summary><p>Five metrics from standard us-gaap tags, for the companies loaded here. Looking up a CIK loads a new company on request. IFRS filers and custom extension tags are not covered yet, and a missing value means the filing did not report one we could map.</p></details>
+      <details name="faq" data-reveal><summary>What does the chat do?<span class="plus" aria-hidden="true"></span></summary><p>It answers questions about one company at a time from the filings stored here, cites every figure, and checks each number against the data before showing the answer. A model running on this server writes it; your question is not sent to an outside AI service.</p></details>
+      <details name="faq" data-reveal><summary>Can I redistribute the data?<span class="plus" aria-hidden="true"></span></summary><p>Everything comes from SEC filings and each row links to its filing. Before building a bulk redistribution product on top, read our data-rights notes and get your own legal review; we document the open questions rather than pretend they are settled.</p></details>
+      <details name="faq" data-reveal><summary>How do webhooks stay trustworthy?<span class="plus" aria-hidden="true"></span></summary><p>Each watch gets its own secret. Deliveries carry a timestamp and an HMAC-SHA256 signature over the body, plus a stable event ID for de-duplication. We never follow redirects or deliver to private network addresses.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="coupon-wrap wrap" id="contact" aria-labelledby="contact-title">
+  <div class="coupon" data-reveal>
+    <div class="left">
+      <h2 id="contact-title">Ask for a pilot key</h2>
+      <p>Pilot keys are issued by hand while we measure real latency and data quality. Your key is sent once to this address, and we send no marketing email.</p>
+    </div>
+    <form id="key-request-form" action="/v1/developer/key-requests" method="post" novalidate>
+      <label class="vh" for="kr-email">Work email</label>
+      <input id="kr-email" name="email" type="email" required autocomplete="email" placeholder="Work email">
+      <label class="vh" for="kr-use">What will your code do with filing figures?</label>
+      <textarea id="kr-use" name="use_case" required minlength="12" rows="2" placeholder="What will your code do with filing figures? For example, watch 40 companies for 10-Qs."></textarea>
+      <label class="vh" for="kr-plan">Plan</label>
+      <select id="kr-plan" name="plan"><option value="free">Free plan</option><option value="builder" selected>Builder plan</option><option value="team">Team plan</option></select>
+      <div class="vh" aria-hidden="true"><label for="kr-website">Website</label><input id="kr-website" name="website" tabindex="-1" autocomplete="off"></div>
+      <button class="button submit" type="submit" id="kr-submit">Request a key</button>
+      <p class="status" id="kr-status" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+
 </main>
 
 <footer>
-  <div class="wrap">
-    <div class="disclaimer"><strong>Independent service.</strong> Data is sourced from the U.S. Securities and Exchange Commission's EDGAR system. Provenance is not affiliated with, endorsed by or sponsored by the SEC. Source updates, filing availability, taxonomy coverage and timestamps vary; a missing field does not mean the issuer has no such information. Values marked <code>derived</code> are computed by this service, not reported by the issuer. Not investment advice. Review the underlying filing before relying on a value.</div>
-    <div style="display:flex;gap:18px;flex-wrap:wrap">
-      <a href="/app/">Explorer app</a><a href="/docs">API docs</a><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a><a href="/healthz">Status</a>
+  <div class="board">
+    <div class="tile statement">
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC.</p>
+      <p>Data comes from the SEC's EDGAR filings. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
     </div>
-    <p>© 2026 Provenance Filings API. Working name; pricing is pilot pricing.</p>
+    <nav class="tile links" aria-label="Site">
+      <ul>
+        <li><a href="/chat/">Chat</a></li><li><a href="/playground/">Playground</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/status/">Status</a></li><li><a href="/app/">Explorer</a></li><li><a href="/docs">API docs</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+      </ul>
+    </nav>
+    <figure class="tile photo"><img src="/img/catalogue-card.jpg" width="1600" height="1200" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
+    <div class="tile live" id="live-facts" data-source="/v1/stats">
+      <dl>
+        <div><dt>Companies</dt><dd data-stat="companies">20,540</dd></div>
+        <div><dt>Filings</dt><dd data-stat="filings">8,734,078</dd></div>
+        <div><dt>Normalized facts</dt><dd data-stat="facts">5,580,088</dd></div>
+      </dl>
+      <p class="note" id="live-note">Live from /v1/stats, refreshed every 30 seconds.</p>
+      <p class="note" id="status-empty" hidden>No companies ingested yet. Request any CIK through the API to start.</p>
+      <p class="note" id="status-error" hidden>Live stats are unavailable right now; the figures above may be out of date.</p>
+    </div>
+    <div class="tile mark" aria-hidden="true"><span>Provenance</span></div>
+    <a class="tile go" href="#contact"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
   </div>
+  <p class="credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons.</p>
 </footer>
 
 <script>
 (function () {
-  var monthly = document.getElementById('bill-monthly');
-  var annual = document.getElementById('bill-annual');
-  function setBilling(isAnnual) {
-    monthly.setAttribute('aria-pressed', String(!isAnnual));
-    annual.setAttribute('aria-pressed', String(isAnnual));
-    document.querySelectorAll('[data-price]').forEach(function (el) {
-      el.textContent = '$' + el.getAttribute(isAnnual ? 'data-annual' : 'data-monthly');
-    });
-    document.querySelectorAll('.price small').forEach(function (el) {
-      if (el.textContent.indexOf('month') !== -1) el.textContent = isAnnual ? ' / month, billed yearly' : ' / month';
-    });
-    try { localStorage.setItem('billing', isAnnual ? 'annual' : 'monthly'); } catch (e) {}
-  }
-  monthly.addEventListener('click', function () { setBilling(false); });
-  annual.addEventListener('click', function () { setBilling(true); });
-  try { if (localStorage.getItem('billing') === 'annual') setBilling(true); } catch (e) {}
-
-  document.querySelectorAll('[data-copy]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var el = document.getElementById(btn.getAttribute('data-copy'));
-      var text = el.textContent;
-      var done = function () { btn.textContent = 'copied'; setTimeout(function () { btn.textContent = 'copy'; }, 1500); };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () { selectText(el); });
-      } else { selectText(el); }
-    });
-  });
-  function selectText(el) {
-    var r = document.createRange(); r.selectNodeContents(el);
-    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
-  }
-})();
-
-(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var finePointer = window.matchMedia('(pointer: fine)').matches;
+  var fmtInt = function (n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); };
+  var money = function (v) {
+    if (v == null) return 'not reported';
+    var a = Math.abs(v), s = v < 0 ? '-$' : '$';
+    if (a >= 1e9) return s + (a / 1e9).toFixed(1) + ' billion';
+    if (a >= 1e6) return s + (a / 1e6).toFixed(1) + ' million';
+    return s + fmtInt(a);
+  };
+  var getJSON = function (url) { return fetch(url, { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
+  var esc = function (t) { var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+  var secLink = function (url, text) { return /^https:\/\/www\.sec\.gov\//.test(url || '') ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(text) + '</a>' : esc(text); };
 
-  /* counters */
-  document.querySelectorAll('[data-count]').forEach(function (el) {
-    var target = parseInt(el.getAttribute('data-count'), 10), suffix = el.getAttribute('data-suffix') || '';
-    if (reduce) { el.textContent = target + suffix; return; }
-    var start = null, dur = 1400;
-    function tick(ts) {
-      if (!start) start = ts;
-      var t = Math.min(1, (ts - start) / dur), e = 1 - Math.pow(1 - t, 3);
-      el.textContent = Math.round(target * e) + suffix;
-      if (t < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  });
+  /* header menu on phones */
+  var btn = $('menu-btn'), nav = $('main-nav');
+  var setMenu = function (open) { nav.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Close' : 'Menu'; };
+  btn.addEventListener('click', function () { setMenu(!nav.classList.contains('open')); });
+  nav.addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { setMenu(false); btn.focus(); } });
 
-  /* terminal: light up one line at a time */
-  var spans = Array.prototype.slice.call(document.querySelectorAll('.terminal pre .k'));
-  if (spans.length && !reduce) {
-    var i = 0;
-    setInterval(function () {
-      spans.forEach(function (sp) { sp.classList.remove('lit'); if (sp.nextElementSibling) sp.nextElementSibling.classList.remove('lit'); });
-      var sp = spans[i % spans.length]; sp.classList.add('lit'); if (sp.nextElementSibling) sp.nextElementSibling.classList.add('lit');
-      i++;
-    }, 650);
+  /* hero reel: a held stage; scrolling through the hero steps the strip one frame at a time */
+  var hero = document.querySelector('.hero'), strip = $('strip'), frames = strip.querySelectorAll('.frame');
+  var captions = ['A figure and its record', 'An answer that cites its filing', 'Eight years, each from a 10-K', 'A new filing, delivered signed'];
+  var step = -1;
+  function place(i, force) {
+    if (i === step && !force) return; step = i;
+    var h = frames[0].getBoundingClientRect().height, gap = parseFloat(getComputedStyle(strip).rowGap) || 24;
+    var centred = getComputedStyle(strip).top !== '0px';
+    strip.style.transform = 'translateY(' + ((centred ? -h / 2 : 0) - i * (h + gap)) + 'px)';
+    frames.forEach(function (fr, k) { fr.setAttribute('aria-hidden', String(k !== i)); fr.inert = k !== i; });
+    $('reel-text').textContent = captions[i]; $('reel-count').textContent = (i + 1) + ' of ' + frames.length;
   }
-
-  /* cursor glow + tilt */
-  if (finePointer && !reduce) {
-    document.querySelectorAll('.tile, .plan').forEach(function (card) {
-      card.addEventListener('pointermove', function (e) {
-        var r = card.getBoundingClientRect();
-        var x = e.clientX - r.left, y = e.clientY - r.top;
-        card.style.setProperty('--mx', x + 'px'); card.style.setProperty('--my', y + 'px');
-        var rx = ((y / r.height) - 0.5) * -6, ry = ((x / r.width) - 0.5) * 6;
-        card.style.transform = 'perspective(900px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) translateY(-3px)';
-      });
-      card.addEventListener('pointerleave', function () { card.style.transform = ''; });
-    });
-    document.querySelectorAll('.btn').forEach(function (btn) {
-      btn.addEventListener('pointermove', function (e) {
-        var r = btn.getBoundingClientRect();
-        var dx = (e.clientX - (r.left + r.width / 2)) * 0.18, dy = (e.clientY - (r.top + r.height / 2)) * 0.28;
-        btn.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-      });
-      btn.addEventListener('pointerleave', function () { btn.style.transform = ''; });
-    });
+  function onScroll() {
+    var run = hero.offsetHeight - window.innerHeight, top = -hero.getBoundingClientRect().top;
+    var p = run > 0 ? Math.min(1, Math.max(0, top / run)) : 0;
+    place(Math.min(frames.length - 1, Math.floor(p * frames.length)));
   }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', function () { place(Math.max(0, step), true); });
+  onScroll();
 
-  /* price flip on billing toggle */
-  document.querySelectorAll('#bill-monthly, #bill-annual').forEach(function (b) {
-    b.addEventListener('click', function () {
-      document.querySelectorAll('.price').forEach(function (p) { p.classList.remove('flip'); void p.offsetWidth; p.classList.add('flip'); });
-    });
-  });
-
-  /* JS fallback for browsers without CSS scroll-driven animations: progress bar + reveal class */
-  if (!CSS.supports || !CSS.supports('animation-timeline: view()')) {
-    var bar = document.querySelector('.progress');
-    var onScroll = function () {
-      var h = document.documentElement, max = h.scrollHeight - h.clientHeight;
-      if (bar) bar.style.transform = 'scaleX(' + (max > 0 ? h.scrollTop / max : 0) + ')';
+  /* live record in the first frame and the company sheets */
+  var NAMES = { AAPL: 'Apple', MSFT: 'Microsoft', GOOGL: 'Alphabet', AMZN: 'Amazon', NFLX: 'Netflix', 'BRK-B': 'Berkshire Hathaway' };
+  var LABELS = { revenue: 'Revenue', operating_income: 'Operating income', net_income: 'Net income', total_assets: 'Total assets', operating_cash_flow: 'Operating cash flow' };
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var bundles = {};
+  function fillRecord(c) {
+    var r = c.latest_annual_revenue; if (!r) return;
+    $('rec-name').textContent = c.legal_name + (c.ticker ? ' · ' + c.ticker : '');
+    $('rec-value').textContent = money(r.value);
+    $('rec-what').textContent = 'Revenue, fiscal year ended ' + r.period_end;
+    $('rec-form').textContent = (r.form_type || 'Filing') + (r.filed_date ? ' filed ' + r.filed_date : '');
+    $('rec-acc').textContent = r.accession_number || 'not reported';
+    $('rec-tag').textContent = 'us-gaap:' + r.source_tag;
+    if (/^https:\/\/www\.sec\.gov\//.test(r.source_url || '')) $('rec-link').href = r.source_url;
+  }
+  var recordCik = '320193';
+  function fillHist(b) {
+    var m = b.metrics.filter(function (x) { return x.metric === 'revenue'; })[0];
+    var facts = m && m.facts ? m.facts.slice(0, 5).reverse() : [];
+    if (facts.length < 2) return;
+    var max = Math.max.apply(null, facts.map(function (f) { return f.value || 0; }));
+    $('rec-hist').innerHTML = facts.map(function (f, i) {
+      var cls = i === facts.length - 1 ? ' class="last"' : '';
+      var href = /^https:\/\/www\.sec\.gov\//.test(f.source_url || '') ? esc(f.source_url) : '#';
+      return '<a' + cls + ' href="' + href + '" target="_blank" rel="noopener" title="' + esc(money(f.value) + ', fiscal year ended ' + f.period_end + ', ' + f.form_type + ' filed ' + f.filed_date) + '" style="--h:' + (100 * (f.value || 0) / max).toFixed(1) + '%"><i></i><span>' + esc(f.period_end.slice(0, 4)) + '</span></a>';
+    }).join('');
+  }
+  function renderSheet(b) {
+    var c = b.company, sheet = $('sheet');
+    var paint = function () {
+      $('sheet-name').textContent = c.legal_name;
+      var fye = c.fiscal_year_end ? ' · fiscal year ends ' + MONTHS[parseInt(c.fiscal_year_end.slice(0, 2), 10) - 1] : '';
+      $('sheet-meta').textContent = [c.ticker, c.exchange, 'CIK ' + c.cik].filter(Boolean).join(' · ') + fye;
+      $('sheet-metrics').innerHTML = b.metrics.map(function (m) {
+        var f = m.facts && m.facts[0], label = esc(LABELS[m.metric] || m.metric);
+        if (!f) return '<tr><td>' + label + '</td><td colspan="3" class="ui-muted">' + esc(m.status === 'ambiguous_mapping' ? 'tags disagree, not shown' : 'not reported') + '</td></tr>';
+        return '<tr><td>' + label + '</td><td>' + esc(money(f.value)) + '</td><td>' + esc(f.period_end) + '</td><td>' + secLink(f.source_url, f.form_type + ', ' + f.filed_date) + '</td></tr>';
+      }).join('');
+      $('sheet-filings').innerHTML = b.filings.slice(0, 5).map(function (f) {
+        return '<tr><td>' + esc(f.form_type) + '</td><td>' + esc(f.filing_date) + '</td><td>' + secLink(f.source_url, f.accession_number) + '</td></tr>';
+      }).join('') || '<tr><td class="ui-muted">No filings yet.</td></tr>';
+      $('sheet-foot').textContent = 'Mapping version ' + b.mapping_version + ' · generated ' + b.generated_at.replace('T', ' ').slice(0, 16) + ' UTC';
+      sheet.classList.remove('swap');
     };
-    window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
-    if (!reduce && 'IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) { if (en.isIntersecting) { en.target.style.transition = 'transform .9s cubic-bezier(.2,.7,.2,1)'; en.target.style.transform = 'none'; io.unobserve(en.target); } });
-      }, { rootMargin: '0px 0px -10% 0px' });
-      document.querySelectorAll('.tile, .plan, .step, details').forEach(function (el) {
-        if (el.getBoundingClientRect().top > window.innerHeight) { el.style.transform = 'translateY(28px)'; io.observe(el); }
-      });
-    }
+    if (reduce) { paint(); return; }
+    sheet.classList.add('swap'); setTimeout(paint, 200);
   }
+  function openSheet(cik) {
+    cik = String(cik);
+    document.querySelectorAll('#sheet-names button').forEach(function (bt) { bt.setAttribute('aria-pressed', String(bt.getAttribute('data-cik') === cik)); });
+    if (bundles[cik]) { renderSheet(bundles[cik]); return; }
+    getJSON('/v1/public/companies/' + cik).then(function (b) { bundles[cik] = b; if (cik === recordCik) fillHist(b); renderSheet(b); }).catch(function () {
+      var s = $('live-data-state'); s.hidden = false; s.textContent = 'Live data is unavailable right now; the sheet shows the values built into the page.';
+    });
+  }
+  $('sheet-names').addEventListener('click', function (e) { var bt = e.target.closest('button'); if (bt) openSheet(bt.getAttribute('data-cik')); });
+  getJSON('/v1/public/companies').then(function (d) {
+    var cutoff = new Date().getFullYear() - 3;
+    var fresh = d.data.filter(function (c) { var r = c.latest_annual_revenue; return r && parseInt(r.period_end, 10) >= cutoff; }).slice(0, 5);
+    if (!fresh.length) { openSheet(320193); return; }
+    fillRecord(fresh[0]); recordCik = String(parseInt(fresh[0].cik, 10));
+    $('sheet-names').innerHTML = fresh.map(function (c, i) {
+      return '<li><button type="button" data-cik="' + esc(parseInt(c.cik, 10)) + '" aria-pressed="' + (i === 0) + '">' + esc(NAMES[c.ticker] || c.legal_name) + '</button></li>';
+    }).join('');
+    openSheet(parseInt(fresh[0].cik, 10));
+  }).catch(function () { openSheet(320193); });
 
-  /* header menu below 1180px */
-  (function () {
-    var btn = document.getElementById('menu-btn'), nav = document.getElementById('main-nav');
-    if (!btn || !nav) return;
-    var set = function (open) { nav.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Close' : 'Menu'; };
-    btn.addEventListener('click', function () { set(!nav.classList.contains('open')); });
-    nav.addEventListener('click', function (e) { if (e.target.closest('a')) set(false); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { set(false); btn.focus(); } });
-  })();
+  /* the follow slider: filings a year for a watch list, from the last 12 months of filings */
+  var rate = { filings: 813416, filers: 10335 };
+  function follow() {
+    var n = parseInt($('follow').value, 10), per = rate.filings / rate.filers;
+    $('follow-out').textContent = n;
+    $('follow-figure').textContent = fmtInt(Math.round(n * per));
+    $('follow-working').textContent = 'Worked out from the last 12 months: ' + fmtInt(rate.filings) + ' filings by ' + fmtInt(rate.filers) + ' companies, about ' + Math.round(per) + ' each, from annual reports to insider-trade forms. Each one can reach you as a signed alert.';
+  }
+  $('follow').addEventListener('input', follow);
 
-  /* data field: drifting nodes linked by proximity, pulled toward the cursor, sliding with scroll */
-  var canvas = document.getElementById('field');
-  if (!canvas || reduce) return;
-  var ctx = canvas.getContext('2d'); if (!ctx) return;
-  var W, H, dpr = Math.min(2, window.devicePixelRatio || 1), nodes = [], mouse = { x: -9999, y: -9999 }, scrollY = 0, running = true;
-  function resize() {
-    var r = canvas.getBoundingClientRect(); W = r.width; H = r.height;
-    canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    var n = Math.min(140, Math.max(50, Math.floor(W * H / 14000)));
-    nodes = [];
-    for (var i = 0; i < n; i++) nodes.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35, r: 1 + Math.random() * 1.6, p: Math.random() * Math.PI * 2 });
-  }
-  function token(name, fallback) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
-  var frame = 0;
-  function draw(ts) {
-    if (!running) return;
-    frame++;
-    ctx.clearRect(0, 0, W, H);
-    var a = token('--brand', '#627b8c'), b = token('--accent-hi', '#e83c34'), dy = scrollY * 0.12;
-    for (var i = 0; i < nodes.length; i++) {
-      var p = nodes[i];
-      var ddx = mouse.x - p.x, ddy = (mouse.y - dy) - p.y, d2 = ddx * ddx + ddy * ddy;
-      if (d2 < 160 * 160) { var f = (1 - Math.sqrt(d2) / 160) * 0.06; p.vx += ddx * f * 0.05; p.vy += ddy * f * 0.05; }
-      p.vx *= 0.985; p.vy *= 0.985;
-      p.x += p.vx + Math.sin(ts / 2600 + p.p) * 0.12; p.y += p.vy + Math.cos(ts / 3100 + p.p) * 0.12;
-      if (p.x < -20) p.x = W + 20; if (p.x > W + 20) p.x = -20; if (p.y < -20) p.y = H + 20; if (p.y > H + 20) p.y = -20;
-    }
-    ctx.lineWidth = 1;
-    for (var i2 = 0; i2 < nodes.length; i2++) {
-      for (var j = i2 + 1; j < nodes.length; j++) {
-        var q = nodes[i2], s2 = nodes[j], dx = q.x - s2.x, dyy = q.y - s2.y, dd = dx * dx + dyy * dyy;
-        if (dd < 120 * 120) {
-          var al = (1 - Math.sqrt(dd) / 120) * 0.35;
-          ctx.strokeStyle = a; ctx.globalAlpha = al;
-          ctx.beginPath(); ctx.moveTo(q.x, q.y + dy); ctx.lineTo(s2.x, s2.y + dy); ctx.stroke();
-        }
-      }
-    }
-    for (var k = 0; k < nodes.length; k++) {
-      var n2 = nodes[k], pulse = 0.5 + 0.5 * Math.sin(ts / 900 + n2.p);
-      ctx.globalAlpha = 0.45 + 0.5 * pulse;
-      ctx.fillStyle = (k % 9 === 0) ? b : a;
-      ctx.beginPath(); ctx.arc(n2.x, n2.y + dy, n2.r + pulse * 0.8, 0, Math.PI * 2); ctx.fill();
-      if (k % 9 === 0) { ctx.globalAlpha = 0.12 * pulse; ctx.beginPath(); ctx.arc(n2.x, n2.y + dy, 10 + pulse * 10, 0, Math.PI * 2); ctx.fill(); }
-    }
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(draw);
-  }
-  window.addEventListener('resize', resize);
-  window.addEventListener('pointermove', function (e) { var r = canvas.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; }, { passive: true });
-  window.addEventListener('pointerleave', function () { mouse.x = mouse.y = -9999; });
-  window.addEventListener('scroll', function () { scrollY = window.scrollY || 0; }, { passive: true });
-  document.addEventListener('visibilitychange', function () { running = !document.hidden; if (running) requestAnimationFrame(draw); });
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(function (en) { var vis = en[0].isIntersecting; if (vis && !running) { running = true; requestAnimationFrame(draw); } if (!vis) running = false; }, { rootMargin: '200px' }).observe(canvas);
-  }
-  resize(); requestAnimationFrame(draw);
-})();
-
-(function () {
-  var src = (document.getElementById('live-facts') || {}).getAttribute ? document.getElementById('live-facts').getAttribute('data-source') : '/v1/stats';
-  var note = document.getElementById('live-note');
+  /* live coverage from /v1/stats */
   function set(name, value) { document.querySelectorAll('[data-stat="' + name + '"]').forEach(function (el) { el.textContent = value; }); }
-  function fmt(n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); }
-  function age(sec) {
-    if (sec == null) return 'never';
-    if (sec < 90) return sec + 's'; if (sec < 5400) return Math.round(sec / 60) + 'm'; if (sec < 172800) return Math.round(sec / 3600) + 'h';
-    return Math.round(sec / 86400) + 'd';
+  function stats() {
+    getJSON($('live-facts').getAttribute('data-source')).then(function (d) {
+      var ingested = d.companies.ingested;
+      set('companies', fmtInt(ingested)); set('filings', fmtInt(d.filings.total)); set('facts', fmtInt(d.facts.total));
+      if (d.filings.last_12_months && d.companies.filed_last_12_months) rate = { filings: d.filings.last_12_months, filers: d.companies.filed_last_12_months };
+      follow();
+      $('status-empty').hidden = ingested > 0; $('status-error').hidden = true;
+      $('live-note').textContent = 'Live from /v1/stats, ' + d.generated_at.replace('T', ' ').slice(0, 16) + ' UTC. Latest filing ' + (d.filings.latest_filing_date || 'none') + '.';
+    }).catch(function () { $('status-error').hidden = false; follow(); });
   }
-  function apply(d) {
-    var ingested = d.companies.ingested;
-    set('companies', fmt(ingested)); set('filings', fmt(d.filings.total)); set('facts', fmt(d.facts.total));
-    set('fetch_age', age(d.freshness.last_successful_fetch_age_seconds));
-    var L = d.listings || {}, evs = L.events_by_type || {}, evTotal = Object.keys(evs).reduce(function (a, k) { return a + evs[k]; }, 0);
-    set('listings', fmt(L.instruments)); set('listing_events', fmt(evTotal));
-    set('health', d.service.health);
-    set('health_note', { ok: 'Last SEC fetch within the staleness window.', stale: 'Last successful fetch is older than ' + age(d.freshness.stale_after_seconds) + '.', degraded: 'The most recent ingestion run failed; data is from the last success.', empty: 'Nothing ingested yet.' }[d.service.health] || '');
-    var q = d.facts.by_quality || {}, total = d.facts.total || 0;
-    set('quality', total ? Object.keys(q).sort().map(function (k) { return k + ' ' + Math.round(100 * q[k] / total) + '%'; }).join(' · ') : 'no facts yet');
-    set('run_status', d.ingestion.last_run_status || 'no runs');
-    set('run_note', d.ingestion.last_run_finished_at ? 'Finished ' + d.ingestion.last_run_finished_at.replace('T', ' ').slice(0, 19) + ' UTC, ' + fmt(d.ingestion.last_run_error_count) + ' errors' : 'No ingestion run recorded.');
-    set('watches', fmt(d.notifications.active_watches) + ' active watches');
-    set('deliveries', fmt(d.notifications.delivered_total) + ' delivered · ' + fmt(d.notifications.pending_deliveries) + ' pending · ' + fmt(d.notifications.failed_total) + ' failed');
-    set('latest_filing', d.filings.latest_filing_date || '—');
-    set('accepted_share', d.filings.total ? Math.round(100 * d.filings.with_acceptance_timestamp / d.filings.total) + '% of filings carry an SEC acceptance timestamp' : 'No filings yet.');
-    set('mapping', d.mapping_version);
-    document.getElementById('status-empty').hidden = ingested > 0;
-    document.getElementById('status-error').hidden = true;
-    if (note) note.textContent = 'Live from /v1/stats · generated ' + d.generated_at.replace('T', ' ').slice(0, 19) + ' UTC' + (ingested > 0 ? '' : ' · no US companies ingested yet') + ((L.instruments || 0) > 0 ? '' : ' · no international listings yet');
-  }
-  function fail() {
-    ['companies', 'filings', 'facts', 'fetch_age', 'listings', 'listing_events'].forEach(function (k) { set(k, 'n/a'); });
-    document.getElementById('status-error').hidden = false;
-    if (note) note.textContent = 'Live stats unavailable; showing static content.';
-  }
-  function load() {
-    try {
-      fetch(src, { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(apply).catch(fail);
-    } catch (e) { fail(); }
-  }
-  load(); setInterval(load, 30000);
-})();
+  stats(); setInterval(stats, 30000);
 
-(function () {
-  var form = document.getElementById('key-request-form'); if (!form) return;
-  var status = document.getElementById('kr-status'), submit = document.getElementById('kr-submit');
+  /* pricing: one stage that shows the selected plan */
+  var PLANS = {
+    free: { monthly: 0, annual: 0, for: 'For trying the schema, building a prototype or running an agent demo.', extra: ['OpenAPI, llms.txt and sample code'], action: 'Request a free key' },
+    builder: { monthly: 49, annual: 41, for: 'For indie fintech, research tooling and one production AI app.', extra: ['Email support within two business days'], action: 'Start Builder' },
+    team: { monthly: 199, annual: 166, for: 'For analytics products and data teams watching a defined list of companies.', extra: ['Priority support, usage reports and a measured freshness report for your watch list'], action: 'Start Team' },
+    enterprise: { custom: true, for: 'For dedicated polling lists, custom quotas, invoicing and a data-rights review.', extra: ['Dedicated ingestion schedule for your companies', 'Contract terms and security questionnaire', 'Joint legal review before bulk redistribution'], action: 'Talk to us' }
+  };
+  var LIMITS = { free: [60, 10000, 5, 1000], builder: [300, 250000, 50, 1000], team: [1000, 2000000, 500, 1000] };
+  var current = 'builder', yearly = false;
+  try { yearly = localStorage.getItem('billing') === 'annual'; } catch (e) {}
+  function limitsList(name) {
+    var l = LIMITS[name];
+    var out = l ? [fmtInt(l[0]) + ' requests a minute', fmtInt(l[1]) + ' requests a month', fmtInt(l[2]) + ' watched companies', fmtInt(l[3]) + ' rows per export'] : ['Custom rate limits and quotas'];
+    return out.concat(PLANS[name].extra);
+  }
+  function showPlan(name, animate) {
+    current = name; var p = PLANS[name], st = $('plan-stage');
+    document.querySelectorAll('.plan-names button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-plan') === name)); });
+    $('bill-monthly').setAttribute('aria-pressed', String(!yearly)); $('bill-annual').setAttribute('aria-pressed', String(yearly));
+    var paint = function () {
+      $('plan-price').textContent = p.custom ? 'Custom' : '$' + (yearly ? p.annual : p.monthly);
+      $('plan-period').textContent = p.custom ? 'priced with you' : (p.monthly === 0 ? 'for ever' : yearly ? 'a month, billed yearly' : 'a month');
+      $('plan-for').textContent = p.for;
+      $('plan-limits').innerHTML = limitsList(name).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
+      $('plan-action').textContent = p.action;
+      st.classList.remove('swap');
+    };
+    if (animate && !reduce) { st.classList.add('swap'); setTimeout(paint, 200); } else paint();
+  }
+  document.querySelectorAll('.plan-names button').forEach(function (b) {
+    b.addEventListener('click', function () { if (b.getAttribute('data-plan') !== current) showPlan(b.getAttribute('data-plan'), true); });
+    b.addEventListener('focus', function () { if (b.getAttribute('data-plan') !== current) showPlan(b.getAttribute('data-plan'), true); });
+  });
+  $('bill-monthly').addEventListener('click', function () { yearly = false; try { localStorage.setItem('billing', 'monthly'); } catch (e) {} showPlan(current, false); });
+  $('bill-annual').addEventListener('click', function () { yearly = true; try { localStorage.setItem('billing', 'annual'); } catch (e) {} showPlan(current, false); });
+  showPlan('builder', false);
+  getJSON('/v1/public/plans').then(function (d) {
+    d.data.forEach(function (p) {
+      if (PLANS[p.name] && !PLANS[p.name].custom) { PLANS[p.name].monthly = p.price_usd_per_month; PLANS[p.name].annual = p.annual_price_usd_per_month; }
+      if (LIMITS[p.name]) LIMITS[p.name] = [p.rate_limit_per_minute, p.monthly_request_quota, p.max_watches, p.max_export_rows];
+      if (p.name === 'enterprise') return;
+      var cell = function (key, v) { var td = document.querySelector('[data-compare="' + key + '"] [data-plan-col="' + p.name + '"]'); if (td) td.textContent = v; };
+      cell('rate', fmtInt(p.rate_limit_per_minute)); cell('monthly', fmtInt(p.monthly_request_quota)); cell('watches', fmtInt(p.max_watches));
+    });
+    $('pricing-live').textContent = 'Limits loaded live from /v1/public/plans, ' + d.pricing_status + ' pricing.';
+    showPlan(current, false);
+  }).catch(function () {});
+
+  /* copy the tool definition */
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var text = $(b.getAttribute('data-copy')).textContent;
+      var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+    });
+  });
+
+  /* entrances: each section's parts rise once as it enters */
+  var items = document.querySelectorAll('[data-reveal]');
+  if (!reduce && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('is-in'); io.unobserve(en.target); } });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.05 });
+    items.forEach(function (el) { io.observe(el); });
+  } else items.forEach(function (el) { el.classList.add('is-in'); });
+
+  /* key request form */
+  var form = $('key-request-form'), status = $('kr-status'), submit = $('kr-submit');
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    var email = document.getElementById('kr-email'), use = document.getElementById('kr-use');
+    var email = $('kr-email'), use = $('kr-use');
     if (!email.checkValidity()) { status.textContent = 'Enter a valid email address.'; email.focus(); return; }
-    if (use.value.trim().length < 12) { status.textContent = 'Tell us a little more about the use case (12+ characters).'; use.focus(); return; }
+    if (use.value.trim().length < 12) { status.textContent = 'Tell us a little more about the use case, 12 characters or more.'; use.focus(); return; }
     submit.disabled = true; status.textContent = 'Sending…';
-    var payload = { email: email.value.trim(), use_case: use.value.trim(), plan: document.getElementById('kr-plan').value, website: document.getElementById('kr-website').value };
+    var payload = { email: email.value.trim(), use_case: use.value.trim(), plan: $('kr-plan').value, website: $('kr-website').value };
     fetch(form.getAttribute('action'), { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload) })
       .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, status: r.status, body: b }; }); })
       .then(function (res) {
@@ -822,6 +1004,5 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
   });
 })();
 </script>
-<script src="/public.js"></script>
 </body>
 </html>

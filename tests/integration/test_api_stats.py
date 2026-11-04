@@ -9,10 +9,10 @@ def test_stats_is_public_and_shaped(client, ingested_aapl):
     assert body["companies"]["ingested"] == 1 and body["companies"]["known"] == 1
     assert body["filings"]["total"] == 6
     assert body["facts"]["total"] > 0 and set(body["facts"]["by_quality"]) >= {"ok"}
-    assert (
-        body["freshness"]["last_successful_fetch_at"]
-        and body["freshness"]["latest_filing_detected_at"]
-    )
+    assert body["freshness"]["last_successful_fetch_at"]
+    assert "latest_filing_detected_at" not in body["freshness"]
+    # The fixture filings are from 2023-2024, so none fall in the last 12 months.
+    assert body["filings"]["last_12_months"] == 0 and body["companies"]["filed_last_12_months"] == 0
     assert body["ingestion"]["last_run_status"] == "succeeded"
     assert (
         body["notifications"]["pending_deliveries"] == 0
