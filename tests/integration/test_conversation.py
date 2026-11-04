@@ -209,3 +209,18 @@ def test_model_answers_are_capped_at_whole_sentences(client, auth, items_aapl, a
     assert body["answer"].count("[2]") == 3 and body["answer"].endswith("[2].")
     overview = _chat(client, auth, "Tell me about Apple")
     assert overview["answer"].count("[2]") == 5
+
+
+def test_comparing_named_companies_builds_a_table(client, auth, db, sec_client, app):
+    from app.services.ingestion import ingest_company
+
+    ingest_company(db, sec_client, "320193")
+    ingest_company(db, sec_client, "789019")
+    marts.build_company_marts(db)
+    app.state.llm_factory = lambda: pytest.fail("a comparison must not call the model")
+    body = _chat(client, auth, "AAPL vs MSFT total assets")
+    assert body["intent"] == "compare" and body["answered_by"] == "data"
+    assert body["answer"].startswith("Latest annual total assets: Apple Inc. $")
+    assert "Microsoft Corp $" in body["answer"] and "different months" in body["answer"]
+    assert [r[0]["text"] for r in body["widgets"][0]["rows"]] == ["Apple Inc.", "Microsoft Corp"]
+    assert body["context"]["ciks"] == ["0000320193", "0000789019"]

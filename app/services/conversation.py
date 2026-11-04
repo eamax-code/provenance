@@ -51,6 +51,7 @@ class Plan:
     years: int = 3
     limit: int = 10
     order: str = "desc"
+    ciks: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -87,6 +88,7 @@ _FORM = re.compile(
     r"\b(10-K|10-Q|8-K|S-1|F-1|20-F|40-F|424B4|DEF 14A|13D|13G|SC 13D|SC 13G|S-3|6-K)\b",
     re.IGNORECASE,
 )
+_COMPARE = re.compile(r"\b(compare|comparison|compared|versus|vs\.?|against)\b", re.IGNORECASE)
 _FILED = re.compile(r"\b(filed?|filings?|filers?|submitted)\b", re.IGNORECASE)
 _HOW_MANY = re.compile(r"\bhow many\b", re.IGNORECASE)
 _OUT_OF_SCOPE = re.compile(
@@ -111,10 +113,19 @@ METRIC_LABELS = {
 }
 
 
-def plan(text: str, ctx: ConversationContext | None) -> Plan | None:
+def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) -> Plan | None:
     """The cross-company intent a question names, or None for the company flow."""
     if _OUT_OF_SCOPE.search(text):
         return Plan("out_of_scope")
+    if db is not None and _COMPARE.search(text):
+        named = compared_companies(db, text)
+        if len(named) >= 2:
+            return Plan(
+                "compare",
+                metric=_metric(text) or "revenue",
+                years=_years(text) or 3,
+                ciks=[c.cik for c in named],
+            )
     days, window_label = _window(text)
     metric = _metric(text)
     years = _years(text)
@@ -153,6 +164,8 @@ def answer(db: Session, p: Plan, ctx: ConversationContext | None, today: date) -
         return _rank(db, p)
     if p.kind == "list_followup":
         return _list_table(db, p, ctx)
+    if p.kind == "compare":
+        return _compare(db, p)
     raise ValueError(p.kind)
 
 
@@ -386,6 +399,61 @@ def _list_table(db: Session, p: Plan, ctx: ConversationContext | None) -> DataAn
         [widget],
         ConversationContext(intent="list_followup", ciks=ciks, label=about),
     )
+
+
+def _compare(db: Session, p: Plan) -> DataAnswer:
+    label = METRIC_LABELS[p.metric]
+    rows = {r.cik: r for r in db.scalars(select(MartCompany).where(MartCompany.cik.in_(p.ciks)))}
+    parts = []
+    for cik in p.ciks:
+        r = rows.get(cik)
+        latest = _series(r, p.metric)[:1] if r else []
+        if r is not None:
+            parts.append(
+                f"{_name(r)} {_money(latest[0]['value'])} (year ended {latest[0]['period_end']})"
+                if latest
+                else f"{_name(r)} not reported"
+            )
+    text = f"Latest annual {label.lower()}: " + "; ".join(parts) + "."
+    if (
+        len(
+            {
+                (_series(rows[c], p.metric)[:1] or [{}])[0].get("period_end", "")[5:]
+                for c in p.ciks
+                if c in rows
+            }
+        )
+        > 1
+    ):
+        text += " Their fiscal years end in different months, so the years do not line up exactly."
+    table = _list_table(
+        db,
+        Plan("list_followup", metric=p.metric, years=p.years),
+        ConversationContext(intent="compare", ciks=p.ciks, label="companies compared"),
+    )
+    table.widgets[0]["title"] = f"{label}, last {max(1, min(p.years, 5))} fiscal years"
+    return DataAnswer(
+        text,
+        "compare",
+        table.widgets,
+        ConversationContext(intent="compare", ciks=p.ciks, label="the companies compared"),
+    )
+
+
+def compared_companies(db: Session, text: str) -> list[Company]:
+    """The companies a comparison names: "Apple and Microsoft", "AAPL vs MSFT", "Apple, Amazon,
+    Netflix". Each part must name a company clearly on its own."""
+    from app.services.intel import resolve_company
+
+    found: list[Company] = []
+    separators = r"\b(?:and|vs\.?|versus|against|with|to|compare|compared|comparison)\b|,|&|/"
+    for part in re.split(separators, text, flags=re.IGNORECASE):
+        if len(part.strip()) < 2:
+            continue
+        c = resolve_company(db, part)
+        if c is not None and all(c.cik != f.cik for f in found):
+            found.append(c)
+    return found[:6]
 
 
 # ---- helpers -------------------------------------------------------------------------------

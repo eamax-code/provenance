@@ -566,7 +566,7 @@
   }
 
   // ---- asking ----
-  var MARKET_RE = /\b(new listings?|newly listed|ipos?|went public|go(?:ne|ing)? public|largest|biggest|top \d+|who filed|how many (?:10-K|10-Q|8-K|S-1))\b/i;
+  var MARKET_RE = /\b(new listings?|newly listed|ipos?|went public|go(?:ne|ing)? public|largest|biggest|top \d+|who filed|how many (?:10-K|10-Q|8-K|S-1)|compare|versus|vs\.?)\b/i;
   var BACK_RE = /\b(these|those|them|their|they|the same|the list|above)\b/i;
   var LEAD_RE = /\b(leadership|ceo|cfo|coo|chief|executives?|officers?|directors?|board|resign\w*|appoint\w*|hired?|depart\w*|succession|chair\w*)\b/i;
   var TREND_RE = /\b(growth|grow\w*|grew|trend\w*|histor\w*|years|chart|graph|over time|yoy|cagr)\b/i;

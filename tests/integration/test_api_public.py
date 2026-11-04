@@ -237,3 +237,41 @@ def test_public_listing_events_and_page(client, db):
     page = client.get("/listings/")
     assert page.status_code == 200 and "/v1/public/listings/events" in client.get("/public.js").text
     assert "not affiliated" in page.text.lower() and 'id="listings-table"' in page.text
+
+
+def test_annual_report_is_preferred_over_a_proxy_statement(client, db, ingested_aapl):
+    """A DEF 14A repeats net income in its pay-versus-performance table, filed after the 10-K;
+    the figure must still cite the annual report."""
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.db.models import FinancialFact
+    from app.services import public
+
+    ten_k = db.scalars(
+        select(FinancialFact).where(
+            FinancialFact.cik == "0000320193",
+            FinancialFact.metric == "net_income",
+            FinancialFact.period_class == "annual",
+            FinancialFact.form_type == "10-K",
+        )
+    ).first()
+    proxy = FinancialFact(
+        **{
+            c.name: getattr(ten_k, c.name)
+            for c in FinancialFact.__table__.columns
+            if c.name
+            not in ("id", "form_type", "filed_date", "accession_number", "observation_key")
+        },
+        form_type="DEF 14A",
+        filed_date=date(2099, 1, 1),
+        accession_number="0000320193-99-000001",
+        observation_key="proxy-repeat",
+    )
+    db.add(proxy)
+    db.commit()
+    public.reset_cache()
+    series = public._annual_series(db, "0000320193", "net_income", 5)
+    match = [f for f in series if f.period_end == ten_k.period_end]
+    assert match and match[0].form_type == "10-K"

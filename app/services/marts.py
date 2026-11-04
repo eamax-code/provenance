@@ -192,7 +192,12 @@ def _annual_metrics(db: Session, scope) -> dict[str, dict[str, list[dict]]]:
         func.row_number()
         .over(
             partition_by=(f.cik, f.metric, f.period_end),
-            order_by=(f.filed_date.desc(), f.accession_number.desc()),
+            # The annual report's figure over a proxy statement's repeat of it, then the latest.
+            order_by=(
+                f.form_type.in_(ANNUAL_REPORT_FORMS).desc(),
+                f.filed_date.desc(),
+                f.accession_number.desc(),
+            ),
         )
         .label("rn")
     )

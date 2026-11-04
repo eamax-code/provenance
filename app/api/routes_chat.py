@@ -452,9 +452,9 @@ def _data_reply(found: conversation.DataAnswer) -> ChatReply:
 def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings) -> ChatReply:
     # Questions across companies (recent IPOs, who filed a 10-K, the largest by revenue) and
     # follow-ups on the previous answer's list come straight from the marts, without the model.
-    market = conversation.plan(body.message, body.context)
+    market = conversation.plan(body.message, body.context, db)
     if market and (
-        market.kind in ("out_of_scope", "list_followup")
+        market.kind in ("out_of_scope", "list_followup", "compare")
         or conversation.strongly_named(db, body.message) is None
     ):
         return _data_reply(
