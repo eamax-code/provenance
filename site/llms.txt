@@ -13,6 +13,7 @@
 ## Endpoints
 - GET /v1/companies?exchange=&sic=&state=&ingested=true|false&sort={name|cik|last_processed}&limit<=200&offset=
 - GET /v1/companies/search?q={ticker|cik|name}&limit=1..50
+  match_type: cik, ticker, name_exact, name_prefix, name_contains; name_fuzzy (a typo, e.g. "mircosoft") only when nothing else matches.
 - GET /v1/companies/{cik}  (202 + Retry-After while on-demand ingestion runs; 404 if unknown)
 - GET /v1/companies/{cik}/filings?limit=1..100&form_type=&since=YYYY-MM-DD&offset=
 - GET /v1/companies/{cik}/facts?metric={revenue|operating_income|net_income|total_assets|operating_cash_flow}&period={annual|quarterly|all}&from=&to=&form_type=&include_derived=false&include_all_observations=false&as_of=YYYY-MM-DD  (as_of: only observations filed by that date; restatements filed later are invisible)

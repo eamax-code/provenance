@@ -461,6 +461,12 @@
   function showReply(bot, reply, animate, q) {
     bot.msg.classList.remove('thinking');
     var content = el('div'); bot.body.appendChild(content);
+    if (!reply.company && reply.answer) {
+      // A question about the service's own data (how many companies are loaded): no company card.
+      content.appendChild(renderText(reply.answer, []));
+      (reply.notes || []).forEach(function (n) { content.appendChild(el('p', 'cx-note', n)); });
+      keepScrolled(); return;
+    }
     if (!reply.company) {
       content.appendChild(el('p', null, (reply.notes || [])[0] || 'Which company do you mean?'));
       var chips = el('div', 'cx-chips');

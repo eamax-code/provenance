@@ -452,3 +452,81 @@ def test_follow_up_without_a_company_uses_the_current_one(app, client, auth, ite
         headers=auth,
     ).json()
     assert body["company"]["cik"] == "0000320193" and body["answer"]
+
+
+def _add_companies(db, names):
+    from sqlalchemy import select
+
+    from app.db.models import Company
+
+    first = db.scalar(select(Company)).first_detected_at
+    for i, (name, ticker) in enumerate(names):
+        db.add(
+            Company(
+                cik=f"00009998{i:02d}",
+                legal_name=name,
+                ticker=ticker,
+                source_url="https://www.sec.gov/",
+                first_detected_at=first,
+            )
+        )
+    db.commit()
+
+
+def test_coverage_question_is_answered_from_the_data(app, client, auth, items_aapl, db):
+    # Issue #1: "active" used to pick ActiveCare, Inc. and answer with its 2016 figures.
+    _add_companies(db, [("ACTIVECARE, INC.", None), ("Active Network Inc", None)])
+    r = client.post(
+        "/v1/chat",
+        json={"message": "how many active publics do you have as of today?"},
+        headers=auth,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["intent"] == "coverage" and body["company"] is None and body["widgets"] == []
+    assert body["answered_by"] == "data"
+    assert "1 US public company loaded" in body["answer"] and "last 12 months" in body["answer"]
+    # A company that is clearly named still gets its own answer.
+    named = client.post(
+        "/v1/chat", json={"message": "How many filings does Apple have?"}, headers=auth
+    ).json()
+    assert named["company"]["cik"] == "0000320193" and named["intent"] != "coverage"
+
+
+def test_a_common_word_never_picks_a_company_on_its_own(db, items_aapl):
+    from app.services import intel
+
+    _add_companies(db, [("ACTIVECARE, INC.", None), ("Active Network Inc", "ACTN")])
+    assert intel.resolve_company(db, "how active is the market") is None
+    assert intel.resolve_company(db, "Activecare revenue").legal_name == "ACTIVECARE, INC."
+    assert intel.resolve_company(db, "ActiveCare Inc").legal_name == "ACTIVECARE, INC."
+    assert intel.resolve_company(db, "summarise apple").cik == "0000320193"
+    assert intel.resolve_company(db, "how is the company doing today") is None
+
+
+def test_typos_resolve_to_the_nearest_name(db, items_aapl):
+    from app.services import intel
+    from app.services.company_lookup import search_companies, typo_distance
+
+    _add_companies(
+        db,
+        [("AMAZON COM INC", "AMZN"), ("AMAZE HOLDINGS, INC.", "AMZE"), ("MICROSOFT CORP", "MSFT")],
+    )
+    assert intel.resolve_company(db, "Summarise Mircosoft").legal_name == "MICROSOFT CORP"
+    assert intel.resolve_company(db, "how is amazn doing").legal_name == "AMAZON COM INC"
+    assert intel.resolve_company(db, "Appel revenue").cik == "0000320193"
+    hits, _ = search_companies(db, "mircosoft", limit=3)
+    assert [(h.company.ticker, h.match_type) for h in hits] == [("MSFT", "name_fuzzy")]
+    # Exact and prefix matches always outrank a typo; short words never get typo matching.
+    assert search_companies(db, "micro", limit=3)[0][0].match_type == "name_prefix"
+    assert search_companies(db, "aple", limit=3)[0] == []
+    assert typo_distance("amazn", "amazon") < typo_distance("amazn", "amaze")
+    assert typo_distance("mircosoft", "microsoft") < 1
+
+
+def test_unclear_question_offers_the_nearest_companies(client, auth, items_aapl, db):
+    _add_companies(db, [("ACTIVECARE, INC.", None)])
+    body = client.post("/v1/chat", json={"message": "what is activ"}, headers=auth).json()
+    assert body["company"] is None and body["answer"] is None
+    assert any("ACTIVECARE" in s["legal_name"] for s in body["suggestions"])
+    assert "Which company do you mean?" in body["notes"][0]

@@ -16,7 +16,12 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Company, Filing, FinancialFact
 from app.services import officer_changes
-from app.services.company_lookup import search_companies
+from app.services.company_lookup import (
+    core_name,
+    fuzzy_companies,
+    normalize_name,
+    search_companies,
+)
 from app.services.form8k import ITEM_TITLES, LEADERSHIP_ITEM, split_items
 from app.services.point_in_time import known_by
 from app.services.sec_client import company_filings_url
@@ -51,6 +56,8 @@ _STOP = {
     "forecast", "forecasts", "forecasting", "predict", "prediction", "predictions",
     "projection", "projections", "project", "outlook", "estimate", "estimates", "coming",
     "following", "upcoming", "future",
+    # Time words ("today" -> USA Today, "as" -> Asure).
+    "as", "today", "tomorrow", "yesterday", "currently", "current", "right",
 }  # fmt: skip
 # Acronyms in questions that are also tickers ("AI" is C3.ai, "IT" is Gartner).
 _ACRONYMS = {
@@ -121,14 +128,76 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False) -> Compa
                 found += [
                     (h, phrase)
                     for h in hits
-                    if h.match_type in _MATCH_RANK and (not follow_up or _named(h, phrase))
+                    if h.match_type in _MATCH_RANK
+                    and _names_it(h, phrase)
+                    and (not follow_up or _named(h, phrase))
                 ]
             if found:
                 # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal;
                 # "the main risks for Anthropic": a named company beats a word that is a ticker.
                 best, _ = max(found, key=lambda x: (_named(*x), _match_rank(*x), _name_score(*x)))
                 return best.company
+    # A typo ("Mircosoft", "amazn"): the nearest name within one or two letters.
+    best = None
+    for size in (2, 1):
+        for i in range(len(useful) - size + 1):
+            phrase = " ".join(useful[i : i + size])
+            lower_word = size == 1 and phrase.islower()
+            if follow_up and not phrase[:1].isupper():
+                continue
+            for dist, c in fuzzy_companies(db, phrase, limit=1, whole_name=lower_word):
+                rank = (dist, not c.ticker)
+                if dist > 0 and (best is None or rank < (best[0], not best[1].ticker)):
+                    best = (dist, c)
+        if best:
+            return best[1]
     return None
+
+
+def _names_it(hit, phrase: str) -> bool:
+    """A name match counts only when it ends on a word boundary ("active" does not name
+    ActiveCare), and a single lower-case word must be the whole name ("apple" is Apple Inc.,
+    "active" is not Active Network Inc.); tickers and exact names always count."""
+    if hit.match_type not in ("name_prefix", "name_exact"):
+        return True
+    if hit.match_type == "name_exact":
+        return True
+    name, typed = normalize_name(hit.company.legal_name), phrase.lower()
+    if len(name) > len(typed) and name[len(typed)].isalnum():
+        return False
+    if " " not in phrase and phrase.islower():
+        return core_name(hit.company.legal_name) == typed
+    return True
+
+
+def candidate_companies(db: Session, text: str, limit: int = 5) -> list[Company]:
+    """Companies a question might mean when none is clear: name starts and near spellings of its
+    words, listed companies first. Offered as choices, never picked."""
+    words = [w for w in re.findall(r"[A-Za-z0-9][A-Za-z0-9.&-]*", text) if w.lower() not in _STOP]
+    seen: dict[str, tuple] = {}
+    for w in words:
+        if len(w) < 3:
+            continue
+        hits, _ = search_companies(db, w, limit=limit)
+        ranked = [(0.0, h.company) for h in hits] or fuzzy_companies(db, w, limit=limit)
+        for dist, c in ranked:
+            key = (dist, not c.ticker, len(c.legal_name))
+            if c.cik not in seen or key < seen[c.cik][0]:
+                seen[c.cik] = (key, c)
+    return [c for _, c in sorted(seen.values(), key=lambda x: x[0])[:limit]]
+
+
+_COVERAGE_Q = re.compile(
+    r"\bhow many\b.{0,40}\b(compan(?:y|ies)|publics?|filers?|issuers?|tickers?|filings|facts)\b"
+    r"|\b(?:what|which) compan(?:y|ies) (?:do|does|can) (?:you|this|it)\b"
+    r"|\b(?:your|the|this service'?s?) coverage\b|\bwhat (?:data|companies) do you have\b",
+    re.IGNORECASE,
+)
+
+
+def is_coverage_question(text: str) -> bool:
+    """Questions about this service's data rather than one company."""
+    return bool(_COVERAGE_Q.search(text))
 
 
 _MATCH_RANK = {"ticker": 3, "name_exact": 2, "name_prefix": 1}
@@ -150,15 +219,7 @@ def _match_rank(hit, phrase: str) -> int:
     return _MATCH_RANK[hit.match_type]
 
 
-_CORP_WORDS = {
-    "inc", "incorporated", "corp", "corporation", "co", "company", "ltd", "limited", "plc",
-    "llc", "lp", "sa", "nv", "ag", "the", "new", "com", "pbc",
-}  # fmt: skip
-
-
-def _core_name(name: str) -> str:
-    words = re.findall(r"[a-z0-9&]+", name.lower())
-    return " ".join(w for w in words if w not in _CORP_WORDS)
+_core_name = core_name
 
 
 def _name_score(hit, phrase: str) -> tuple:

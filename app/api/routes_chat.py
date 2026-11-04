@@ -28,7 +28,7 @@ from app.services import (
     releases,
     widgets,
 )
-from app.services.company_lookup import search_companies
+from app.services import stats as stats_service
 from app.services.llm import LLMUnavailable, LocalLLM
 from app.services.sec_client import company_filings_url, normalize_cik
 
@@ -90,7 +90,8 @@ class ChatReply(BaseModel):
     )
     intent: str | None = Field(
         None,
-        description="How the question was read: 'leadership', 'trend', 'forecast' or 'question'",
+        description="How the question was read: 'coverage', 'leadership', 'trend', 'forecast' "
+        "or 'question'",
     )
     widgets: list[dict] = Field(
         [], description="Charts and figure tiles drawn from the cited data (see the chat page)"
@@ -372,8 +373,42 @@ def _saving_key(request: Request, key):
     return getattr(key, "id", None)
 
 
+def _coverage_reply(db: Session, settings: Settings) -> ChatReply:
+    """How much this service holds, from the same counts as /v1/stats."""
+    s = stats_service.cached_stats(db, settings)
+    companies, filings, facts = s["companies"], s["filings"], s["facts"]
+    active = companies.get("filed_last_12_months") or 0
+    latest = filings.get("latest_filing_date")
+    answer = (
+        f"This service has {companies['ingested']:,} US public "
+        f"{'company' if companies['ingested'] == 1 else 'companies'} loaded. "
+        f"{active:,} of them filed with the SEC in the last 12 months, which is what is counted "
+        f"as active here. Together they have {filings['total']:,} filings and "
+        f"{facts['total']:,} normalized financial facts"
+        + (f"; the most recent filing is dated {latest}." if latest else ".")
+    )
+    return ChatReply(
+        company=None,
+        answer=answer,
+        brief=None,
+        citations=[],
+        checks={},
+        model=None,
+        answered_by="data",
+        intent="coverage",
+        notes=[
+            "Counts are for the companies loaded here, not every SEC filer, and come from "
+            "/v1/stats (refreshed every 30 seconds). Ask about one company for its figures."
+        ],
+    )
+
+
 def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings) -> ChatReply:
-    company = intel.resolve_company(db, body.message, follow_up=bool(body.cik))
+    coverage_q = intel.is_coverage_question(body.message)
+    # A question about the service's own data only switches to a company that is clearly named.
+    company = intel.resolve_company(db, body.message, follow_up=bool(body.cik) or coverage_q)
+    if company is None and coverage_q:
+        return _coverage_reply(db, settings)
     if company is None and body.cik:
         try:
             cik = normalize_cik(body.cik)
@@ -382,7 +417,7 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
         company = db.scalar(select(Company).where(Company.cik == cik))
 
     if company is None:
-        hits, _ = search_companies(db, body.message[:100], limit=5)
+        options = intel.candidate_companies(db, body.message[:300])
         return ChatReply(
             company=None,
             answer=None,
@@ -390,8 +425,12 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             citations=[],
             checks={},
             model=None,
-            suggestions=[_company_dict(h.company) for h in hits],
-            notes=["Name a company (ticker, CIK or name) that this service has loaded."],
+            suggestions=[_company_dict(c) for c in options],
+            notes=[
+                "Which company do you mean? Pick one below, or name it by ticker, CIK or full name."
+                if options
+                else "Name a company (ticker, CIK or name) that this service has loaded."
+            ],
         )
 
     leadership_q = intel.is_leadership_question(body.message)
