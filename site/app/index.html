@@ -9,7 +9,7 @@
 <meta name="description" content="Explore SEC filings and normalized facts with provenance using your Provenance API key.">
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/app/app.css">
 </head>
 <body>
@@ -35,6 +35,12 @@
       <button class="btn primary" type="submit">Connect</button>
     </form>
     <p class="muted small" id="gate-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="panel" id="gate-showcase" aria-labelledby="gate-showcase-title">
+    <h2 id="gate-showcase-title">No key yet? Open a showcase company</h2>
+    <p class="muted">These pages need no key: filings, the five normalized metrics and freshness, each value linked to its filing. The <a href="/playground/">playground</a> runs live requests with the demo key.</p>
+    <ul class="results" id="gate-cards" aria-live="polite"><li class="muted">Loading the showcase companies…</li></ul>
   </section>
 
   <main id="explore" class="view" hidden>

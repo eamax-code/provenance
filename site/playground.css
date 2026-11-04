@@ -2,7 +2,7 @@
 @media (max-width: 900px) { .pg { grid-template-columns: 1fr; } }
 .pg-nav { position: sticky; top: calc(76px + env(safe-area-inset-top, 0px)); border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 12px; max-height: calc(100vh - 100px); overflow: auto; }
 @media (max-width: 900px) { .pg-nav { position: static; max-height: none; } }
-.pg-group { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 12px 6px 6px; }
+.pg-group { font-size: .8125rem; font-weight: 600; color: var(--muted); margin: 14px 8px 4px; }
 .pg-group:first-child { margin-top: 2px; }
 .pg-item { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; border: 1px solid transparent; background: transparent; color: var(--fg); font: inherit; font-size: .88rem; padding: 7px 8px; border-radius: 4px; cursor: pointer; }
 .pg-item:hover { border-color: var(--line); background: var(--bg-2); }

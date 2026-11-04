@@ -46,13 +46,13 @@
   /* ---- session ---- */
   function setKey(key) {
     state.key = key; storage(false, key);
-    $('gate').hidden = true; $('signout').hidden = false;
+    $('gate').hidden = true; $('gate-showcase').hidden = true; $('signout').hidden = false;
     $('key-pill').classList.add('on'); $('key-label').textContent = key.slice(0, 17) + '…';
     showView(state.view);
   }
   function signOut(message) {
     state.key = null; storage(false, null); state.company = null;
-    $('gate').hidden = false; $('signout').hidden = true; $('key-pill').classList.remove('on'); $('key-label').textContent = 'no key';
+    $('gate').hidden = false; $('gate-showcase').hidden = false; $('signout').hidden = true; $('key-pill').classList.remove('on'); $('key-label').textContent = 'no key';
     $('explore').hidden = true; $('console').hidden = true; $('company').hidden = true;
     if (message) { $('gate-status').textContent = message; }
   }
@@ -69,6 +69,20 @@
     }).catch(function () { state.key = null; if (!$('gate-status').textContent) $('gate-status').textContent = 'Could not verify the key.'; });
   });
   $('signout').addEventListener('click', function () { signOut('Signed out. The key was removed from this browser.'); });
+
+  /* ---- without a key: the keyless showcase companies ---- */
+  fetch('/v1/public/companies', { headers: { Accept: 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    var list = $('gate-cards'); if (!list) return; list.innerHTML = '';
+    if (!d || !d.data.length) { list.appendChild(el('li', { class: 'muted', text: 'No showcase companies are loaded yet.' })); return; }
+    d.data.forEach(function (c) {
+      var rev = c.latest_annual_revenue;
+      var link = el('a', { href: '/companies/' + parseInt(c.cik, 10), text: c.legal_name });
+      list.appendChild(el('li', {}, [
+        el('span', {}, [link, el('span', { class: 'muted', text: ' · ' + [c.ticker, c.exchange].filter(Boolean).join(' · ') })]),
+        el('span', { class: 'mono', text: rev ? 'revenue ' + fmtNum(rev.value) + ' ' + rev.unit + ', year ended ' + rev.period_end : 'no annual revenue mapped' })
+      ]));
+    });
+  }).catch(function () { var list = $('gate-cards'); if (list) { list.innerHTML = ''; list.appendChild(el('li', { class: 'muted', text: 'Showcase companies are unavailable right now.' })); } });
 
   /* ---- views & tabs ---- */
   function showView(name) {
