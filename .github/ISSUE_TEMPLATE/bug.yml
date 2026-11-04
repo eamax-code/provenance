@@ -1,0 +1,53 @@
+name: Bug
+description: Something on the site, in the chat or in the API is wrong
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chat
+        - API
+        - Playground
+        - Explorer
+        - Main site and other pages
+        - Data (missing or wrong values)
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Page, endpoint or question
+      description: The URL, the API call, or the exact question you asked the chat
+      placeholder: /chat/ "how many active publics do you have as of today?"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Paste a screenshot here if you have one
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Only if it takes more than opening the page or asking the question
+      placeholder: |
+        1. Open the playground
+        2. Pick /facts/screen and set period to quarterly
+        3. ...
+  - type: input
+    id: key
+    attributes:
+      label: Key used
+      description: Demo key, your own key, or none. Never paste the key itself.
+      placeholder: demo
