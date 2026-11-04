@@ -298,10 +298,115 @@
     });
     canvas._chart = chart;
   }
+  // Reported years as solid bars, forecast years as outlined bars with the low-to-high range.
+  function forecastWidget(w, byN) {
+    var box = el('section', 'cx-widget cx-forecast');
+    var head = el('div', 'cx-widget-head');
+    head.appendChild(el('h3', null, w.title));
+    var hist = w.history, fc = w.forecast;
+    head.appendChild(el('span', 'cx-widget-sub', hist[0].label + ' – ' + fc[fc.length - 1].label + ' · ' +
+      (w.summary.method === 'model' ? 'forecast by ' + (w.summary.model || 'a reasoning model') : 'forecast from the trend')));
+    box.appendChild(head);
+    var grid = el('div', 'cx-tiles');
+    (w.stats || []).forEach(function (t, i) { grid.appendChild(tile(t, byN, i)); });
+    box.appendChild(grid);
+    var wrap = el('div', 'cx-chart'), canvas = el('canvas');
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', w.title + ': ' + hist.map(function (p) { return p.label + ' ' + p.display; })
+      .concat(fc.map(function (r) { return r.label + ' ' + r.base_display + ' forecast'; })).join(', '));
+    wrap.appendChild(canvas); box.appendChild(wrap);
+    var legend = el('div', 'cx-legend');
+    [['Reported', css('--purple'), ''], ['Forecast, base case', 'transparent', 'dashed'], ['Low to high range', css('--orange'), 'band']]
+      .forEach(function (x) {
+        var s = el('span'), i = el('i');
+        i.style.background = x[1];
+        if (x[2] === 'dashed') i.style.border = '2px dashed ' + css('--purple');
+        if (x[2] === 'band') i.style.opacity = '0.35';
+        s.appendChild(i); s.appendChild(document.createTextNode(x[0])); legend.appendChild(s);
+      });
+    box.appendChild(legend);
+    var d = el('details'); d.appendChild(el('summary', null, 'Figures and sources'));
+    var table = el('table', 'cx-table'), thead = el('thead'), tr = el('tr');
+    ['Fiscal year', 'Low', 'Base', 'High', 'Basis'].forEach(function (h) { tr.appendChild(el('th', null, h)); });
+    thead.appendChild(tr); table.appendChild(thead);
+    var tb = el('tbody');
+    hist.forEach(function (p) {
+      var r = el('tr'); r.appendChild(el('td', null, p.label));
+      r.appendChild(el('td', null, '')); r.appendChild(el('td', null, p.display)); r.appendChild(el('td', null, ''));
+      var src = el('td'); inline('Reported [' + p.citation + ']', byN, src); r.appendChild(src); tb.appendChild(r);
+    });
+    fc.forEach(function (f) {
+      var r = el('tr', 'cx-forecast-row'); r.appendChild(el('td', null, f.label));
+      ['low', 'base', 'high'].forEach(function (k) {
+        r.appendChild(el('td', null, f[k + '_display'] + ' (' + (f[k + '_growth'] > 0 ? '+' : '') + f[k + '_growth'].toFixed(1) + '%)'));
+      });
+      r.appendChild(el('td', null, 'Forecast')); tb.appendChild(r);
+    });
+    table.appendChild(tb); d.appendChild(table); box.appendChild(d);
+    if (w.note) box.appendChild(el('p', 'cx-note', w.note));
+    loadChartLib().then(function (Chart) { drawForecast(Chart, canvas, w); })
+      .catch(function () { wrap.remove(); legend.remove(); d.open = true; });
+    return box;
+  }
+  function drawForecast(Chart, canvas, w) {
+    var hist = w.history, fc = w.forecast, nh = hist.length;
+    var purple = css('--purple'), orange = css('--orange'), muted = css('--muted'), line = css('--line');
+    var font = { family: css('--font-body') || 'sans-serif', size: 12 };
+    var labels = hist.map(function (p) { return p.label; }).concat(fc.map(function (f) { return f.label; }));
+    function pad(arr, before) { var a = []; for (var i = 0; i < before; i++) a.push(null); return a.concat(arr); }
+    var last = hist[nh - 1].value;
+    // The range starts at the last reported year so the band grows out of it.
+    var low = pad([last].concat(fc.map(function (f) { return f.low; })), nh - 1);
+    var high = pad([last].concat(fc.map(function (f) { return f.high; })), nh - 1);
+    var ctx = canvas.getContext('2d');
+    var grad = ctx.createLinearGradient(0, 0, 0, canvas.parentNode.clientHeight || 280);
+    grad.addColorStop(0, purple); grad.addColorStop(1, css('--purple-2'));
+    var chart = new Chart(canvas, {
+      data: {
+        labels: labels,
+        datasets: [
+          { type: 'bar', label: 'Reported', data: hist.map(function (p) { return p.value; }).concat(fc.map(function () { return null; })), backgroundColor: grad, borderRadius: 8, maxBarThickness: 48, grouped: false, order: 3 },
+          { type: 'bar', label: 'Base case', data: pad(fc.map(function (f) { return f.base; }), nh), backgroundColor: 'rgba(90,80,181,0.14)', borderColor: purple, borderWidth: 2, borderDash: [6, 4], borderRadius: 8, maxBarThickness: 48, grouped: false, order: 2 },
+          { type: 'line', label: 'Low case', data: low, borderColor: orange, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, tension: 0.3, fill: false, spanGaps: false, order: 1 },
+          { type: 'line', label: 'High case', data: high, borderColor: orange, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, tension: 0.3, fill: '-1', backgroundColor: 'rgba(255,107,0,0.12)', spanGaps: false, order: 1 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: reduced ? false : { duration: 900, easing: 'easeOutQuart' },
+        interaction: { mode: 'index', intersect: false },
+        onHover: function (e, els) { e.native.target.style.cursor = els.length && els[0].index < nh ? 'pointer' : 'default'; },
+        onClick: function (e, els) { if (els.length && els[0].index < nh) { var p = hist[els[0].index]; if (/^https:\/\//.test(p.source_url)) window.open(p.source_url, '_blank', 'noopener'); } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#2a2346', padding: 10, cornerRadius: 10, titleFont: font, bodyFont: font,
+            filter: function (item) { return item.raw != null && !(item.dataIndex === nh - 1 && item.datasetIndex > 1); },
+            callbacks: {
+              title: function (items) { var i = items[0].dataIndex; return i < nh ? 'Fiscal year ended ' + hist[i].period_end : fc[i - nh].label + ' (forecast)'; },
+              label: function (item) {
+                var i = item.dataIndex;
+                if (i < nh) return ' Reported ' + hist[i].display;
+                var f = fc[i - nh], k = ['', 'base', 'low', 'high'][item.datasetIndex];
+                return ' ' + k.charAt(0).toUpperCase() + k.slice(1) + ' ' + f[k + '_display'] + ' (' + (f[k + '_growth'] > 0 ? '+' : '') + f[k + '_growth'].toFixed(1) + '%)';
+              },
+              footer: function (items) { return items[0].dataIndex < nh ? 'From the annual report · click to open' : 'Estimate, not a reported figure'; }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: muted, font: font }, border: { color: line } },
+          y: { beginAtZero: true, grid: { color: line }, border: { display: false }, ticks: { color: muted, font: font, maxTicksLimit: 5, callback: function (v) { return short(v); } } }
+        }
+      }
+    });
+    canvas._chart = chart;
+  }
   function renderWidgets(target, reply) {
     var byN = {}; (reply.citations || []).forEach(function (c) { byN[c.n] = c; });
     (reply.widgets || []).forEach(function (w) {
-      if (w.type === 'chart' && w.points && w.points.length) target.appendChild(chartWidget(w, byN));
+      if (w.type === 'forecast' && w.history && w.forecast) target.appendChild(forecastWidget(w, byN));
+      else if (w.type === 'chart' && w.points && w.points.length) target.appendChild(chartWidget(w, byN));
       else if (w.type === 'stats' && w.items && w.items.length) target.appendChild(statsWidget(w, byN));
     });
   }
@@ -425,6 +530,7 @@
   // ---- asking ----
   var LEAD_RE = /\b(leadership|ceo|cfo|coo|chief|executives?|officers?|directors?|board|resign\w*|appoint\w*|hired?|depart\w*|succession|chair\w*)\b/i;
   var TREND_RE = /\b(growth|grow\w*|grew|trend\w*|histor\w*|years|chart|graph|over time|yoy|cagr)\b/i;
+  var FORECAST_RE = /\b(forecast\w*|predict\w*|projections?|outlook|estimates?|(?:next|coming|following|upcoming)\s+(?:\d{1,2}\s+|two\s+|three\s+|four\s+|five\s+)?(?:fiscal\s+)?years?)\b/i;
   function headers() { return { 'Content-Type': 'application/json', 'X-API-Key': state.key }; }
 
   function ask(q) {
@@ -437,7 +543,9 @@
   }
 
   function request(q, bot) {
-    var steps = LEAD_RE.test(q)
+    var steps = FORECAST_RE.test(q)
+      ? ['Finding the company…', 'Collecting annual and quarterly figures…', 'Reading the latest earnings release…', 'Scanning company and industry news…', 'Thinking it through, about a minute…']
+      : LEAD_RE.test(q)
       ? ['Finding the company…', 'Reading the 8-K filings…', 'Checking names against the filing text…']
       : TREND_RE.test(q)
         ? ['Finding the company…', 'Collecting each annual report…', 'Building the chart…']

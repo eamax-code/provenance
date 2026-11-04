@@ -46,6 +46,10 @@ _STOP = {
     "main", "key", "top", "biggest", "major", "grown", "risk", "risks", "ipo", "offering",
     "public", "raise", "raising", "raised", "money", "proceeds", "plans", "plan", "spend",
     "owns", "owner", "owners", "stake", "investors", "valuation", "listing", "prospectus",
+    # Forecast questions ("Outlook", "Forecast" and "Predictive" begin company names).
+    "forecast", "forecasts", "forecasting", "predict", "prediction", "predictions",
+    "projection", "projections", "project", "outlook", "estimate", "estimates", "coming",
+    "following", "upcoming", "future",
 }  # fmt: skip
 # Acronyms in questions that are also tickers ("AI" is C3.ai, "IT" is Gartner).
 _ACRONYMS = {

@@ -179,6 +179,21 @@ passages that match it best, each cited to the filing and section. The demo key 
 every loaded company from stored data and never fetches; `scripts/read_prospectuses.py --cik
 ...` or `--recent-days 30` reads documents ahead of time.
 
+Forecast questions ("Forecast Microsoft revenue for the next 4 years", "What is the outlook for
+Apple net income?") get `intent: "forecast"` and a forecast chart widget. The evidence is cited
+like any answer: the reported annual figures, the latest quarter against the same quarter a year
+earlier, the opening of the latest earnings release (8-K item 2.02, exhibit 99.1, fetched once
+and stored), and recent headlines about the company and its industry (Google News RSS, chosen by
+SIC code; headline, publisher, date and link only, cached for `NEWS_CACHE_HOURS`). A reasoning
+model (`LLM_REASONING_MODEL`, default `qwen3:30b-a3b`) thinks over it, then states growth rates
+for a base, low and high case with drivers and risks as JSON. The model never writes a dollar
+figure: every projected value is computed here from its rates (bounded to -60%..+150% a year),
+and a driver or risk that cites nothing real or carries a number not in the evidence is dropped.
+Without the model the rates come from the trend alone and the reply says so. The demo key never
+fetches: it uses stored releases and fresh cached headlines only. Google News RSS is for
+personal, non-commercial use; a commercial deployment plugs a licensed provider into
+`app/services/news.py`. About 30 to 60 s per forecast on an M4 Pro.
+
 With your own API key, conversations are saved per key (`chat_sessions`, `chat_messages`) and
 listed at `GET /v1/chat/sessions`; the `/chat/` page shows them in its sidebar and restores the
 open one from the URL (`#s=<id>`). The demo key saves nothing on the server.

@@ -3,6 +3,7 @@
 Default model: Qwen3 4B Instruct 2507 (Apache-2.0, non-thinking), small enough for a laptop
 or a modest CPU/GPU host.
 The model only phrases answers from context we assemble; it is never a source of facts.
+Forecasts use a larger reasoning model (LLM_REASONING_MODEL) that thinks before answering.
 """
 
 from __future__ import annotations
@@ -36,6 +37,7 @@ class LLMReply:
     model: str
     duration_ms: int
     output_tokens: int | None
+    thinking: str = ""
 
 
 class LocalLLM:
@@ -52,14 +54,18 @@ class LocalLLM:
         schema: dict | None = None,
         max_tokens: int | None = None,
         temperature: float = 0.1,
+        model: str | None = None,
+        think: bool = False,
+        timeout: float | None = None,
     ) -> LLMReply:
+        """`think` lets a reasoning model think first; its trace comes back in `thinking`."""
         if not self.settings.llm_enabled:
             raise LLMUnavailable("The local language model is disabled on this deployment.")
         body: dict = {
-            "model": self.settings.llm_model,
+            "model": model or self.settings.llm_model,
             "messages": messages,
             "stream": False,
-            "think": False,  # answers, not reasoning traces; much faster on small models
+            "think": think,  # off by default: answers, not reasoning traces
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens or self.settings.llm_max_answer_tokens,
@@ -69,16 +75,21 @@ class LocalLLM:
         if schema is not None:
             body["format"] = schema
         started = time.monotonic()
+        limit = httpx.Timeout(timeout, connect=3.0) if timeout else httpx.USE_CLIENT_DEFAULT
         try:
-            r = self.http.post(self.settings.llm_base_url.rstrip("/") + "/api/chat", json=body)
+            r = self.http.post(
+                self.settings.llm_base_url.rstrip("/") + "/api/chat", json=body, timeout=limit
+            )
         except httpx.HTTPError as exc:
             raise LLMUnavailable("The local language model could not be reached.") from exc
         if r.status_code != 200:
             raise LLMUnavailable(f"The local language model returned HTTP {r.status_code}.")
         data = r.json()
+        message = data.get("message") or {}
         return LLMReply(
-            text=strip_reasoning((data.get("message") or {}).get("content", "")),
-            model=data.get("model", self.settings.llm_model),
+            text=strip_reasoning(message.get("content", "")),
+            model=data.get("model", body["model"]),
             duration_ms=int((time.monotonic() - started) * 1000),
             output_tokens=data.get("eval_count"),
+            thinking=message.get("thinking") or "",
         )

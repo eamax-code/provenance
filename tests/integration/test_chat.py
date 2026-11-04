@@ -50,7 +50,7 @@ def test_chat_resolves_company_and_grounds_answer(app, client, auth, items_aapl)
 
 def test_chat_flags_numbers_not_in_context(app, client, auth, items_aapl):
     app.state.llm_factory = lambda: FakeLLM("Revenue will reach $500 billion [2] [99].")
-    body = client.post("/v1/chat", json={"message": "AAPL outlook"}, headers=auth).json()
+    body = client.post("/v1/chat", json={"message": "AAPL highlights"}, headers=auth).json()
     assert body["checks"]["grounded"] is False
     assert body["checks"]["unknown_citations"] == [99]
     assert "500" in body["checks"]["unverified_numbers"]

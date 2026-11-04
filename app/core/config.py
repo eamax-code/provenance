@@ -85,6 +85,15 @@ class Settings(BaseSettings):
     llm_max_answer_tokens: int = 700
     # Prompt window; prospectus passages need more than Ollama's default.
     llm_context_tokens: int = 8192
+    # Forecasts: a reasoning model thinks over the figures, filings and news before answering.
+    llm_reasoning_model: str = "qwen3:30b-a3b"
+    llm_reasoning_timeout_seconds: float = 300.0
+    llm_reasoning_tokens: int = 2500
+    # Headlines for forecasts (Google News RSS; personal, non-commercial use only).
+    news_enabled: bool = True
+    news_cache_dir: str = ".news_cache"
+    news_cache_hours: float = 6.0
+    news_timeout_seconds: float = 10.0
     chat_rate_limit_per_minute: int = 10
     # Read 8-K item 5.02 text from EDGAR when a chat question needs it (needs SEC_USER_AGENT).
     officer_extraction_enabled: bool = True

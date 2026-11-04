@@ -24,6 +24,7 @@ TEST_ENV = {
     "WEBHOOK_RETRY_BASE_SECONDS": "1",
     "WEBHOOK_MAX_ATTEMPTS": "3",
     "FRESHNESS_STALE_AFTER_SECONDS": "86400",
+    "NEWS_ENABLED": "false",  # no live news requests; forecast tests use a fake provider
 }
 
 
@@ -48,6 +49,7 @@ def settings(tmp_path):
     return Settings(
         database_url=database_url,
         sec_cache_dir=str(tmp_path / "sec_cache"),
+        news_cache_dir=str(tmp_path / "news_cache"),
         **{k.lower(): v for k, v in TEST_ENV.items()},
     )
 

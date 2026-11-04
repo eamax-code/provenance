@@ -17,3 +17,4 @@ build/
 .poll_sec.lock
 .markets_cache/
 .sec_bulk/
+.news_cache/

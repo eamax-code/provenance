@@ -36,6 +36,19 @@ _WORD_NUMBERS = {
     "ten": 10,
 }  # fmt: skip
 _GROWTH = re.compile(r"\b(growth|grow\w*|grew)\b", re.IGNORECASE)
+_FORECAST = re.compile(
+    r"\b(forecast\w*|predict\w*|projections?|outlook|estimates?|"
+    r"(?:next|coming|following|upcoming)\s+(?:\d{1,2}\s+|[a-z]+\s+)?(?:fiscal\s+)?years?)\b",
+    re.IGNORECASE,
+)
+_NEXT_YEARS = re.compile(
+    r"\b(?:next|coming|following|upcoming)\s+(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)"
+    r"\s+(?:fiscal\s+)?years?\b",
+    re.IGNORECASE,
+)
+_PRICE = re.compile(r"\b(stock|share)\s+price|price target|\bshares? (?:go|trade)\b", re.I)
+FORECAST_YEARS = 3
+MAX_FORECAST_YEARS = 5
 DEFAULT_YEARS = 5
 MAX_YEARS = 10
 
@@ -44,7 +57,7 @@ MAX_YEARS = 10
 class Plan:
     """What a question asks for: a metric's trend, one metric, or an overview."""
 
-    kind: str  # "trend" | "metric" | "overview"
+    kind: str  # "forecast" | "trend" | "metric" | "overview"
     metric: str | None = None
     years: int = DEFAULT_YEARS
 
@@ -54,6 +67,13 @@ def plan(text: str) -> Plan:
         (m for m, words in _METRIC_WORDS if re.search(rf"\b(?:{words})\b", text, re.IGNORECASE)),
         None,
     )
+    if _FORECAST.search(text) and not _PRICE.search(text):
+        ahead = _NEXT_YEARS.search(text)
+        n = FORECAST_YEARS
+        if ahead:
+            raw = ahead.group(1).lower()
+            n = max(1, min(MAX_FORECAST_YEARS, int(raw) if raw.isdigit() else _WORD_NUMBERS[raw]))
+        return Plan("forecast", metric or "revenue", n)
     m = _YEARS.search(text)
     years = DEFAULT_YEARS
     if m:
