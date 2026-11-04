@@ -14,7 +14,8 @@
 .pg-title code { font-size: 1rem; word-break: break-all; }
 .pg-method { font-family: var(--font-mono); font-size: .75rem; padding: 3px 8px; border-radius: 4px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .pg-keyrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.pg-keyrow input { flex: 1 1 260px; font-family: var(--font-mono); font-size: .85rem; }
+.pg-keyrow input { flex: 1 1 260px; min-width: 0; font-family: var(--font-mono); font-size: .85rem; }
+.pg-keyrow > span { flex: 1 1 200px; min-width: 0; }
 .pg-h { font-size: 1rem; }
 /* Fields align to the top so a help line under one input does not push its row's labels apart. */
 .pg-params { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; align-items: start; }

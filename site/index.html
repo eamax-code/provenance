@@ -85,7 +85,16 @@ nav.main a:hover { color: var(--fg); text-decoration: none; }
 .btn:hover { text-decoration: none; border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 45%, transparent); }
 .btn.primary:hover { filter: brightness(1.08); }
-@media (max-width: 760px) { nav.main { display: none; } }
+/* Below 1180px the eleven links no longer fit beside the brand: they fold into a menu under the bar. */
+.menu-btn { display: none; }
+@media (max-width: 1180px) {
+  .menu-btn { display: inline-flex; margin-left: auto; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--fg); font: 500 0.92rem var(--font-body); cursor: pointer; }
+  nav.main { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; gap: 0; padding: 6px 20px 14px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  nav.main.open { display: flex; }
+  nav.main a { padding: 10px 0; font-size: 1rem; color: var(--fg); }
+}
+/* The hero's network canvas bleeds past the wrapper on purpose; clip it so the page never scrolls sideways. */
+main { overflow-x: clip; }
 
 /* hero */
 .hero { padding-block: 72px 48px; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; align-items: center; }
@@ -259,7 +268,8 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
 <header class="top">
   <div class="wrap">
     <a class="brand" href="#top" aria-label="Provenance Filings API home"><span class="dot" aria-hidden="true"></span>Provenance</a>
-    <nav class="main" aria-label="Primary">
+    <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
+    <nav class="main" id="main-nav" aria-label="Primary">
       <a href="#product">Product</a>
       <a href="#agents">For agents</a>
       <a href="#pricing">Pricing</a>
@@ -676,6 +686,16 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
       });
     }
   }
+
+  /* header menu below 1180px */
+  (function () {
+    var btn = document.getElementById('menu-btn'), nav = document.getElementById('main-nav');
+    if (!btn || !nav) return;
+    var set = function (open) { nav.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Close' : 'Menu'; };
+    btn.addEventListener('click', function () { set(!nav.classList.contains('open')); });
+    nav.addEventListener('click', function (e) { if (e.target.closest('a')) set(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { set(false); btn.focus(); } });
+  })();
 
   /* data field: drifting nodes linked by proximity, pulled toward the cursor, sliding with scroll */
   var canvas = document.getElementById('field');

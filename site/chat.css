@@ -84,7 +84,7 @@
 .cx-card{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow);color:var(--fg);border-radius:16px;padding:12px 14px;cursor:pointer;font:14px var(--font-body);
   transition:transform .25s var(--ease),border-color .25s,background .25s;animation:cx-rise .6s var(--ease) both}
 .cx-card:nth-child(2){animation-delay:.05s}.cx-card:nth-child(3){animation-delay:.1s}.cx-card:nth-child(4){animation-delay:.15s}
-.cx-card strong{color:var(--slate);font-weight:600}.cx-card span{color:var(--muted)}
+.cx-card strong{color:var(--slate-deep);font-weight:600}.cx-card span{color:var(--muted)}
 .cx-card:hover{transform:translateY(-2px);border-color:var(--slate-2)}
 .cx-fine{font-size:12px;color:var(--muted);text-align:center;margin:10px 0 0}
 .cx[data-state="home"] .cx-fine{margin-top:auto;padding-top:14px}
