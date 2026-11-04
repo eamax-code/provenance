@@ -99,6 +99,8 @@ class Settings(BaseSettings):
     officer_extraction_enabled: bool = True
     # Read a company's latest S-1/F-1 prospectus from EDGAR when a chat question needs it.
     prospectus_reading_enabled: bool = True
+    # POC (issue #7): clean chatbot residue from model answers (blader/humanizer patterns).
+    chat_humanize: bool = True
     # Public website showcase: explicit CIK list, or the most recently filed ingested companies
     public_showcase_ciks: str = ""
     public_showcase_limit: int = 12

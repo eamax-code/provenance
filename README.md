@@ -56,7 +56,7 @@ cp .env.example .env
 uv venv --python 3.12 .venv && uv pip install -e ".[dev]"   # or: python -m venv .venv && .venv/bin/pip install -e ".[dev]"
 source .venv/bin/activate
 
-docker compose up -d db                 # PostgreSQL on localhost:5432
+docker compose up -d db                 # PostgreSQL 16 with pgvector on localhost:5432
 alembic upgrade head                    # apply migrations
 
 python scripts/create_api_key.py you@example.com --plan builder   # prints the key once
@@ -178,6 +178,20 @@ overview, the summary financial table with every figure labelled by its period, 
 passages that match it best, each cited to the filing and section. The demo key answers about
 every loaded company from stored data and never fetches; `scripts/read_prospectuses.py --cik
 ...` or `--recent-days 30` reads documents ahead of time.
+
+Questions across companies are answered from precomputed tables without the model, usually in
+well under a second. Examples: "How many new listings in the last 6 months?", "Who filed a 10-K
+this week?", "Top 5 companies by revenue". A reply carries a `context` (the companies it listed,
+or the company in focus); sending it back with the next question, along with the last few
+exchanges in `history`, lets a follow-up such as "show me their revenue for the last 3 years in
+a table" use the previous answer. A plain figure question ("What was Apple's revenue last year?")
+is also answered from the data. Model answers are kept short and cleaned of chatbot residue
+(greetings, recaps, "the context"); `CHAT_HUMANIZE=false` turns the clean-up off.
+
+The tables are `mart_company` (one row per company: filing history, going-public dates, latest
+annual figures and five years of revenue, each with its filing) and `mart_filing_activity`
+(filings per month and form). `python scripts/build_marts.py` rebuilds them in about 20 seconds
+on 20,000 companies; ingestion refreshes a company's row as it runs.
 
 Forecast questions ("Forecast Microsoft revenue for the next 4 years", "What is the outlook for
 Apple net income?") get `intent: "forecast"` and a forecast chart widget. The evidence is cited

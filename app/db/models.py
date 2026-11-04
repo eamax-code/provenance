@@ -73,6 +73,7 @@ class Filing(Base):
         Index("ix_filings_cik_first_detected", "cik", "first_detected_at"),
         Index("ix_filings_stream_status", "stream_status"),
         Index("ix_filings_stream_at", "stream_at"),
+        Index("ix_filings_form_date", "form_type", "filing_date"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -537,6 +538,58 @@ class ChatMessage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     reply: Mapped[str | None] = mapped_column(Text, nullable=True)  # assistant: JSON reply
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class MartCompany(Base):
+    """One row per company, precomputed for quick answers (issue #8; #3 step 1).
+
+    Rebuilt from companies, filings and financial_facts by app.services.marts. Every figure keeps
+    the accession number and filing link it came from."""
+
+    __tablename__ = "mart_company"
+    __table_args__ = (
+        Index("ix_mart_company_ipo_date", "ipo_prospectus_date"),
+        Index("ix_mart_company_registration", "first_registration_date"),
+        Index("ix_mart_company_latest_filing", "latest_filing_date"),
+        Index("ix_mart_company_revenue", "latest_revenue"),
+    )
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    legal_name: Mapped[str] = mapped_column(Text, nullable=False)
+    ticker: Mapped[str | None] = mapped_column(Text, nullable=True)
+    exchange: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sic_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sic_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    first_filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    latest_filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    filings_last_12_months: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Going public: the first registration statement (S-1/F-1) and final prospectus (424B4).
+    first_registration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    first_registration_form: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ipo_prospectus_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ipo_prospectus_accession: Mapped[str | None] = mapped_column(String(25), nullable=True)
+    ipo_prospectus_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    latest_annual_report_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    latest_annual_report_form: Mapped[str | None] = mapped_column(Text, nullable=True)
+    latest_revenue: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    latest_revenue_period_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # JSON text: {metric: {value, unit, period_end, form_type, filed_date, accession, url}}
+    latest_annual: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # JSON text: up to five fiscal years of revenue, newest first, each with its filing.
+    revenue_history: Mapped[str | None] = mapped_column(Text, nullable=True)
+    built_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class MartFilingActivity(Base):
+    """Filings per month and form, with the number of companies that filed them (issue #8)."""
+
+    __tablename__ = "mart_filing_activity"
+
+    month: Mapped[date] = mapped_column(Date, primary_key=True)  # first day of the month
+    form_type: Mapped[str] = mapped_column(Text, primary_key=True)
+    filings: Mapped[int] = mapped_column(Integer, nullable=False)
+    companies: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 # Search structures that exist only on PostgreSQL. The migrations f1b7c3a9d2e5 and b9d4e2f7a6c1

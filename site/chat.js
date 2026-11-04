@@ -5,7 +5,7 @@
   var thread = $('cx-thread'), input = $('cx-input'), form = $('cx-form'), send = $('cx-send');
   var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var DEMO = 'demo';
-  var state = { key: DEMO, connected: false, sessionId: null, cik: null, busy: false, controller: null };
+  var state = { key: DEMO, connected: false, sessionId: null, cik: null, busy: false, controller: null, context: null, history: [] };
 
   function store(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } }
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -408,7 +408,37 @@
       if (w.type === 'forecast' && w.history && w.forecast) target.appendChild(forecastWidget(w, byN));
       else if (w.type === 'chart' && w.points && w.points.length) target.appendChild(chartWidget(w, byN));
       else if (w.type === 'stats' && w.items && w.items.length) target.appendChild(statsWidget(w, byN));
+      else if (w.type === 'table' && w.rows && w.rows.length) target.appendChild(tableWidget(w));
     });
+  }
+  // A list answered from the data: companies with their filings, each cell linking to its filing.
+  function tableWidget(w) {
+    var box = el('section', 'cx-widget');
+    var head = el('div', 'cx-widget-head'); head.appendChild(el('h3', null, w.title)); box.appendChild(head);
+    var wrap = el('div', 'cx-table-wrap'), table = el('table', 'cx-table cx-list-table');
+    var thead = el('thead'), hr = el('tr');
+    w.columns.forEach(function (c) { hr.appendChild(el('th', null, c)); });
+    thead.appendChild(hr); table.appendChild(thead);
+    var tbody = el('tbody'), FIRST = 8;
+    w.rows.forEach(function (row, i) {
+      var tr = el('tr'); if (i >= FIRST) tr.hidden = true;
+      row.forEach(function (cell) {
+        var td = el('td');
+        if (cell.url && /^https:\/\/www\.sec\.gov\//.test(cell.url)) {
+          var a = el('a', null, cell.text); a.href = cell.url; a.target = '_blank'; a.rel = 'noopener'; td.appendChild(a);
+        } else td.textContent = cell.text;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); wrap.appendChild(table); box.appendChild(wrap);
+    if (w.rows.length > FIRST) {
+      var more = el('button', 'cx-chip cx-more', 'Show all ' + w.rows.length + ' rows'); more.type = 'button';
+      more.onclick = function () { tbody.querySelectorAll('tr[hidden]').forEach(function (tr) { tr.hidden = false; }); more.remove(); };
+      box.appendChild(more);
+    }
+    if (w.note) box.appendChild(el('p', 'cx-note', w.note));
+    return box;
   }
 
   // ---- messages ----
@@ -462,8 +492,10 @@
     bot.msg.classList.remove('thinking');
     var content = el('div'); bot.body.appendChild(content);
     if (!reply.company && reply.answer) {
-      // A question about the service's own data (how many companies are loaded): no company card.
+      // Answered from the data across companies (coverage, recent IPOs, a ranking, a follow-up
+      // table): no company card; the table carries the filing links.
       content.appendChild(renderText(reply.answer, []));
+      renderWidgets(content, reply);
       (reply.notes || []).forEach(function (n) { content.appendChild(el('p', 'cx-note', n)); });
       keepScrolled(); return;
     }
@@ -534,6 +566,8 @@
   }
 
   // ---- asking ----
+  var MARKET_RE = /\b(new listings?|newly listed|ipos?|went public|go(?:ne|ing)? public|largest|biggest|top \d+|who filed|how many (?:10-K|10-Q|8-K|S-1))\b/i;
+  var BACK_RE = /\b(these|those|them|their|they|the same|the list|above)\b/i;
   var LEAD_RE = /\b(leadership|ceo|cfo|coo|chief|executives?|officers?|directors?|board|resign\w*|appoint\w*|hired?|depart\w*|succession|chair\w*)\b/i;
   var TREND_RE = /\b(growth|grow\w*|grew|trend\w*|histor\w*|years|chart|graph|over time|yoy|cagr)\b/i;
   var FORECAST_RE = /\b(forecast\w*|predict\w*|projections?|outlook|estimates?|(?:next|coming|following|upcoming)\s+(?:\d{1,2}\s+|two\s+|three\s+|four\s+|five\s+)?(?:fiscal\s+)?years?)\b/i;
@@ -549,7 +583,9 @@
   }
 
   function request(q, bot) {
-    var steps = FORECAST_RE.test(q)
+    var steps = (MARKET_RE.test(q) || (state.context && state.context.ciks && state.context.ciks.length && BACK_RE.test(q)))
+      ? ['Reading the filings index…', 'Building the table…']
+      : FORECAST_RE.test(q)
       ? ['Finding the company…', 'Collecting annual and quarterly figures…', 'Reading the latest earnings release…', 'Scanning company and industry news…', 'Thinking it through, about a minute…']
       : LEAD_RE.test(q)
       ? ['Finding the company…', 'Reading the 8-K filings…', 'Checking names against the filing text…']
@@ -559,6 +595,8 @@
     var stop = setStatus(bot, steps);
     var payload = { message: q };
     if (state.cik) payload.cik = state.cik;
+    if (state.context) payload.context = state.context;
+    if (state.history.length) payload.history = state.history.slice(-2);
     if ($('cx-asof').value) payload.as_of = $('cx-asof').value;
     if (state.sessionId && state.connected) payload.session_id = state.sessionId;
     state.controller = window.AbortController ? new AbortController() : null;
@@ -573,6 +611,7 @@
         }
         var reply = res.body;
         showReply(bot, reply, true, q);
+        remember(q, reply);
         if (reply.session_id && state.connected) {
           var fresh = !state.sessionId;
           state.sessionId = reply.session_id; setHash();
@@ -585,9 +624,19 @@
       .finally(function () { state.busy = false; send.disabled = !input.value.trim(); state.controller = null; });
   }
 
+  // What the next question can refer back to: the previous answer's companies and the last two
+  // exchanges. A list answer replaces the company in focus; a company answer keeps it.
+  function remember(q, reply) {
+    if (!reply) return;
+    state.context = reply.context || null;
+    if (reply.context && reply.context.ciks && reply.context.ciks.length) state.cik = null;
+    state.history.push({ q: String(q || '').slice(0, 500), a: String(reply.answer || '').slice(0, 1100) });
+    state.history = state.history.slice(-4);
+  }
+
   function newChat() {
     transition(function () {
-      thread.textContent = ''; state.sessionId = null; state.cik = null; setHash();
+      thread.textContent = ''; state.sessionId = null; state.cik = null; state.context = null; state.history = []; setHash();
       body.dataset.state = 'home'; $('cx-company-chip').hidden = true; $('cx-title').textContent = 'Company intelligence';
       drawer(false); markCurrent(); sstore('cx_demo', []);
     });
@@ -630,11 +679,12 @@
     fetch('/v1/chat/sessions/' + id, { headers: headers() }).then(function (r) { return r.ok ? r.json() : null; }).then(function (s) {
       if (!s) { state.sessionId = null; setHash(); return; }
       transition(function () {
-        thread.textContent = ''; state.sessionId = s.id; state.cik = s.company_cik; setHash();
+        thread.textContent = ''; state.sessionId = s.id; state.cik = s.company_cik; state.context = null; state.history = []; setHash();
         body.dataset.state = 'chat'; drawer(false);
+        var lastQ = '';
         s.messages.forEach(function (m) {
-          if (m.role === 'user') addUser(m.content);
-          else if (m.reply) { var bot = addBot(); showReply(bot, m.reply, false); }
+          if (m.role === 'user') { addUser(m.content); lastQ = m.content; }
+          else if (m.reply) { var bot = addBot(); showReply(bot, m.reply, false); remember(lastQ, m.reply); }
         });
         markCurrent(); keepScrolled(true);
       });
@@ -711,7 +761,7 @@
     if (hashId && state.connected) openSession(hashId);
     else if (!state.connected && (sload('cx_demo') || []).length) {
       body.dataset.state = 'chat';
-      sload('cx_demo').forEach(function (t) { addUser(t.q); showReply(addBot(), t.reply, false, t.q); });
+      sload('cx_demo').forEach(function (t) { addUser(t.q); showReply(addBot(), t.reply, false, t.q); remember(t.q, t.reply); });
       keepScrolled(true);
     }
     if (q0) ask(q0);

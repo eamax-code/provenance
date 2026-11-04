@@ -1,7 +1,7 @@
 # Local development only. Do not use these credentials anywhere else.
 services:
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16  # PostgreSQL 16 with pgvector (vector search, issue #2)
     environment:
       POSTGRES_USER: companydata
       POSTGRES_PASSWORD: companydata

@@ -175,6 +175,12 @@
 .cx-table th,.cx-table td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
 .cx-table th:first-child,.cx-table td:first-child{text-align:left}
 .cx-table th{color:var(--muted);font-weight:500;font-size:12px}
+.cx-table-wrap{overflow-x:auto;margin-top:4px}
+.cx-list-table{font-size:13.5px;min-width:560px}
+.cx-list-table td{white-space:nowrap}
+.cx-list-table td,.cx-list-table th{text-align:left}
+.cx-list-table a{color:var(--red-ink)}
+.cx-more{margin-top:10px}
 .cx-widget .cx-note{margin-top:8px}
 
 /* Company drawer */

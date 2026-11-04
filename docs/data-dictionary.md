@@ -113,6 +113,24 @@ Text read once from a filing and kept, so it can be searched and re-read without
 `companies` also has PostgreSQL-only indexes for lookup: a trigram index on `lower(legal_name)`
 (typo-tolerant names, `match_type: name_fuzzy`) and one on `upper(ticker)`.
 
+## mart_company, mart_filing_activity (quick answers)
+
+Precomputed by `app/services/marts.py` (`scripts/build_marts.py`; a company's row is refreshed
+after it is ingested). Nothing here is new data: every value is copied from `filings` or
+`financial_facts` with its accession number and filing link.
+
+| Column | Meaning |
+| --- | --- |
+| `first_filing_date`, `latest_filing_date`, `filings_last_12_months`, `active` | Filing history among the filings loaded here; active means a filing in the last 12 months |
+| `first_registration_date`, `first_registration_form` | First S-1 or F-1 loaded for the company |
+| `ipo_prospectus_date`, `_accession`, `_url` | First final prospectus (424B4). With a registration in the two years before it, the chat counts the company as having gone public then |
+| `latest_annual_report_date`, `_form` | Latest 10-K, 20-F, 40-F or 10-KT |
+| `latest_revenue`, `latest_revenue_period_end` | Latest reported annual revenue in USD (indexed for rankings) |
+| `latest_annual` | JSON: the latest annual value of each of the five metrics, with its filing |
+| `revenue_history` | JSON: up to five fiscal years of revenue, newest first, each with its filing |
+
+`mart_filing_activity` has one row per month and form type: `filings` and distinct `companies`.
+
 ## ingestion_runs
 
 Counts and status (`running`, `succeeded`, `partial`, `failed`) per ingestion pass, with a

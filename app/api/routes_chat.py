@@ -20,7 +20,9 @@ from app.db.models import Company
 from app.schemas.common import ErrorEnvelope
 from app.services import (
     chat_sessions,
+    conversation,
     forecast,
+    humanize,
     intel,
     news,
     officer_changes,
@@ -34,9 +36,11 @@ from app.services.sec_client import company_filings_url, normalize_cik
 
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
 chat_limiter = FixedWindowRateLimiter(window_seconds=60)
+HISTORY_TURNS = 2
 
 SYSTEM_PROMPT = """You are Provenance's company-intelligence assistant.
-Answer ONLY from the CONTEXT, which comes from SEC filings. Rules:
+Answer ONLY from the CONTEXT, which comes from SEC filings. Earlier messages are the conversation
+so far: use them to understand what "it", "they" or "the same" refer to. Rules:
 - State the actual figures and dates, each followed by its citation, e.g.
   "Revenue was <amount> in the fiscal year ended <date>, up <change> [2]."
   End every sentence and bullet with the citation of the line it comes from, even when it
@@ -52,7 +56,14 @@ Answer ONLY from the CONTEXT, which comes from SEC filings. Rules:
   its period exactly as labelled (e.g. "nine months ended September 30, 2026") and the unit
   the table states (e.g. "$33,242 million").
 - No investment advice, price predictions or buy/sell opinions.
-- Be concise: at most 6 short sentences or bullet points."""
+- Write like an analyst replying in a chat. The first sentence answers the question. Use at most
+  three short sentences, or five for a summary, unless the question asks for a list or a table.
+- Say which filings are loaded only when the question cannot be answered from them.
+- Do not restate the question, explain how you worked it out, or end with a recap ("Therefore",
+  "In summary", "Overall").
+- No greetings, offers or sign-offs ("Great question", "I hope this helps", "Let me know").
+- Plain words: never "crucial", "pivotal", "robust", "notably", "additionally", "showcase",
+  "underscore", "landscape", "delve". No dashes between clauses, no bold, straight quotes."""
 
 FORECAST_NOTE = (
     "Forecast: an estimate computed here from growth rates chosen by a local reasoning model "
@@ -76,6 +87,16 @@ class ChatRequest(BaseModel):
     session_id: uuid.UUID | None = Field(
         None, description="Continue a saved conversation (own API key only)"
     )
+    context: conversation.ConversationContext | None = Field(
+        None,
+        description="The previous reply's context, sent back unchanged so a follow-up such as "
+        "'their revenue' refers to the companies of the previous answer",
+    )
+    history: list[conversation.Exchange] = Field(
+        default_factory=list,
+        max_length=4,
+        description="The last few questions and answers, oldest first, for follow-ups",
+    )
 
 
 class ChatReply(BaseModel):
@@ -90,8 +111,9 @@ class ChatReply(BaseModel):
     )
     intent: str | None = Field(
         None,
-        description="How the question was read: 'coverage', 'leadership', 'trend', 'forecast' "
-        "or 'question'",
+        description="How the question was read: 'coverage', 'ipos', 'filers', 'filing_count', "
+        "'rank', 'list_followup', 'out_of_scope', 'figure', 'leadership', 'trend', 'forecast' or "
+        "'question'",
     )
     widgets: list[dict] = Field(
         [], description="Charts and figure tiles drawn from the cited data (see the chat page)"
@@ -100,6 +122,9 @@ class ChatReply(BaseModel):
     notes: list[str]
     session_id: str | None = Field(
         None, description="Saved conversation id; absent for the public demo key"
+    )
+    context: conversation.ConversationContext | None = Field(
+        None, description="Send this back with the next question to keep the conversation"
     )
 
 
@@ -359,6 +384,10 @@ def chat(
             raise APIError(403, "sessions_need_key", "Saved chats need your own API key.")
         session = chat_sessions.get_owned(db, saved, body.session_id)
     reply = _answer(body, request, db, settings)
+    if reply.context is None and reply.company:
+        reply.context = conversation.ConversationContext(
+            intent=reply.intent, cik=reply.company["cik"]
+        )
     if saved is not None:
         session = session or chat_sessions.start(db, saved, body.message, reply.company)
         chat_sessions.append(db, session, body.message, reply.model_dump(mode="json"))
@@ -403,12 +432,41 @@ def _coverage_reply(db: Session, settings: Settings) -> ChatReply:
     )
 
 
+def _data_reply(found: conversation.DataAnswer) -> ChatReply:
+    return ChatReply(
+        company=None,
+        answer=found.answer,
+        brief=None,
+        citations=[],
+        checks={},
+        model=None,
+        answered_by="data",
+        intent=found.intent,
+        widgets=found.widgets,
+        notes=found.notes
+        or ["Answered from the filings loaded here; each row links to its filing."],
+        context=found.context,
+    )
+
+
 def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings) -> ChatReply:
+    # Questions across companies (recent IPOs, who filed a 10-K, the largest by revenue) and
+    # follow-ups on the previous answer's list come straight from the marts, without the model.
+    market = conversation.plan(body.message, body.context)
+    if market and (
+        market.kind in ("out_of_scope", "list_followup")
+        or conversation.strongly_named(db, body.message) is None
+    ):
+        return _data_reply(
+            conversation.answer(db, market, body.context, body.as_of or date.today())
+        )
     coverage_q = intel.is_coverage_question(body.message)
     # A question about the service's own data only switches to a company that is clearly named.
     company = intel.resolve_company(db, body.message, follow_up=bool(body.cik) or coverage_q)
     if company is None and coverage_q:
         return _coverage_reply(db, settings)
+    if company is None and not body.cik and body.context and body.context.cik:
+        body.cik = body.context.cik
     if company is None and body.cik:
         try:
             cik = normalize_cik(body.cik)
@@ -516,18 +574,39 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             widgets=shown,
             notes=notes,
         )
+    # A plain figure question needs no model: one cited sentence from the brief.
+    if plan.kind == "metric" and not quoted and intel.is_simple_lookup(body.message):
+        figure = next((m for m in brief.metrics if m["metric"] == plan.metric), None)
+        if figure is not None:
+            answer = intel.figure_answer(brief, figure)
+            return ChatReply(
+                company=_company_dict(company),
+                answer=answer,
+                brief=brief_out,
+                citations=brief.citations,
+                checks=check_answer(answer, brief.context(), len(brief.citations)),
+                model=None,
+                answered_by="data",
+                intent="figure",
+                widgets=shown,
+                notes=notes,
+            )
     answer, model, checks = None, None, {}
     try:
-        reply = get_llm(request, settings).chat(
-            [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": f"CONTEXT:\n{brief.context()}\n\nQUESTION: {body.message}",
-                },
-            ]
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        for turn in body.history[-HISTORY_TURNS:]:
+            messages.append({"role": "user", "content": turn.q})
+            if turn.a:
+                messages.append({"role": "assistant", "content": turn.a})
+        messages.append(
+            {
+                "role": "user",
+                "content": f"CONTEXT:\n{brief.context()}\n\nQUESTION: {body.message}",
+            }
         )
-        answer, auto_cited = add_missing_citations(reply.text, brief.context_lines)
+        reply = get_llm(request, settings).chat(messages)
+        text = humanize.clean(reply.text) if settings.chat_humanize else reply.text
+        answer, auto_cited = add_missing_citations(text, brief.context_lines)
         model = reply.model
         checks = check_answer(answer, brief.context(), len(brief.citations))
         checks["auto_cited"] = auto_cited

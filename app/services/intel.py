@@ -522,3 +522,35 @@ def _filing_card(f: Filing, items: list[str], n: int) -> dict:
         "source_url": f.source_url,
         "citation": n,
     }
+
+
+_LOOKUP = re.compile(
+    r"^\W*(what(?:'s| is| was| were| are)?|how much|how big|show(?: me)?|tell me|give me)\b",
+    re.IGNORECASE,
+)
+_NEEDS_REASONING = re.compile(
+    r"\b(why|explain|because|reason|driv\w*|compar\w*|versus|vs\.?|risks?|outlook|"
+    r"segment|guidance|margin|should|would|could|impact|cause\w*)\b",
+    re.IGNORECASE,
+)
+
+
+def is_simple_lookup(text: str) -> bool:
+    """A question that only asks for a figure ("What was Apple's revenue last year?")."""
+    return bool(_LOOKUP.search(text)) and not _NEEDS_REASONING.search(text) and len(text) <= 120
+
+
+def figure_answer(b: Brief, m: dict) -> str:
+    """One cited sentence for one figure, with the change from the year before when known."""
+    name = display_name(b.company.legal_name)
+    n = m["citation"]
+    text = (
+        f"{name}'s {m['label'].lower()} was {m['display']} in the fiscal year ended "
+        f"{m['period_end']} [{n}]"
+    )
+    if m.get("prior_display") and m.get("growth_pct") is not None:
+        g = m["growth_pct"]
+        way = "up" if g > 0 else "down" if g < 0 else "unchanged"
+        change = f"{way} {abs(g):.1f}%" if g else way
+        text += f", {change} from {m['prior_display']} the year before [{n}]"
+    return text + "."

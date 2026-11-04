@@ -557,7 +557,20 @@ def ingest_company(
         db.commit()
         raise
     _account(db, run, client, before)
+    _refresh_mart(db, cik)
     return outcome
+
+
+def _refresh_mart(db: Session, cik: str) -> None:
+    """Keep the company's quick-answer row (issue #8) in step with what was just ingested. A
+    failure here never fails the ingestion; the nightly full build repairs it."""
+    from app.services import marts
+
+    try:
+        marts.build_company_marts(db, [cik])
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        log_event(logger, logging.WARNING, "mart refresh failed", cik=cik, error=_redact_error(exc))
 
 
 def _account(db: Session, run: IngestionRun, client: SecClient, before) -> None:
