@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2b2f33">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
-<title>Provenance Filings API</title>
-<meta name="description" content="An API and a chat over the SEC filings of US public companies. Every figure links to the filing, accession number and XBRL tag it came from. Independent of the SEC.">
+<title>Provenance: public company data with sources</title>
+<meta name="description" content="An API, a chat and an explorer over the SEC filings of US public companies. Every figure links to the filing, accession number and XBRL tag it came from. Independent of the SEC.">
 <link rel="alternate" type="application/json" href="/openapi.json" title="OpenAPI">
 <link rel="help" href="/llms.txt">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,7 @@
   "name": "Provenance Filings API",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Any",
-  "description": "Source-linked SEC filing facts for developers and AI agents. Independent of and not affiliated with the U.S. Securities and Exchange Commission.",
+  "description": "Source-linked SEC filing data for developers, analysts and AI agents: an API, a chat and an explorer. Independent of and not affiliated with the U.S. Securities and Exchange Commission.",
   "offers": [
     {"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD"},
     {"@type": "Offer", "name": "Builder", "price": "49", "priceCurrency": "USD", "billingIncrement": "P1M"},
@@ -29,232 +29,260 @@
 </script>
 <script>document.documentElement.classList.add('js');</script>
 <style>
-/* Direction: "The product performs" (tasteskill draw, seed 599169090). The page shows working pieces of
-   the product instead of describing it; each piece carries its record the way a catalogue card carries
-   its call number. One family (Schibsted Grotesk), five sizes, the site palette: mist ground, charcoal
-   ink, slate fields, cardinal red only on actions and the chart's latest bar. */
+/* Branch design/chatgpt-feedback: the page leads with three ways into one dataset (API, chat,
+   explorer), shows each working in a tabbed demo, then says plainly what the data covers and where
+   every number comes from. Same palette and family as main: mist ground, charcoal ink, slate fields,
+   cardinal red only on actions, the selected tab and the latest bar. */
 :root {
   --bg: #eef2f5; --surface: #e2e9ee; --surface-2: #d5dfe6; --paper: #ffffff;
   --ink: #2b2f33; --soft: #565e66; --slate: #627b8c; --slate-deep: #4f6575; --mist: #b8c7d2;
-  --accent: #c92f28; --accent-hi: #e83c34; --accent-ink: #ffffff;
-  --field: #4f6575; --field-ink: #ffffff; --field-soft: #dbe4ea;
+  --accent: #c92f28; --accent-hi: #e83c34; --accent-ink: #ffffff; --accent-text: #a72a24;
+  --field: #4f6575; --field-ink: #ffffff; --field-soft: #e4ebf0;
   --coupon: #2b2f33; --coupon-2: #3b4248; --coupon-ink: #ffffff; --coupon-soft: #c9d2d9;
   --face: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
   --code: ui-monospace, /* taste-skill-ignore: only <pre>/<code> use it */ "SF Mono", Menlo, Consolas, monospace;
-  --step-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
+  --step-small: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);
   --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
-  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.5rem);
+  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
   --step-head: clamp(2rem, 1.2rem + 2.4vw, 3.5rem);
-  --step-display: clamp(5rem, 11vw, 10.5rem);
+  --step-hero: clamp(1.875rem, 7.3vw, 7rem);
+  --step-display: clamp(4rem, 9vw, 8.5rem);
   --m: clamp(16px, 2.3vw, 32px);
   --gap: 24px;
   --radius: 4px;
-  --section: clamp(112px, 12vw, 200px);
+  --section: clamp(96px, 10vw, 168px);
   --bar-h: 68px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
   --t-press: 140ms; --t-hover: 180ms; --t-ui: 240ms;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; overflow-x: clip; }
+html { -webkit-text-size-adjust: 100%; overflow-x: clip; scroll-padding-top: calc(var(--bar-h) + 16px); }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--step-body)/1.5 var(--face); letter-spacing: -0.01em; overflow-x: clip; }
 img { display: block; max-width: 100%; height: auto; }
 a { color: inherit; text-decoration: underline; text-decoration-thickness: 0.07em; text-underline-offset: 0.2em; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); transition: text-decoration-color var(--t-hover) ease; }
 @media (hover: hover) and (pointer: fine) { a:hover { text-decoration-color: currentColor; } }
 h1, h2, h3, p, ul, ol, figure, dl, dd { margin: 0; }
 h1, h2 { font-weight: 800; letter-spacing: -0.045em; line-height: 0.95; }
-h2 { font-size: var(--step-head); max-width: 18ch; }
-h3 { font-size: var(--step-body); font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+h2 { font-size: var(--step-head); max-width: 18ch; text-wrap: balance; }
+h3 { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
 :focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 3px; }
 ::selection { background: var(--ink); color: var(--paper); }
 code, pre { font-family: var(--code); }
 .vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .wrap { padding-inline: var(--m); max-width: 1600px; margin-inline: auto; }
 .section { padding-block: var(--section) 0; }
+.grid12 { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 var(--gap); }
+.intro { font-size: var(--step-lead); line-height: 1.4; letter-spacing: -0.015em; max-width: 40ch; }
+.more { color: var(--accent-text); font-weight: 600; }
 
 /* buttons: one shape, flat */
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px; border: 0; border-radius: var(--radius); background: var(--accent); color: var(--accent-ink); font: 600 var(--step-body)/1 var(--face); letter-spacing: -0.01em; text-decoration: none; cursor: pointer; transition: transform var(--t-press) var(--ease-out), background-color var(--t-hover) ease; }
 .button:active { transform: scale(0.97); }
 .button.small { min-height: 40px; padding: 0 16px; font-size: var(--step-small); }
-@media (hover: hover) and (pointer: fine) { .button:hover { background: #ad2822; } }
+.button.quiet { background: var(--surface-2); color: var(--ink); }
+.button.light { background: var(--paper); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .button:hover { background: #ad2822; }
+  .button.quiet:hover { background: #c6d3dc; }
+  .button.light:hover { background: var(--bg); }
+}
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
-/* header: wordmark, four links, one action */
-.bar { position: sticky; top: 0; z-index: 20; background: var(--bg); }
-.bar .wrap { display: flex; align-items: center; gap: 28px; height: var(--bar-h); }
+/* ---------- header: wordmark, three grouped menus, contact, one action ---------- */
+.bar { position: sticky; top: 0; z-index: 30; background: var(--bg); }
+.bar .wrap { display: flex; align-items: center; gap: 20px; height: var(--bar-h); }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: var(--step-body); letter-spacing: -0.03em; text-decoration: none; }
 .wordmark i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-hi); }
-.bar nav { display: flex; gap: 24px; margin-left: auto; font-size: var(--step-small); font-weight: 600; }
-.bar nav a { text-decoration: none; color: var(--soft); }
-.bar nav a:hover { color: var(--ink); }
+.bar nav { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.group { position: relative; }
+.group-btn, .nav-link { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 0; border-radius: var(--radius); background: none; color: var(--ink); font: 600 var(--step-small)/1 var(--face); letter-spacing: -0.01em; text-decoration: none; cursor: pointer; transition: background-color var(--t-hover) ease; }
+.group-btn::after { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform var(--t-ui) var(--ease-out); }
+.group-btn[aria-expanded="true"]::after { transform: translateY(2px) rotate(225deg); }
+.group-btn:hover, .nav-link:hover, .group-btn[aria-expanded="true"] { background: var(--surface); }
+.group-name, .nav-cta { display: none; }
+.menu { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 2; width: 320px; list-style: none; margin: 0; padding: 8px; background: var(--paper); border-radius: 6px; /* taste-skill-ignore: open menu edge against white cards */ border: 1px solid var(--surface-2); }
+.group.open .menu { display: grid; gap: 2px; }
+.menu a { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--radius); text-decoration: none; }
+.menu a:hover, .menu a:focus-visible { background: var(--bg); }
+.menu b { font-weight: 600; font-size: 16px; }
+.menu span { font-size: var(--step-small); color: var(--soft); }
 .menu-btn { display: none; margin-left: auto; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--radius); background: var(--surface-2); color: var(--ink); font: 600 var(--step-small) var(--face); cursor: pointer; }
-@media (max-width: 760px) {
+@media (max-width: 860px) {
   .menu-btn { display: inline-flex; align-items: center; }
-  .bar nav { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; gap: 0; padding: 4px var(--m) 16px; background: var(--bg); font-size: var(--step-body); }
+  .bar nav { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 20px; padding: 8px var(--m) 24px; background: var(--bg); max-height: calc(100svh - var(--bar-h)); overflow-y: auto; }
   .bar nav.open { display: flex; }
-  .bar nav a { padding: 10px 0; color: var(--ink); }
-  .bar .button.small { display: none; }
+  .group-btn { display: none; }
+  .group-name { display: block; font-size: var(--step-small); color: var(--soft); margin-bottom: 2px; }
+  .menu { display: grid; position: static; width: auto; padding: 0; background: none; border: 0; }
+  .menu a { padding: 7px 0; }
+  .menu a:hover { background: none; text-decoration: underline; }
+  .menu b { font-size: var(--step-body); }
+  .menu span { display: none; }
+  .nav-link { padding: 0; min-height: 0; font-size: var(--step-body); }
+  .nav-link:hover { background: none; }
+  .nav-cta { display: inline-flex; align-self: flex-start; }
+  .bar .wrap > .button.small { display: none; }
 }
 
-/* ---------- hero: a sentence split by a frame; the frame is a reel of product fragments ---------- */
-.hero { position: relative; height: calc(100svh + 3 * 56svh); }
-.stage { position: sticky; top: var(--bar-h); height: calc(100svh - var(--bar-h)); overflow: clip; display: grid; grid-template-columns: 1fr minmax(0, 38vw) 1fr; align-items: center; padding-inline: var(--m); gap: 0 var(--gap); }
-.hero h1 { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: subgrid; align-items: center; font-size: var(--step-head); }
-.hero h1 .half { font-size: var(--step-head); font-weight: 800; letter-spacing: -0.045em; line-height: 0.95; }
-.hero h1 .half.a { grid-column: 1; justify-self: start; }
-.hero h1 .half.b { grid-column: 3; justify-self: end; text-align: right; }
-.reel { grid-column: 2; grid-row: 1; position: relative; height: 100%; }
-.strip { position: absolute; left: 0; right: 0; top: 50%; display: grid; gap: var(--gap); transition: transform 700ms var(--ease-in-out); }
-.frame { aspect-ratio: 16 / 10; border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-.reel-caption { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; gap: 16px; font-size: var(--step-small); color: var(--soft); background: var(--bg); padding: 10px 0 26px; }
-.hero .lede { position: absolute; left: var(--m); bottom: 32px; width: min(30rem, calc(31vw - var(--m))); }
-.hero .lede .button { margin-top: 20px; }
-@media (max-width: 1100px) {
-  .hero { height: calc(100svh + 3 * 52svh); }
-  .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto 1fr; align-content: start; gap: 12px; padding-top: 20px; }
-  .hero h1 { grid-column: 1; grid-row: 1 / span 3; grid-template-columns: minmax(0, 1fr); grid-template-rows: subgrid; }
-  .hero h1 .half.a { grid-column: 1; grid-row: 1; }
-  .hero h1 .half.b { grid-column: 1; grid-row: 3; justify-self: end; }
-  .reel { grid-column: 1; grid-row: 2; height: auto; aspect-ratio: 4 / 3; overflow: clip; }
-  .strip { top: 0; }
-  .frame { aspect-ratio: 4 / 3; }
-  .reel-caption { position: static; grid-row: 4; background: none; padding: 0; }
-  .hero .lede { position: static; grid-row: 5; width: auto; max-width: 36rem; align-self: start; }
-}
-@media (max-width: 1100px) and (min-width: 761px) { .reel, .frame { aspect-ratio: 16 / 10; } .reel { width: min(100%, 640px); } }
+/* ---------- hero: the claim, three ways in, proof ---------- */
+.hero { padding-block: clamp(28px, 5vw, 80px) 0; }
+.hero h1 { font-size: var(--step-hero); line-height: 0.93; letter-spacing: -0.05em; }
+.hero h1 span { display: block; }
+.hero h1 span + span { color: var(--slate-deep); }
+.hero-grid { margin-top: clamp(28px, 4vw, 64px); row-gap: 32px; align-items: start; }
+.hero-copy { grid-column: 1 / span 6; display: grid; gap: 28px; justify-items: start; }
+.hero-copy .intro { max-width: 36ch; }
+.proof { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.proof li { padding: 6px 14px; border-radius: 999px; background: var(--paper); font-size: 16px; font-weight: 600; }
+.entries { grid-column: 8 / span 5; list-style: none; padding: 0; display: grid; gap: 8px; }
+.entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; align-items: baseline; padding: 20px 22px; background: var(--surface); border-radius: var(--radius); text-decoration: none; transition: background-color var(--t-hover) ease; }
+.entry b { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; }
+.entry .go { color: var(--accent-text); font-weight: 600; font-size: var(--step-small); white-space: nowrap; }
+.entry .line { grid-column: 1 / -1; }
+@media (hover: hover) and (pointer: fine) { .entry:hover { background: var(--surface-2); } }
+@media (max-width: 1000px) { .hero-copy, .entries { grid-column: 1 / -1; } }
 
 /* fragments: real pieces of the product. Inside [data-ui] the product's own conventions apply. */
 [data-ui] { font-family: var(--face); font-size: 14px; line-height: 1.4; letter-spacing: 0; color: var(--ink); overflow-wrap: anywhere; }
-.ui-card { height: 100%; background: var(--paper); padding: 18px 20px; display: grid; align-content: start; gap: 10px; }
-.ui-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ui-card { background: var(--paper); padding: 18px 20px; display: grid; align-content: start; gap: 12px; border-radius: 6px; min-width: 0; }
+.ui-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.ui-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
 .ui-muted { color: #5c656d; }
 .ui-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #e3efe8; color: #12663f; white-space: nowrap; }
-.ui-chip.stale { background: #fbefe2; color: #8a4410; }
 .ui-big { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-.ui-kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+.ui-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 13px; }
 .ui-kv dt { color: #5c656d; }
 .ui-kv dd { overflow-wrap: anywhere; }
-.ui-link { color: #a72a24; font-weight: 600; font-size: 13px; }
+.ui-link { color: var(--accent-text); font-weight: 600; font-size: 13px; }
 .ui-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ui-table th { text-align: left; font-weight: 600; color: #5c656d; padding: 6px 8px; border-bottom: 1px solid #d7dfe5; }
-.ui-table td { padding: 7px 8px; border-bottom: 1px solid #e6ecf0; white-space: nowrap; }
+.ui-table td { padding: 7px 8px; border-bottom: 1px solid #e6ecf0; }
+.ui-table th, .ui-table td { overflow-wrap: normal; }
+.ui-table .nw { white-space: nowrap; }
+.ui-table .num { text-align: right; white-space: nowrap; }
+.ui-table a { color: var(--accent-text); }
 .ui-table tr.is-hover td { background: #f3f6f8; }
-.ui-q { justify-self: end; max-width: 80%; background: #4f6575; color: #fff; padding: 9px 14px; border-radius: 14px 14px 4px 14px; font-size: 14px; }
-.ui-a p { font-size: 14px; }
-.ui-cite { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e6ecf0; color: #4f6575; font-size: 11px; font-weight: 600; vertical-align: 2px; }
-.ui-src { font-size: 13px; color: #5c656d; display: flex; gap: 8px; align-items: baseline; }
-.ui-input { /* taste-skill-ignore: data-ui field */ display: flex; align-items: center; gap: 2px; border: 1px solid #c9d3db; border-radius: 6px; padding: 9px 12px; background: #fff; font-size: 14px; }
-.ui-input .caret { width: 1px; height: 16px; background: #2b2f33; }
-.ui-list { /* taste-skill-ignore: data-ui open menu */ list-style: none; padding: 0; margin: 0; border: 1px solid #d7dfe5; border-radius: 6px; background: #fff; box-shadow: 0 10px 24px -14px rgba(43, 47, 51, .45); }
-.ui-list li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; }
-.ui-list li + li { /* taste-skill-ignore: data-ui menu rows */ border-top: 1px solid #edf1f4; }
-.ui-list li.is-hover { background: #f3f6f8; }
-.ui-code { margin: 0; padding: 14px 16px; background: #2b2f33; color: #e9eef2; font: 13px/1.55 var(--code); overflow: auto; white-space: pre; border-radius: 6px; }
-.ui-code .k { color: #b8c7d2; } .ui-code .s { color: #ffffff; } .ui-code .n { color: #ff8a84; } .ui-code .c { color: #9aa5ae; }
-.ui-chart { display: grid; grid-template-columns: repeat(8, 1fr); align-items: end; gap: 6px; height: 150px; padding-top: 18px; }
-.ui-chart .b { position: relative; background: #627b8c; border-radius: 2px 2px 0 0; }
-.ui-chart .b.last { background: #e83c34; }
-.ui-chart .b span { position: absolute; left: 50%; top: -17px; transform: translateX(-50%); font-size: 11px; color: #4f6575; white-space: nowrap; }
-.ui-hist { display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 6px; height: 64px; }
-.ui-hist a { display: grid; grid-template-rows: 1fr auto; height: 100%; gap: 3px; text-decoration: none; color: #5c656d; font-size: 11px; text-align: center; }
-.ui-hist i { align-self: end; height: var(--h); background: #b8c7d2; border-radius: 2px 2px 0 0; transition: background-color var(--t-hover) ease; }
-.ui-hist a.last i { background: #e83c34; }
-.ui-hist a:hover i { background: #627b8c; }
-.ui-axis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; font-size: 11px; color: #5c656d; text-align: center; }
+.ui-q { justify-self: end; max-width: 85%; background: #4f6575; color: #fff; padding: 9px 14px; border-radius: 14px 14px 4px 14px; font-size: 14px; }
+.ui-a { font-size: 14px; display: grid; gap: 8px; }
+.ui-cite { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e6ecf0; color: #4f6575; font-size: 12px; font-weight: 600; vertical-align: 1px; }
+.ui-src { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 13px; color: #5c656d; }
+.ui-src li { display: flex; gap: 8px; align-items: baseline; }
+.ui-src a { color: var(--accent-text); }
+.ui-code { margin: 0; padding: 14px 16px; background: #2b2f33; color: #e9eef2; font: 13px/1.6 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 6px; }
+.ui-code .k { color: #b8c7d2; } .ui-code .s { color: #ffffff; } .ui-code .n { color: #ff9a94; } .ui-code .c { color: #a3aeb7; }
+.ui-code.paper { background: var(--paper); color: var(--ink); }
+.ui-code.paper .k { color: #4f6575; } .ui-code.paper .s { color: #2b2f33; } .ui-code.paper .n { color: #a72a24; } .ui-code.paper .c { color: #5c656d; }
+.ui-events { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 13px; }
+.ui-events li { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 10px; }
+.ui-bars { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); align-items: end; gap: 6px; height: 120px; }
+.ui-bars a, .ui-bars div { position: relative; height: var(--h); min-height: 4px; background: #b8c7d2; border-radius: 2px 2px 0 0; transition: background-color var(--t-hover) ease; }
+.ui-bars .last { background: #e83c34; }
+.ui-bars a:hover { background: #627b8c; }
+.ui-bars a.last:hover { background: #c92f28; }
+.ui-axis { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: 6px; font-size: 12px; color: #5c656d; text-align: center; }
+.ui-axis b { display: block; color: #2b2f33; font-weight: 600; font-size: 13px; }
+.ui-seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: #eef2f5; border-radius: 6px; }
+.ui-seg button { min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: none; font: 600 13px var(--face); color: #4a5259; cursor: pointer; }
+.ui-seg button[aria-pressed="true"] { background: #fff; color: #2b2f33; }
 
-/* ---------- stats: a figure set by a slider ---------- */
-.figure-field { background: var(--field); color: var(--field-ink); min-height: 92svh; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto 1fr auto; gap: 0 var(--gap); padding: clamp(56px, 7vw, 104px) var(--m) clamp(40px, 5vw, 72px); }
-.figure-field h2 { grid-column: 1 / span 8; max-width: 16ch; }
-.figure-field .control { grid-column: 1 / span 5; margin-top: 28px; width: min(400px, 100%); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 16px 18px; }
-.control label { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; font-size: 14px; }
-.control output { }
-.control input[type=range] { width: 100%; margin: 14px 0 4px; accent-color: #c92f28; height: 28px; }
-.control .ticks { display: flex; justify-content: space-between; font-size: 13px; color: #5c656d; }
-.figure-field .result { grid-column: 1 / span 8; grid-row: 4; align-self: end; display: flex; align-items: baseline; gap: 0.22em; flex-wrap: wrap; }
-.figure-field .result b { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.8; }
-.figure-field .result span { font-size: var(--step-lead); font-weight: 600; }
-.figure-field .working { grid-column: 9 / span 4; grid-row: 4; align-self: end; max-width: 30ch; color: var(--field-soft); }
-@media (max-width: 760px) {
-  .figure-field { min-height: 86svh; grid-template-columns: minmax(0, 1fr); }
-  .figure-field > * { grid-column: 1 / -1 !important; }
-  .figure-field .control { width: 100%; }
-  .figure-field .result { grid-row: auto; margin-top: 48px; flex-direction: column; gap: 6px; }
-  .figure-field .working { grid-row: auto; margin-top: 16px; }
+/* ---------- demo: one dataset, three tabs ---------- */
+.demo-head { align-items: end; row-gap: 20px; }
+.demo-head h2 { grid-column: 1 / span 7; }
+.demo-head p { grid-column: 8 / span 5; max-width: 44ch; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px clamp(20px, 3vw, 44px); margin: clamp(32px, 4vw, 56px) 0 20px; }
+.tab { padding: 0 0 8px; border: 0; border-bottom: 4px solid transparent; background: none; font: 800 var(--step-head)/1.05 var(--face); letter-spacing: -0.045em; color: color-mix(in srgb, var(--ink) 55%, var(--bg)); cursor: pointer; transition: color var(--t-hover) ease, border-color var(--t-hover) ease; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent-hi); }
+.panels { display: grid; }
+.tabpanel { grid-area: 1 / 1; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 32px var(--gap); align-items: start; align-content: start; }
+.tabpanel[hidden] { display: grid; visibility: hidden; }
+.panel-copy { grid-column: 1 / span 4; display: grid; gap: 18px; justify-items: start; padding-top: 4px; }
+.panel-copy p { max-width: 38ch; }
+.panel-stage { grid-column: 5 / span 8; min-width: 0; background: var(--surface); border-radius: var(--radius); padding: clamp(12px, 2.6vw, 40px); display: grid; gap: 14px; }
+.stage-label { font-size: var(--step-small); color: var(--soft); }
+.stage-label + * { margin-top: -6px; }
+.sheet-metrics td:nth-child(2) { font-weight: 600; }
+@media (max-width: 1000px) {
+  .demo-head h2, .demo-head p { grid-column: 1 / -1; }
+  .panel-copy, .panel-stage { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .tab { font-size: var(--step-lead); letter-spacing: -0.03em; border-bottom-width: 3px; }
+  .hide-s { display: none; }
 }
 
-/* ---------- showcase: an index of companies and the live sheet of the selected one ---------- */
-.index-split { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 var(--gap); align-items: start; }
-.index-split > .names { grid-column: 1 / span 5; display: grid; gap: 28px; }
-.names ul { list-style: none; padding: 0; }
-.names button { display: block; padding: 2px 0; border: 0; background: none; font: 800 var(--step-head)/1.1 var(--face); letter-spacing: -0.045em; color: color-mix(in srgb, var(--ink) 62%, var(--bg)); cursor: pointer; text-align: left; transition: color var(--t-hover) ease; }
-.names button[aria-pressed="true"], .names button:hover { color: var(--ink); }
-.names p { max-width: 34ch; }
-.sheet-stage { grid-column: 7 / span 6; position: relative; height: 88svh; min-height: 620px; background: var(--surface); border-radius: var(--radius); overflow: clip; }
-.sheet { position: absolute; left: 64px; right: -48px; top: 72px; min-width: 560px; min-height: 120%; background: var(--paper); padding: 28px 30px; display: grid; align-content: start; gap: 18px; transition: opacity 200ms ease; }
-.sheet.swap { opacity: 0; }
-.sheet h3 { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
-.sheet .ui-table td:nth-child(2) { font-weight: 600; }
-.sheet .ui-table a { color: #a72a24; }
-.sheet .ui-table th:last-child, .sheet .ui-table td:last-child { text-align: right; }
-@media (max-width: 1240px) { .sheet { left: 32px; } }
-@media (max-width: 900px) {
-  .index-split > .names, .sheet-stage { grid-column: 1 / -1; }
-  .names ul { display: flex; flex-wrap: wrap; gap: 4px 20px; }
-  .names button { font-size: var(--step-lead); }
-  .sheet-stage { margin-top: 20px; height: 70svh; min-height: 520px; }
-  .sheet { left: 16px; top: 16px; }
-}
-
-/* ---------- features: six filled cells with fragments docked in a checkerboard ---------- */
-.cells-head { margin-bottom: 56px; }
+/* ---------- coverage: six cells with real fragments docked in a checkerboard ---------- */
+.cells-head { row-gap: 20px; align-items: end; margin-bottom: 48px; }
+.cells-head h2 { grid-column: 1 / span 7; }
+.cells-head p { grid-column: 8 / span 5; max-width: 44ch; }
 .cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.cell { min-height: 440px; background: var(--surface); border-radius: var(--radius); overflow: clip; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
-.cell .dock { min-width: 0; }
+.cell { min-height: 420px; background: var(--surface); border-radius: var(--radius); overflow: clip; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
 .cell .copy { padding: 24px; display: grid; gap: 8px; align-content: start; }
 .cell .copy p { max-width: 36ch; }
-.cell .dock { align-self: end; padding-left: 24px; }
+.cell .dock { min-width: 0; align-self: end; padding-left: 24px; }
 .cell.flip { grid-template-rows: 1fr auto; }
 .cell.flip .copy { order: 2; align-content: end; }
 .cell.flip .dock { align-self: start; padding: 0 24px 0 0; }
 .cell .dock > [data-ui] { border-radius: 6px 0 0 0; }
 .cell.flip .dock > [data-ui] { border-radius: 0 0 6px 0; }
-.cell .dock > pre.ui-code { border-radius: 6px 0 0 0; }
-.cell.flip .dock > pre.ui-code { border-radius: 0 0 6px 0; }
 .dock .ui-card { padding: 16px 18px; }
+.also { margin-top: 32px; max-width: 70ch; }
 @media (max-width: 1000px) {
+  .cells-head h2, .cells-head p { grid-column: 1 / -1; }
   .cells { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .cell, .cell.flip { min-height: 0; grid-template-rows: auto auto; }
   .cell.flip .copy { order: 0; }
   .cell.flip .dock { align-self: end; padding: 0 0 0 24px; }
-  .cell:nth-child(even) .dock { padding: 0 24px 0 0; }
+  .cell.flip .dock > [data-ui] { border-radius: 6px 0 0 0; }
 }
 
-/* ---------- how it works: call and response ---------- */
-.calls { width: min(560px, 100%); margin-left: 25%; }
-.calls h2 { margin-bottom: 20px; }
-.calls > p { max-width: 46ch; margin-bottom: 56px; }
-.exchange + .exchange { margin-top: 88px; }
-.exchange > p { font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
-.call { position: relative; margin-top: 16px; }
-.call .ui-code { border-radius: var(--radius); }
+/* ---------- trust: six things every figure carries, beside one real record ---------- */
+.trust { row-gap: 40px; align-items: start; }
+.trust .head { grid-column: 1 / span 5; display: grid; gap: 20px; }
+.attrs { grid-column: 1 / span 5; grid-row: 2; list-style: none; padding: 0; display: grid; gap: 4px; }
+.attrs li { padding: 14px 16px; margin-inline: -16px; border-radius: var(--radius); display: grid; gap: 4px; transition: background-color var(--t-hover) ease; }
+.attrs li.on { background: var(--surface); }
+.attrs h3 { font-size: var(--step-body); font-weight: 600; letter-spacing: -0.01em; }
+.record-wrap { grid-column: 7 / span 6; grid-row: 1 / span 2; position: sticky; top: calc(var(--bar-h) + 24px); background: var(--surface); border-radius: var(--radius); padding: clamp(12px, 2.6vw, 40px); }
+.record { gap: 14px; }
+.rec-rows { display: grid; gap: 2px; }
+.rec-row { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 12px; padding: 8px 10px; margin-inline: -10px; border-radius: 4px; font-size: 14px; transition: background-color var(--t-hover) ease; }
+.rec-row dt { color: #5c656d; }
+.rec-row dd { overflow-wrap: anywhere; }
+.rec-row.on { background: #fbe9e8; }
+@media (max-width: 1000px) {
+  .trust .head, .attrs, .record-wrap { grid-column: 1 / -1; grid-row: auto; }
+  .record-wrap { position: static; }
+}
+@media (max-width: 480px) { .rec-row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+/* ---------- audiences: four plain columns ---------- */
+.who { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px var(--gap); margin-top: 48px; }
+.who article { display: grid; gap: 12px; align-content: start; justify-items: start; padding-top: 20px; border-top: 4px solid var(--ink); }
+.who p { max-width: 34ch; }
+@media (max-width: 1100px) { .who { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .who { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- developer call to action on the slate field ---------- */
+.cta { background: var(--field); color: var(--field-ink); border-radius: var(--radius); padding: clamp(28px, 5vw, 72px); row-gap: 36px; align-items: start; }
+.cta .copy { grid-column: 1 / span 5; display: grid; gap: 22px; justify-items: start; }
+.cta .copy p { max-width: 36ch; }
+.cta ul { padding-left: 1.1em; display: grid; gap: 4px; }
+.cta .code { grid-column: 7 / span 6; display: grid; gap: 10px; min-width: 0; }
+.cta .code p { color: var(--field-soft); }
+.cta .call { position: relative; }
 .copybtn { position: absolute; top: 8px; right: 8px; min-height: 32px; padding: 0 12px; border: 0; border-radius: var(--radius); background: #4a5259; color: #fff; font: 600 13px var(--face); cursor: pointer; transition: transform var(--t-press) var(--ease-out); }
 .copybtn:active { transform: scale(0.97); }
-.response { margin: 20px 0 0 56px; }
-.response.wide { width: min(760px, calc(100vw - 2 * var(--m) - 56px)); }
-.response .ui-card { /* taste-skill-ignore: data-ui panel */ border-radius: 6px; border: 1px solid #d7dfe5; }
-@media (max-width: 900px) {
-  .calls { margin-left: 0; }
-  .response { margin-left: 0; margin-top: 24px; }
-  .response.wide { width: auto; }
-}
+@media (max-width: 1000px) { .cta .copy, .cta .code { grid-column: 1 / -1; } }
 
 /* ---------- pricing: plan names, one live stage ---------- */
 .plans { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 var(--gap); align-items: start; }
 .plans .names-col { grid-column: 1 / span 6; }
 .plans .names-col h2 { margin-bottom: 28px; }
 .plan-names { list-style: none; padding: 0; display: grid; gap: 4px; justify-items: start; }
-.plan-names button { display: inline-flex; align-items: center; gap: 0.28em; padding: 0; border: 0; background: none; font: 800 var(--step-head)/1.1 var(--face); letter-spacing: -0.045em; color: color-mix(in srgb, var(--ink) 62%, var(--bg)); cursor: pointer; transition: color var(--t-hover) ease; }
+.plan-names button { display: inline-flex; align-items: center; gap: 0.28em; padding: 0; border: 0; background: none; font: 800 var(--step-head)/1.1 var(--face); letter-spacing: -0.045em; color: color-mix(in srgb, var(--ink) 55%, var(--bg)); cursor: pointer; transition: color var(--t-hover) ease; }
 .plan-names button::before { content: ""; width: 0.3em; height: 0.3em; border-radius: 50%; background: transparent; }
 .plan-names button[aria-pressed="true"], .plan-names button:hover { color: var(--ink); }
 .plan-names button[aria-pressed="true"]::before { background: var(--accent-hi); }
@@ -272,7 +300,6 @@ code, pre { font-family: var(--code); }
 .compare table { width: 100%; border-collapse: collapse; font-size: var(--step-body); min-width: 680px; }
 .compare th, .compare td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--surface-2); }
 .compare thead th { font-weight: 600; color: var(--soft); }
-.compare td:not(:first-child) { }
 .fine { margin-top: 20px; color: var(--soft); max-width: 72ch; font-size: var(--step-small); }
 @media (max-width: 900px) {
   .plans .names-col, .plan-stage { grid-column: 1 / -1; }
@@ -294,7 +321,7 @@ code, pre { font-family: var(--code); }
 .faq summary .plus::after { transform: rotate(90deg); }
 .faq details[open] { background: var(--slate-deep); color: #fff; }
 .faq details[open] .plus::after { transform: rotate(0deg); }
-.faq details p { padding: 0 24px 24px; max-width: 52ch; }
+.faq details p { padding: 0 24px 24px; max-width: 56ch; }
 @media (max-width: 900px) {
   .faq .head, .faq .tiles { grid-column: 1 / -1; }
   .faq .head { position: static; margin-bottom: 28px; }
@@ -333,8 +360,9 @@ code, pre { font-family: var(--code); }
 .tile.statement { grid-column: 1 / span 4; }
 .tile.statement p:first-child { font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
 .tile.statement p + p { font-size: var(--step-small); color: var(--soft); }
-.tile.links { grid-column: 5 / span 3; }
-.tile.links ul { list-style: none; padding: 0; display: grid; gap: 4px; font-size: var(--step-body); }
+.tile.links { grid-column: 5 / span 3; justify-content: flex-start; }
+.tile.links .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.tile.links ul { list-style: none; padding: 0; display: grid; gap: 4px; align-content: start; font-size: var(--step-body); }
 .tile.links a { text-decoration: none; }
 .tile.links a:hover { text-decoration: underline; }
 .tile.photo { grid-column: 8 / span 2; padding: 0; overflow: clip; justify-content: flex-start; margin: 0; }
@@ -363,25 +391,18 @@ code, pre { font-family: var(--code); }
 }
 @media (max-width: 560px) { .tile.statement, .tile.photo, .tile.links, .tile.live { grid-column: 1 / -1; } }
 
-/* On phones the hero's fragments run edge to edge, their text on the page margins. */
-@media (max-width: 760px) {
-  .reel { margin-inline: calc(-1 * var(--m)); }
-  .frame { border-radius: 0; }
-  .reel, .frame { aspect-ratio: 1 / 1; }
-  .frame .ui-card { padding-inline: var(--m); }
-  .reel-caption { padding-inline: var(--m); }
-}
 /* On phones every text block takes the full measure between the two margins. */
 @media (max-width: 600px) {
-  h2, .figure-field h2, .figure-field .working, .names p, .cell .copy p, .coupon .left h2, .coupon .left p, .calls > p, .faq details p, .fine { max-width: none; }
+  h2, .intro, .panel-copy p, .cell .copy p, .who p, .cta .copy p, .coupon .left h2, .coupon .left p, .faq details p, .fine, .demo-head p, .cells-head p { max-width: none; }
 }
 
 /* ---------- motion ---------- */
 @media (prefers-reduced-motion: no-preference) {
-  .js .hero .half, .js .hero .lede { animation: rise 800ms var(--ease-expo) both; }
-  .js .hero .half.b { animation-delay: 90ms; }
-  .js .hero .lede { animation-delay: 420ms; }
-  .js .hero .reel { animation: open 1000ms var(--ease-in-out) 150ms both; }
+  .js .hero h1 span, .js .hero-copy, .js .entries { animation: rise 800ms var(--ease-expo) both; }
+  .js .hero h1 span + span { animation-delay: 90ms; }
+  .js .hero-copy { animation-delay: 220ms; }
+  .js .entries { animation-delay: 320ms; }
+  .js .tabpanel:not([hidden]) .panel-stage { animation: settle 420ms var(--ease-out) both; }
   .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
   .js [data-reveal].is-in { opacity: 1; transform: none; }
   @supports (animation-timeline: view()) {
@@ -389,16 +410,13 @@ code, pre { font-family: var(--code); }
   }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
-@keyframes open { from { clip-path: inset(30% 0 30% 0); opacity: 0; } to { clip-path: inset(0); opacity: 1; } }
+@keyframes settle { from { opacity: 0; transform: translateY(10px); } }
 @keyframes drift { from { transform: scale(1.08) translateY(-3%); } to { transform: scale(1.08) translateY(3%); } }
-@media (prefers-reduced-motion: reduce) { .strip, .sheet, .plan-stage { transition: none; } }
-/* Without script the reel is no held stage: the frames stack and the page scrolls past them. */
-html:not(.js) .hero { height: auto; }
-html:not(.js) .stage { position: static; height: auto; padding-block: 96px 48px; align-items: start; }
-html:not(.js) .reel { height: auto; aspect-ratio: auto; }
-html:not(.js) .strip { position: static; }
-html:not(.js) .reel-caption { display: none; }
-html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; margin-top: 32px; }
+@media (prefers-reduced-motion: reduce) { .plan-stage { transition: none; } }
+/* Without script the tabs cannot switch: every panel shows, one after another. */
+html:not(.js) .tabs { display: none; }
+html:not(.js) .tabpanel { grid-area: auto; margin-bottom: 48px; }
+html:not(.js) .tabpanel[hidden] { visibility: visible; }
 </style>
 </head>
 <body>
@@ -408,243 +426,367 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
     <a class="wordmark" href="#top"><i aria-hidden="true"></i>Provenance</a>
     <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
     <nav id="main-nav" aria-label="Primary">
-      <a href="/chat/">Chat</a>
-      <a href="/playground/">Playground</a>
-      <a href="#pricing">Pricing</a>
-      <a href="/docs">API docs</a>
+      <div class="group">
+        <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-platform">Platform</button>
+        <p class="group-name" aria-hidden="true">Platform</p>
+        <ul class="menu" id="nav-platform">
+          <li><a href="/docs"><b>APIs</b><span>REST endpoints with an OpenAPI schema</span></a></li>
+          <li><a href="/chat/"><b>AI Chat</b><span>Questions answered with cited filings</span></a></li>
+          <li><a href="/app/"><b>Explorer</b><span>Search and open any company</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-data">Data</button>
+        <p class="group-name" aria-hidden="true">Data</p>
+        <ul class="menu" id="nav-data">
+          <li><a href="/status/"><b>Coverage</b><span>What is loaded and how fresh it is</span></a></li>
+          <li><a href="/companies/"><b>Companies</b><span>Showcase companies, no key needed</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>Canada, EU and UK listings</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-dev">Developers</button>
+        <p class="group-name" aria-hidden="true">Developers</p>
+        <ul class="menu" id="nav-dev">
+          <li><a href="/docs"><b>Docs</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="#pricing"><b>Pricing</b><span>Plans and their limits</span></a></li>
+        </ul>
+      </div>
+      <a class="nav-link" href="#contact">Contact</a>
+      <a class="button small nav-cta" href="#contact">Get API key</a>
     </nav>
-    <a class="button small" href="#contact">Get an API key</a>
+    <a class="button small" href="#contact">Get API key</a>
   </div>
 </header>
 
 <main id="top">
 
-<section class="hero" aria-labelledby="hero-title">
-  <div class="stage">
-    <h1 id="hero-title"><span class="half a">Every figure</span> <span class="half b">cites a filing.</span></h1>
-    <div class="reel" aria-label="What the product returns, four examples">
-      <div class="strip" id="strip">
-
-        <div class="frame">
-          <article class="ui-card" data-ui aria-label="A figure and its record">
-            <div class="ui-row"><strong id="rec-name">Apple Inc. · AAPL</strong><span class="ui-chip">ok</span></div>
-            <div><div class="ui-big" id="rec-value">$416.2 billion</div><div class="ui-muted" id="rec-what">Revenue, fiscal year ended 2025-09-27</div></div>
-            <dl class="ui-kv">
-              <dt>Filing</dt><dd id="rec-form">10-K filed 2025-10-31</dd>
-              <dt>Accession</dt><dd id="rec-acc">0000320193-25-000079</dd>
-              <dt>XBRL tag</dt><dd id="rec-tag">us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax</dd>
-              <dt>Mapping</dt><dd>version 1.1.0, reported, not derived</dd>
-            </dl>
-            <div class="ui-hist" id="rec-hist" aria-label="Revenue for the last five fiscal years">
-              <a href="https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/0000320193-23-000106-index.html" target="_blank" rel="noopener" style="--h:87.9%"><i></i><span>2021</span></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.html" target="_blank" rel="noopener" style="--h:94.7%"><i></i><span>2022</span></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:92.1%"><i></i><span>2023</span></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:94%"><i></i><span>2024</span></a><a class="last" href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:100%"><i></i><span>2025</span></a>
-            </div>
-            <a class="ui-link" id="rec-link" href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">Open the filing on sec.gov</a>
-          </article>
-        </div>
-
-        <div class="frame">
-          <article class="ui-card" data-ui aria-label="A chat answer that cites its filing">
-            <p class="ui-q">How fast is Microsoft's revenue growing?</p>
-            <div class="ui-a"><p>Revenue rose 17.8% to $331.8 billion in the fiscal year ended June 30, 2026, from $281.7 billion the year before <span class="ui-cite">1</span>. Growth the previous year was 14.9%, from $245.1 billion <span class="ui-cite">1</span>.</p></div>
-            <div class="ui-src"><span class="ui-cite">1</span><span>10-K filed 2026-07-29 · 0001193125-26-323660</span></div>
-            <div class="ui-row"><span class="ui-chip">Every figure checked</span><span class="ui-muted">local model</span></div>
-          </article>
-        </div>
-
-        <div class="frame">
-          <article class="ui-card" data-ui aria-label="Microsoft revenue for eight fiscal years">
-            <div class="ui-row"><strong>Microsoft revenue</strong><span class="ui-muted">fiscal years ended June 30, $ billion</span></div>
-            <div class="ui-chart" role="img" aria-label="Revenue rising from $125.8 billion in 2019 to $331.8 billion in 2026">
-              <div class="b" style="height:37.9%"><span>125.8</span></div><div class="b" style="height:43.1%"><span>143.0</span></div><div class="b" style="height:50.7%"><span>168.1</span></div><div class="b" style="height:59.7%"><span>198.3</span></div><div class="b" style="height:63.9%"><span>211.9</span></div><div class="b" style="height:73.9%"><span>245.1</span></div><div class="b" style="height:84.9%"><span>281.7</span></div><div class="b last" style="height:100%"><span>331.8</span></div>
-            </div>
-            <div class="ui-axis"><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span><span>2026</span></div>
-            <div class="ui-src">Each bar links to the 10-K it came from</div>
-          </article>
-        </div>
-
-        <div class="frame">
-          <article class="ui-card" data-ui aria-label="A filing alert delivered to a webhook">
-            <div class="ui-row"><strong>New filing · MICROSOFT CORP</strong><span class="ui-chip">delivered 200</span></div>
-            <dl class="ui-kv">
-              <dt>Form</dt><dd>8-K, items 2.02 and 9.01</dd>
-              <dt>Item 2.02</dt><dd>Results of operations and financial condition</dd>
-              <dt>Filed</dt><dd>2026-10-28, accepted 20:04:44 UTC</dd>
-              <dt>Accession</dt><dd>0001193125-26-436122</dd>
-              <dt>Sent to</dt><dd>https://hooks.example.com/filings</dd>
-              <dt>Event ID</dt><dd>evt_8k_436122, the same on every retry</dd>
-              <dt>Headers</dt><dd>X-Signature-Timestamp: 1793217901<br>X-Signature: v1=HMAC-SHA256 of the timestamp and body</dd>
-            </dl>
-          </article>
-        </div>
-
+<section class="hero wrap" aria-labelledby="hero-title">
+  <h1 id="hero-title"><span>Public company data.</span> <span>Without the guesswork.</span></h1>
+  <div class="hero-grid grid12">
+    <div class="hero-copy">
+      <p class="intro">Structured financial data from the SEC filings of US public companies. Build on it through the API, explore it company by company, or ask questions in plain English. Every number comes with its source.</p>
+      <div class="actions">
+        <a class="button" href="#demo">Explore the platform</a>
+        <a class="button quiet" href="#contact">Get API access</a>
       </div>
-      <p class="reel-caption" aria-live="polite"><span id="reel-text">A figure and its record</span><span id="reel-count">1 of 4</span></p>
-    </div>
-    <div class="lede">
-      <p>Provenance is an API and a chat over the SEC filings of <span data-stat="companies">20,540</span> US public companies. Each number links to the filing, accession number and XBRL tag it came from.</p>
-      <a class="button" href="/playground/">Try it, no signup</a>
-    </div>
-  </div>
-</section>
-
-<section class="section" aria-labelledby="follow-title">
-  <div class="figure-field">
-    <h2 id="follow-title" data-reveal>How many companies do you follow?</h2>
-    <div class="control" data-ui data-reveal style="--i:1">
-      <label for="follow">Companies on your watch list <output id="follow-out" for="follow">40</output></label>
-      <input id="follow" type="range" min="1" max="500" step="1" value="40">
-      <div class="ticks"><span>1</span><span>Builder 50</span><span>Team 500</span></div>
-    </div>
-    <p class="result" aria-live="polite"><b id="follow-figure">3,148</b><span>new filings a year</span></p>
-    <p class="working" id="follow-working">Worked out from the last 12 months: 813,416 filings by 10,335 companies, about 79 each, from annual reports to insider-trade forms. Each one can reach you as a signed alert.</p>
-  </div>
-</section>
-
-<section class="section wrap" id="live-data" aria-labelledby="sheets-title">
-  <div class="index-split">
-    <div class="names">
-      <h2 id="sheets-title" data-reveal>Open a company</h2>
-      <ul id="sheet-names" aria-label="Showcase companies">
-        <li><button type="button" data-cik="320193" aria-pressed="true">Apple</button></li>
-        <li><button type="button" data-cik="789019" aria-pressed="false">Microsoft</button></li>
-        <li><button type="button" data-cik="1652044" aria-pressed="false">Alphabet</button></li>
-        <li><button type="button" data-cik="1018724" aria-pressed="false">Amazon</button></li>
-        <li><button type="button" data-cik="1065280" aria-pressed="false">Netflix</button></li>
+      <ul class="proof" aria-label="At a glance">
+        <li><span data-stat="companies">20,540</span> US public companies</li>
+        <li>Source-linked figures</li>
+        <li>OpenAPI and llms.txt</li>
       </ul>
-      <p data-reveal style="--i:1">Live from /v1/public/companies, no key needed. Every value links to the filing it was taken from. <a href="/companies/">See every showcase company</a></p>
     </div>
-    <div class="sheet-stage" data-reveal style="--i:2">
-      <article class="sheet" id="sheet" data-ui aria-live="polite">
-        <div><h3 id="sheet-name">Apple Inc.</h3><p class="ui-muted" id="sheet-meta">AAPL · Nasdaq · CIK 0000320193 · fiscal year ends September</p></div>
-        <table class="ui-table">
-          <thead><tr><th scope="col">Metric</th><th scope="col">Latest annual</th><th scope="col">Year ended</th><th scope="col">Source</th></tr></thead>
-          <tbody id="sheet-metrics">
-            <tr><td>Revenue</td><td>$416.2 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
-            <tr><td>Operating income</td><td>$133.1 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
-            <tr><td>Net income</td><td>$112.0 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
-            <tr><td>Total assets</td><td>$359.2 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
-            <tr><td>Operating cash flow</td><td>$111.5 billion</td><td>2025-09-27</td><td>10-K, 2025-10-31</td></tr>
-          </tbody>
-        </table>
-        <div><strong>Recent filings</strong>
-          <table class="ui-table"><tbody id="sheet-filings"><tr><td class="ui-muted">Loading the latest filings…</td></tr></tbody></table>
-        </div>
-        <p class="ui-muted" id="sheet-foot">Mapping version 1.1.0</p>
-      </article>
-    </div>
+    <ul class="entries" aria-label="Three ways in">
+      <li><a class="entry" href="/docs"><b>APIs</b><span class="go">Read the docs</span><span class="line">Build with structured financial data.</span></a></li>
+      <li><a class="entry" href="/chat/"><b>AI Chat</b><span class="go">Open the chat</span><span class="line">Ask questions. Get cited answers.</span></a></li>
+      <li><a class="entry" href="/app/"><b>Explorer</b><span class="go">Open the explorer</span><span class="line">Search companies and read their figures and filings.</span></a></li>
+    </ul>
   </div>
-  <p class="fine" id="live-data-state" hidden></p>
 </section>
 
-<section class="section wrap" id="product" aria-labelledby="cells-title">
-  <div class="cells-head"><h2 id="cells-title" data-reveal>One contract, six jobs</h2></div>
+<section class="section wrap" id="demo" aria-labelledby="demo-title">
+  <div class="demo-head grid12">
+    <h2 id="demo-title" data-reveal>One dataset, three ways in</h2>
+    <p data-reveal style="--i:1">The API and Explorer tabs load live from this server without a key. The chat tab is a real answer from the chat, with its citations.</p>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Product demo">
+    <button class="tab" type="button" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="true">APIs</button>
+    <button class="tab" type="button" role="tab" id="tab-chat" aria-controls="panel-chat" aria-selected="false" tabindex="-1">AI Chat</button>
+    <button class="tab" type="button" role="tab" id="tab-explorer" aria-controls="panel-explorer" aria-selected="false" tabindex="-1">Explorer</button>
+  </div>
+  <div class="panels" id="live-data">
+
+    <div class="tabpanel" role="tabpanel" id="panel-api" aria-labelledby="tab-api" tabindex="0">
+      <div class="panel-copy">
+        <h3>One call returns the figure and its filing.</h3>
+        <p>Look a company up by CIK or ticker and ask for a metric. The JSON carries the value, the period, the 10-K or 10-Q it came from, the accession number and the XBRL tag.</p>
+        <div class="actions">
+          <a class="button" href="/playground/">Try it in the playground</a>
+          <a class="button quiet" href="/docs">Read the docs</a>
+        </div>
+      </div>
+      <div class="panel-stage">
+        <p class="stage-label">Request</p>
+        <pre class="ui-code" data-ui aria-label="Request"><code>curl -H "X-API-Key: $KEY" \
+  "/v1/companies/320193/facts?metric=revenue&amp;limit=1"</code></pre>
+        <p class="stage-label" id="api-label">Response, Apple's latest annual revenue</p>
+        <pre class="ui-code paper" id="api-response" data-ui aria-labelledby="api-label">{
+  <span class="k">"data"</span>: [{
+    <span class="k">"cik"</span>: <span class="s">"0000320193"</span>,
+    <span class="k">"metric"</span>: <span class="s">"revenue"</span>,
+    <span class="k">"value"</span>: <span class="n">416161000000</span>,
+    <span class="k">"unit"</span>: <span class="s">"USD"</span>,
+    <span class="k">"period_start"</span>: <span class="s">"2024-09-29"</span>,
+    <span class="k">"period_end"</span>: <span class="s">"2025-09-27"</span>,
+    <span class="k">"fiscal_year"</span>: <span class="n">2025</span>,
+    <span class="k">"fiscal_period"</span>: <span class="s">"FY"</span>,
+    <span class="k">"form_type"</span>: <span class="s">"10-K"</span>,
+    <span class="k">"filed_date"</span>: <span class="s">"2025-10-31"</span>,
+    <span class="k">"accession_number"</span>: <span class="s">"0000320193-25-000079"</span>,
+    <span class="k">"source_tag"</span>: <span class="s">"RevenueFromContractWithCustomerExcludingAssessedTax"</span>,
+    <span class="k">"source_url"</span>: <span class="s">"https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html"</span>,
+    <span class="k">"quality_status"</span>: <span class="s">"ok"</span>,
+    <span class="k">"derived"</span>: <span class="n">false</span>
+  }],
+  <span class="k">"mapping_version"</span>: <span class="s">"1.1.0"</span>
+}</pre>
+        <p class="stage-label" id="api-note">Values as built into the page; loading the live record from /v1/public/companies.</p>
+      </div>
+    </div>
+
+    <div class="tabpanel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat" tabindex="0" hidden>
+      <div class="panel-copy">
+        <h3>Ask in plain English, get cited answers.</h3>
+        <p>The chat answers from the filings stored here and checks every number against the data before it shows the answer. Lists across companies, such as recent IPOs or who filed a form, come back as tables.</p>
+        <div class="actions"><a class="button" href="/chat/">Open the chat</a></div>
+      </div>
+      <div class="panel-stage">
+        <article class="ui-card" data-ui aria-label="A chat answer about Microsoft's revenue growth">
+          <p class="ui-q">What is Microsoft's revenue growth over the last three years?</p>
+          <div class="ui-a">
+            <p>Microsoft Corp's revenue rose from $211.9 billion in the fiscal year ended 2023-06-30 <span class="ui-cite">1</span> to $331.8 billion in the fiscal year ended 2026-06-30 <span class="ui-cite">2</span>, compound annual growth of 16.1% a year over 3 years.</p>
+            <p>Strongest year: +17.8% in the fiscal year ended 2026-06-30 <span class="ui-cite">2</span>. Weakest: +14.9% in the fiscal year ended 2025-06-30 <span class="ui-cite">2</span>.</p>
+          </div>
+          <div class="ui-row"><strong>Revenue by fiscal year</strong><span class="ui-muted">$ billion</span></div>
+          <div class="ui-bars" style="--n:4" role="img" aria-label="Revenue: FY2023 $211.9 billion, FY2024 $245.1 billion, FY2025 $281.7 billion, FY2026 $331.8 billion">
+            <div style="--h:63.9%"></div><div style="--h:73.9%"></div><div style="--h:84.9%"></div><div class="last" style="--h:100%"></div>
+          </div>
+          <div class="ui-axis" style="--n:4" aria-hidden="true">
+            <span><b>211.9</b>FY2023</span><span><b>245.1</b>FY2024 · +15.7%</span><span><b>281.7</b>FY2025 · +14.9%</span><span><b>331.8</b>FY2026 · +17.8%</span>
+          </div>
+          <ol class="ui-src" aria-label="Sources">
+            <li><span class="ui-cite">1</span><a href="https://www.sec.gov/Archives/edgar/data/789019/000095017025100235/0000950170-25-100235-index.html" target="_blank" rel="noopener">10-K filed 2025-07-30 · 0000950170-25-100235</a></li>
+            <li><span class="ui-cite">2</span><a href="https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/0001193125-26-323660-index.html" target="_blank" rel="noopener">10-K filed 2026-07-29 · 0001193125-26-323660</a></li>
+          </ol>
+          <div class="ui-row"><span class="ui-chip">Every figure checked</span><span class="ui-muted">Growth rates computed from the cited annual figures</span></div>
+        </article>
+      </div>
+    </div>
+
+    <div class="tabpanel" role="tabpanel" id="panel-explorer" aria-labelledby="tab-explorer" tabindex="0" hidden>
+      <div class="panel-copy">
+        <h3>Open a company and see where each figure came from.</h3>
+        <p>Identity, the five figures year by year, and the latest filings with their 8-K items. Every value links to its filing on sec.gov.</p>
+        <div class="actions">
+          <a class="button" href="/app/">Open the explorer</a>
+          <a class="button quiet" href="/companies/">Browse companies</a>
+        </div>
+      </div>
+      <div class="panel-stage">
+        <article class="ui-card" id="sheet" data-ui aria-live="polite" aria-label="Company view">
+          <div class="ui-seg" id="sheet-names" role="group" aria-label="Showcase companies">
+            <button type="button" data-cik="320193" aria-pressed="true">Apple</button>
+            <button type="button" data-cik="789019" aria-pressed="false">Microsoft</button>
+            <button type="button" data-cik="1652044" aria-pressed="false">Alphabet</button>
+            <button type="button" data-cik="1018724" aria-pressed="false">Amazon</button>
+            <button type="button" data-cik="1065280" aria-pressed="false">Netflix</button>
+          </div>
+          <div class="ui-row"><span class="ui-title" id="sheet-name">Apple Inc.</span><span class="ui-muted" id="sheet-meta">AAPL · Nasdaq · CIK 0000320193</span></div>
+          <dl class="ui-kv" id="sheet-id">
+            <dt>Industry</dt><dd>SIC 3571, Electronic Computers</dd>
+            <dt>Incorporated</dt><dd>CA</dd>
+            <dt>Fiscal year ends</dt><dd>September</dd>
+          </dl>
+          <table class="ui-table sheet-metrics">
+            <thead><tr><th scope="col">Metric</th><th scope="col" class="num">Latest annual</th><th scope="col" class="hide-s">Year ended</th><th scope="col">Source</th></tr></thead>
+            <tbody id="sheet-metrics">
+              <tr><td>Revenue</td><td class="num">$416.2 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
+              <tr><td>Operating income</td><td class="num">$133.1 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
+              <tr><td>Net income</td><td class="num">$112.0 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
+              <tr><td>Total assets</td><td class="num">$359.2 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
+              <tr><td>Operating cash flow</td><td class="num">$111.5 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
+            </tbody>
+          </table>
+          <div class="ui-row"><strong>Revenue, last eight fiscal years</strong><span class="ui-muted">each bar opens its 10-K</span></div>
+          <div class="ui-bars" id="sheet-bars" style="--n:8">
+            <a href="https://www.sec.gov/Archives/edgar/data/320193/000032019320000096/0000320193-20-000096-index.html" target="_blank" rel="noopener" style="--h:63.8%" aria-label="2018: $265.6 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019321000105/0000320193-21-000105-index.html" target="_blank" rel="noopener" style="--h:62.5%" aria-label="2019: $260.2 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019322000108/0000320193-22-000108-index.html" target="_blank" rel="noopener" style="--h:66%" aria-label="2020: $274.5 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/0000320193-23-000106-index.html" target="_blank" rel="noopener" style="--h:87.9%" aria-label="2021: $365.8 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.html" target="_blank" rel="noopener" style="--h:94.8%" aria-label="2022: $394.3 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:92.1%" aria-label="2023: $383.3 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:94%" aria-label="2024: $391.0 billion"></a><a class="last" href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:100%" aria-label="2025: $416.2 billion"></a>
+          </div>
+          <div class="ui-axis" id="sheet-axis" style="--n:8" aria-hidden="true"><span>2018</span><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span></div>
+          <table class="ui-table">
+            <thead><tr><th scope="col">Recent filing</th><th scope="col">Filed</th><th scope="col">Accession</th></tr></thead>
+            <tbody id="sheet-filings">
+              <tr><td>8-K · items 2.02, 9.01</td><td class="nw">2026-11-02</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019326000024/0000320193-26-000024-index.html" target="_blank" rel="noopener">0000320193-26-000024</a></td></tr>
+              <tr><td>4</td><td class="nw">2026-10-29</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000114036126041201/0001140361-26-041201-index.html" target="_blank" rel="noopener">0001140361-26-041201</a></td></tr>
+              <tr><td>4</td><td class="nw">2026-10-22</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000114036126040540/0001140361-26-040540-index.html" target="_blank" rel="noopener">0001140361-26-040540</a></td></tr>
+            </tbody>
+          </table>
+          <p class="ui-muted" id="sheet-foot">Mapping version 1.1.0</p>
+        </article>
+        <p class="fine" id="live-data-state" hidden></p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="section wrap" id="coverage" aria-labelledby="cells-title">
+  <div class="cells-head grid12">
+    <h2 id="cells-title" data-reveal>What data can you access?</h2>
+    <p data-reveal style="--i:1">SEC filings of US public companies and the figures they report in them. No prices, no estimates, nothing we cannot link back to a filing.</p>
+  </div>
   <div class="cells">
 
     <article class="cell" data-reveal>
-      <div class="copy"><h3>Find any company</h3><p>Ticker, CIK or name. CIKs pad to ten digits, and a ticker is an attribute, never the identity.</p></div>
-      <div class="dock"><div data-ui class="ui-card" aria-label="Company search">
-        <div class="ui-input">microsoft<span class="caret"></span></div>
-        <ul class="ui-list">
-          <li class="is-hover"><span><strong>MICROSOFT CORP</strong> · MSFT</span><span class="ui-muted">Nasdaq</span></li>
-          <li><span class="ui-muted">CIK 0000789019</span><span class="ui-muted">match: name prefix</span></li>
-        </ul>
+      <div class="copy"><h3>Company identity</h3><p>CIK, ticker, exchange, SIC industry code, state of incorporation and fiscal year end.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Apple's identity record">
+        <div class="ui-row"><strong>Apple Inc.</strong><span class="ui-muted">AAPL · Nasdaq</span></div>
+        <dl class="ui-kv">
+          <dt>CIK</dt><dd>0000320193</dd>
+          <dt>Industry</dt><dd>SIC 3571, Electronic Computers</dd>
+          <dt>Incorporated</dt><dd>CA</dd>
+          <dt>Fiscal year end</dt><dd>0926, late September</dd>
+        </dl>
       </div></div>
     </article>
 
     <article class="cell flip" data-reveal style="--i:1">
-      <div class="copy"><h3>Every filing, in order</h3><p>Form, filing date, the SEC acceptance time and 8-K item codes, newest first.</p></div>
-      <div class="dock"><div data-ui class="ui-card" aria-label="Recent Microsoft filings">
+      <div class="copy"><h3>Five financial figures</h3><p>Revenue, operating income, net income, total assets and operating cash flow, normalized from XBRL.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Apple, fiscal year 2025">
+        <div class="ui-row"><strong>Apple, fiscal 2025</strong><span class="ui-muted">10-K filed 2025-10-31</span></div>
         <table class="ui-table">
-          <thead><tr><th>Form</th><th>Filed</th><th>Accepted, UTC</th><th>Items</th></tr></thead>
           <tbody>
-            <tr><td>424B2</td><td>2026-11-02</td><td>12:00:26</td><td></td></tr>
-            <tr><td>8-K</td><td>2026-10-28</td><td>20:11:03</td><td>8.01, 9.01</td></tr>
-            <tr class="is-hover"><td>10-Q</td><td>2026-10-28</td><td>20:07:39</td><td></td></tr>
-            <tr><td>8-K</td><td>2026-10-28</td><td>20:04:44</td><td>2.02, 9.01</td></tr>
-            <tr><td>8-K</td><td>2026-09-02</td><td>20:30:24</td><td>7.01, 9.01</td></tr>
+            <tr><td>Revenue</td><td class="num">$416.2 billion</td></tr>
+            <tr><td>Operating income</td><td class="num">$133.1 billion</td></tr>
+            <tr><td>Net income</td><td class="num">$112.0 billion</td></tr>
+            <tr><td>Total assets</td><td class="num">$359.2 billion</td></tr>
+            <tr><td>Operating cash flow</td><td class="num">$111.5 billion</td></tr>
           </tbody>
         </table>
       </div></div>
     </article>
 
     <article class="cell" data-reveal style="--i:2">
-      <div class="copy"><h3>Five normalized figures</h3><p>Revenue, operating income, net income, total assets and operating cash flow, each with its tag and filing.</p></div>
-      <div class="dock"><pre class="ui-code" data-ui aria-label="One normalized fact"><span class="k">"metric"</span>: <span class="s">"revenue"</span>,
-<span class="k">"value"</span>: <span class="n">331839000000</span>,
-<span class="k">"period_end"</span>: <span class="s">"2026-06-30"</span>,
-<span class="k">"form_type"</span>: <span class="s">"10-K"</span>,
-<span class="k">"accession_number"</span>: <span class="s">"0001193125-26-323660"</span>,
-<span class="k">"source_tag"</span>: <span class="s">"RevenueFromContractWith…"</span>,
-<span class="k">"quality_status"</span>: <span class="s">"ok"</span></pre></div>
-    </article>
-
-    <article class="cell flip" data-reveal>
-      <div class="copy"><h3>Freshness you can check</h3><p>When each company was last fetched and how long processing took, with a status that admits when data is old.</p></div>
-      <div class="dock"><div data-ui class="ui-card" aria-label="Freshness for Microsoft">
-        <div class="ui-row"><strong>MICROSOFT CORP</strong><span class="ui-chip stale">stale</span></div>
-        <dl class="ui-kv">
-          <dt>Last SEC fetch</dt><dd>2026-11-03 09:06 UTC</dd>
-          <dt>Latest filing</dt><dd>424B2, accepted 2026-11-02 12:00 UTC</dd>
-          <dt>Processing</dt><dd>under 0.1 s</dd>
-          <dt>Stale after</dt><dd>24 hours without a fetch</dd>
-        </dl>
-      </div></div>
-    </article>
-
-    <article class="cell" data-reveal style="--i:1">
-      <div class="copy"><h3>Signed filing alerts</h3><p>Webhooks signed with HMAC-SHA256, with a stable event ID and up to six retries.</p></div>
-      <div class="dock"><div data-ui class="ui-card" aria-label="Webhook deliveries">
+      <div class="copy"><h3>Annual and quarterly history</h3><p>Each figure by fiscal year and by quarter, with the filing every value came from.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Apple revenue by quarter">
+        <div class="ui-row"><strong>Apple revenue</strong><span class="ui-muted">fiscal 2026 so far</span></div>
         <table class="ui-table">
-          <thead><tr><th>Event</th><th>Form</th><th>Status</th><th>Try</th></tr></thead>
+          <thead><tr><th scope="col">Period</th><th scope="col">Ended</th><th scope="col" class="num">Revenue</th><th scope="col">Form</th></tr></thead>
           <tbody>
-            <tr class="is-hover"><td>evt_8k_436122</td><td>8-K</td><td>200</td><td>1</td></tr>
-            <tr><td>evt_10q_436133</td><td>10-Q</td><td>200</td><td>1</td></tr>
-            <tr><td>evt_8k_436149</td><td>8-K</td><td>503, retrying</td><td>2</td></tr>
+            <tr><td class="nw">Q1</td><td class="nw">2025-12-27</td><td class="num">$143.8 billion</td><td class="nw">10-Q</td></tr>
+            <tr><td class="nw">Q2</td><td class="nw">2026-03-28</td><td class="num">$111.2 billion</td><td class="nw">10-Q</td></tr>
+            <tr class="is-hover"><td class="nw">Q3</td><td class="nw">2026-06-27</td><td class="num">$109.4 billion</td><td class="nw">10-Q</td></tr>
+            <tr><td class="nw">FY2025</td><td class="nw">2025-09-27</td><td class="num">$416.2 billion</td><td class="nw">10-K</td></tr>
           </tbody>
         </table>
       </div></div>
     </article>
 
+    <article class="cell flip" data-reveal>
+      <div class="copy"><h3>Filings and 8-K events</h3><p>Every filing with its form, the SEC acceptance time and the 8-K item codes, newest first.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Recent Microsoft filings">
+        <table class="ui-table">
+          <thead><tr><th scope="col">Form</th><th scope="col">Filed</th><th scope="col">Accepted, UTC</th><th scope="col">Items</th></tr></thead>
+          <tbody>
+            <tr><td class="nw">424B2</td><td class="nw">2026-11-02</td><td class="nw">12:00:26</td><td></td></tr>
+            <tr><td class="nw">8-K</td><td class="nw">2026-10-28</td><td class="nw">20:11:03</td><td>8.01, 9.01</td></tr>
+            <tr><td class="nw">10-Q</td><td class="nw">2026-10-28</td><td class="nw">20:07:39</td><td></td></tr>
+            <tr class="is-hover"><td class="nw">8-K</td><td class="nw">2026-10-28</td><td class="nw">20:04:44</td><td>2.02, 9.01</td></tr>
+          </tbody>
+        </table>
+      </div></div>
+    </article>
+
+    <article class="cell" data-reveal style="--i:1">
+      <div class="copy"><h3>Leadership changes</h3><p>Officer and director changes read from 8-K item 5.02, each tied to its filing.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Leadership changes at Microsoft">
+        <div class="ui-row"><strong>MICROSOFT CORP</strong><span class="ui-muted">8-K item 5.02</span></div>
+        <ul class="ui-events">
+          <li><span class="ui-muted">2026-06-05</span><span>Reid Hoffman, director, will not stand for re-election at the 2026 annual meeting.</span></li>
+          <li><span class="ui-muted">2026-05-14</span><span>Carmine Di Sibio appointed to the Board of Directors.</span></li>
+          <li><span class="ui-muted">2025-01-22</span><span>Christopher D. Young, Executive Vice President, Business Development, Strategy, and Ventures, is leaving.</span></li>
+        </ul>
+      </div></div>
+    </article>
+
     <article class="cell flip" data-reveal style="--i:2">
-      <div class="copy"><h3>Bounded exports</h3><p>CSV or JSON with every provenance column, capped per request and metered by the row.</p></div>
-      <div class="dock"><pre class="ui-code" data-ui aria-label="A CSV export"><span class="c">cik,metric,value,period_end,form_type,accession_number</span>
-0000789019,revenue,331839000000,2026-06-30,10-K,0001193125-26-323660
-0000789019,revenue,281724000000,2025-06-30,10-K,0001193125-26-323660
-0000320193,revenue,416161000000,2025-09-27,10-K,0000320193-25-000079
-0001018724,revenue,716924000000,2025-12-31,10-K,0001018724-26-000004</pre></div>
+      <div class="copy"><h3>Going public</h3><p>Recent IPOs from final prospectuses (424B4), and the sections of S-1, F-1 and 424B filings.</p></div>
+      <div class="dock"><div data-ui class="ui-card" aria-label="Recent IPOs">
+        <div class="ui-row"><strong>Went public recently</strong><span class="ui-muted">as of 2026-11-05</span></div>
+        <table class="ui-table">
+          <thead><tr><th scope="col">Company</th><th scope="col">Ticker</th><th scope="col">424B4</th></tr></thead>
+          <tbody>
+            <tr><td>Aspen Neuroscience, Inc.</td><td class="nw">ASPE</td><td class="nw"><a href="https://www.sec.gov/Archives/edgar/data/2124080/000119312526441782/0001193125-26-441782-index.html" target="_blank" rel="noopener">2026-10-30</a></td></tr>
+            <tr><td>BHAV Acquisition Corp II</td><td class="nw">BHAI</td><td class="nw"><a href="https://www.sec.gov/Archives/edgar/data/2142627/000121390026114072/0001213900-26-114072-index.html" target="_blank" rel="noopener">2026-10-30</a></td></tr>
+            <tr><td>Georgia Banking Co Inc</td><td class="nw">GBC</td><td class="nw"><a href="https://www.sec.gov/Archives/edgar/data/1070965/000110465926119890/0001104659-26-119890-index.html" target="_blank" rel="noopener">2026-10-29</a></td></tr>
+          </tbody>
+        </table>
+      </div></div>
     </article>
 
   </div>
+  <p class="also" data-reveal>Also in the API: <a href="/status/">freshness per company</a>, signed webhooks for new filings, CSV and JSON exports capped per request, an event feed, and <a href="/listings/">Canada, EU and UK listings</a> from ESMA FIRDS, FCA FIRDS and GLEIF.</p>
 </section>
 
-<section class="section wrap" id="agents" aria-labelledby="calls-title">
-  <div class="calls">
-    <h2 id="calls-title" data-reveal>Three calls</h2>
-    <p data-reveal style="--i:1">Every endpoint is described in <a href="/openapi.json" target="_blank" rel="noopener">the OpenAPI schema</a> and summarised for models in <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a>. Errors share one envelope, and missing data stays null instead of zero.</p>
-
-    <div class="exchange" data-reveal>
-      <p>First, find the company.</p>
-      <div class="call"><pre class="ui-code"><code>curl -H "X-API-Key: $KEY" \
-  "/v1/companies/search?q=msft"</code></pre></div>
-      <div class="response"><pre class="ui-code" data-ui><span class="k">"cik"</span>: <span class="s">"0000789019"</span>,
-<span class="k">"legal_name"</span>: <span class="s">"MICROSOFT CORP"</span>,
-<span class="k">"ticker"</span>: <span class="s">"MSFT"</span>,
-<span class="k">"match_type"</span>: <span class="s">"ticker"</span></pre></div>
+<section class="section wrap" id="provenance" aria-labelledby="trust-title">
+  <div class="trust grid12">
+    <div class="head">
+      <h2 id="trust-title" data-reveal>Know where each number came from</h2>
+      <p class="intro" data-reveal style="--i:1">Don't just get the number. Every figure carries what you need to find it in the original filing.</p>
     </div>
-
-    <div class="exchange" data-reveal>
-      <p>Then ask for a figure.</p>
-      <div class="call"><pre class="ui-code"><code>curl -H "X-API-Key: $KEY" \
-  "/v1/companies/789019/facts?metric=revenue&amp;limit=1"</code></pre></div>
-      <div class="response"><pre class="ui-code" data-ui><span class="k">"value"</span>: <span class="n">331839000000</span>,
-<span class="k">"period_end"</span>: <span class="s">"2026-06-30"</span>,
-<span class="k">"filed_date"</span>: <span class="s">"2026-07-29"</span>,
-<span class="k">"source_url"</span>: <span class="s">"https://www.sec.gov/Archives/edgar/data/789019/…"</span>,
-<span class="k">"quality_status"</span>: <span class="s">"ok"</span></pre></div>
+    <ul class="attrs" id="attrs">
+      <li data-field="filing"><h3>Original filing and date</h3><p>The 10-K or 10-Q, the day it was filed, and a link to its index page on sec.gov.</p></li>
+      <li data-field="accession"><h3>Accession number</h3><p>The SEC's own ID for the filing, so you can cite it or match it in your systems.</p></li>
+      <li data-field="tag"><h3>XBRL tag</h3><p>The exact tag the company reported the value under.</p></li>
+      <li data-field="period"><h3>Fiscal period</h3><p>Fiscal year or quarter, with the start and end dates the filing gives.</p></li>
+      <li data-field="derived"><h3>Reported or derived</h3><p>Whether the value is as filed or computed by us. Derived values say how.</p></li>
+      <li data-field="mapping"><h3>Mapping version</h3><p>The version of the rules that matched the tag to the metric, so a change never goes unseen.</p></li>
+    </ul>
+    <div class="record-wrap" data-reveal style="--i:1">
+      <article class="ui-card record" data-ui aria-label="One figure and its record">
+        <div class="ui-row"><strong>MICROSOFT CORP · MSFT</strong><span class="ui-chip">quality ok</span></div>
+        <div><div class="ui-big">$331,839,000,000</div><div class="ui-muted">Revenue, USD</div></div>
+        <dl class="rec-rows" id="rec-rows">
+          <div class="rec-row" data-field="filing"><dt>Filing</dt><dd>10-K filed 2026-07-29 · <a class="ui-link" href="https://www.sec.gov/Archives/edgar/data/789019/000119312526323660/0001193125-26-323660-index.html" target="_blank" rel="noopener">open on sec.gov</a></dd></div>
+          <div class="rec-row" data-field="accession"><dt>Accession</dt><dd>0001193125-26-323660</dd></div>
+          <div class="rec-row" data-field="tag"><dt>XBRL tag</dt><dd>us&#8209;gaap:<wbr>Revenue<wbr>From<wbr>Contract<wbr>With<wbr>Customer<wbr>Excluding<wbr>Assessed<wbr>Tax</dd></div>
+          <div class="rec-row" data-field="period"><dt>Fiscal period</dt><dd>FY2026, 2025-07-01 to 2026-06-30</dd></div>
+          <div class="rec-row" data-field="derived"><dt>Status</dt><dd>Reported as filed, derived: false</dd></div>
+          <div class="rec-row" data-field="mapping"><dt>Mapping</dt><dd>version 1.1.0</dd></div>
+        </dl>
+      </article>
     </div>
+  </div>
+</section>
 
-    <div class="exchange" data-reveal>
-      <p>Or give it to your agent as a tool.</p>
+<section class="section wrap" id="audiences" aria-labelledby="who-title">
+  <h2 id="who-title" data-reveal>Who is it built for?</h2>
+  <div class="who">
+    <article data-reveal>
+      <h3>Developers</h3>
+      <p>Integrate company data through a REST API with an OpenAPI schema, one error envelope, and missing values that stay null instead of zero.</p>
+      <a class="more" href="/docs">Read the docs</a>
+    </article>
+    <article data-reveal style="--i:1">
+      <h3>Fintech and SaaS</h3>
+      <p>Power financial features in your product. Watch up to 500 companies and get a signed webhook when one of them files.</p>
+      <a class="more" href="#pricing">See the plans</a>
+    </article>
+    <article data-reveal style="--i:2">
+      <h3>Analysts and investors</h3>
+      <p>Research a company in the explorer, ask the chat for rankings and recent IPOs, and export the figures to CSV.</p>
+      <a class="more" href="/chat/">Open the chat</a>
+    </article>
+    <article data-reveal style="--i:3">
+      <h3>AI agents</h3>
+      <p>Give a model source-grounded figures: a tool definition, llms.txt, and answers that carry their citations.</p>
+      <a class="more" href="/llms.txt" target="_blank" rel="noopener">Read llms.txt</a>
+    </article>
+  </div>
+</section>
+
+<section class="section wrap" id="build" aria-labelledby="build-title">
+  <div class="cta grid12" data-reveal>
+    <div class="copy">
+      <h2 id="build-title">Build on company data you can check</h2>
+      <p>One API with structured data and traceable sources, ready for your apps and your AI agents.</p>
+      <div class="actions">
+        <a class="button" href="#contact">Get API key</a>
+        <a class="button light" href="/docs">Read documentation</a>
+      </div>
+    </div>
+    <div class="code">
+      <p>Or hand it to your agent as a tool.</p>
       <div class="call"><button class="copybtn" type="button" data-copy="tooldef">Copy</button><pre class="ui-code" id="tooldef"><code>{
   "name": "get_company_facts",
   "description": "Normalized SEC financial facts with filing links. Returns null for missing data.",
@@ -658,12 +800,6 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
     "required": ["cik", "metric"]
   }
 }</code></pre></div>
-      <div class="response wide"><article class="ui-card" data-ui aria-label="An agent's answer using the tool">
-        <p class="ui-q">What was Microsoft's revenue last year?</p>
-        <p class="ui-muted">Called get_company_facts with cik 789019, metric revenue</p>
-        <div class="ui-a"><p>Microsoft's revenue was $331.8 billion for the fiscal year ended June 30, 2026, up 17.8% from $281.7 billion <span class="ui-cite">1</span>.</p></div>
-        <div class="ui-src"><span class="ui-cite">1</span><span>10-K filed 2026-07-29, accession 0001193125-26-323660, tag RevenueFromContractWithCustomerExcludingAssessedTax</span></div>
-      </article></div>
     </div>
   </div>
 </section>
@@ -724,7 +860,7 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
       <details name="faq" data-reveal><summary>Where do the figures come from?<span class="plus" aria-hidden="true"></span></summary><p>From the XBRL financial data inside each company's 10-K and 10-Q filings. Every value keeps the filing's accession number and its XBRL tag, and links to the filing's page on sec.gov.</p></details>
       <details name="faq" data-reveal><summary>How fresh is fresh?<span class="plus" aria-hidden="true"></span></summary><p>Watched companies are checked every five minutes by default. The freshness endpoint reports the last successful fetch and when the latest filing was processed, and it only gives a latency figure when the SEC provides an exact acceptance time to compare against.</p></details>
       <details name="faq" data-reveal><summary>Which companies and metrics are covered?<span class="plus" aria-hidden="true"></span></summary><p>Five metrics from standard us-gaap tags, for the companies loaded here. Looking up a CIK loads a new company on request. IFRS filers and custom extension tags are not covered yet, and a missing value means the filing did not report one we could map.</p></details>
-      <details name="faq" data-reveal><summary>What does the chat do?<span class="plus" aria-hidden="true"></span></summary><p>It answers questions about one company at a time from the filings stored here, cites every figure, and checks each number against the data before showing the answer. A model running on this server writes it; your question is not sent to an outside AI service.</p></details>
+      <details name="faq" data-reveal><summary>What does the chat do?<span class="plus" aria-hidden="true"></span></summary><p>It answers questions from the filings stored here, cites every figure, and checks each number against the data before showing the answer. Lists across companies, such as recent IPOs, who filed a form or rankings, come back as tables. A model running on this server writes it; your question is not sent to an outside AI service.</p></details>
       <details name="faq" data-reveal><summary>Can I redistribute the data?<span class="plus" aria-hidden="true"></span></summary><p>Everything comes from SEC filings and each row links to its filing. Before building a bulk redistribution product on top, read our data-rights notes and get your own legal review; we document the open questions rather than pretend they are settled.</p></details>
       <details name="faq" data-reveal><summary>How do webhooks stay trustworthy?<span class="plus" aria-hidden="true"></span></summary><p>Each watch gets its own secret. Deliveries carry a timestamp and an HMAC-SHA256 signature over the body, plus a stable event ID for de-duplication. We never follow redirects or deliver to private network addresses.</p></details>
     </div>
@@ -760,9 +896,14 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
       <p>Data comes from the SEC's EDGAR filings. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
     </div>
     <nav class="tile links" aria-label="Site">
-      <ul>
-        <li><a href="/chat/">Chat</a></li><li><a href="/playground/">Playground</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/status/">Status</a></li><li><a href="/app/">Explorer</a></li><li><a href="/docs">API docs</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
-      </ul>
+      <div class="cols">
+        <ul>
+          <li><a href="/docs">APIs</a></li><li><a href="/chat/">AI Chat</a></li><li><a href="/app/">Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="#pricing">Pricing</a></li>
+        </ul>
+        <ul>
+          <li><a href="/status/">Coverage</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+        </ul>
+      </div>
     </nav>
     <figure class="tile photo"><img src="/img/catalogue-card.jpg" width="1600" height="1200" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
     <div class="tile live" id="live-facts" data-source="/v1/stats">
@@ -786,7 +927,7 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var fmtInt = function (n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); };
+  var fmtInt = function (n) { return n == null ? 'not reported' : Number(n).toLocaleString('en-US'); };
   var money = function (v) {
     if (v == null) return 'not reported';
     var a = Math.abs(v), s = v < 0 ? '-$' : '$';
@@ -796,89 +937,107 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
   };
   var getJSON = function (url) { return fetch(url, { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
   var esc = function (t) { var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
-  var secLink = function (url, text) { return /^https:\/\/www\.sec\.gov\//.test(url || '') ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(text) + '</a>' : esc(text); };
+  var isSec = function (url) { return /^https:\/\/www\.sec\.gov\/Archives\//.test(url || ''); };
+  var secLink = function (url, text) { return isSec(url) ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(text) + '</a>' : esc(text); };
 
-  /* header menu on phones */
-  var btn = $('menu-btn'), nav = $('main-nav');
+  /* header: phone menu, and the three grouped menus on wider screens */
+  var btn = $('menu-btn'), nav = $('main-nav'), groups = nav.querySelectorAll('.group');
   var setMenu = function (open) { nav.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Close' : 'Menu'; };
+  var closeGroups = function (except) { groups.forEach(function (g) { if (g !== except) { g.classList.remove('open'); g.querySelector('.group-btn').setAttribute('aria-expanded', 'false'); } }); };
   btn.addEventListener('click', function () { setMenu(!nav.classList.contains('open')); });
-  nav.addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { setMenu(false); btn.focus(); } });
+  groups.forEach(function (g) {
+    var b = g.querySelector('.group-btn');
+    b.addEventListener('click', function () { var open = !g.classList.contains('open'); closeGroups(g); g.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open)); });
+    g.addEventListener('focusout', function (e) { if (!g.contains(e.relatedTarget)) { g.classList.remove('open'); b.setAttribute('aria-expanded', 'false'); } });
+  });
+  nav.addEventListener('click', function (e) { if (e.target.closest('a')) { setMenu(false); closeGroups(null); } });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.group')) closeGroups(null); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var openG = nav.querySelector('.group.open');
+    if (openG) { closeGroups(null); openG.querySelector('.group-btn').focus(); return; }
+    if (nav.classList.contains('open')) { setMenu(false); btn.focus(); }
+  });
 
-  /* hero reel: a held stage; scrolling through the hero steps the strip one frame at a time */
-  var hero = document.querySelector('.hero'), strip = $('strip'), frames = strip.querySelectorAll('.frame');
-  var captions = ['A figure and its record', 'An answer that cites its filing', 'Eight years, each from a 10-K', 'A new filing, delivered signed'];
-  var step = -1;
-  function place(i, force) {
-    if (i === step && !force) return; step = i;
-    var h = frames[0].getBoundingClientRect().height, gap = parseFloat(getComputedStyle(strip).rowGap) || 24;
-    var centred = getComputedStyle(strip).top !== '0px';
-    strip.style.transform = 'translateY(' + ((centred ? -h / 2 : 0) - i * (h + gap)) + 'px)';
-    frames.forEach(function (fr, k) { fr.setAttribute('aria-hidden', String(k !== i)); fr.inert = k !== i; });
-    $('reel-text').textContent = captions[i]; $('reel-count').textContent = (i + 1) + ' of ' + frames.length;
+  /* demo tabs: arrow keys move between tabs, the panel follows the selection */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  function selectTab(t, focus) {
+    tabs.forEach(function (x) {
+      var on = x === t, p = $(x.getAttribute('aria-controls'));
+      x.setAttribute('aria-selected', String(on)); x.tabIndex = on ? 0 : -1;
+      p.hidden = !on; p.inert = !on;
+    });
+    if (focus) t.focus();
+    if (t.id === 'tab-explorer' && !bundles[currentCik]) openSheet(currentCik);
   }
-  function onScroll() {
-    var run = hero.offsetHeight - window.innerHeight, top = -hero.getBoundingClientRect().top;
-    var p = run > 0 ? Math.min(1, Math.max(0, top / run)) : 0;
-    place(Math.min(frames.length - 1, Math.floor(p * frames.length)));
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', function () { place(Math.max(0, step), true); });
-  onScroll();
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { selectTab(t, false); });
+    t.addEventListener('keydown', function (e) {
+      var n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+      if (n == null) return;
+      e.preventDefault(); selectTab(tabs[(n + tabs.length) % tabs.length], true);
+    });
+  });
+  tabs.forEach(function (x) { if (x.getAttribute('aria-selected') !== 'true') $(x.getAttribute('aria-controls')).inert = true; });
 
-  /* live record in the first frame and the company sheets */
-  var NAMES = { AAPL: 'Apple', MSFT: 'Microsoft', GOOGL: 'Alphabet', AMZN: 'Amazon', NFLX: 'Netflix', 'BRK-B': 'Berkshire Hathaway' };
+  /* API tab: the live revenue fact, printed as the facts endpoint returns it */
+  var FIELDS = ['cik', 'metric', 'value', 'unit', 'period_start', 'period_end', 'fiscal_year', 'fiscal_period', 'form_type', 'filed_date', 'accession_number', 'source_tag', 'source_url', 'quality_status', 'derived'];
+  function jsonLine(k, v, indent) {
+    var val = (typeof v === 'number' || typeof v === 'boolean' || v === null) ? '<span class="n">' + esc(String(v)) + '</span>' : '<span class="s">"' + esc(v) + '"</span>';
+    return indent + '<span class="k">"' + esc(k) + '"</span>: ' + val;
+  }
+  function fillApi(fact, mapping) {
+    if (!fact || !isSec(fact.source_url)) return;
+    var rows = FIELDS.filter(function (k) { return k in fact; }).map(function (k) { return jsonLine(k, fact[k], '    '); });
+    $('api-response').innerHTML = '{\n  <span class="k">"data"</span>: [{\n' + rows.join(',\n') + '\n  }]' + (mapping ? ',\n' + jsonLine('mapping_version', mapping, '  ') : '') + '\n}';
+  }
+
+  /* Explorer tab: the live company view */
+  var NAMES = { AAPL: 'Apple', MSFT: 'Microsoft', GOOGL: 'Alphabet', AMZN: 'Amazon', NFLX: 'Netflix', 'BRK-B': 'Berkshire' };
   var LABELS = { revenue: 'Revenue', operating_income: 'Operating income', net_income: 'Net income', total_assets: 'Total assets', operating_cash_flow: 'Operating cash flow' };
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  var bundles = {};
-  function fillRecord(c) {
-    var r = c.latest_annual_revenue; if (!r) return;
-    $('rec-name').textContent = c.legal_name + (c.ticker ? ' · ' + c.ticker : '');
-    $('rec-value').textContent = money(r.value);
-    $('rec-what').textContent = 'Revenue, fiscal year ended ' + r.period_end;
-    $('rec-form').textContent = (r.form_type || 'Filing') + (r.filed_date ? ' filed ' + r.filed_date : '');
-    $('rec-acc').textContent = r.accession_number || 'not reported';
-    $('rec-tag').textContent = 'us-gaap:' + r.source_tag;
-    if (/^https:\/\/www\.sec\.gov\//.test(r.source_url || '')) $('rec-link').href = r.source_url;
-  }
-  var recordCik = '320193';
-  function fillHist(b) {
-    var m = b.metrics.filter(function (x) { return x.metric === 'revenue'; })[0];
-    var facts = m && m.facts ? m.facts.slice(0, 5).reverse() : [];
-    if (facts.length < 2) return;
-    var max = Math.max.apply(null, facts.map(function (f) { return f.value || 0; }));
-    $('rec-hist').innerHTML = facts.map(function (f, i) {
-      var cls = i === facts.length - 1 ? ' class="last"' : '';
-      var href = /^https:\/\/www\.sec\.gov\//.test(f.source_url || '') ? esc(f.source_url) : '#';
-      return '<a' + cls + ' href="' + href + '" target="_blank" rel="noopener" title="' + esc(money(f.value) + ', fiscal year ended ' + f.period_end + ', ' + f.form_type + ' filed ' + f.filed_date) + '" style="--h:' + (100 * (f.value || 0) / max).toFixed(1) + '%"><i></i><span>' + esc(f.period_end.slice(0, 4)) + '</span></a>';
-    }).join('');
-  }
+  var bundles = {}, currentCik = '320193', apiCik = '320193';
   function renderSheet(b) {
-    var c = b.company, sheet = $('sheet');
-    var paint = function () {
-      $('sheet-name').textContent = c.legal_name;
-      var fye = c.fiscal_year_end ? ' · fiscal year ends ' + MONTHS[parseInt(c.fiscal_year_end.slice(0, 2), 10) - 1] : '';
-      $('sheet-meta').textContent = [c.ticker, c.exchange, 'CIK ' + c.cik].filter(Boolean).join(' · ') + fye;
-      $('sheet-metrics').innerHTML = b.metrics.map(function (m) {
-        var f = m.facts && m.facts[0], label = esc(LABELS[m.metric] || m.metric);
-        if (!f) return '<tr><td>' + label + '</td><td colspan="3" class="ui-muted">' + esc(m.status === 'ambiguous_mapping' ? 'tags disagree, not shown' : 'not reported') + '</td></tr>';
-        return '<tr><td>' + label + '</td><td>' + esc(money(f.value)) + '</td><td>' + esc(f.period_end) + '</td><td>' + secLink(f.source_url, f.form_type + ', ' + f.filed_date) + '</td></tr>';
+    var c = b.company;
+    $('sheet-name').textContent = c.legal_name;
+    $('sheet-meta').textContent = [c.ticker, c.exchange, 'CIK ' + c.cik].filter(Boolean).join(' · ');
+    var id = [];
+    if (c.sic_code || c.sic_description) id.push(['Industry', ['SIC ' + (c.sic_code || ''), c.sic_description].filter(Boolean).join(', ')]);
+    if (c.state_of_incorporation) id.push(['Incorporated', c.state_of_incorporation]);
+    if (c.fiscal_year_end) id.push(['Fiscal year ends', MONTHS[parseInt(c.fiscal_year_end.slice(0, 2), 10) - 1] || c.fiscal_year_end]);
+    $('sheet-id').innerHTML = id.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('');
+    $('sheet-metrics').innerHTML = b.metrics.map(function (m) {
+      var f = m.facts && m.facts[0], label = esc(LABELS[m.metric] || m.metric);
+      if (!f) return '<tr><td>' + label + '</td><td colspan="3" class="ui-muted">' + esc(m.status === 'ambiguous_mapping' ? 'tags disagree, not shown' : 'not reported') + '</td></tr>';
+      return '<tr><td>' + label + '</td><td class="num">' + esc(money(f.value)) + '</td><td class="hide-s">' + esc(f.period_end) + '</td><td>' + secLink(f.source_url, f.form_type + ', ' + f.filed_date) + '</td></tr>';
+    }).join('');
+    var rev = b.metrics.filter(function (m) { return m.metric === 'revenue'; })[0];
+    var facts = rev && rev.facts ? rev.facts.filter(function (f) { return f.value != null; }).slice(0, 8).reverse() : [];
+    if (facts.length >= 2) {
+      var max = Math.max.apply(null, facts.map(function (f) { return f.value; }));
+      $('sheet-bars').style.setProperty('--n', facts.length); $('sheet-axis').style.setProperty('--n', facts.length);
+      $('sheet-bars').innerHTML = facts.map(function (f, i) {
+        var label = f.period_end.slice(0, 4) + ': ' + money(f.value) + ', ' + f.form_type + ' filed ' + f.filed_date;
+        return '<a' + (i === facts.length - 1 ? ' class="last"' : '') + ' href="' + (isSec(f.source_url) ? esc(f.source_url) : '#') + '" target="_blank" rel="noopener" style="--h:' + Math.max(2, 100 * f.value / max).toFixed(1) + '%" aria-label="' + esc(label) + '" title="' + esc(label) + '"></a>';
       }).join('');
-      $('sheet-filings').innerHTML = b.filings.slice(0, 5).map(function (f) {
-        return '<tr><td>' + esc(f.form_type) + '</td><td>' + esc(f.filing_date) + '</td><td>' + secLink(f.source_url, f.accession_number) + '</td></tr>';
-      }).join('') || '<tr><td class="ui-muted">No filings yet.</td></tr>';
-      $('sheet-foot').textContent = 'Mapping version ' + b.mapping_version + ' · generated ' + b.generated_at.replace('T', ' ').slice(0, 16) + ' UTC';
-      sheet.classList.remove('swap');
-    };
-    if (reduce) { paint(); return; }
-    sheet.classList.add('swap'); setTimeout(paint, 200);
+      $('sheet-axis').innerHTML = facts.map(function (f) { return '<span>' + esc(f.period_end.slice(0, 4)) + '</span>'; }).join('');
+    }
+    $('sheet-filings').innerHTML = b.filings.slice(0, 3).map(function (f) {
+      var form = f.form_type + (f.items && f.items.length ? ' · items ' + f.items.join(', ') : '');
+      return '<tr><td>' + esc(form) + '</td><td class="nw">' + esc(f.filing_date) + '</td><td>' + secLink(f.source_url, f.accession_number) + '</td></tr>';
+    }).join('') || '<tr><td class="ui-muted" colspan="3">No filings yet.</td></tr>';
+    $('sheet-foot').textContent = 'Mapping version ' + b.mapping_version + ' · live from /v1/public/companies/' + parseInt(c.cik, 10) + ' · ' + b.generated_at.replace('T', ' ').slice(0, 16) + ' UTC';
   }
   function openSheet(cik) {
-    cik = String(cik);
+    cik = String(cik); currentCik = cik;
     document.querySelectorAll('#sheet-names button').forEach(function (bt) { bt.setAttribute('aria-pressed', String(bt.getAttribute('data-cik') === cik)); });
     if (bundles[cik]) { renderSheet(bundles[cik]); return; }
-    getJSON('/v1/public/companies/' + cik).then(function (b) { bundles[cik] = b; if (cik === recordCik) fillHist(b); renderSheet(b); }).catch(function () {
-      var s = $('live-data-state'); s.hidden = false; s.textContent = 'Live data is unavailable right now; the sheet shows the values built into the page.';
+    getJSON('/v1/public/companies/' + cik).then(function (b) {
+      bundles[cik] = b;
+      if (cik === apiCik) { var r = b.metrics.filter(function (m) { return m.metric === 'revenue'; })[0]; if (r && r.facts[0]) fillApi(r.facts[0], b.mapping_version); }
+      if (currentCik === cik) renderSheet(b);
+    }).catch(function () {
+      var s = $('live-data-state'); s.hidden = false; s.textContent = 'Live data is unavailable right now; the view shows the values built into the page.';
     });
   }
   $('sheet-names').addEventListener('click', function (e) { var bt = e.target.closest('button'); if (bt) openSheet(bt.getAttribute('data-cik')); });
@@ -886,22 +1045,27 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
     var cutoff = new Date().getFullYear() - 3;
     var fresh = d.data.filter(function (c) { var r = c.latest_annual_revenue; return r && parseInt(r.period_end, 10) >= cutoff; }).slice(0, 5);
     if (!fresh.length) { openSheet(320193); return; }
-    fillRecord(fresh[0]); recordCik = String(parseInt(fresh[0].cik, 10));
+    var first = fresh[0], r = first.latest_annual_revenue;
+    apiCik = String(parseInt(first.cik, 10)); currentCik = apiCik;
+    fillApi(Object.assign({ cik: first.cik, metric: 'revenue' }, r), null);
+    $('api-label').textContent = 'Response, ' + (NAMES[first.ticker] || first.legal_name) + "'s latest annual revenue";
+    $('api-note').textContent = 'Live from /v1/public/companies, ' + d.generated_at.replace('T', ' ').slice(0, 16) + ' UTC. The facts endpoint returns the same record.';
     $('sheet-names').innerHTML = fresh.map(function (c, i) {
-      return '<li><button type="button" data-cik="' + esc(parseInt(c.cik, 10)) + '" aria-pressed="' + (i === 0) + '">' + esc(NAMES[c.ticker] || c.legal_name) + '</button></li>';
+      return '<button type="button" data-cik="' + esc(parseInt(c.cik, 10)) + '" aria-pressed="' + (i === 0) + '">' + esc(NAMES[c.ticker] || c.legal_name) + '</button>';
     }).join('');
-    openSheet(parseInt(fresh[0].cik, 10));
+    openSheet(apiCik);
   }).catch(function () { openSheet(320193); });
 
-  /* the follow slider: filings a year for a watch list, from the last 12 months of filings */
-  var rate = { filings: 813416, filers: 10335 };
-  function follow() {
-    var n = parseInt($('follow').value, 10), per = rate.filings / rate.filers;
-    $('follow-out').textContent = n;
-    $('follow-figure').textContent = fmtInt(Math.round(n * per));
-    $('follow-working').textContent = 'Worked out from the last 12 months: ' + fmtInt(rate.filings) + ' filings by ' + fmtInt(rate.filers) + ' companies, about ' + Math.round(per) + ' each, from annual reports to insider-trade forms. Each one can reach you as a signed alert.';
+  /* provenance: pointing at an attribute lights its line in the record */
+  var attrs = $('attrs'), recRows = document.querySelectorAll('#rec-rows .rec-row');
+  function light(field) {
+    attrs.querySelectorAll('li').forEach(function (li) { li.classList.toggle('on', li.getAttribute('data-field') === field); });
+    recRows.forEach(function (r) { r.classList.toggle('on', r.getAttribute('data-field') === field); });
   }
-  $('follow').addEventListener('input', follow);
+  attrs.querySelectorAll('li').forEach(function (li) { li.addEventListener('mouseenter', function () { light(li.getAttribute('data-field')); }); });
+  recRows.forEach(function (r) { r.addEventListener('mouseenter', function () { light(r.getAttribute('data-field')); }); });
+  attrs.addEventListener('mouseleave', function () { light(null); });
+  $('rec-rows').addEventListener('mouseleave', function () { light(null); });
 
   /* live coverage from /v1/stats */
   function set(name, value) { document.querySelectorAll('[data-stat="' + name + '"]').forEach(function (el) { el.textContent = value; }); }
@@ -909,11 +1073,9 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
     getJSON($('live-facts').getAttribute('data-source')).then(function (d) {
       var ingested = d.companies.ingested;
       set('companies', fmtInt(ingested)); set('filings', fmtInt(d.filings.total)); set('facts', fmtInt(d.facts.total));
-      if (d.filings.last_12_months && d.companies.filed_last_12_months) rate = { filings: d.filings.last_12_months, filers: d.companies.filed_last_12_months };
-      follow();
       $('status-empty').hidden = ingested > 0; $('status-error').hidden = true;
       $('live-note').textContent = 'Live from /v1/stats, ' + d.generated_at.replace('T', ' ').slice(0, 16) + ' UTC. Latest filing ' + (d.filings.latest_filing_date || 'none') + '.';
-    }).catch(function () { $('status-error').hidden = false; follow(); });
+    }).catch(function () { $('status-error').hidden = false; });
   }
   stats(); setInterval(stats, 30000);
 
