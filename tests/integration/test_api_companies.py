@@ -286,7 +286,7 @@ def test_explorer_app_is_served(client):
     assert js.status_code == 200 and "/v1/companies/search" in js.text and "X-API-Key" in js.text
     assert "localStorage" in js.text
     css = client.get("/app/app.css")
-    assert css.status_code == 200 and "prefers-color-scheme" in css.text
+    assert css.status_code == 200 and "--accent-hi: #e83c34" in css.text  # the site palette
 
 
 def test_console_module_is_served(client):
