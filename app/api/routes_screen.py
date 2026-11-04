@@ -16,6 +16,7 @@ from app.db.models import Company, FinancialFact
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.public import LatestRevenueCard
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS
+from app.services.intel import ANNUAL_FORMS
 from app.services.point_in_time import as_of_note, known_by
 
 router = APIRouter(prefix="/v1/facts", tags=["facts"])
@@ -57,6 +58,15 @@ def _usable(metric: str, period: str, unit: str):
         FinancialFact.derived.is_(False),
         FinancialFact.quality_status.in_(["ok", "partial"]),
         FinancialFact.value.is_not(None),
+    )
+
+
+def _rank(f: FinancialFact) -> tuple:
+    return (
+        f.period_end,
+        f.form_type in ANNUAL_FORMS or f.period_class != "annual",
+        f.filed_date or date.min,
+        f.accession_number or "",
     )
 
 
@@ -189,12 +199,8 @@ def screen(
     best: dict[str, FinancialFact] = {}
     for f in rows:
         cur = best.get(f.cik)
-        key = (f.period_end, f.filed_date or date.min, f.accession_number or "")
-        if cur is None or key > (
-            cur.period_end,
-            cur.filed_date or date.min,
-            cur.accession_number or "",
-        ):
+        # The latest period; within it the annual report over a proxy statement, then the latest.
+        if cur is None or _rank(f) > _rank(cur):
             best[f.cik] = f
     companies = (
         {c.cik: c for c in db.scalars(select(Company).where(Company.cik.in_(list(best))))}

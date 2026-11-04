@@ -26,6 +26,7 @@ from app.schemas.public import (
 )
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS
 from app.services.freshness import company_freshness
+from app.services.intel import ANNUAL_FORMS
 from app.services.sec_client import normalize_cik
 
 CACHE_TTL_SECONDS = 60
@@ -149,7 +150,9 @@ def _latest_filing(db: Session, cik: str) -> Filing | None:
 
 
 def _annual_series(db: Session, cik: str, metric: str, limit: int) -> list[FinancialFact]:
-    """Latest-filed ok/partial observation per annual period, newest first."""
+    """One ok/partial observation per annual period, newest first: the annual report's when
+    there is one (a proxy statement repeats net income in its pay-versus-performance table),
+    then the latest filed."""
     rows = db.scalars(
         select(FinancialFact).where(
             FinancialFact.cik == cik,
@@ -163,13 +166,14 @@ def _annual_series(db: Session, cik: str, metric: str, limit: int) -> list[Finan
     for r in rows:
         key = (r.unit, r.period_start, r.period_end)
         cur = by_period.get(key)
-        if cur is None or (r.filed_date or date.min, r.accession_number or "") > (
-            cur.filed_date or date.min,
-            cur.accession_number or "",
-        ):
+        if cur is None or _preference(r) > _preference(cur):
             by_period[key] = r
     ordered = sorted(by_period.values(), key=lambda r: r.period_end, reverse=True)
     return ordered[:limit]
+
+
+def _preference(f: FinancialFact) -> tuple:
+    return (f.form_type in ANNUAL_FORMS, f.filed_date or date.min, f.accession_number or "")
 
 
 def _revenue_card(db: Session, cik: str) -> LatestRevenueCard | None:
