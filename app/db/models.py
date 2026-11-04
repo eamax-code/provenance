@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    DDL,
     Boolean,
     Date,
     Float,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    event,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -535,3 +537,28 @@ class ChatMessage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     reply: Mapped[str | None] = mapped_column(Text, nullable=True)  # assistant: JSON reply
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+# Search structures that exist only on PostgreSQL. The migrations f1b7c3a9d2e5 and b9d4e2f7a6c1
+# create them on real databases; these hooks give a schema built from the models (a PostgreSQL test
+# database) the same ones. SQLite skips them and the lookups fall back to scans.
+event.listen(
+    Company.__table__,
+    "after_create",
+    DDL(
+        "CREATE EXTENSION IF NOT EXISTS pg_trgm; "
+        "CREATE INDEX IF NOT EXISTS ix_companies_legal_name_trgm "
+        "ON companies USING gin (lower(legal_name) gin_trgm_ops); "
+        "CREATE INDEX IF NOT EXISTS ix_companies_ticker_upper ON companies (upper(ticker))"
+    ).execute_if(dialect="postgresql"),
+)
+event.listen(
+    FilingSection.__table__,
+    "after_create",
+    DDL(
+        "ALTER TABLE filing_sections ADD COLUMN IF NOT EXISTS search_vector tsvector "
+        "GENERATED ALWAYS AS (to_tsvector('english'::regconfig, COALESCE(text, ''::text))) STORED; "
+        "CREATE INDEX IF NOT EXISTS ix_filing_sections_search_vector "
+        "ON filing_sections USING gin (search_vector)"
+    ).execute_if(dialect="postgresql"),
+)

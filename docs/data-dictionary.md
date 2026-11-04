@@ -97,6 +97,22 @@ API default view: one row per (metric, unit, period), the latest-filed `ok`/`par
 observation. `revision_count` is the number of stored observations of that tag for the period;
 `include_all_observations=true` returns them all.
 
+## filing_sections
+
+Text read once from a filing and kept, so it can be searched and re-read without the SEC.
+
+| Column | Meaning |
+| --- | --- |
+| `cik`, `accession_number` | The filing the text came from (join `filings` for form and date) |
+| `item` | `pr:*` prospectus sections (`pr:risk`, `pr:use`, …), `5.02` officer changes, `ex:99.1` earnings release |
+| `status` | `ok`, `no_section`, `fetch_failed`; only `ok` rows are searched |
+| `text` | Plain text, up to 250,000 characters per section |
+| `source_url` | The filing's index page on sec.gov |
+| `search_vector` | PostgreSQL only: a stored `tsvector` (English) generated from `text`, with a GIN index, used by full-text section search. Not in the ORM model. |
+
+`companies` also has PostgreSQL-only indexes for lookup: a trigram index on `lower(legal_name)`
+(typo-tolerant names, `match_type: name_fuzzy`) and one on `upper(ticker)`.
+
 ## ingestion_runs
 
 Counts and status (`running`, `succeeded`, `partial`, `failed`) per ingestion pass, with a
