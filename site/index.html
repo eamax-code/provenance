@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2b2f33">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
-<title>Provenance: public company data with sources</title>
-<meta name="description" content="An API, a chat and an explorer over the SEC filings of US public companies. Every figure links to the filing, accession number and XBRL tag it came from. Independent of the SEC.">
+<title>Provenance: public company intelligence</title>
+<meta name="description" content="Public company intelligence, built for humans and AI. Structured financial data, company intelligence and filing-backed answers, starting with US public companies. Every figure links to the filing it came from. Independent of the SEC.">
 <link rel="alternate" type="application/json" href="/openapi.json" title="OpenAPI">
 <link rel="help" href="/llms.txt">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,7 +45,7 @@
   --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
   --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
   --step-head: clamp(2rem, 1.2rem + 2.4vw, 3.5rem);
-  --step-hero: clamp(1.875rem, 7.3vw, 7rem);
+  --step-hero: clamp(1.5rem, 6.4vw, 6.25rem);
   --step-display: clamp(4rem, 9vw, 8.5rem);
   --m: clamp(16px, 2.3vw, 32px);
   --gap: 24px;
@@ -109,9 +109,9 @@ code, pre { font-family: var(--code); }
 .menu b { font-weight: 600; font-size: 16px; }
 .menu span { font-size: var(--step-small); color: var(--soft); }
 .menu-btn { display: none; margin-left: auto; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--radius); background: var(--surface-2); color: var(--ink); font: 600 var(--step-small) var(--face); cursor: pointer; }
-@media (max-width: 860px) {
+@media (max-width: 980px) {
   .menu-btn { display: inline-flex; align-items: center; }
-  .bar nav { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 20px; padding: 8px var(--m) 24px; background: var(--bg); max-height: calc(100svh - var(--bar-h)); overflow-y: auto; }
+  .bar nav { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 20px; padding: 8px var(--m) 24px; background: var(--bg); height: calc(100svh - var(--bar-h)); overflow-y: auto; overscroll-behavior: contain; }
   .bar nav.open { display: flex; }
   .group-btn { display: none; }
   .group-name { display: block; font-size: var(--step-small); color: var(--soft); margin-bottom: 2px; }
@@ -130,19 +130,22 @@ code, pre { font-family: var(--code); }
 .hero { padding-block: clamp(28px, 5vw, 80px) 0; }
 .hero h1 { font-size: var(--step-hero); line-height: 0.93; letter-spacing: -0.05em; }
 .hero h1 span { display: block; }
+@media (max-width: 480px) { .hero h1 { font-size: 7.1vw; letter-spacing: -0.055em; } .hero-copy .intro { font-size: var(--step-body); } }
 .hero h1 span + span { color: var(--slate-deep); }
 .hero-grid { margin-top: clamp(28px, 4vw, 64px); row-gap: 32px; align-items: start; }
 .hero-copy { grid-column: 1 / span 6; display: grid; gap: 28px; justify-items: start; }
 .hero-copy .intro { max-width: 36ch; }
 .proof { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .proof li { padding: 6px 14px; border-radius: 999px; background: var(--paper); font-size: 16px; font-weight: 600; }
-.entries { grid-column: 8 / span 5; list-style: none; padding: 0; display: grid; gap: 8px; }
+.ways { grid-column: 8 / span 5; display: grid; gap: 12px; }
+.ways > p { font-weight: 600; }
+.entries { list-style: none; padding: 0; display: grid; gap: 8px; }
 .entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; align-items: baseline; padding: 20px 22px; background: var(--surface); border-radius: var(--radius); text-decoration: none; transition: background-color var(--t-hover) ease; }
 .entry b { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; }
 .entry .go { color: var(--accent-text); font-weight: 600; font-size: var(--step-small); white-space: nowrap; }
 .entry .line { grid-column: 1 / -1; }
 @media (hover: hover) and (pointer: fine) { .entry:hover { background: var(--surface-2); } }
-@media (max-width: 1000px) { .hero-copy, .entries { grid-column: 1 / -1; } }
+@media (max-width: 1000px) { .hero-copy, .ways { grid-column: 1 / -1; } }
 
 /* fragments: real pieces of the product. Inside [data-ui] the product's own conventions apply. */
 [data-ui] { font-family: var(--face); font-size: 14px; line-height: 1.4; letter-spacing: 0; color: var(--ink); overflow-wrap: anywhere; }
@@ -240,12 +243,14 @@ code, pre { font-family: var(--code); }
 
 /* ---------- trust: six things every figure carries, beside one real record ---------- */
 .trust { row-gap: 40px; align-items: start; }
-.trust .head { grid-column: 1 / span 5; display: grid; gap: 20px; }
+.trust .head { grid-column: 1 / -1; display: grid; gap: 20px; }
+.h2-long { max-width: none; font-size: clamp(1.625rem, 1rem + 2.4vw, 3.5rem); }
+.h2-long span { display: block; }
 .attrs { grid-column: 1 / span 5; grid-row: 2; list-style: none; padding: 0; display: grid; gap: 4px; }
 .attrs li { padding: 14px 16px; margin-inline: -16px; border-radius: var(--radius); display: grid; gap: 4px; transition: background-color var(--t-hover) ease; }
 .attrs li.on { background: var(--surface); }
 .attrs h3 { font-size: var(--step-body); font-weight: 600; letter-spacing: -0.01em; }
-.record-wrap { grid-column: 7 / span 6; grid-row: 1 / span 2; position: sticky; top: calc(var(--bar-h) + 24px); background: var(--surface); border-radius: var(--radius); padding: clamp(12px, 2.6vw, 40px); }
+.record-wrap { grid-column: 7 / span 6; grid-row: 2; position: sticky; top: calc(var(--bar-h) + 24px); background: var(--surface); border-radius: var(--radius); padding: clamp(12px, 2.6vw, 40px); }
 .record { gap: 14px; }
 .rec-rows { display: grid; gap: 2px; }
 .rec-row { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 12px; padding: 8px 10px; margin-inline: -10px; border-radius: 4px; font-size: 14px; transition: background-color var(--t-hover) ease; }
@@ -258,6 +263,55 @@ code, pre { font-family: var(--code); }
 }
 @media (max-width: 480px) { .rec-row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
 
+/* ---------- watch list: a figure set by a slider ---------- */
+.figure-field { background: var(--field); color: var(--field-ink); min-height: min(72svh, 720px); display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto 1fr auto; gap: 0 var(--gap); padding: clamp(56px, 7vw, 104px) var(--m) clamp(40px, 5vw, 72px); }
+.figure-field h2 { grid-column: 1 / span 8; max-width: 16ch; }
+.figure-field .control { grid-column: 1 / span 5; margin-top: 28px; width: min(400px, 100%); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 16px 18px; }
+.control label { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; font-size: 14px; }
+.control input[type=range] { width: 100%; margin: 14px 0 4px; accent-color: #c92f28; height: 28px; }
+.control .ticks { display: flex; justify-content: space-between; font-size: 13px; color: #5c656d; }
+.figure-field .result { grid-column: 1 / span 8; grid-row: 4; align-self: end; display: flex; align-items: baseline; gap: 0.22em; flex-wrap: wrap; }
+.figure-field .result b { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.8; }
+.figure-field .result span { font-size: var(--step-lead); font-weight: 600; }
+.figure-field .working { grid-column: 9 / span 4; grid-row: 4; align-self: end; max-width: 32ch; color: var(--field-soft); display: grid; gap: 14px; justify-items: start; }
+.figure-field .working a { color: var(--field-ink); font-weight: 600; }
+@media (max-width: 1000px) {
+  .figure-field { min-height: 0; grid-template-columns: minmax(0, 1fr); }
+  .figure-field > * { grid-column: 1 / -1 !important; }
+  .figure-field .control { width: 100%; }
+  .figure-field .result { grid-row: auto; margin-top: 48px; flex-direction: column; gap: 6px; }
+  .figure-field .working { grid-row: auto; margin-top: 16px; }
+}
+
+/* ---------- markets and roadmap ---------- */
+.markets-head { row-gap: 20px; align-items: end; margin-bottom: 40px; }
+.markets-head h2 { grid-column: 1 / span 7; }
+.markets-head p { grid-column: 8 / span 5; max-width: 44ch; }
+.markets { width: 100%; border-collapse: collapse; }
+.markets th, .markets td { padding: 18px 16px 18px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--surface-2); }
+.markets thead th { font-size: var(--step-small); font-weight: 600; color: var(--soft); padding-block: 10px; }
+.markets tbody th { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; width: 30%; }
+.markets td:nth-child(2) { width: 18%; white-space: nowrap; }
+.mstatus { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: var(--step-small); font-weight: 600; background: var(--surface); color: var(--ink); }
+.mstatus.now { background: #dcebe2; color: #0f5a37; }
+.mstatus.plan { background: transparent; color: var(--soft); padding-inline: 0; }
+.roadmap { margin-top: clamp(56px, 6vw, 88px); row-gap: 24px; }
+.roadmap .head { grid-column: 1 / span 4; display: grid; gap: 12px; align-content: start; }
+.roadmap ol { grid-column: 6 / span 7; list-style: none; padding: 0; display: grid; gap: 6px; }
+.roadmap li { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 16px; padding: 16px 20px; background: var(--surface); border-radius: var(--radius); }
+.roadmap li:first-child { background: var(--paper); }
+.roadmap li b { font-weight: 800; letter-spacing: -0.02em; }
+@media (max-width: 1000px) {
+  .markets-head h2, .markets-head p, .roadmap .head, .roadmap ol { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .markets thead { display: none; }
+  .markets tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 16px 0; border-bottom: 1px solid var(--surface-2); }
+  .markets th, .markets td { display: block; padding: 0; border: 0; width: auto !important; }
+  .markets td:last-child { grid-column: 1 / -1; }
+  .roadmap li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
 /* ---------- audiences: four plain columns ---------- */
 .who { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px var(--gap); margin-top: 48px; }
 .who article { display: grid; gap: 12px; align-content: start; justify-items: start; padding-top: 20px; border-top: 4px solid var(--ink); }
@@ -266,8 +320,8 @@ code, pre { font-family: var(--code); }
 @media (max-width: 600px) { .who { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- developer call to action on the slate field ---------- */
-.cta { background: var(--field); color: var(--field-ink); border-radius: var(--radius); padding: clamp(28px, 5vw, 72px); row-gap: 36px; align-items: start; }
-.cta .copy { grid-column: 1 / span 5; display: grid; gap: 22px; justify-items: start; }
+.cta { background: var(--field); color: var(--field-ink); border-radius: var(--radius); padding: clamp(20px, 5vw, 72px); row-gap: 36px; align-items: start; }
+.cta .copy { grid-column: 1 / span 6; display: grid; gap: 22px; justify-items: start; }
 .cta .copy p { max-width: 36ch; }
 .cta ul { padding-left: 1.1em; display: grid; gap: 4px; }
 .cta .code { grid-column: 7 / span 6; display: grid; gap: 10px; min-width: 0; }
@@ -393,15 +447,15 @@ code, pre { font-family: var(--code); }
 
 /* On phones every text block takes the full measure between the two margins. */
 @media (max-width: 600px) {
-  h2, .intro, .panel-copy p, .cell .copy p, .who p, .cta .copy p, .coupon .left h2, .coupon .left p, .faq details p, .fine, .demo-head p, .cells-head p { max-width: none; }
+  h2, .figure-field h2, .figure-field .working, .markets-head p, .intro, .panel-copy p, .cell .copy p, .who p, .cta .copy p, .coupon .left h2, .coupon .left p, .faq details p, .fine, .demo-head p, .cells-head p { max-width: none; }
 }
 
 /* ---------- motion ---------- */
 @media (prefers-reduced-motion: no-preference) {
-  .js .hero h1 span, .js .hero-copy, .js .entries { animation: rise 800ms var(--ease-expo) both; }
+  .js .hero h1 span, .js .hero-copy, .js .ways { animation: rise 800ms var(--ease-expo) both; }
   .js .hero h1 span + span { animation-delay: 90ms; }
   .js .hero-copy { animation-delay: 220ms; }
-  .js .entries { animation-delay: 320ms; }
+  .js .ways { animation-delay: 320ms; }
   .js .tabpanel:not([hidden]) .panel-stage { animation: settle 420ms var(--ease-out) both; }
   .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease-out), transform 900ms var(--ease-out); transition-delay: calc(var(--i, 0) * 80ms); }
   .js [data-reveal].is-in { opacity: 1; transform: none; }
@@ -430,30 +484,38 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
         <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-platform">Platform</button>
         <p class="group-name" aria-hidden="true">Platform</p>
         <ul class="menu" id="nav-platform">
-          <li><a href="/docs"><b>APIs</b><span>REST endpoints with an OpenAPI schema</span></a></li>
-          <li><a href="/chat/"><b>AI Chat</b><span>Questions answered with cited filings</span></a></li>
-          <li><a href="/app/"><b>Explorer</b><span>Search and open any company</span></a></li>
+          <li><a href="/docs"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
+          <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
         </ul>
       </div>
       <div class="group">
         <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-data">Data</button>
         <p class="group-name" aria-hidden="true">Data</p>
         <ul class="menu" id="nav-data">
-          <li><a href="/status/"><b>Coverage</b><span>What is loaded and how fresh it is</span></a></li>
           <li><a href="/companies/"><b>Companies</b><span>Showcase companies, no key needed</span></a></li>
-          <li><a href="/listings/"><b>Listings</b><span>Canada, EU and UK listings</span></a></li>
+          <li><a href="/app/"><b>Filings and figures</b><span>Every filing and the five figures, by company</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>Canada, UK and EU listings</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-coverage">Coverage</button>
+        <p class="group-name" aria-hidden="true">Coverage</p>
+        <ul class="menu" id="nav-coverage">
+          <li><a href="#markets"><b>Markets</b><span>What is available today, by market</span></a></li>
+          <li><a href="#roadmap"><b>Roadmap</b><span>India, the UK and Europe next</span></a></li>
+          <li><a href="/status/"><b>Status</b><span>What is loaded and how fresh it is</span></a></li>
         </ul>
       </div>
       <div class="group">
         <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-dev">Developers</button>
         <p class="group-name" aria-hidden="true">Developers</p>
         <ul class="menu" id="nav-dev">
-          <li><a href="/docs"><b>Docs</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/docs"><b>API docs</b><span>Endpoints, parameters and errors</span></a></li>
           <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
-          <li><a href="#pricing"><b>Pricing</b><span>Plans and their limits</span></a></li>
         </ul>
       </div>
-      <a class="nav-link" href="#contact">Contact</a>
+      <a class="nav-link" href="#pricing">Pricing</a>
       <a class="button small nav-cta" href="#contact">Get API key</a>
     </nav>
     <a class="button small" href="#contact">Get API key</a>
@@ -463,46 +525,102 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 <main id="top">
 
 <section class="hero wrap" aria-labelledby="hero-title">
-  <h1 id="hero-title"><span>Public company data.</span> <span>Without the guesswork.</span></h1>
+  <h1 id="hero-title"><span>Every company has a story.</span> <span>Find it in the data.</span></h1>
   <div class="hero-grid grid12">
     <div class="hero-copy">
-      <p class="intro">Structured financial data from the SEC filings of US public companies. Build on it through the API, explore it company by company, or ask questions in plain English. Every number comes with its source.</p>
+      <p class="intro">Explore public companies, access structured financial intelligence, and ask questions across company filings. Every number comes with its source.</p>
       <div class="actions">
-        <a class="button" href="#demo">Explore the platform</a>
+        <a class="button" href="/companies/">Explore companies</a>
         <a class="button quiet" href="#contact">Get API access</a>
       </div>
       <ul class="proof" aria-label="At a glance">
-        <li><span data-stat="companies">20,540</span> US public companies</li>
-        <li>Source-linked figures</li>
-        <li>OpenAPI and llms.txt</li>
+        <li>US public companies</li>
+        <li><span data-stat="companies">20,540</span> companies</li>
+        <li>Source-linked data</li>
       </ul>
     </div>
-    <ul class="entries" aria-label="Three ways in">
-      <li><a class="entry" href="/docs"><b>APIs</b><span class="go">Read the docs</span><span class="line">Build with structured financial data.</span></a></li>
-      <li><a class="entry" href="/chat/"><b>AI Chat</b><span class="go">Open the chat</span><span class="line">Ask questions. Get cited answers.</span></a></li>
-      <li><a class="entry" href="/app/"><b>Explorer</b><span class="go">Open the explorer</span><span class="line">Search companies and read their figures and filings.</span></a></li>
-    </ul>
+    <div class="ways">
+      <p>One platform. Three ways to work with financial data.</p>
+      <ul class="entries">
+        <li><a class="entry" href="/docs"><b>Data API</b><span class="go">Explore API</span><span class="line">Structured company and financial data for developers, applications and AI agents.</span></a></li>
+        <li><a class="entry" href="/chat/"><b>Financial Chat</b><span class="go">Try Chat</span><span class="line">Ask questions about companies, financial performance and filings.</span></a></li>
+        <li><a class="entry" href="/app/"><b>Company Explorer</b><span class="go">Open Explorer</span><span class="line">Search a company and read its figures and filings.</span></a></li>
+      </ul>
+    </div>
   </div>
 </section>
 
 <section class="section wrap" id="demo" aria-labelledby="demo-title">
   <div class="demo-head grid12">
-    <h2 id="demo-title" data-reveal>One dataset, three ways in</h2>
-    <p data-reveal style="--i:1">The API and Explorer tabs load live from this server without a key. The chat tab is a real answer from the chat, with its citations.</p>
+    <h2 id="demo-title" data-reveal>Explore. Ask. Build.</h2>
+    <p data-reveal style="--i:1">One dataset behind all three. The Explorer and API tabs load live from this server without a key; the chat tab is a real answer from the chat, with its citations.</p>
   </div>
   <div class="tabs" role="tablist" aria-label="Product demo">
-    <button class="tab" type="button" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="true">APIs</button>
-    <button class="tab" type="button" role="tab" id="tab-chat" aria-controls="panel-chat" aria-selected="false" tabindex="-1">AI Chat</button>
-    <button class="tab" type="button" role="tab" id="tab-explorer" aria-controls="panel-explorer" aria-selected="false" tabindex="-1">Explorer</button>
+    <button class="tab" type="button" role="tab" id="tab-explorer" aria-controls="panel-explorer" aria-selected="true">Company Explorer</button>
+    <button class="tab" type="button" role="tab" id="tab-chat" aria-controls="panel-chat" aria-selected="false" tabindex="-1">Financial Chat</button>
+    <button class="tab" type="button" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="false" tabindex="-1">Data API</button>
   </div>
   <div class="panels" id="live-data">
 
-    <div class="tabpanel" role="tabpanel" id="panel-api" aria-labelledby="tab-api" tabindex="0">
+    <div class="tabpanel" role="tabpanel" id="panel-explorer" aria-labelledby="tab-explorer" tabindex="0">
+      <div class="panel-copy">
+        <h3>Search a company and see where each figure came from.</h3>
+        <p>Identity, the five figures year by year, and the latest filings with their 8-K items. Every value links to its filing on sec.gov. To compare companies, ask the chat.</p>
+        <div class="actions">
+          <a class="button" href="/app/">Open Explorer</a>
+          <a class="button quiet" href="/companies/">Browse companies</a>
+        </div>
+      </div>
+      <div class="panel-stage">
+        <article class="ui-card" id="sheet" data-ui aria-live="polite" aria-label="Company view">
+          <div class="ui-seg" id="sheet-names" role="group" aria-label="Showcase companies">
+            <button type="button" data-cik="320193" aria-pressed="true">Apple</button>
+            <button type="button" data-cik="789019" aria-pressed="false">Microsoft</button>
+            <button type="button" data-cik="1652044" aria-pressed="false">Alphabet</button>
+            <button type="button" data-cik="1018724" aria-pressed="false">Amazon</button>
+            <button type="button" data-cik="1065280" aria-pressed="false">Netflix</button>
+          </div>
+          <div class="ui-row"><span class="ui-title" id="sheet-name">Apple Inc.</span><span class="ui-muted" id="sheet-meta">AAPL · Nasdaq · CIK 0000320193</span></div>
+          <dl class="ui-kv" id="sheet-id">
+            <dt>Industry</dt><dd>SIC 3571, Electronic Computers</dd>
+            <dt>Incorporated</dt><dd>CA</dd>
+            <dt>Fiscal year ends</dt><dd>September</dd>
+          </dl>
+          <table class="ui-table sheet-metrics">
+            <thead><tr><th scope="col">Metric</th><th scope="col" class="num">Latest annual</th><th scope="col" class="hide-s">Year ended</th><th scope="col">Source</th></tr></thead>
+            <tbody id="sheet-metrics">
+              <tr><td>Revenue</td><td class="num">$416.2 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K<span class="hide-s">, 2025-10-31</span></a></td></tr>
+              <tr><td>Operating income</td><td class="num">$133.1 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K<span class="hide-s">, 2025-10-31</span></a></td></tr>
+              <tr><td>Net income</td><td class="num">$112.0 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K<span class="hide-s">, 2025-10-31</span></a></td></tr>
+              <tr><td>Total assets</td><td class="num">$359.2 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K<span class="hide-s">, 2025-10-31</span></a></td></tr>
+              <tr><td>Operating cash flow</td><td class="num">$111.5 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K<span class="hide-s">, 2025-10-31</span></a></td></tr>
+            </tbody>
+          </table>
+          <div class="ui-row"><strong>Revenue, last eight fiscal years</strong><span class="ui-muted">each bar opens its 10-K</span></div>
+          <div class="ui-bars" id="sheet-bars" style="--n:8">
+            <a href="https://www.sec.gov/Archives/edgar/data/320193/000032019320000096/0000320193-20-000096-index.html" target="_blank" rel="noopener" style="--h:63.8%" aria-label="2018: $265.6 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019321000105/0000320193-21-000105-index.html" target="_blank" rel="noopener" style="--h:62.5%" aria-label="2019: $260.2 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019322000108/0000320193-22-000108-index.html" target="_blank" rel="noopener" style="--h:66%" aria-label="2020: $274.5 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/0000320193-23-000106-index.html" target="_blank" rel="noopener" style="--h:87.9%" aria-label="2021: $365.8 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.html" target="_blank" rel="noopener" style="--h:94.8%" aria-label="2022: $394.3 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:92.1%" aria-label="2023: $383.3 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:94%" aria-label="2024: $391.0 billion"></a><a class="last" href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:100%" aria-label="2025: $416.2 billion"></a>
+          </div>
+          <div class="ui-axis" id="sheet-axis" style="--n:8" aria-hidden="true"><span>2018</span><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span></div>
+          <table class="ui-table">
+            <thead><tr><th scope="col">Recent filing</th><th scope="col">Filed</th><th scope="col">Accession</th></tr></thead>
+            <tbody id="sheet-filings">
+              <tr><td>8-K · items 2.02, 9.01</td><td class="nw">2026-11-02</td><td class="nw"><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019326000024/0000320193-26-000024-index.html" target="_blank" rel="noopener">0000320193-26-000024</a></td></tr>
+              <tr><td>4</td><td class="nw">2026-10-29</td><td class="nw"><a href="https://www.sec.gov/Archives/edgar/data/320193/000114036126041201/0001140361-26-041201-index.html" target="_blank" rel="noopener">0001140361-26-041201</a></td></tr>
+              <tr><td>4</td><td class="nw">2026-10-22</td><td class="nw"><a href="https://www.sec.gov/Archives/edgar/data/320193/000114036126040540/0001140361-26-040540-index.html" target="_blank" rel="noopener">0001140361-26-040540</a></td></tr>
+            </tbody>
+          </table>
+          <p class="ui-muted" id="sheet-foot">Mapping version 1.1.0</p>
+        </article>
+        <p class="fine" id="live-data-state" hidden></p>
+      </div>
+    </div>
+
+    <div class="tabpanel" role="tabpanel" id="panel-api" aria-labelledby="tab-api" tabindex="0" hidden>
       <div class="panel-copy">
         <h3>One call returns the figure and its filing.</h3>
         <p>Look a company up by CIK or ticker and ask for a metric. The JSON carries the value, the period, the 10-K or 10-Q it came from, the accession number and the XBRL tag.</p>
         <div class="actions">
-          <a class="button" href="/playground/">Try it in the playground</a>
+          <a class="button" href="/playground/">Explore API</a>
           <a class="button quiet" href="/docs">Read the docs</a>
         </div>
       </div>
@@ -538,8 +656,8 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     <div class="tabpanel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat" tabindex="0" hidden>
       <div class="panel-copy">
         <h3>Ask in plain English, get cited answers.</h3>
-        <p>The chat answers from the filings stored here and checks every number against the data before it shows the answer. Lists across companies, such as recent IPOs or who filed a form, come back as tables.</p>
-        <div class="actions"><a class="button" href="/chat/">Open the chat</a></div>
+        <p>The chat answers from the filings stored here and checks every number against the data before it shows the answer. Comparisons and lists across companies, such as rankings, recent IPOs or who filed a form, come back as tables.</p>
+        <div class="actions"><a class="button" href="/chat/">Try Chat</a></div>
       </div>
       <div class="panel-stage">
         <article class="ui-card" data-ui aria-label="A chat answer about Microsoft's revenue growth">
@@ -564,63 +682,24 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       </div>
     </div>
 
-    <div class="tabpanel" role="tabpanel" id="panel-explorer" aria-labelledby="tab-explorer" tabindex="0" hidden>
-      <div class="panel-copy">
-        <h3>Open a company and see where each figure came from.</h3>
-        <p>Identity, the five figures year by year, and the latest filings with their 8-K items. Every value links to its filing on sec.gov.</p>
-        <div class="actions">
-          <a class="button" href="/app/">Open the explorer</a>
-          <a class="button quiet" href="/companies/">Browse companies</a>
-        </div>
-      </div>
-      <div class="panel-stage">
-        <article class="ui-card" id="sheet" data-ui aria-live="polite" aria-label="Company view">
-          <div class="ui-seg" id="sheet-names" role="group" aria-label="Showcase companies">
-            <button type="button" data-cik="320193" aria-pressed="true">Apple</button>
-            <button type="button" data-cik="789019" aria-pressed="false">Microsoft</button>
-            <button type="button" data-cik="1652044" aria-pressed="false">Alphabet</button>
-            <button type="button" data-cik="1018724" aria-pressed="false">Amazon</button>
-            <button type="button" data-cik="1065280" aria-pressed="false">Netflix</button>
-          </div>
-          <div class="ui-row"><span class="ui-title" id="sheet-name">Apple Inc.</span><span class="ui-muted" id="sheet-meta">AAPL · Nasdaq · CIK 0000320193</span></div>
-          <dl class="ui-kv" id="sheet-id">
-            <dt>Industry</dt><dd>SIC 3571, Electronic Computers</dd>
-            <dt>Incorporated</dt><dd>CA</dd>
-            <dt>Fiscal year ends</dt><dd>September</dd>
-          </dl>
-          <table class="ui-table sheet-metrics">
-            <thead><tr><th scope="col">Metric</th><th scope="col" class="num">Latest annual</th><th scope="col" class="hide-s">Year ended</th><th scope="col">Source</th></tr></thead>
-            <tbody id="sheet-metrics">
-              <tr><td>Revenue</td><td class="num">$416.2 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
-              <tr><td>Operating income</td><td class="num">$133.1 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
-              <tr><td>Net income</td><td class="num">$112.0 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
-              <tr><td>Total assets</td><td class="num">$359.2 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
-              <tr><td>Operating cash flow</td><td class="num">$111.5 billion</td><td class="hide-s">2025-09-27</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener">10-K, 2025-10-31</a></td></tr>
-            </tbody>
-          </table>
-          <div class="ui-row"><strong>Revenue, last eight fiscal years</strong><span class="ui-muted">each bar opens its 10-K</span></div>
-          <div class="ui-bars" id="sheet-bars" style="--n:8">
-            <a href="https://www.sec.gov/Archives/edgar/data/320193/000032019320000096/0000320193-20-000096-index.html" target="_blank" rel="noopener" style="--h:63.8%" aria-label="2018: $265.6 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019321000105/0000320193-21-000105-index.html" target="_blank" rel="noopener" style="--h:62.5%" aria-label="2019: $260.2 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019322000108/0000320193-22-000108-index.html" target="_blank" rel="noopener" style="--h:66%" aria-label="2020: $274.5 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/0000320193-23-000106-index.html" target="_blank" rel="noopener" style="--h:87.9%" aria-label="2021: $365.8 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.html" target="_blank" rel="noopener" style="--h:94.8%" aria-label="2022: $394.3 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:92.1%" aria-label="2023: $383.3 billion"></a><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:94%" aria-label="2024: $391.0 billion"></a><a class="last" href="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html" target="_blank" rel="noopener" style="--h:100%" aria-label="2025: $416.2 billion"></a>
-          </div>
-          <div class="ui-axis" id="sheet-axis" style="--n:8" aria-hidden="true"><span>2018</span><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span></div>
-          <table class="ui-table">
-            <thead><tr><th scope="col">Recent filing</th><th scope="col">Filed</th><th scope="col">Accession</th></tr></thead>
-            <tbody id="sheet-filings">
-              <tr><td>8-K · items 2.02, 9.01</td><td class="nw">2026-11-02</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000032019326000024/0000320193-26-000024-index.html" target="_blank" rel="noopener">0000320193-26-000024</a></td></tr>
-              <tr><td>4</td><td class="nw">2026-10-29</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000114036126041201/0001140361-26-041201-index.html" target="_blank" rel="noopener">0001140361-26-041201</a></td></tr>
-              <tr><td>4</td><td class="nw">2026-10-22</td><td><a href="https://www.sec.gov/Archives/edgar/data/320193/000114036126040540/0001140361-26-040540-index.html" target="_blank" rel="noopener">0001140361-26-040540</a></td></tr>
-            </tbody>
-          </table>
-          <p class="ui-muted" id="sheet-foot">Mapping version 1.1.0</p>
-        </article>
-        <p class="fine" id="live-data-state" hidden></p>
-      </div>
-    </div>
 
   </div>
 </section>
 
-<section class="section wrap" id="coverage" aria-labelledby="cells-title">
+<section class="section" id="watch" aria-labelledby="follow-title">
+  <div class="figure-field">
+    <h2 id="follow-title" data-reveal>How many companies do you follow?</h2>
+    <div class="control" data-ui data-reveal style="--i:1">
+      <label for="follow">Companies on your watch list <output id="follow-out" for="follow">40</output></label>
+      <input id="follow" type="range" min="1" max="500" step="1" value="40">
+      <div class="ticks"><span>1</span><span>Builder 50</span><span>Team 500</span></div>
+    </div>
+    <p class="result" aria-live="polite"><b id="follow-figure">3,148</b><span>new filings a year</span></p>
+    <div class="working"><p id="follow-working">Worked out from the last 12 months: 813,416 filings by 10,335 companies, about 79 each, from annual reports to insider-trade forms. Each one can reach you as a signed alert.</p><a href="#pricing">Plans by watch-list size</a></div>
+  </div>
+</section>
+
+<section class="section wrap" id="data" aria-labelledby="cells-title">
   <div class="cells-head grid12">
     <h2 id="cells-title" data-reveal>What data can you access?</h2>
     <p data-reveal style="--i:1">SEC filings of US public companies and the figures they report in them. No prices, no estimates, nothing we cannot link back to a filing.</p>
@@ -715,13 +794,13 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     </article>
 
   </div>
-  <p class="also" data-reveal>Also in the API: <a href="/status/">freshness per company</a>, signed webhooks for new filings, CSV and JSON exports capped per request, an event feed, and <a href="/listings/">Canada, EU and UK listings</a> from ESMA FIRDS, FCA FIRDS and GLEIF.</p>
+  <p class="also" data-reveal>Also in the API: <a href="/status/">freshness per company</a>, signed webhooks for new filings, CSV and JSON exports capped per request, an event feed, and <a href="/listings/">Canada, UK and EU listings</a>.</p>
 </section>
 
 <section class="section wrap" id="provenance" aria-labelledby="trust-title">
   <div class="trust grid12">
     <div class="head">
-      <h2 id="trust-title" data-reveal>Know where each number came from</h2>
+      <h2 id="trust-title" class="h2-long" data-reveal><span>Every figure. Every answer.</span> <span>Traceable to its source.</span></h2>
       <p class="intro" data-reveal style="--i:1">Don't just get the number. Every figure carries what you need to find it in the original filing.</p>
     </div>
     <ul class="attrs" id="attrs">
@@ -749,6 +828,37 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
   </div>
 </section>
 
+<section class="section wrap" id="markets" aria-labelledby="markets-title">
+  <div class="markets-head grid12">
+    <h2 id="markets-title" class="h2-long" data-reveal><span>One platform.</span> <span>Expanding global coverage.</span></h2>
+    <p data-reveal style="--i:1">Starting with US public companies, expanding into international markets. Only what is marked available exists today.</p>
+  </div>
+  <table class="markets" data-reveal>
+    <caption class="vh">Coverage by market</caption>
+    <thead><tr><th scope="col">Market</th><th scope="col">Status</th><th scope="col">What you get</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">United States</th><td><span class="mstatus now">Available now</span></td><td>SEC filings, the five financial figures, company identity, 8-K events, leadership changes and IPOs, through the API, the chat and the explorer.</td></tr>
+      <tr><th scope="row">Canada</th><td><span class="mstatus">Listings today</span></td><td>Listed instruments from the TMX and CSE lists. Filings and financials are not covered.</td></tr>
+      <tr><th scope="row">United Kingdom</th><td><span class="mstatus">Listings today</span></td><td>Listings and issuer identity from FCA FIRDS and GLEIF. Filings and financials are planned.</td></tr>
+      <tr><th scope="row">Europe and other markets</th><td><span class="mstatus">Listings today</span></td><td>Listings from ESMA FIRDS and GLEIF for the venues covered. More exchanges and filings later.</td></tr>
+      <tr><th scope="row">India</th><td><span class="mstatus plan">Planned</span></td><td>NSE and BSE disclosures and company financials.</td></tr>
+    </tbody>
+  </table>
+  <div class="roadmap grid12" id="roadmap">
+    <div class="head" data-reveal>
+      <h3>Roadmap</h3>
+      <p>A plan, not current coverage. Only the first step exists today, and the order may change.</p>
+    </div>
+    <ol aria-label="Roadmap phases" data-reveal style="--i:1">
+      <li><b>Now, at launch</b><span>US public companies: SEC filings, financials, the chat, the explorer and the APIs.</span></li>
+      <li><b>Next</b><span>Deeper financial statements and historical comparisons.</span></li>
+      <li><b>Then</b><span>Indian public companies, with NSE and BSE filings.</span></li>
+      <li><b>After that</b><span>UK and European company filings.</span></li>
+      <li><b>Later</b><span>Global coverage and infrastructure for AI agents.</span></li>
+    </ol>
+  </div>
+</section>
+
 <section class="section wrap" id="audiences" aria-labelledby="who-title">
   <h2 id="who-title" data-reveal>Who is it built for?</h2>
   <div class="who">
@@ -764,8 +874,8 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     </article>
     <article data-reveal style="--i:2">
       <h3>Analysts and investors</h3>
-      <p>Research a company in the explorer, ask the chat for rankings and recent IPOs, and export the figures to CSV.</p>
-      <a class="more" href="/chat/">Open the chat</a>
+      <p>Research a company in the explorer, ask the chat to compare companies or list recent IPOs, and export the figures to CSV.</p>
+      <a class="more" href="/chat/">Try Chat</a>
     </article>
     <article data-reveal style="--i:3">
       <h3>AI agents</h3>
@@ -778,7 +888,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 <section class="section wrap" id="build" aria-labelledby="build-title">
   <div class="cta grid12" data-reveal>
     <div class="copy">
-      <h2 id="build-title">Build on company data you can check</h2>
+      <h2 id="build-title" class="h2-long"><span>Financial intelligence</span> <span>you can verify.</span></h2>
       <p>One API with structured data and traceable sources, ready for your apps and your AI agents.</p>
       <div class="actions">
         <a class="button" href="#contact">Get API key</a>
@@ -892,16 +1002,16 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 <footer>
   <div class="board">
     <div class="tile statement">
-      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC.</p>
-      <p>Data comes from the SEC's EDGAR filings. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
+      <p>Public company intelligence. Built for humans and AI.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC. Data comes from the SEC's EDGAR filings. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
     </div>
     <nav class="tile links" aria-label="Site">
       <div class="cols">
         <ul>
-          <li><a href="/docs">APIs</a></li><li><a href="/chat/">AI Chat</a></li><li><a href="/app/">Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="#pricing">Pricing</a></li>
+          <li><a href="/docs">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="#pricing">Pricing</a></li>
         </ul>
         <ul>
-          <li><a href="/status/">Coverage</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+          <li><a href="#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
         </ul>
       </div>
     </nav>
@@ -938,6 +1048,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
   var getJSON = function (url) { return fetch(url, { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
   var esc = function (t) { var d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
   var isSec = function (url) { return /^https:\/\/www\.sec\.gov\/Archives\//.test(url || ''); };
+  var srcLink = function (f) { return isSec(f.source_url) ? '<a href="' + esc(f.source_url) + '" target="_blank" rel="noopener">' + esc(f.form_type) + '<span class="hide-s">, ' + esc(f.filed_date) + '</span></a>' : esc(f.form_type); };
   var secLink = function (url, text) { return isSec(url) ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(text) + '</a>' : esc(text); };
 
   /* header: phone menu, and the three grouped menus on wider screens */
@@ -1009,7 +1120,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     $('sheet-metrics').innerHTML = b.metrics.map(function (m) {
       var f = m.facts && m.facts[0], label = esc(LABELS[m.metric] || m.metric);
       if (!f) return '<tr><td>' + label + '</td><td colspan="3" class="ui-muted">' + esc(m.status === 'ambiguous_mapping' ? 'tags disagree, not shown' : 'not reported') + '</td></tr>';
-      return '<tr><td>' + label + '</td><td class="num">' + esc(money(f.value)) + '</td><td class="hide-s">' + esc(f.period_end) + '</td><td>' + secLink(f.source_url, f.form_type + ', ' + f.filed_date) + '</td></tr>';
+      return '<tr><td>' + label + '</td><td class="num">' + esc(money(f.value)) + '</td><td class="hide-s">' + esc(f.period_end) + '</td><td>' + srcLink(f) + '</td></tr>';
     }).join('');
     var rev = b.metrics.filter(function (m) { return m.metric === 'revenue'; })[0];
     var facts = rev && rev.facts ? rev.facts.filter(function (f) { return f.value != null; }).slice(0, 8).reverse() : [];
@@ -1024,7 +1135,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     }
     $('sheet-filings').innerHTML = b.filings.slice(0, 3).map(function (f) {
       var form = f.form_type + (f.items && f.items.length ? ' · items ' + f.items.join(', ') : '');
-      return '<tr><td>' + esc(form) + '</td><td class="nw">' + esc(f.filing_date) + '</td><td>' + secLink(f.source_url, f.accession_number) + '</td></tr>';
+      return '<tr><td>' + esc(form) + '</td><td class="nw">' + esc(f.filing_date) + '</td><td class="nw">' + secLink(f.source_url, f.accession_number) + '</td></tr>';
     }).join('') || '<tr><td class="ui-muted" colspan="3">No filings yet.</td></tr>';
     $('sheet-foot').textContent = 'Mapping version ' + b.mapping_version + ' · live from /v1/public/companies/' + parseInt(c.cik, 10) + ' · ' + b.generated_at.replace('T', ' ').slice(0, 16) + ' UTC';
   }
@@ -1067,15 +1178,27 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
   attrs.addEventListener('mouseleave', function () { light(null); });
   $('rec-rows').addEventListener('mouseleave', function () { light(null); });
 
+  /* the watch-list slider: filings a year for a watch list, from the last 12 months of filings */
+  var rate = { filings: 813416, filers: 10335 };
+  function follow() {
+    var n = parseInt($('follow').value, 10), per = rate.filings / rate.filers;
+    $('follow-out').textContent = n;
+    $('follow-figure').textContent = fmtInt(Math.round(n * per));
+    $('follow-working').textContent = 'Worked out from the last 12 months: ' + fmtInt(rate.filings) + ' filings by ' + fmtInt(rate.filers) + ' companies, about ' + Math.round(per) + ' each, from annual reports to insider-trade forms. Each one can reach you as a signed alert.';
+  }
+  $('follow').addEventListener('input', follow);
+
   /* live coverage from /v1/stats */
   function set(name, value) { document.querySelectorAll('[data-stat="' + name + '"]').forEach(function (el) { el.textContent = value; }); }
   function stats() {
     getJSON($('live-facts').getAttribute('data-source')).then(function (d) {
       var ingested = d.companies.ingested;
       set('companies', fmtInt(ingested)); set('filings', fmtInt(d.filings.total)); set('facts', fmtInt(d.facts.total));
+      if (d.filings.last_12_months && d.companies.filed_last_12_months) rate = { filings: d.filings.last_12_months, filers: d.companies.filed_last_12_months };
+      follow();
       $('status-empty').hidden = ingested > 0; $('status-error').hidden = true;
       $('live-note').textContent = 'Live from /v1/stats, ' + d.generated_at.replace('T', ' ').slice(0, 16) + ' UTC. Latest filing ' + (d.filings.latest_filing_date || 'none') + '.';
-    }).catch(function () { $('status-error').hidden = false; });
+    }).catch(function () { $('status-error').hidden = false; follow(); });
   }
   stats(); setInterval(stats, 30000);
 
