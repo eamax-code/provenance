@@ -16,8 +16,10 @@
 .pg-keyrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .pg-keyrow input { flex: 1 1 260px; font-family: var(--font-mono); font-size: .85rem; }
 .pg-h { font-size: 1rem; }
-.pg-params { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.pg-field { display: grid; gap: 4px; min-width: 0; }
+/* Fields align to the top so a help line under one input does not push its row's labels apart. */
+.pg-params { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; align-items: start; }
+.pg-field { display: grid; gap: 4px; min-width: 0; align-content: start; }
+.pg-field[hidden] { display: none; }
 .pg-field label { font-family: var(--font-mono); font-size: .76rem; color: var(--fg); }
 .pg-field label .req { color: var(--warn); }
 .pg-field label .loc { color: var(--muted); font-size: .68rem; }

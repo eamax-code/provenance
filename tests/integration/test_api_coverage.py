@@ -106,3 +106,37 @@ def test_screen_validation_and_openapi(client, auth, db, sec_client):
     spec = client.get("/openapi.json").json()
     assert spec["paths"]["/v1/facts/screen"]["get"]["security"] == [{"ApiKeyAuth": []}]
     assert spec["paths"]["/v1/companies"]["get"]["security"] == [{"ApiKeyAuth": []}]
+
+
+def test_screen_periods_and_quarter(client, auth, db, sec_client):
+    _ingest_both(db, sec_client)
+    r = client.get("/v1/facts/screen/periods?metric=revenue&period=quarterly", headers=auth)
+    assert r.status_code == 200, r.text
+    years = {y["year"]: y for y in r.json()["years"]}
+    assert list(years) == [2024, 2023]
+    assert [q["quarter"] for q in years[2024]["quarters"]] == [1, 2]
+    assert years[2023]["quarters"] == [{"quarter": 4, "companies": 1}]
+    annual = client.get("/v1/facts/screen/periods?metric=total_assets", headers=auth).json()
+    assert [(y["year"], y["companies"], y["quarters"]) for y in annual["years"]] == [
+        (2024, 2, []),
+        (2023, 1, []),
+    ]
+
+    def screen(q):
+        return client.get(
+            "/v1/facts/screen?metric=revenue&year=2024&period=quarterly" + q, headers=auth
+        )
+
+    q1 = screen("&quarter=1").json()
+    assert q1["quarter"] == 1 and [x["period_end"] for x in q1["data"]] == ["2024-03-30"]
+    assert screen("").json()["data"][0]["period_end"] == "2024-06-29"  # latest quarter in year
+    assert screen("&quarter=3").json()["data"] == []
+    q4 = client.get(
+        "/v1/facts/screen?metric=revenue&year=2023&period=quarterly&quarter=4", headers=auth
+    ).json()
+    assert q4["data"][0]["period_end"] == "2023-12-30" and any("Q4" in n for n in q4["notes"])
+    assert screen("&quarter=5").status_code == 422
+    bad = client.get("/v1/facts/screen?metric=revenue&year=2024&quarter=1", headers=auth)
+    assert bad.status_code == 422 and "period=quarterly" in bad.text
+    assert client.get("/v1/facts/screen/periods?metric=ebitda", headers=auth).status_code == 422
+    assert client.get("/v1/facts/screen/periods?metric=revenue").status_code == 401

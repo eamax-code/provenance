@@ -56,9 +56,11 @@ def settings(tmp_path):
 
 @pytest.fixture
 def engine(settings):
+    from app.api.routes_screen import reset_periods_cache
     from app.db.models import Base
     from app.db.session import make_engine, set_engine
 
+    reset_periods_cache()
     eng = make_engine(settings.database_url)
     Base.metadata.drop_all(eng)
     Base.metadata.create_all(eng)
