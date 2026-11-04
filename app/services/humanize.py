@@ -74,3 +74,39 @@ def clean(text: str) -> str:
     out = re.sub(r"[ \t]{2,}", " ", out).strip()
     # An answer that now starts in lower case after a removed lead gets its capital back.
     return out[:1].upper() + out[1:]
+
+
+# A sentence ends at ". ", "! " or "? " (after an optional citation such as "[3]") followed by a
+# capital or a digit; "U.S. revenue" and "$1.5 billion" do not end one.
+_SENTENCE = re.compile(r"(?<=[.!?])(?:\s*\[\d+\](?:\[\d+\])*)?\s+(?=[A-Z0-9])")
+_LIST_ASK = re.compile(r"\b(list|table|each|every|all the|bullet|step|steps)\b", re.IGNORECASE)
+_OVERVIEW_ASK = re.compile(
+    r"\b(summar\w*|overview|what do you know|tell me about|describe|profile)\b", re.IGNORECASE
+)
+
+
+def sentence_limit(question: str) -> int | None:
+    """How many sentences an answer to this question may have; None when it asks for a list."""
+    if _LIST_ASK.search(question):
+        return None
+    return 5 if _OVERVIEW_ASK.search(question) else 3
+
+
+def keep_sentences(text: str, limit: int | None) -> str:
+    """The first `limit` whole sentences, with their citations. A reply cut off by the token cap
+    loses its unfinished last sentence."""
+    if not text:
+        return text
+    parts = [p for p in re.split(r"(?<=\])\s+(?=[A-Z0-9])|" + _SENTENCE.pattern, text) if p]
+    # Re-attach citations split off by the pattern above.
+    sentences: list[str] = []
+    for part in parts:
+        if sentences and re.fullmatch(r"\s*(\[\d+\])+\s*", part):
+            sentences[-1] += " " + part.strip()
+        else:
+            sentences.append(part.strip())
+    if sentences and not re.search(r"[.!?](\s*\[\d+\])*\s*$", sentences[-1]) and len(sentences) > 1:
+        sentences = sentences[:-1]  # unfinished at the token cap
+    if limit is not None:
+        sentences = sentences[:limit]
+    return " ".join(sentences)

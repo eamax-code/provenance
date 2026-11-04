@@ -604,8 +604,14 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
                 "content": f"CONTEXT:\n{brief.context()}\n\nQUESTION: {body.message}",
             }
         )
-        reply = get_llm(request, settings).chat(messages)
-        text = humanize.clean(reply.text) if settings.chat_humanize else reply.text
+        # Short answers are also quick ones: cap what the model may write, then keep whole
+        # sentences up to the limit (three, five for an overview, none for a list or table).
+        limit = humanize.sentence_limit(body.message) if settings.chat_humanize else None
+        cap = 60 + 75 * limit if limit else None
+        reply = get_llm(request, settings).chat(messages, max_tokens=cap)
+        text = reply.text
+        if settings.chat_humanize:
+            text = humanize.keep_sentences(humanize.clean(text), limit)
         answer, auto_cited = add_missing_citations(text, brief.context_lines)
         model = reply.model
         checks = check_answer(answer, brief.context(), len(brief.citations))

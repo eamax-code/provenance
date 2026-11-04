@@ -199,3 +199,13 @@ def test_a_why_question_still_goes_to_the_model(client, auth, items_aapl, app):
     app.state.llm_factory = lambda: fake
     body = _chat(client, auth, "Why is Apple's revenue so large?")
     assert body["answered_by"] == "model" and fake.calls
+
+
+def test_model_answers_are_capped_at_whole_sentences(client, auth, items_aapl, app):
+    long = " ".join(f"Point {i} is about revenue of $391.0 billion [2]." for i in range(9))
+    fake = FakeLLM(long + " And the last one was cut off at the")
+    app.state.llm_factory = lambda: fake
+    body = _chat(client, auth, "Is Apple doing well?")
+    assert body["answer"].count("[2]") == 3 and body["answer"].endswith("[2].")
+    overview = _chat(client, auth, "Tell me about Apple")
+    assert overview["answer"].count("[2]") == 5
