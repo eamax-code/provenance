@@ -233,7 +233,7 @@
     wrap.appendChild(canvas); box.appendChild(wrap);
     var legend = el('div', 'cx-legend'), l1 = el('span'), l2 = el('span');
     var i1 = el('i'); i1.style.background = css('--slate'); l1.appendChild(i1); l1.appendChild(document.createTextNode('Reported ' + w.title.split(' by ')[0].toLowerCase()));
-    var i2 = el('i'); i2.style.background = css('--charcoal'); i2.style.borderRadius = '50%'; l2.appendChild(i2); l2.appendChild(document.createTextNode('Change from prior year'));
+    var i2 = el('i'); i2.style.background = css('--red'); i2.style.borderRadius = '50%'; l2.appendChild(i2); l2.appendChild(document.createTextNode('Change from prior year'));
     legend.appendChild(l1); legend.appendChild(l2); box.appendChild(legend);
     // The figures as a table, with each year's source: also the fallback if the chart cannot load.
     var d = el('details'); d.appendChild(el('summary', null, 'Figures and sources'));
@@ -255,7 +255,7 @@
     return box;
   }
   function drawChart(Chart, canvas, w) {
-    var pts = w.points, slate = css('--slate'), ink = css('--charcoal'), muted = css('--muted'), line = css('--line');
+    var pts = w.points, slate = css('--slate'), red = css('--red'), muted = css('--muted'), line = css('--line');
     var font = { family: css('--font-body') || 'sans-serif', size: 12 };
     var ctx = canvas.getContext('2d');
     var grad = ctx.createLinearGradient(0, 0, 0, canvas.parentNode.clientHeight || 280);
@@ -265,7 +265,7 @@
         labels: pts.map(function (p) { return p.label; }),
         datasets: [
           { type: 'bar', label: 'Reported', data: pts.map(function (p) { return p.value; }), backgroundColor: grad, hoverBackgroundColor: css('--slate-deep'), borderRadius: 8, maxBarThickness: 56, yAxisID: 'y', order: 2 },
-          { type: 'line', label: 'Change', data: pts.map(function (p) { return p.change_pct; }), borderColor: ink, backgroundColor: ink, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2.5, tension: 0.35, spanGaps: true, yAxisID: 'pct', order: 1 }
+          { type: 'line', label: 'Change', data: pts.map(function (p) { return p.change_pct; }), borderColor: red, backgroundColor: red, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2.5, tension: 0.35, spanGaps: true, yAxisID: 'pct', order: 1 }
         ]
       },
       options: {
@@ -292,7 +292,7 @@
         scales: {
           x: { grid: { display: false }, ticks: { color: muted, font: font }, border: { color: line } },
           y: { beginAtZero: true, grid: { color: line }, border: { display: false }, ticks: { color: muted, font: font, maxTicksLimit: 5, callback: function (v) { return short(v); } } },
-          pct: { position: 'right', grid: { display: false }, border: { display: false }, ticks: { color: ink, font: font, maxTicksLimit: 5, callback: function (v) { return v + '%'; } } }
+          pct: { position: 'right', grid: { display: false }, border: { display: false }, ticks: { color: red, font: font, maxTicksLimit: 5, callback: function (v) { return v + '%'; } } }
         }
       }
     });

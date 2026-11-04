@@ -26,7 +26,7 @@
 .pg-tabs { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .pg-code, .pg-json { margin: 0; overflow: auto; padding: 14px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-mono); font-size: .8rem; line-height: 1.5; white-space: pre; }
 .pg-json { max-height: 640px; }
-.pg-json .k { color: var(--accent); } .pg-json .s { color: var(--accent-2); } .pg-json .n { color: var(--good); } .pg-json .b { color: #b48cff; } .pg-json .z { color: var(--muted); }
+.pg-json .k { color: var(--accent); } .pg-json .s { color: var(--accent-2); } .pg-json .n { color: var(--good); } .pg-json .b { color: var(--warn); } .pg-json .z { color: var(--muted); }
 .badge.s2 { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, var(--line)); }
 .badge.s4 { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
 .badge.s5 { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); }

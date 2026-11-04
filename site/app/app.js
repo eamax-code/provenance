@@ -190,12 +190,12 @@
     var bw = iw / pts.length;
     pts.forEach(function (p, idx) {
       var v = Number(p.value), x = padL + idx * bw + bw * 0.15, h = Math.abs(y(v) - y(0));
-      var rect = mk('rect', { x: x, y: Math.min(y(v), y(0)), width: Math.max(2, bw * 0.7), height: Math.max(1, h), rx: 2, class: 'bar' + (p.derived ? ' derived' : '') + (v < 0 ? ' neg' : '') });
+      var rect = mk('rect', { x: x, y: Math.min(y(v), y(0)), width: Math.max(2, bw * 0.7), height: Math.max(1, h), rx: 2, class: 'bar' + (p.derived ? ' derived' : '') + (v < 0 ? ' neg' : '') + (idx === pts.length - 1 ? ' latest' : '') });
       var title = document.createElementNS(NS, 'title'); title.textContent = p.period_end + ': ' + Number(p.value).toLocaleString('en-US') + ' ' + p.unit + (p.derived ? ' (derived)' : '') + ' · ' + p.quality_status; rect.appendChild(title);
       svg.appendChild(rect);
       if (pts.length <= 12 || idx % Math.ceil(pts.length / 12) === 0) { var xl = mk('text', { x: x + bw * 0.35, y: H - padB + 16, 'text-anchor': 'middle' }); xl.textContent = p.period_end.slice(0, 7); svg.appendChild(xl); }
     });
-    var cap = mk('text', { x: W - padR, y: H - 6, 'text-anchor': 'end' }); cap.textContent = $('f-metric').value + ' · ' + (pts[0].unit || '') + ' · amber = derived by subtraction'; svg.appendChild(cap);
+    var cap = mk('text', { x: W - padR, y: H - 6, 'text-anchor': 'end' }); cap.textContent = $('f-metric').value + ' · ' + (pts[0].unit || '') + ' · grey = derived by subtraction, red = latest'; svg.appendChild(cap);
   }
 
   /* ---- filings ---- */

@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b2f33">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
 <title>Provenance Filings API</title>
 <meta name="description" content="Source-linked SEC filing facts for developers and AI agents: company identity, filings, normalized XBRL financials, freshness and signed notifications. Independent of the SEC.">
 <link rel="alternate" type="application/json" href="/openapi.json" title="OpenAPI">
@@ -26,38 +28,22 @@
 }
 </script>
 <style>
-/* Layout: a 12-column grid on a dark "instrument panel"; one glowing data strip in the hero,
-   everything else quiet. Dark-first; light theme mirrors the token set. */
+/* Layout: a 12-column grid on a light mist canvas; one live data strip in the hero, everything
+   else quiet. Same palette and tokens as /app/app.css and the chat. */
 :root {
-  --bg: #070b14;
-  --bg-2: #0c1322;
-  --panel: #101a2e;
-  --line: #22304a;
-  --fg: #e6ecf7;
-  --muted: #8d9bb8;
-  --accent: #4fe3ff;        /* signal cyan */
-  --accent-2: #ffb547;      /* provenance amber: anything that points back to a source */
-  --accent-ink: #052028;
-  --good: #46d39a;
-  --warn: #ffb547;
+  /* Palette (60-30-10): mist canvas, charcoal and slate structure, cardinal red accent.
+     Text and buttons use --accent (deep red, 5.4:1 with white); dots, lines and charts use
+     --accent-hi, the palette's exact red. */
+  --bg: #eef2f5; --bg-2: #e6ecf0; --panel: #fff; --line: #d7dfe5; --fg: #2b2f33; --muted: #646a70;
+  --ink: #2b2f33; --brand: #627b8c; --brand-deep: #4f6575; --stone: #989397; --mist: #b8c7d2;
+  --accent: #c92f28; --accent-hi: #e83c34; --accent-2: #4f6575; --accent-ink: #fff;
+  --good: #12865a; --warn: #b45309; --bad: #b3261e;
   --font-display: "Unbounded", "Avenir Next", "Segoe UI", sans-serif;
   --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius: 6px;
   --maxw: 1180px;
-  color-scheme: dark;
-}
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #f3f6fb; --bg-2: #e9eef7; --panel: #ffffff; --line: #cfd8e8;
-    --fg: #0b1324; --muted: #4f5d78; --accent: #007a99; --accent-2: #b36a00;
-    --accent-ink: #ffffff; --good: #178a5e; --warn: #b36a00; color-scheme: light;
-  }
-}
-:root[data-theme="light"] {
-  --bg: #f3f6fb; --bg-2: #e9eef7; --panel: #ffffff; --line: #cfd8e8;
-  --fg: #0b1324; --muted: #4f5d78; --accent: #007a99; --accent-2: #b36a00;
-  --accent-ink: #ffffff; --good: #178a5e; --warn: #b36a00; color-scheme: light;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -107,8 +93,8 @@ nav.main a:hover { color: var(--fg); text-decoration: none; }
 .hero .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 .hero .facts { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 34px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); }
 .hero .facts b { display: block; color: var(--fg); font-size: 1.1rem; font-weight: 500; font-variant-numeric: tabular-nums; }
-.terminal { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent), 0 30px 80px -30px color-mix(in srgb, var(--accent) 50%, transparent); }
-.terminal::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: sweep 4s linear infinite; }
+.terminal { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); box-shadow: 0 0 0 1px var(--line), 0 30px 80px -40px color-mix(in srgb, var(--ink) 35%, transparent); }
+.terminal::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent-hi), transparent); animation: sweep 4s linear infinite; }
 @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 .terminal .bar { display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); }
 .terminal pre { border: 0; background: transparent; }
@@ -176,12 +162,10 @@ footer .wrap { display: grid; gap: 14px; }
 /* ---------- motion layer (progressive enhancement) ---------- */
 body { position: relative; overflow-x: clip; }
 .orbs { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
-.orb { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(70px); opacity: 0.32; mix-blend-mode: screen;
-  background: radial-gradient(circle at 30% 30%, var(--accent), transparent 60%); animation: drift 26s ease-in-out infinite alternate; }
+.orb { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(70px); opacity: 0.32; mix-blend-mode: multiply;
+  background: radial-gradient(circle at 30% 30%, var(--brand), transparent 60%); animation: drift 26s ease-in-out infinite alternate; }
 .orb.b { background: radial-gradient(circle at 60% 40%, var(--accent-2), transparent 60%); animation-duration: 34s; animation-delay: -12s; opacity: 0.2; }
-.orb.c { background: radial-gradient(circle at 50% 50%, #7c6cff, transparent 60%); animation-duration: 40s; animation-delay: -20s; opacity: 0.22; }
-:root[data-theme="light"] .orb, :root:not([data-theme="dark"]) .orb { mix-blend-mode: multiply; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .orb { mix-blend-mode: screen; } }
+.orb.c { background: radial-gradient(circle at 50% 50%, var(--mist), transparent 60%); animation-duration: 40s; animation-delay: -20s; opacity: 0.22; }
 @keyframes drift { 0% { transform: translate3d(-10%, -10%, 0) scale(1); } 50% { transform: translate3d(30%, 10%, 0) scale(1.15); } 100% { transform: translate3d(5%, 35%, 0) scale(0.95); } }
 
 .hero { position: relative; isolation: isolate; }
@@ -706,14 +690,13 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
     nodes = [];
     for (var i = 0; i < n; i++) nodes.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35, r: 1 + Math.random() * 1.6, p: Math.random() * Math.PI * 2 });
   }
-  function accent() { return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4fe3ff'; }
-  function amber() { return getComputedStyle(document.documentElement).getPropertyValue('--accent-2').trim() || '#ffb547'; }
+  function token(name, fallback) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
   var frame = 0;
   function draw(ts) {
     if (!running) return;
     frame++;
     ctx.clearRect(0, 0, W, H);
-    var a = accent(), b = amber(), dy = scrollY * 0.12;
+    var a = token('--brand', '#627b8c'), b = token('--accent-hi', '#e83c34'), dy = scrollY * 0.12;
     for (var i = 0; i < nodes.length; i++) {
       var p = nodes[i];
       var ddx = mouse.x - p.x, ddy = (mouse.y - dy) - p.y, d2 = ddx * ddx + ddy * ddy;

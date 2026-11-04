@@ -117,7 +117,7 @@
     var bw = (W - L - R) / pts.length;
     pts.forEach(function (p, i) {
       var v = Number(p.value), x = L + i * bw + bw * 0.18;
-      var r = mk('rect', { x: x, y: Math.min(y(v), y(0)), width: Math.max(2, bw * 0.64), height: Math.max(1, Math.abs(y(v) - y(0))), rx: 2, class: 'bar' + (v < 0 ? ' neg' : '') });
+      var r = mk('rect', { x: x, y: Math.min(y(v), y(0)), width: Math.max(2, bw * 0.64), height: Math.max(1, Math.abs(y(v) - y(0))), rx: 2, class: 'bar' + (v < 0 ? ' neg' : '') + (i === pts.length - 1 ? ' latest' : '') });
       var title = document.createElementNS(NS, 'title'); title.textContent = p.period_end + ': ' + Number(p.value).toLocaleString('en-US') + ' ' + p.unit; r.appendChild(title); svg.appendChild(r);
       var xl = mk('text', { x: x + bw * 0.32, y: H - B + 16, 'text-anchor': 'middle' }); xl.textContent = p.fiscal_year ? 'FY' + p.fiscal_year : p.period_end.slice(0, 4); svg.appendChild(xl);
     });
