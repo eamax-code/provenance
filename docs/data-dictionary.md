@@ -3,6 +3,12 @@
 All timestamps are UTC (`TIMESTAMPTZ`), serialized as ISO 8601 with a `Z` suffix. Dates are
 `YYYY-MM-DD`. Missing values are `null`, never `0`.
 
+These tables describe the stored columns. Some stay internal and are never returned by the API,
+the site or the chat: `first_detected_at` and `source_updated_at` on every table, `source_url`
+on `companies` (a source API address), and `source_url` on the listing tables (register files
+and feeds). Responses link only to documents and filings: a filing's EDGAR index page, and a
+company's EDGAR filing list as `filings_url`.
+
 ## Quality statuses (controlled vocabulary)
 
 | Status | Meaning |

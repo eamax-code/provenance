@@ -15,7 +15,6 @@ class MarketOut(ORMModel):
     country: str
     region: str
     source: str
-    source_url: str
     is_active: bool
     instruments_listed: int = 0
     instruments_delisted: int = 0
@@ -34,8 +33,6 @@ class IssuerOut(ORMModel):
     jurisdiction: str | None
     registration_status: str | None
     source: str
-    source_url: str | None
-    first_detected_at: datetime
     updated_at: datetime
 
 
@@ -56,9 +53,7 @@ class InstrumentOut(ORMModel):
     termination_date: date | None
     status: str
     source: str
-    source_url: str
     source_published_at: datetime | None
-    first_detected_at: datetime
     last_seen_at: datetime
     processed_at: datetime
     quality_status: str
@@ -87,7 +82,6 @@ class ListingEventOut(ORMModel):
     )
     event_date: date | None
     source: str
-    source_url: str
     details: dict | None = None
     detected_at: datetime
     quality_status: str

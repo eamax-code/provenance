@@ -45,7 +45,8 @@ def test_chat_resolves_company_and_grounds_answer(app, client, auth, items_aapl)
     assert lead and lead[0]["items"][0]["code"] == "5.02"
     context = fake.calls[0][1]["content"]
     assert "item 5.02" in context and "$391.0 billion" in context
-    assert all(c["url"].startswith("https://") for c in body["citations"])
+    assert all(c["url"].startswith("https://www.sec.gov/") for c in body["citations"])
+    assert "data.sec.gov" not in r.text and "source_url" not in body["company"]
 
 
 def test_chat_flags_numbers_not_in_context(app, client, auth, items_aapl):

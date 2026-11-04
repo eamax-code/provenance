@@ -135,6 +135,7 @@ def test_delivery_success_is_signed_and_verifiable(db, sec_client, settings):
     assert payload["data"]["source_url"].startswith(
         "https://www.sec.gov/Archives/edgar/data/320193/"
     )
+    assert "first_detected_at" not in payload["data"]
     assert req.headers["X-Event-Id"] == payload["event_id"]
     d = db.scalar(select(NotificationDelivery))
     assert d.status == "delivered" and d.delivered_at is not None and d.last_status_code == 200

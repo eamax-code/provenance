@@ -73,9 +73,11 @@ def test_company_profile_and_not_found(client, auth, ingested_aapl, settings):
     assert r.status_code == 200
     body = r.json()
     assert body["cik"] == "0000320193" and body["filings_count"] == 6 and body["facts_count"] > 0
-    assert body["ingestion_status"] == "complete" and body["source_url"].startswith(
-        "https://data.sec.gov/"
+    assert body["ingestion_status"] == "complete" and body["filings_url"] == (
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193"
     )
+    for hidden in ("source_url", "source_updated_at", "first_detected_at"):
+        assert hidden not in body
     assert client.get("/v1/companies/abc", headers=auth).status_code == 422
     # unknown CIK with on-demand ingestion enabled -> 202 then eventually 404 (SEC returns 404)
     r = client.get("/v1/companies/999", headers=auth)
@@ -158,10 +160,10 @@ def test_facts_annual_default_with_provenance(client, auth, ingested_aapl):
         "mapping_version",
         "accession_number",
         "filed_date",
-        "first_detected_at",
         "processed_at",
     ):
         assert latest[field]
+    assert "first_detected_at" not in latest
     assert (
         latest["period_type"] == "duration"
         and latest["period_class"] == "annual"

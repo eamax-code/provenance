@@ -208,8 +208,6 @@ def profile(
                 legal_name="",
                 ticker=None,
                 exchange=None,
-                source_url=f"{settings.sec_base_data_url}/submissions/CIK{cik}.json",
-                first_detected_at=utcnow(),
                 last_processed_at=None,
                 quality_status="unavailable",
                 ingestion_status="processing",
@@ -458,7 +456,6 @@ def _row_to_normalized(r: FinancialFact):
 
 def _derived_out(cik: str, d, source_rows: list[FinancialFact]) -> FactOut:
     now_rows = [r for r in source_rows if r.accession_number == d.accession_number]
-    detected = min((r.first_detected_at for r in now_rows), default=None)
     processed = max((r.processed_at for r in now_rows), default=None)
     return FactOut(
         cik=cik,
@@ -484,6 +481,5 @@ def _derived_out(cik: str, d, source_rows: list[FinancialFact]) -> FactOut:
         derivation=d.derivation,
         revision_count=1,
         is_latest_revision=True,
-        first_detected_at=detected or utcnow(),
         processed_at=processed or utcnow(),
     )

@@ -146,7 +146,7 @@ A fact looks like this (values illustrative):
   "source_tag": "RevenueFromContractWithCustomerExcludingAssessedTax", "source_taxonomy": "us-gaap",
   "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.html",
   "mapping_version": "1.1.0", "quality_status": "ok", "derived": false,
-  "revision_count": 1, "first_detected_at": "2026-10-17T12:05:00Z", "processed_at": "2026-10-17T12:05:02Z"
+  "revision_count": 1, "processed_at": "2026-10-17T12:05:02Z"
 }
 ```
 

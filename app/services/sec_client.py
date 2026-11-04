@@ -114,6 +114,11 @@ def ticker_exchange_url(base: str = "https://www.sec.gov") -> str:
     return f"{base}/files/company_tickers_exchange.json"
 
 
+def company_filings_url(cik: str, base: str = "https://www.sec.gov") -> str:
+    """The EDGAR page that lists a company's filings."""
+    return f"{base}/cgi-bin/browse-edgar?action=getcompany&CIK={normalize_cik(cik)}"
+
+
 def filing_index_url(cik: str, accession_number: str, base: str = "https://www.sec.gov") -> str:
     cik_int = str(int(normalize_cik(cik)))
     acc_nodash = accession_number.replace("-", "")

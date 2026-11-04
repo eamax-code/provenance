@@ -176,7 +176,6 @@ def _filing_event(pos: Cursor, f: Filing, name: str, ticker: str | None) -> dict
             "filing_date": f.filing_date.isoformat() if f.filing_date else None,
             "report_date": f.report_date.isoformat() if f.report_date else None,
             "accepted_at": iso_z(f.accepted_at),
-            "first_detected_at": iso_z(f.first_detected_at),
             "source_url": f.source_url,
         },
     }
@@ -204,7 +203,6 @@ def _listing_event(pos: Cursor, e: ListingEvent) -> dict:
             "event_date": e.event_date.isoformat() if e.event_date else None,
             "detected_at": iso_z(e.detected_at),
             "source": e.source,
-            "source_url": e.source_url,
             "details": details,
             "quality_status": e.quality_status,
         },

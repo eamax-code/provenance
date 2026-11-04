@@ -21,12 +21,6 @@ def company_freshness(db: Session, company: Company, settings: Settings, now=Non
         .order_by(Filing.filing_date.desc().nulls_last(), Filing.accession_number.desc())
         .limit(1)
     )
-    latest_detected = db.scalar(
-        select(Filing)
-        .where(Filing.cik == company.cik)
-        .order_by(Filing.first_detected_at.desc(), Filing.accession_number.desc())
-        .limit(1)
-    )
 
     latest_filing = None
     if latest is not None:
@@ -55,7 +49,6 @@ def company_freshness(db: Session, company: Company, settings: Settings, now=Non
             "filing_date": latest.filing_date,
             "accepted_at": latest.accepted_at,
             "source_published_at": latest.source_published_at,
-            "first_detected_at": latest.first_detected_at,
             "processed_at": latest.processed_at,
             "publication_to_detection_seconds": None,
             "acceptance_to_detection_seconds": acceptance_to_detection,
@@ -64,8 +57,8 @@ def company_freshness(db: Session, company: Company, settings: Settings, now=Non
             "quality_status": latest.quality_status,
         }
         notes.append(
-            "publication_to_detection_seconds is always null: the SEC submissions feed exposes an "
-            "acceptance timestamp, not a public-dissemination timestamp."
+            "publication_to_detection_seconds is always null: the SEC gives an acceptance "
+            "timestamp, not a public-dissemination timestamp."
         )
         notes.append(
             "source_date_age_seconds is measured from the date-only filing_date at 00:00 UTC and "
@@ -98,11 +91,9 @@ def company_freshness(db: Session, company: Company, settings: Settings, now=Non
         "cik": company.cik,
         "last_successful_fetch_at": last_fetch,
         "last_successful_fetch_age_seconds": age_seconds,
-        "source_updated_at": company.source_updated_at,
         "last_fetch_error_at": company.last_fetch_error_at,
         "last_fetch_error": company.last_fetch_error,
         "latest_filing": latest_filing,
-        "latest_detected_filing_at": latest_detected.first_detected_at if latest_detected else None,
         "ingestion": {
             "last_run_started_at": last_run.started_at if last_run else None,
             "last_run_finished_at": last_run.finished_at if last_run else None,

@@ -19,6 +19,7 @@ from app.services import officer_changes
 from app.services.company_lookup import search_companies
 from app.services.form8k import ITEM_TITLES, LEADERSHIP_ITEM, split_items
 from app.services.point_in_time import known_by
+from app.services.sec_client import company_filings_url
 
 METRIC_LABELS = {
     "revenue": "Revenue",
@@ -215,7 +216,7 @@ def annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> lis
 
 def build_brief(db: Session, company: Company, as_of: date | None = None) -> Brief:
     b = Brief(company=company, as_of=as_of)
-    n = b.cite("SEC company profile", company.source_url)
+    n = b.cite("SEC EDGAR filing list", company_filings_url(company.cik))
     parts = [f"[{n}] Company: {company.legal_name}"]
     if company.ticker:
         parts.append(f" (ticker {company.ticker}, {company.exchange})")

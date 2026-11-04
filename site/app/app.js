@@ -127,7 +127,7 @@
       badges.appendChild(el('span', { class: 'badge ' + c.ingestion_status, text: c.ingestion_status }));
       badges.appendChild(el('span', { class: 'badge ' + c.quality_status, text: 'quality ' + c.quality_status }));
       badges.appendChild(el('span', { class: 'badge', text: (c.filings_count || 0) + ' filings · ' + (c.facts_count || 0) + ' facts' }));
-      var src = el('a', { class: 'badge', href: c.source_url, target: '_blank', rel: 'noopener', text: 'SEC source ↗' }); badges.appendChild(src);
+      var src = el('a', { class: 'badge', href: c.filings_url, target: '_blank', rel: 'noopener', text: 'SEC filings ↗' }); badges.appendChild(src);
       if (res.status === 202) {
         var wait = parseInt(res.headers.get('Retry-After') || '10', 10) * 1000;
         toast('This company is being ingested from the SEC. Refreshing in ' + Math.round(wait / 1000) + 's…');
@@ -208,11 +208,11 @@
     if ($('fl-since').value) params.set('since', $('fl-since').value);
     api('/v1/companies/' + c.cik + '/filings?' + params).then(function (res) {
       var tb = $('filings-table').querySelector('tbody'); if (!append) tb.innerHTML = '';
-      if (!res.body.data.length && !append) tb.appendChild(el('tr', {}, [el('td', { colspan: '7', class: 'skeleton', text: 'No filings match.' })]));
+      if (!res.body.data.length && !append) tb.appendChild(el('tr', {}, [el('td', { colspan: '6', class: 'skeleton', text: 'No filings match.' })]));
       res.body.data.forEach(function (f) {
         tb.appendChild(el('tr', {}, [
           el('td', { class: 'mono', text: f.filing_date || 'null' }), el('td', { text: f.form_type }), el('td', { class: 'mono', text: f.accession_number }),
-          el('td', { class: 'mono', text: fmtTs(f.accepted_at) }), el('td', { class: 'mono', text: fmtTs(f.first_detected_at) }),
+          el('td', { class: 'mono', text: fmtTs(f.accepted_at) }),
           el('td', {}, [el('span', { class: 'badge ' + f.quality_status, text: f.quality_status })]),
           el('td', {}, [el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: 'SEC index ↗' })])
         ]));
@@ -229,11 +229,11 @@
       var d = res.body, grid = $('fresh-grid'); grid.innerHTML = '';
       var kv = function (k, v, cls) { grid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v' + (cls ? ' ' + cls : ''), text: v })])); };
       kv('status', d.status); kv('last successful SEC fetch', fmtTs(d.last_successful_fetch_at)); kv('fetch age (s)', d.last_successful_fetch_age_seconds == null ? 'null' : String(d.last_successful_fetch_age_seconds));
-      kv('source Last-Modified', fmtTs(d.source_updated_at)); kv('last fetch error', d.last_fetch_error || 'none');
+      kv('last fetch error', d.last_fetch_error || 'none');
       if (d.latest_filing) {
         var lf = d.latest_filing;
         kv('latest filing', lf.form_type + ' ' + lf.accession_number); kv('filing date', lf.filing_date || 'null'); kv('SEC accepted_at', fmtTs(lf.accepted_at));
-        kv('first detected', fmtTs(lf.first_detected_at)); kv('processed', fmtTs(lf.processed_at));
+        kv('processed', fmtTs(lf.processed_at));
         kv('publication → detection (s)', lf.publication_to_detection_seconds == null ? 'null (SEC gives no publication time)' : String(lf.publication_to_detection_seconds));
         kv('acceptance → detection (s)', lf.acceptance_to_detection_seconds == null ? 'null' : String(lf.acceptance_to_detection_seconds));
         kv('processing (s)', lf.processing_seconds == null ? 'null' : String(lf.processing_seconds));

@@ -39,14 +39,14 @@ DESCRIPTION = """
 **Provenance** is a developer API for US public-company identity, SEC filings, normalized
 XBRL financial facts, freshness tracking, filing notifications and bounded exports.
 
-**Data source:** official SEC EDGAR endpoints (data.sec.gov, www.sec.gov). Every filing and
-fact carries a `source_url` pointing at the SEC record it came from.
+**Data source:** SEC EDGAR filings. Every filing and fact carries a `source_url` pointing at
+the filing it came from.
 
 **Independence:** this service is independent and is not affiliated with or endorsed by the
 U.S. Securities and Exchange Commission.
 
 **Limitations:** no stock prices or market data; facts are limited to standard us-gaap tags
-exposed by the SEC company-facts API; timestamps that the SEC does not provide are `null`;
+reported in XBRL filings; timestamps that the SEC does not provide are `null`;
 coverage is limited to companies that have been ingested. Nothing here is investment advice.
 Review the underlying filing before relying on a value.
 """

@@ -81,9 +81,8 @@ def test_company_bundle(client, ingested_aapl, fake_sec):
     r = client.get("/v1/public/companies/320193")
     assert r.status_code == 200, r.text
     b = r.json()
-    assert b["company"]["cik"] == "0000320193" and b["company"]["source_url"].startswith(
-        "https://data.sec.gov/"
-    )
+    assert b["company"]["cik"] == "0000320193" and "source_url" not in b["company"]
+    assert "data.sec.gov" not in r.text and "first_detected_at" not in r.text
     assert len(b["filings"]) == 6 and b["filings"][0]["accession_number"] == "0000320193-24-000123"
     assert (
         b["filings"][0]["accepted_at"] == "2024-11-01T06:01:36Z"

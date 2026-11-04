@@ -30,7 +30,7 @@ from app.services import (
 )
 from app.services.company_lookup import search_companies
 from app.services.llm import LLMUnavailable, LocalLLM
-from app.services.sec_client import normalize_cik
+from app.services.sec_client import company_filings_url, normalize_cik
 
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
 chat_limiter = FixedWindowRateLimiter(window_seconds=60)
@@ -110,7 +110,7 @@ def _company_dict(c: Company) -> dict:
         "exchange": c.exchange,
         "sic_code": c.sic_code,
         "sic_description": c.sic_description,
-        "source_url": c.source_url,
+        "filings_url": company_filings_url(c.cik),
     }
 
 

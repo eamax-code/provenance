@@ -141,6 +141,10 @@ def test_filters(add_listings, client, auth, db, sec_client, fake_sec, submissio
         return [e["kind"] for e in r.json()["data"]]
 
     assert sorted(kinds("")) == ["filing", "listing", "listing"]
+    feed = client.get("/v1/events?" + SINCE.lstrip("&"), headers=auth).json()["data"]
+    for e in feed:
+        assert "first_detected_at" not in e["data"]
+        assert e["kind"] == "filing" or "source_url" not in e["data"]
     assert kinds("types=filing") == ["filing"]
     assert kinds("cik=320193") == ["filing"]
     assert kinds("form_type=8-k") == ["filing"]

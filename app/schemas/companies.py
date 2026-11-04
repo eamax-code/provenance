@@ -3,9 +3,10 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, computed_field, field_serializer, field_validator
 
 from app.schemas.common import ORMModel, PageMeta
+from app.services.sec_client import company_filings_url
 
 
 class CompanyOut(ORMModel):
@@ -18,9 +19,6 @@ class CompanyOut(ORMModel):
     entity_type: str | None = None
     state_of_incorporation: str | None = None
     fiscal_year_end: str | None = Field(default=None, description="MMDD as reported by SEC")
-    source_url: str
-    source_updated_at: datetime | None = None
-    first_detected_at: datetime
     last_processed_at: datetime | None
     quality_status: str
     ingestion_status: str = Field(
@@ -30,6 +28,11 @@ class CompanyOut(ORMModel):
         default=None,
         description="Search only: cik | ticker | name_exact | name_prefix | name_contains",
     )
+
+    @computed_field(description="The company's filing list on SEC EDGAR")
+    @property
+    def filings_url(self) -> str:
+        return company_filings_url(self.cik)
 
 
 class CompanyList(BaseModel):
@@ -59,10 +62,9 @@ class FilingOut(ORMModel):
     primary_document: str | None = None
     items: list[str] = Field(
         default_factory=list,
-        description="8-K item codes from the SEC submissions data, e.g. 5.02 (officer changes)",
+        description="8-K item codes listed on the filing, e.g. 5.02 (officer changes)",
     )
-    source_url: str
-    first_detected_at: datetime
+    source_url: str = Field(description="The filing's index page on SEC EDGAR")
     processed_at: datetime | None
     quality_status: str
 
@@ -109,7 +111,6 @@ class FactOut(ORMModel):
         default=1, description="Number of stored observations for the same metric/unit/period"
     )
     is_latest_revision: bool = True
-    first_detected_at: datetime
     processed_at: datetime
 
     @field_serializer("value")
@@ -139,7 +140,6 @@ class LatestFilingFreshness(BaseModel):
     filing_date: date | None
     accepted_at: datetime | None
     source_published_at: datetime | None
-    first_detected_at: datetime
     processed_at: datetime | None
     publication_to_detection_seconds: float | None
     acceptance_to_detection_seconds: float | None
@@ -161,11 +161,9 @@ class FreshnessOut(BaseModel):
     cik: str
     last_successful_fetch_at: datetime | None
     last_successful_fetch_age_seconds: int | None
-    source_updated_at: datetime | None
     last_fetch_error_at: datetime | None
     last_fetch_error: str | None
     latest_filing: LatestFilingFreshness | None
-    latest_detected_filing_at: datetime | None
     ingestion: IngestionFreshness
     status: str
     notes: list[str]

@@ -39,7 +39,7 @@
 - GET /v1/markets/events?type={new_listing|ipo|delisting|modified|suspended|reinstated}&region=&mic=&since=
 - GET /v1/markets/issuers/{lei}
 - new_listing = instrument first traded on a venue recently; NOT an IPO determination. ipo only when the source states it.
-- Sources: ESMA FIRDS, FCA FIRDS, GLEIF (CC0). Rows carry source and source_url.
+- Sources: ESMA FIRDS, FCA FIRDS, GLEIF (CC0). Rows carry source.
 
 ## Interpreting facts
 - Every fact has source_url (SEC filing index), source_tag (XBRL concept), accession_number,

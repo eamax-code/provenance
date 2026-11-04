@@ -82,7 +82,6 @@ def build_event_payload(
             "filing_date": filing.filing_date.isoformat() if filing.filing_date else None,
             "accepted_at": iso_z(filing.accepted_at),
             "source_url": filing.source_url,
-            "first_detected_at": iso_z(filing.first_detected_at),
         },
     }
 

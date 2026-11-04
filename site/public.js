@@ -66,12 +66,12 @@
       $('co-meta').textContent = [c.ticker, c.exchange, c.sic_description, c.state_of_incorporation ? 'inc. ' + c.state_of_incorporation : null, c.fiscal_year_end ? 'FYE ' + c.fiscal_year_end : null].filter(Boolean).join(' · ');
       var badges = $('co-badges'); badges.innerHTML = '';
       badges.appendChild(el('span', { class: 'badge ' + c.quality_status, text: 'quality ' + c.quality_status }));
-      badges.appendChild(el('a', { class: 'badge', href: c.source_url, target: '_blank', rel: 'noopener', text: 'SEC submissions ↗' }));
+      badges.appendChild(el('a', { class: 'badge', href: c.filings_url, target: '_blank', rel: 'noopener', text: 'SEC filings ↗' }));
       badges.appendChild(el('span', { class: 'badge', text: 'mapping ' + b.mapping_version }));
       /* filings */
       var tb = $('co-filings').querySelector('tbody'); tb.innerHTML = '';
       b.filings.forEach(function (f) {
-        tb.appendChild(el('tr', {}, [el('td', { class: 'mono', text: f.filing_date || 'null' }), el('td', { text: f.form_type }), el('td', { class: 'mono', text: f.accession_number }), el('td', { class: 'mono', text: fmtTs(f.accepted_at) }), el('td', { class: 'mono', text: fmtTs(f.first_detected_at) }), el('td', {}, [el('span', { class: 'badge ' + f.quality_status, text: f.quality_status })]), el('td', {}, [el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: 'SEC index ↗' })])]));
+        tb.appendChild(el('tr', {}, [el('td', { class: 'mono', text: f.filing_date || 'null' }), el('td', { text: f.form_type }), el('td', { class: 'mono', text: f.accession_number }), el('td', { class: 'mono', text: fmtTs(f.accepted_at) }), el('td', {}, [el('span', { class: 'badge ' + f.quality_status, text: f.quality_status })]), el('td', {}, [el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: 'SEC index ↗' })])]));
       });
       /* metrics */
       var wrap = $('co-metrics'); wrap.innerHTML = '';
@@ -99,7 +99,7 @@
       var fr = b.freshness, grid = $('co-fresh'); grid.innerHTML = '';
       var kv = function (k, v) { grid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
       kv('status', fr.status); kv('last successful SEC fetch', fmtTs(fr.last_successful_fetch_at)); kv('fetch age (s)', fr.last_successful_fetch_age_seconds == null ? 'null' : String(fr.last_successful_fetch_age_seconds));
-      if (fr.latest_filing) { var lf = fr.latest_filing; kv('latest filing', lf.form_type + ' ' + lf.accession_number); kv('SEC accepted_at', fmtTs(lf.accepted_at)); kv('first detected', fmtTs(lf.first_detected_at)); kv('processed', fmtTs(lf.processed_at)); kv('publication → detection (s)', lf.publication_to_detection_seconds == null ? 'null (SEC publishes no dissemination time)' : String(lf.publication_to_detection_seconds)); kv('acceptance → detection (s)', lf.acceptance_to_detection_seconds == null ? 'null' : String(lf.acceptance_to_detection_seconds)); }
+      if (fr.latest_filing) { var lf = fr.latest_filing; kv('latest filing', lf.form_type + ' ' + lf.accession_number); kv('SEC accepted_at', fmtTs(lf.accepted_at)); kv('processed', fmtTs(lf.processed_at)); kv('publication → detection (s)', lf.publication_to_detection_seconds == null ? 'null (SEC publishes no dissemination time)' : String(lf.publication_to_detection_seconds)); kv('acceptance → detection (s)', lf.acceptance_to_detection_seconds == null ? 'null' : String(lf.acceptance_to_detection_seconds)); }
       var notes = $('co-notes'); notes.innerHTML = ''; fr.notes.concat(b.notes).forEach(function (n) { notes.appendChild(el('li', { text: n })); });
       $('co-body').hidden = false;
     }).catch(function () { setState('co-state', 'Live data unavailable right now.'); });
@@ -220,7 +220,7 @@
           el('td', { class: 'mono', text: e.isin || e.symbol || e.listing_key }),
           el('td', { text: e.mic + ' · ' + (v.name || '') + (v.country ? ' (' + v.country + ')' : '') }),
           el('td', { class: 'mono', text: e.event_date || 'null' }),
-          el('td', {}, [el('a', { href: e.source_url, target: '_blank', rel: 'noopener', text: e.source + ' ↗' })])
+          el('td', { text: e.source })
         ]));
       });
       var m = $('listings-meta'); if (m) m.textContent = res.body.data.length + ' events · generated ' + fmtTs(res.body.generated_at);

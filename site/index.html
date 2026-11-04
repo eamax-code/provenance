@@ -312,8 +312,7 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
   <span class="k">"source_url"</span>: <span class="s">"https://www.sec.gov/Archives/edgar/data/320193/…"</span>,
   <span class="k">"mapping_version"</span>: <span class="s">"1.1.0"</span>,
   <span class="k">"quality_status"</span>: <span class="s">"ok"</span>,
-  <span class="k">"derived"</span>: <span class="n">false</span>,
-  <span class="k">"first_detected_at"</span>: <span class="s">"2026-10-17T12:05:00Z"</span>
+  <span class="k">"derived"</span>: <span class="n">false</span>
 }  <span class="c">// shape from the live API; values illustrative</span></pre>
     </div>
   </div>
@@ -330,13 +329,13 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
       <div class="sec-head">
         <p class="eyebrow">What you get</p>
         <h2>Seven capabilities, one contract, no market data.</h2>
-        <p class="muted">Built on data.sec.gov and www.sec.gov only. No quotes, no estimates, no news, no vendor feeds, so nothing you redistribute carries someone else's licence.</p>
+        <p class="muted">Built on SEC EDGAR filings only. No quotes, no estimates, no news, no vendor feeds, so nothing you redistribute carries someone else's licence.</p>
       </div>
       <div class="grid3">
         <div class="tile"><span class="mono">GET /v1/companies/search</span><h3>Company lookup</h3><p>Ticker, CIK or name. CIKs normalize to 10 digits; tickers are case-insensitive; name matches are ranked and labelled, never claimed as definitive.</p></div>
         <div class="tile"><span class="mono">GET /v1/companies/{cik}/filings</span><h3>Recent filings</h3><p>Form type, filing date, SEC acceptance timestamp when the source has one, accession number and the filing index URL. Newest first, stable tie-break.</p></div>
         <div class="tile"><span class="mono">GET /v1/companies/{cik}/facts</span><h3>Normalized facts</h3><p>Revenue, operating income, net income, total assets, operating cash flow. Units, periods, source tag, mapping version and quality status on every row.</p></div>
-        <div class="tile"><span class="mono">GET /v1/companies/{cik}/freshness</span><h3>Freshness you can measure</h3><p>Last successful fetch, first-detected and processed times, and latency only where two comparable timestamps exist. No invented SLA.</p></div>
+        <div class="tile"><span class="mono">GET /v1/companies/{cik}/freshness</span><h3>Freshness you can measure</h3><p>Last successful fetch, processing time, and latency only where two comparable timestamps exist. No invented SLA.</p></div>
         <div class="tile"><span class="mono">POST /v1/watches</span><h3>Filing notifications</h3><p>Webhooks signed with HMAC-SHA256, at-least-once with stable event IDs, retries with backoff, delivery status you can query.</p></div>
         <div class="tile"><span class="mono">GET /v1/exports/facts</span><h3>Bounded exports</h3><p>CSV or JSON with every provenance column, capped per request and metered by rows and bytes. Full-universe dumps are refused by design.</p></div>
       </div>
@@ -354,7 +353,7 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
       <div class="flow" aria-label="Ingestion pipeline">
         <div class="step"><span class="mono">01 fetch</span>Conditional requests to the SEC with a descriptive User-Agent, rate limiting and backoff.</div>
         <div class="step"><span class="mono">02 identify</span>CIK becomes the canonical ID. Tickers are attributes, not identity.</div>
-        <div class="step"><span class="mono">03 upsert</span>Filings keyed by CIK + accession. Re-ingestion changes nothing; first-detected time is kept.</div>
+        <div class="step"><span class="mono">03 upsert</span>Filings keyed by CIK + accession. Re-ingestion changes nothing.</div>
         <div class="step"><span class="mono">04 normalize</span>XBRL tags map to five metrics through a versioned, deterministic precedence list.</div>
         <div class="step"><span class="mono">05 classify</span>Period class comes from the actual duration. A 9-month year-to-date value is never called a quarter.</div>
         <div class="step"><span class="mono">06 notify</span>New accession numbers fan out to active watches as signed, deduplicated events.</div>
@@ -526,7 +525,7 @@ details[open] p { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
         <h2>Straight answers.</h2>
       </div>
       <details open><summary>Is this real-time market data?</summary><p>No. There are no prices, quotes or trading signals anywhere in the product. The API covers SEC filings and the structured facts the SEC publishes about them.</p></details>
-      <details><summary>How fresh is "fresh"?</summary><p>Watched companies are polled every five minutes by default. The freshness endpoint reports the last successful fetch, when a filing was first detected and when it was processed, and it only computes a latency figure when the SEC provides a precise acceptance timestamp to compare against.</p></details>
+      <details><summary>How fresh is "fresh"?</summary><p>Watched companies are polled every five minutes by default. The freshness endpoint reports the last successful fetch and when the latest filing was processed, and it only computes a latency figure when the SEC provides a precise acceptance timestamp to compare against.</p></details>
       <details><summary>Which metrics and companies are covered?</summary><p>Five canonical metrics from standard us-gaap tags exposed by the SEC company-facts API, for companies that have been ingested. Coverage grows on demand: looking up a CIK triggers ingestion. IFRS filers and custom extension tags are not covered yet, and a missing value means the SEC endpoint did not expose it.</p></details>
       <details><summary>Can I redistribute the data?</summary><p>Everything comes from SEC-hosted sources and each row links to its filing. Before building a bulk redistribution product on top, read our data-rights page and get your own legal review; we document the open questions rather than pretend they are settled.</p></details>
       <details><summary>How do webhooks stay trustworthy?</summary><p>Each watch gets its own secret. Deliveries carry a timestamp and an HMAC-SHA256 signature over the body, a stable event ID for deduplication, and we never follow redirects or deliver to private network addresses.</p></details>

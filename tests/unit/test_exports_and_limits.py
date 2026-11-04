@@ -53,7 +53,7 @@ def test_csv_escaping_and_nulls():
     row = dict(zip(EXPORT_COLUMNS, rows[1], strict=True))
     assert row["source_tag"] == 'Tag "quoted", with, commas\nand newline ✓'
     assert row["value"] == "" and row["currency"] == "" and row["fiscal_year"] == ""
-    assert row["first_detected_at"] == "2026-10-17T12:00:00Z" and row["derived"] == "false"
+    assert row["processed_at"].endswith("Z") and row["derived"] == "false"
 
 
 def test_csv_preserves_sign_and_decimal_without_exponent():

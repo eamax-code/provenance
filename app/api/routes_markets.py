@@ -31,8 +31,8 @@ _ERRORS = {
 }
 
 NOTES = [
-    "Listing data comes from official regulator registers and exchange lists (see source and "
-    "source_url on each row); coverage is limited to the venues this deployment ingests.",
+    "Listing data comes from official regulator registers and exchange lists (see source on "
+    "each row); coverage is limited to the venues this deployment ingests.",
     "new_listing means an instrument first traded on a venue recently; it is not an IPO "
     "determination. ipo events exist only where the source states an IPO.",
     "Independent service, not affiliated with ESMA, the FCA, the CSA, TMX or any exchange.",

@@ -295,10 +295,10 @@ def test_export_csv_and_json_with_limits(client, auth, ingested_aapl, db):
         "source_url",
         "mapping_version",
         "quality_status",
-        "first_detected_at",
         "processed_at",
     ):
         assert col in rows[0]
+    assert "first_detected_at" not in rows[0]
     assert all(row["source_url"].startswith("https://www.sec.gov/") for row in rows)
     assert all(
         row["quality_status"] in ("ok", "partial") for row in rows

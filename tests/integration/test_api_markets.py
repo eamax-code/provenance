@@ -96,9 +96,7 @@ def test_markets_require_key_and_list_counts(client, auth, db):
     assert r.status_code == 200, r.text
     by_mic = {m["mic"]: m for m in r.json()["data"]}
     assert by_mic["XPAR"]["instruments_listed"] == 2 and by_mic["XTSE"]["instruments_delisted"] == 1
-    assert by_mic["XLON"]["region"] == "uk" and by_mic["XLON"]["source_url"].startswith(
-        "https://data.fca.org.uk"
-    )
+    assert by_mic["XLON"]["region"] == "uk" and "source_url" not in by_mic["XLON"]
     assert any("not an IPO determination" in n for n in r.json()["notes"])
 
 
@@ -140,9 +138,9 @@ def test_instrument_detail_and_issuer(client, auth, db):
     assert [x["mic"] for x in body["listings"]] == ["XLON", "XPAR"] and body["issuer"][
         "lei"
     ] == "529900S21EQ1BO4ESM68"
-    assert body["listings"][0]["source_url"] and body["listings"][0]["first_detected_at"].endswith(
-        "Z"
-    )
+    assert body["listings"][0]["source"] and body["listings"][0]["processed_at"].endswith("Z")
+    for hidden in ("source_url", "first_detected_at"):
+        assert hidden not in body["listings"][0] and hidden not in body["issuer"]
     assert (
         client.get("/v1/markets/instruments/FR0000120272", headers=auth).status_code == 422
     )  # bad check digit

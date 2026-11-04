@@ -31,7 +31,6 @@ EXPORT_COLUMNS = [
     "mapping_version",
     "quality_status",
     "derived",
-    "first_detected_at",
     "processed_at",
 ]
 
