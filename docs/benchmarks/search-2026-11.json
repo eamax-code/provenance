@@ -1,0 +1,2791 @@
+{
+ "table": [
+  {
+   "setup": "keyword",
+   "within_strict": 0.26666666666666666,
+   "within_lenient": 0.6,
+   "within_mrr": 0.17777777777777778,
+   "across_strict": 0.0,
+   "across_lenient": 0.1,
+   "across_mrr": 0,
+   "p50_ms": 15.050354064442217,
+   "p95_ms": 212.72670780308545
+  },
+  {
+   "setup": "vector, nomic-embed-text",
+   "within_strict": 0.26666666666666666,
+   "within_lenient": 0.8333333333333334,
+   "within_mrr": 0.18888888888888888,
+   "across_strict": 0.3,
+   "across_lenient": 0.8333333333333334,
+   "across_mrr": 0.16055555555555556,
+   "p50_ms": 83.88187491800636,
+   "p95_ms": 93.10879185795784
+  },
+  {
+   "setup": "vector, bge-m3",
+   "within_strict": 0.4666666666666667,
+   "within_lenient": 0.9,
+   "within_mrr": 0.35555555555555557,
+   "across_strict": 0.3333333333333333,
+   "across_lenient": 0.8333333333333334,
+   "across_mrr": 0.25833333333333336,
+   "p50_ms": 179.24916639458388,
+   "p95_ms": 242.57312482222915
+  },
+  {
+   "setup": "hybrid, nomic-embed-text",
+   "within_strict": 0.3333333333333333,
+   "within_lenient": 0.7666666666666667,
+   "within_mrr": 0.25555555555555554,
+   "across_strict": 0.16666666666666666,
+   "across_lenient": 0.5333333333333333,
+   "across_mrr": 0.059444444444444446,
+   "p50_ms": 73.32077040337026,
+   "p95_ms": 318.5539999976754
+  },
+  {
+   "setup": "hybrid, bge-m3",
+   "within_strict": 0.36666666666666664,
+   "within_lenient": 0.7666666666666667,
+   "within_mrr": 0.25555555555555554,
+   "across_strict": 0.23333333333333334,
+   "across_lenient": 0.7,
+   "across_mrr": 0.08166666666666667,
+   "p50_ms": 186.09264551196247,
+   "p95_ms": 433.50074999034405
+  }
+ ],
+ "results": {
+  "keyword": {
+   "rows": [
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 1
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 5
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 2
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 3
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    }
+   ],
+   "ms": [
+    17.777875065803528,
+    317.16295797377825,
+    5.402249982580543,
+    172.24083305336535,
+    7.900709053501487,
+    136.38791698031127,
+    5.842916900292039,
+    132.83791695721447,
+    5.138584179803729,
+    113.71329193934798,
+    6.442124955356121,
+    146.42104203812778,
+    3.889082930982113,
+    32.210459001362324,
+    4.551083780825138,
+    22.74612500332296,
+    4.61045908741653,
+    21.3576250243932,
+    2.9096249490976334,
+    115.5542079359293,
+    6.570624886080623,
+    127.46166600845754,
+    3.0531662050634623,
+    121.59041687846184,
+    6.581250112503767,
+    224.79054215364158,
+    8.814624976366758,
+    215.59454197995365,
+    4.515999928116798,
+    210.35024989396334,
+    5.584666971117258,
+    212.72670780308545,
+    3.03545780479908,
+    144.25754104740918,
+    4.14891610853374,
+    175.64112483523786,
+    3.126207971945405,
+    103.52362506091595,
+    4.886999959126115,
+    118.25012508779764,
+    2.2165828850120306,
+    117.91787506081164,
+    3.427542047575116,
+    20.365457981824875,
+    3.743958892300725,
+    54.54750009812415,
+    3.8260421715676785,
+    12.322833063080907,
+    5.0698749255388975,
+    114.7229999769479,
+    3.091624937951565,
+    110.09391699917614,
+    3.906999947503209,
+    48.207208048552275,
+    4.096541088074446,
+    21.454166853800416,
+    2.467833925038576,
+    19.87533294595778,
+    4.2214160785079,
+    49.871708964928985
+   ]
+  },
+  "vector, nomic-embed-text": {
+   "rows": [
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 5
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 5
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "within",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "across",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "across",
+     "strict": 4,
+     "lenient": 3
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 3
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "across",
+     "strict": 3,
+     "lenient": 3
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 2,
+     "lenient": 1
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": 3,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "across",
+     "strict": 5,
+     "lenient": 1
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "across",
+     "strict": 5,
+     "lenient": 3
+    }
+   ],
+   "ms": [
+    840.9158329013735,
+    214.274917030707,
+    37.16254187747836,
+    90.67349997349083,
+    41.432084050029516,
+    89.62341700680554,
+    34.72762485034764,
+    88.70466705411673,
+    34.300209023058414,
+    93.06420898064971,
+    32.863707980141044,
+    91.12720796838403,
+    33.51291688159108,
+    85.81766695715487,
+    35.131959011778235,
+    86.36554214172065,
+    31.71566710807383,
+    88.0367080681026,
+    34.01612490415573,
+    91.79779188707471,
+    34.865374909713864,
+    86.95916715078056,
+    34.848958952352405,
+    89.90500005893409,
+    37.34716703183949,
+    84.68666602857411,
+    32.26679190993309,
+    90.96166677772999,
+    30.781832989305258,
+    91.52454184368253,
+    34.89283286035061,
+    84.28958291187882,
+    36.18812491185963,
+    87.14749990031123,
+    33.23437483049929,
+    87.30537490919232,
+    32.11570787243545,
+    87.54358300939202,
+    31.657041981816292,
+    87.07429096102715,
+    33.05433318018913,
+    88.98408291861415,
+    45.28566589578986,
+    94.4003330077976,
+    29.95929215103388,
+    91.67337487451732,
+    34.16891605593264,
+    86.63362497463822,
+    34.98562495224178,
+    87.50816597603261,
+    27.877457905560732,
+    88.04445806890726,
+    30.581708997488022,
+    83.4741669241339,
+    30.496833845973015,
+    89.96158302761614,
+    33.40224991552532,
+    93.10879185795784,
+    33.10274984687567,
+    93.09920901432633
+   ]
+  },
+  "vector, bge-m3": {
+   "rows": [
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 2
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "across",
+     "strict": 4,
+     "lenient": 3
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 2,
+     "lenient": 1
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 3
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "across",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "within",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "across",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "across",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 3
+    }
+   ],
+   "ms": [
+    150.3415829502046,
+    334.63937509804964,
+    138.63504212349653,
+    227.14704205282032,
+    137.05687480978668,
+    223.61925011500716,
+    132.56545783951879,
+    213.00587500445545,
+    129.65687504038215,
+    218.3573329821229,
+    137.5037080142647,
+    216.5411659516394,
+    133.27812496572733,
+    219.72958301194012,
+    128.29674989916384,
+    212.730374885723,
+    128.51254199631512,
+    212.8018750809133,
+    134.97008406557143,
+    217.27837482467294,
+    130.30691700987518,
+    233.19308296777308,
+    141.35233289562166,
+    227.96149994246662,
+    132.65095907263458,
+    222.7610000409186,
+    141.48116600699723,
+    234.18762511573732,
+    130.5226671975106,
+    234.9280829075724,
+    131.73733418807387,
+    271.530875004828,
+    129.86462493427098,
+    240.21870782598853,
+    136.99041586369276,
+    244.6456670295447,
+    137.5437080860138,
+    242.57312482222915,
+    141.5230839047581,
+    234.93133392184973,
+    141.17029192857444,
+    219.0104580949992,
+    137.04145792871714,
+    209.63091682642698,
+    130.58483297936618,
+    209.96837504208088,
+    133.55091703124344,
+    210.57058311998844,
+    129.3451669625938,
+    217.28583402000368,
+    130.12104202061892,
+    209.04908305965364,
+    130.82504202611744,
+    214.51145806349814,
+    138.25075002387166,
+    216.17629192769527,
+    130.55499992333353,
+    208.15674983896315,
+    134.86841600388288,
+    213.91683304682374
+   ]
+  },
+  "hybrid, nomic-embed-text": {
+   "rows": [
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 5
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "across",
+     "strict": 5,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "within",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "across",
+     "strict": 4,
+     "lenient": 4
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 1
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 5
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "across",
+     "strict": 3,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "across",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "across",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    }
+   ],
+   "ms": [
+    45.190209057182074,
+    449.91879211738706,
+    34.5977081451565,
+    268.95458297804,
+    45.55074987001717,
+    247.6022921036929,
+    41.13500006496906,
+    244.5856248959899,
+    41.969249956309795,
+    221.04079090058804,
+    39.935332955792546,
+    250.43724989518523,
+    42.3317919485271,
+    118.51679207757115,
+    35.35758308134973,
+    113.87295881286263,
+    34.5722499769181,
+    113.94679103977978,
+    37.67695790156722,
+    214.71458300948143,
+    40.485542034730315,
+    228.9400410372764,
+    32.22754201851785,
+    219.5361249614507,
+    42.95333311893046,
+    337.0138749014586,
+    38.742249831557274,
+    318.19945806637406,
+    37.7130419947207,
+    318.5539999976754,
+    41.23270814307034,
+    325.3622909542173,
+    38.62595814280212,
+    252.6687909848988,
+    35.995082929730415,
+    285.5672091245651,
+    34.334166906774044,
+    209.5805830322206,
+    36.090875044465065,
+    223.34162518382072,
+    29.862707946449518,
+    224.4215419050306,
+    39.03633286245167,
+    105.57045810855925,
+    33.958750078454614,
+    156.4255829434842,
+    37.35570888966322,
+    101.09079093672335,
+    38.85966702364385,
+    220.6113338470459,
+    35.13787500560284,
+    219.32150004431605,
+    31.085583148524165,
+    142.44158403016627,
+    40.852291975170374,
+    115.68716703914106,
+    35.092624835669994,
+    112.07608319818974,
+    36.40804206952453,
+    141.9825830962509
+   ]
+  },
+  "hybrid, bge-m3": {
+   "rows": [
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:use",
+     "cik": "0001527352",
+     "q": "How will Nexalin Technology spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002143060",
+     "q": "How will Essential Minerals Acquisition Corp spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:use",
+     "cik": "0002130357",
+     "q": "How will Anthropic, PBC spend the money from selling its shares?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002143060",
+     "q": "What could go badly wrong for Essential Minerals Acquisition Corp?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0001620704",
+     "q": "What could go badly wrong for Med-x?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:risk",
+     "cik": "0002152549",
+     "q": "What could go badly wrong for Redwoods Acquisition Corp II?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 1
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002130357",
+     "q": "Who holds the largest stakes in Anthropic, PBC?",
+     "scope": "across",
+     "strict": 3,
+     "lenient": 3
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0001888014",
+     "q": "Who holds the largest stakes in Akanda Corp.?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:owner",
+     "cik": "0002093536",
+     "q": "Who holds the largest stakes in Arxis?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 3
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002153476",
+     "q": "Will Tattvance Corp pay cash to its shareholders?",
+     "scope": "across",
+     "strict": 4,
+     "lenient": 4
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 3
+    },
+    {
+     "item": "pr:div",
+     "cik": "0002156779",
+     "q": "Will EuroSPAC Acquisition Corp. pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 1
+    },
+    {
+     "item": "pr:div",
+     "cik": "0001907223",
+     "q": "Will Greenland Mines Ltd pay cash to its shareholders?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002114145",
+     "q": "How much less is each new share of Tracx Logis Ltd. backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0002044950",
+     "q": "How much less is each new share of Bambusa Therapeutics backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:dil",
+     "cik": "0001953988",
+     "q": "How much less is each new share of Helio Corp backed by than the price buyers pay?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002153598",
+     "q": "Which banks are selling Frazier Life Sciences Acquisition Corp. II's shares to investors?",
+     "scope": "across",
+     "strict": 3,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002112466",
+     "q": "Which banks are selling Silentium Ltd.'s shares to investors?",
+     "scope": "across",
+     "strict": 3,
+     "lenient": 3
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:uw",
+     "cik": "0002131072",
+     "q": "Which banks are selling Harbour Island Acquisition Corp. I's shares to investors?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 4
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002150122",
+     "q": "How much were Talyxor Corp's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0002109869",
+     "q": "How much were Exascale Labs Holdings's top executives paid?",
+     "scope": "across",
+     "strict": 2,
+     "lenient": 2
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "within",
+     "strict": 1,
+     "lenient": 1
+    },
+    {
+     "item": "pr:pay",
+     "cik": "0001954227",
+     "q": "How much were Elements Ventures Group's top executives paid?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001842556",
+     "q": "Who are the people running EON Resources?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 5
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0001019034",
+     "q": "Who are the people running Bio Key International Inc?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:mgmt",
+     "cik": "0002002988",
+     "q": "Who are the people running Retension Pharmaceuticals?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002013320",
+     "q": "How much debt and equity will Eastern International Ltd. have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0002048271",
+     "q": "How much debt and equity will WeShop Holdings Ltd have after the deal?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "within",
+     "strict": 3,
+     "lenient": 1
+    },
+    {
+     "item": "pr:cap",
+     "cik": "0001402328",
+     "q": "How much debt and equity will Sunshine Biopharma have after the deal?",
+     "scope": "across",
+     "strict": 5,
+     "lenient": 5
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002100713",
+     "q": "What does iStep Learning Ltd sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 2
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": 1
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0001615219",
+     "q": "What does Decoy Therapeutics sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": 3
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "within",
+     "strict": null,
+     "lenient": null
+    },
+    {
+     "item": "pr:biz",
+     "cik": "0002096362",
+     "q": "What does AIAI Holdings Corp sell and to whom?",
+     "scope": "across",
+     "strict": null,
+     "lenient": null
+    }
+   ],
+   "ms": [
+    130.65691688098013,
+    379.53183404169977,
+    136.20775006711483,
+    395.47929214313626,
+    140.5950419139117,
+    370.19454198889434,
+    127.12354096584022,
+    349.38295814208686,
+    130.75999985449016,
+    337.05374994315207,
+    132.85074988380075,
+    362.38991701975465,
+    136.39737502671778,
+    237.89316695183516,
+    141.835916088894,
+    237.50416585244238,
+    129.3627079576254,
+    233.04612492211163,
+    132.16529204510152,
+    336.1469160299748,
+    133.12308304011822,
+    356.14754213020205,
+    130.3365840576589,
+    355.21691595204175,
+    140.9866251051426,
+    451.66529109701514,
+    136.4434170536697,
+    453.6796249449253,
+    135.175040923059,
+    445.3323751222342,
+    131.74954103305936,
+    433.50074999034405,
+    131.00608298555017,
+    376.0433329734951,
+    131.44037500023842,
+    407.2410829830915,
+    133.1080838572234,
+    327.2707078140229,
+    131.88999984413385,
+    344.1208750009537,
+    123.9223750308156,
+    340.31204087659717,
+    131.0704171191901,
+    234.27729099057615,
+    131.2076668255031,
+    273.2967499177903,
+    135.60404116287827,
+    235.3297919034958,
+    137.943958863616,
+    333.88712513260543,
+    131.97529199533165,
+    335.57204087264836,
+    136.91258314065635,
+    262.25645816884935,
+    140.5072920024395,
+    233.2995419856161,
+    129.83258301392198,
+    230.34937493503094,
+    127.41987500339746,
+    263.12675001099706
+   ]
+  }
+ }
+}

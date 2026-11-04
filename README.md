@@ -188,6 +188,12 @@ a table" use the previous answer. A plain figure question ("What was Apple's rev
 is also answered from the data. Model answers are kept short and cleaned of chatbot residue
 (greetings, recaps, "the context"); `CHAT_HUMANIZE=false` turns the clean-up off.
 
+Stored filing sections are also searchable by meaning (ADR 0008). `python
+scripts/embed_sections.py --model bge-m3` cuts them into chunks and embeds them with a local Ollama
+model into `section_chunks` (pgvector, HNSW index); `app/services/semantic_search.py` searches
+them by vector, keyword or both, within a company or across all, with a filing date cutoff.
+`python scripts/bench_search.py` reruns the 30-question benchmark in `docs/benchmarks/`.
+
 The tables are `mart_company` (one row per company: filing history, going-public dates, latest
 annual figures and five years of revenue, each with its filing) and `mart_filing_activity`
 (filings per month and form). `python scripts/build_marts.py` rebuilds them in about 20 seconds

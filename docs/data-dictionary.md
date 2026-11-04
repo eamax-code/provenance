@@ -110,6 +110,12 @@ Text read once from a filing and kept, so it can be searched and re-read without
 | `source_url` | The filing's index page on sec.gov |
 | `search_vector` | PostgreSQL only: a stored `tsvector` (English) generated from `text`, with a GIN index, used by full-text section search. Not in the ORM model. |
 
+`section_chunks` (PostgreSQL with pgvector only): each searchable section cut into chunks of
+about 1,500 characters with 200 of overlap, with `chunk_no`, the chunk `text`, a generated
+`search_vector` and one `halfvec` embedding column per model (`embedding_bge` for bge-m3, the
+default; `embedding_nomic` for nomic-embed-text), each with an HNSW index. Rows cascade with
+their section.
+
 `companies` also has PostgreSQL-only indexes for lookup: a trigram index on `lower(legal_name)`
 (typo-tolerant names, `match_type: name_fuzzy`) and one on `upper(ticker)`.
 

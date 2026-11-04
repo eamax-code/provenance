@@ -615,3 +615,27 @@ event.listen(
         "ON filing_sections USING gin (search_vector)"
     ).execute_if(dialect="postgresql"),
 )
+
+
+def _create_chunks(target, connection, **kw):
+    """section_chunks (pgvector) for a PostgreSQL schema built from the models; skipped where
+    the database is not PostgreSQL or the vector extension is not installed."""
+    if connection.dialect.name != "postgresql":
+        return
+    from sqlalchemy import text
+
+    from app.db.search_ddl import CHUNKS_DDL
+
+    if connection.execute(
+        text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")
+    ).first():
+        connection.exec_driver_sql(CHUNKS_DDL)
+
+
+def _drop_chunks(target, connection, **kw):
+    if connection.dialect.name == "postgresql":
+        connection.exec_driver_sql("DROP TABLE IF EXISTS section_chunks")
+
+
+event.listen(FilingSection.__table__, "after_create", _create_chunks)
+event.listen(FilingSection.__table__, "before_drop", _drop_chunks)
