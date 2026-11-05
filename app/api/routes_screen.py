@@ -75,8 +75,9 @@ def _screen_from_mart(db, metric, year, period, quarter, unit, order, limit, off
     paged in SQL, so only the rows shown are read."""
     m = MartFinancial
     latest = func.row_number().over(partition_by=m.cik, order_by=m.period_end.desc()).label("rn")
+    # Rank and page on the covering index alone; read whole rows only for the page shown.
     inner = (
-        select(m, latest)
+        select(m.cik, m.period_end, m.value, latest)
         .where(
             m.metric == metric,
             m.period_class == period,
@@ -90,35 +91,49 @@ def _screen_from_mart(db, metric, year, period, quarter, unit, order, limit, off
     total = int(db.scalar(select(func.count()).select_from(picked)) or 0)
     direction = picked.c.value.asc() if order == "asc" else picked.c.value.desc()
     tie = picked.c.cik.asc() if order == "asc" else picked.c.cik.desc()
-    rows = db.execute(
-        select(picked, Company.legal_name, Company.ticker, Company.exchange)
-        .join(Company, Company.cik == picked.c.cik)
+    page = (
+        select(picked.c.cik, picked.c.period_end, picked.c.value)
         .order_by(direction, tie)
         .limit(limit)
         .offset(offset)
+        .subquery()
+    )
+    shown = page.c.value.asc() if order == "asc" else page.c.value.desc()
+    rows = db.execute(
+        select(m, Company.legal_name, Company.ticker, Company.exchange)
+        .join(
+            page,
+            (m.cik == page.c.cik)
+            & (m.period_end == page.c.period_end)
+            & (m.metric == metric)
+            & (m.period_class == period)
+            & (m.unit == unit),
+        )
+        .join(Company, Company.cik == m.cik)
+        .order_by(shown, page.c.cik.asc() if order == "asc" else page.c.cik.desc())
     ).all()
     out = [
         ScreenRow(
-            cik=r.cik,
-            legal_name=r.legal_name,
-            ticker=r.ticker,
-            exchange=r.exchange,
-            metric=r.metric,
-            value=r.value,
-            unit=r.unit,
-            currency=r.currency,
-            period_start=r.period_start.isoformat() if r.period_start else None,
-            period_end=r.period_end.isoformat(),
-            fiscal_year=r.fiscal_year,
-            form_type=r.form_type,
-            filed_date=r.filed_date.isoformat() if r.filed_date else None,
-            accession_number=r.accession_number,
-            source_tag=r.source_tag,
-            source_url=r.source_url,
-            quality_status=r.quality_status,
-            mapping_version=r.mapping_version or MAPPING_VERSION,
+            cik=f.cik,
+            legal_name=name,
+            ticker=ticker,
+            exchange=exchange,
+            metric=f.metric,
+            value=f.value,
+            unit=f.unit,
+            currency=f.currency,
+            period_start=f.period_start.isoformat() if f.period_start else None,
+            period_end=f.period_end.isoformat(),
+            fiscal_year=f.fiscal_year,
+            form_type=f.form_type,
+            filed_date=f.filed_date.isoformat() if f.filed_date else None,
+            accession_number=f.accession_number,
+            source_tag=f.source_tag,
+            source_url=f.source_url,
+            quality_status=f.quality_status,
+            mapping_version=f.mapping_version or MAPPING_VERSION,
         )
-        for r in rows
+        for f, name, ticker, exchange in rows
     ]
     return _result(metric, year, period, quarter, unit, None, out, limit, offset, total)
 

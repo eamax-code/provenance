@@ -600,7 +600,16 @@ class MartFinancial(Base):
 
     __tablename__ = "mart_financials"
     __table_args__ = (
-        Index("ix_mart_financials_screen", "metric", "period_class", "unit", "period_end", "cik"),
+        # Covers the screen's ranking (value included), so it reads no table pages.
+        Index(
+            "ix_mart_financials_screen",
+            "metric",
+            "period_class",
+            "unit",
+            "period_end",
+            "cik",
+            postgresql_include=["value"],
+        ),
         Index("ix_mart_financials_company", "cik", "metric", "period_class", "period_end"),
     )
 

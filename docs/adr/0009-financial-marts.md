@@ -23,7 +23,10 @@ to rank companies.
 - Point-in-time questions (`as_of`) keep reading `financial_facts`. A mart row is the answer as
   of today, and a cut-off date can change which observation was known.
 - The screen reads the mart when no `as_of` is given (about 30–40 ms instead of 370 ms). A
-  database without built marts falls back to the observations.
+  database without built marts falls back to the observations. It ranks and pages on the
+  screen index alone (`value` is included in it) and reads whole rows only for the page shown,
+  so a cold query no longer touches a table page per company: p95 46 ms with empty caches,
+  against up to 750 ms before.
 
 **Consequences.**
 - `scripts/build_marts.py` rebuilds everything in about 2.5 minutes on the local data (1.9
