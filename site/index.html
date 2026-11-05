@@ -85,15 +85,15 @@ code, pre { font-family: var(--code); }
 .bar .wrap { display: flex; align-items: center; gap: 28px; height: var(--bar-h); }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: var(--step-body); letter-spacing: -0.03em; text-decoration: none; }
 .wordmark i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-hi); }
-.bar nav { display: flex; gap: 24px; margin-left: auto; font-size: var(--step-small); font-weight: 600; }
-.bar nav a { text-decoration: none; color: var(--soft); }
+.bar nav { position: relative; isolation: isolate; display: flex; gap: 0; margin-left: auto; font-size: var(--step-small); font-weight: 600; }
+.bar nav a { padding: 8px 12px; border-radius: 999px; text-decoration: none; color: var(--soft); transition: color var(--t-hover) ease; }
 .bar nav a:hover { color: var(--ink); }
 .menu-btn { display: none; margin-left: auto; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--radius); background: var(--surface-2); color: var(--ink); font: 600 var(--step-small) var(--face); cursor: pointer; }
 @media (max-width: 760px) {
   .menu-btn { display: inline-flex; align-items: center; }
   .bar nav { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; gap: 0; padding: 4px var(--m) 16px; background: var(--bg); font-size: var(--step-body); }
   .bar nav.open { display: flex; }
-  .bar nav a { padding: 10px 0; color: var(--ink); }
+  .bar nav a { padding: 10px 0; border-radius: 0; color: var(--ink); }
   .bar .button.small { display: none; }
 }
 
@@ -191,8 +191,7 @@ code, pre { font-family: var(--code); }
 .names button[aria-pressed="true"], .names button:hover { color: var(--ink); }
 .names p { max-width: 34ch; }
 .sheet-stage { grid-column: 7 / span 6; position: relative; height: 88svh; min-height: 620px; background: var(--surface); border-radius: var(--radius); overflow: clip; }
-.sheet { position: absolute; left: 64px; right: -48px; top: 72px; min-width: 560px; min-height: 120%; background: var(--paper); padding: 28px 30px; display: grid; align-content: start; gap: 18px; transition: opacity 200ms ease; }
-.sheet.swap { opacity: 0; }
+.sheet { position: absolute; left: 64px; right: -48px; top: 72px; min-width: 560px; min-height: 120%; background: var(--paper); padding: 28px 30px; display: grid; align-content: start; gap: 18px; }
 .sheet h3 { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
 .sheet .ui-table td:nth-child(2) { font-weight: 600; }
 .sheet .ui-table a { color: #a72a24; }
@@ -258,8 +257,10 @@ code, pre { font-family: var(--code); }
 .plan-names button::before { content: ""; width: 0.3em; height: 0.3em; border-radius: 50%; background: transparent; }
 .plan-names button[aria-pressed="true"], .plan-names button:hover { color: var(--ink); }
 .plan-names button[aria-pressed="true"]::before { background: var(--accent-hi); }
-.plan-stage { grid-column: 8 / span 5; position: sticky; top: 96px; display: grid; gap: 18px; transition: opacity 200ms ease; }
-.plan-stage.swap { opacity: 0; }
+.plan-names { position: relative; }
+.plan-dot { position: absolute; left: 0; top: 0; width: 0.3em; height: 0.3em; border-radius: 50%; background: var(--accent-hi); font: 800 var(--step-head)/1.1 var(--face); pointer-events: none; transition: transform 700ms var(--ease-expo); }
+.plan-names.has-dot button[aria-pressed="true"]::before { background: transparent; }
+.plan-stage { grid-column: 8 / span 5; position: sticky; top: 96px; display: grid; gap: 18px; }
 .price { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .price b { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.85; }
 .price span { color: var(--soft); }
@@ -387,11 +388,37 @@ code, pre { font-family: var(--code); }
   @supports (animation-timeline: view()) {
     .drift img { animation: drift linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
   }
+  /* Borrowed from clay.com: one long expo ease; things glide to where they go instead of blinking. */
+  /* A pill glides under the hovered link and fades when the pointer leaves the nav. */
+  .nav-pill { position: absolute; left: 0; top: 0; z-index: -1; height: 100%; width: var(--w, 0); border-radius: 999px; background: var(--surface-2); opacity: 0; transform: translateX(var(--x, 0)) scale(0.6); pointer-events: none; transition: transform 600ms var(--ease-expo), width 600ms var(--ease-expo), opacity 300ms ease; }
+  .nav-pill.on { opacity: 1; transform: translateX(var(--x, 0)) scale(1); }
+  .nav-pill.jump { transition: opacity 300ms ease, transform 500ms var(--ease-expo); }
+  /* Labels roll on hover: the word slides up and its copy comes in from below. */
+  .roll { display: inline-grid; overflow: clip; padding-block: 0.14em; margin-block: -0.14em; vertical-align: top; }
+  .roll > span { grid-area: 1 / 1; transition: transform 600ms var(--ease-expo); }
+  .roll > span + span { transform: translateY(110%); }
+  @media (hover: hover) {
+    a:hover > .roll > span:first-child, button:hover > .roll > span:first-child { transform: translateY(-110%); }
+    a:hover > .roll > span + span, button:hover > .roll > span + span { transform: none; }
+  }
+  /* Section headings rise word by word out of a mask, instead of fading in whole. */
+  .js h2.split[data-reveal] { opacity: 1; transform: none; }
+  .split .w { display: inline-block; overflow: clip; padding-bottom: 0.12em; margin-bottom: -0.12em; vertical-align: bottom; }
+  .split .w > span { display: inline-block; transform: translateY(110%); transition: transform 1000ms var(--ease-expo); transition-delay: calc(var(--w) * 40ms); }
+  .split.is-in .w > span { transform: none; }
+  /* Phones: the menu opens downward from the bar and its links rise in turn. */
+  @media (max-width: 760px) {
+    .js .bar nav { display: flex; visibility: hidden; clip-path: inset(0 0 100% 0); transition: clip-path 450ms var(--ease-expo), visibility 0s linear 450ms; }
+    .js .bar nav.open { visibility: visible; clip-path: inset(0 0 0 0); transition: clip-path 600ms var(--ease-expo); }
+    .js .bar nav a { opacity: 0; transform: translateY(60%); transition: opacity 250ms ease, transform 250ms ease; }
+    .js .bar nav.open a { opacity: 1; transform: none; transition: opacity 500ms ease, transform 700ms var(--ease-expo); transition-delay: calc(80ms + var(--i, 0) * 50ms); }
+    .nav-pill { display: none; }
+  }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
 @keyframes open { from { clip-path: inset(30% 0 30% 0); opacity: 0; } to { clip-path: inset(0); opacity: 1; } }
 @keyframes drift { from { transform: scale(1.08) translateY(-3%); } to { transform: scale(1.08) translateY(3%); } }
-@media (prefers-reduced-motion: reduce) { .strip, .sheet, .plan-stage { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .strip, .sheet, .plan-stage, .plan-dot { transition: none; } }
 /* Without script the reel is no held stage: the frames stack and the page scrolls past them. */
 html:not(.js) .hero { height: auto; }
 html:not(.js) .stage { position: static; height: auto; padding-block: 96px 48px; align-items: start; }
@@ -786,6 +813,51 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* motion borrowed from clay.com (see the CSS): one ease, swaps that move in the direction you
+     went, markers that glide. Nothing here runs when the visitor asks for reduced motion. */
+  var EXPO = 'cubic-bezier(0.16, 1, 0.3, 1)';
+  var canHover = window.matchMedia('(hover: hover)').matches;
+  var indexOf = function (list, test) { for (var i = 0; i < list.length; i++) if (test(list[i])) return i; return -1; };
+  function roll(el) {
+    var t = el.textContent.trim();
+    if (!t) return;
+    var r = document.createElement('span'), a = document.createElement('span'), b = document.createElement('span');
+    r.className = 'roll'; a.textContent = t; b.textContent = t; b.setAttribute('aria-hidden', 'true');
+    r.appendChild(a); r.appendChild(b); el.replaceChildren(r);
+  }
+  /* Old content leaves against the direction of travel, new content arrives along it, rows in turn. */
+  function glide(el, dir, paint) {
+    if (reduce || !el.animate) { paint(); return; }
+    var token = (el._glide || 0) + 1, dy = 28 * (dir || 1);
+    el._glide = token;
+    (el._anims || []).forEach(function (a) { a.cancel(); });
+    var out = el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(' + (-dy / 2) + 'px)' }], { duration: 170, easing: 'cubic-bezier(0.5, 0, 0.75, 0)', fill: 'forwards' });
+    el._anims = [out];
+    out.onfinish = function () {
+      if (el._glide !== token) return;
+      paint();
+      el._anims = [el.animate([{ opacity: 0, transform: 'translateY(' + dy + 'px)' }, { opacity: 1, transform: 'none' }], { duration: 700, easing: EXPO })];
+      out.cancel();
+      Array.prototype.slice.call(el.querySelectorAll('tr, li'), 0, 14).forEach(function (row, i) {
+        el._anims.push(row.animate([{ opacity: 0, transform: 'translateY(' + (dir || 1) * 10 + 'px)' }, { opacity: 1, transform: 'none' }], { duration: 600, delay: 60 + i * 28, easing: EXPO, fill: 'backwards' }));
+      });
+    };
+  }
+  if (!reduce) {
+    document.querySelectorAll('.bar nav a, a.button:not([id])').forEach(roll);
+    document.querySelectorAll('h2[data-reveal]').forEach(function (h) {
+      var words = h.textContent.trim().split(/\s+/);
+      h.replaceChildren();
+      words.forEach(function (w, i) {
+        var outer = document.createElement('span'), inner = document.createElement('span');
+        outer.className = 'w'; outer.style.setProperty('--w', i); inner.textContent = w;
+        outer.appendChild(inner); h.appendChild(outer);
+        if (i < words.length - 1) h.appendChild(document.createTextNode(' '));
+      });
+      h.classList.add('split');
+    });
+  }
   var fmtInt = function (n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); };
   var money = function (v) {
     if (v == null) return 'not reported';
@@ -800,7 +872,26 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
 
   /* header menu on phones */
   var btn = $('menu-btn'), nav = $('main-nav');
-  var setMenu = function (open) { nav.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Close' : 'Menu'; };
+  var setMenu = function (open) {
+    nav.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Close' : 'Menu';
+    if (!reduce && btn.animate) btn.animate([{ opacity: 0, transform: 'translateY(40%)' }, { opacity: 1, transform: 'none' }], { duration: 450, easing: EXPO });
+  };
+  nav.querySelectorAll('a').forEach(function (a, i) { a.style.setProperty('--i', i); });
+  /* a pill that appears under the first link hovered, then glides between links */
+  if (canHover && !reduce) {
+    var pill = document.createElement('span');
+    pill.className = 'nav-pill'; pill.setAttribute('aria-hidden', 'true'); nav.insertBefore(pill, nav.firstChild);
+    nav.addEventListener('pointerover', function (e) {
+      var a = e.target.closest('a');
+      if (!a) return;
+      var appearing = !pill.classList.contains('on');
+      if (appearing) pill.style.transition = 'none';
+      pill.style.setProperty('--x', a.offsetLeft + 'px'); pill.style.setProperty('--w', a.offsetWidth + 'px');
+      if (appearing) { void pill.offsetWidth; pill.style.transition = ''; }
+      pill.classList.add('on');
+    });
+    nav.addEventListener('pointerleave', function () { pill.classList.remove('on'); });
+  }
   btn.addEventListener('click', function () { setMenu(!nav.classList.contains('open')); });
   nav.addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { setMenu(false); btn.focus(); } });
@@ -853,6 +944,7 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
       return '<a' + cls + ' href="' + href + '" target="_blank" rel="noopener" title="' + esc(money(f.value) + ', fiscal year ended ' + f.period_end + ', ' + f.form_type + ' filed ' + f.filed_date) + '" style="--h:' + (100 * (f.value || 0) / max).toFixed(1) + '%"><i></i><span>' + esc(f.period_end.slice(0, 4)) + '</span></a>';
     }).join('');
   }
+  var sheetShown = false, sheetDir = 1;
   function renderSheet(b) {
     var c = b.company, sheet = $('sheet');
     var paint = function () {
@@ -868,13 +960,16 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
         return '<tr><td>' + esc(f.form_type) + '</td><td>' + esc(f.filing_date) + '</td><td>' + secLink(f.source_url, f.accession_number) + '</td></tr>';
       }).join('') || '<tr><td class="ui-muted">No filings yet.</td></tr>';
       $('sheet-foot').textContent = 'Mapping version ' + b.mapping_version + ' · generated ' + b.generated_at.replace('T', ' ').slice(0, 16) + ' UTC';
-      sheet.classList.remove('swap');
     };
-    if (reduce) { paint(); return; }
-    sheet.classList.add('swap'); setTimeout(paint, 200);
+    if (!sheetShown) { sheetShown = true; paint(); return; }
+    glide(sheet, sheetDir, paint);
   }
   function openSheet(cik) {
     cik = String(cik);
+    var nb = document.querySelectorAll('#sheet-names button');
+    var was = indexOf(nb, function (x) { return x.getAttribute('aria-pressed') === 'true'; });
+    var now = indexOf(nb, function (x) { return x.getAttribute('data-cik') === cik; });
+    sheetDir = now < was ? -1 : 1;
     document.querySelectorAll('#sheet-names button').forEach(function (bt) { bt.setAttribute('aria-pressed', String(bt.getAttribute('data-cik') === cik)); });
     if (bundles[cik]) { renderSheet(bundles[cik]); return; }
     getJSON('/v1/public/companies/' + cik).then(function (b) { bundles[cik] = b; if (cik === recordCik) fillHist(b); renderSheet(b); }).catch(function () {
@@ -932,7 +1027,21 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
     var out = l ? [fmtInt(l[0]) + ' requests a minute', fmtInt(l[1]) + ' requests a month', fmtInt(l[2]) + ' watched companies', fmtInt(l[3]) + ' rows per export'] : ['Custom rate limits and quotas'];
     return out.concat(PLANS[name].extra);
   }
+  var plist = document.querySelector('.plan-names'), dot = null;
+  function moveDot(name, animate) {
+    var b = plist.querySelector('[data-plan="' + name + '"]');
+    if (!b) return;
+    if (!dot) {
+      dot = document.createElement('span'); dot.className = 'plan-dot'; dot.setAttribute('aria-hidden', 'true');
+      plist.appendChild(dot); plist.classList.add('has-dot'); animate = false;
+    }
+    if (!animate) dot.style.transition = 'none';
+    dot.style.transform = 'translate(' + b.offsetLeft + 'px, ' + (b.offsetTop + (b.offsetHeight - dot.offsetHeight) / 2) + 'px)';
+    if (!animate) { void dot.offsetWidth; dot.style.transition = ''; }
+  }
   function showPlan(name, animate) {
+    var pb = document.querySelectorAll('.plan-names button');
+    var dir = indexOf(pb, function (x) { return x.getAttribute('data-plan') === name; }) < indexOf(pb, function (x) { return x.getAttribute('data-plan') === current; }) ? -1 : 1;
     current = name; var p = PLANS[name], st = $('plan-stage');
     document.querySelectorAll('.plan-names button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-plan') === name)); });
     $('bill-monthly').setAttribute('aria-pressed', String(!yearly)); $('bill-annual').setAttribute('aria-pressed', String(yearly));
@@ -942,16 +1051,20 @@ html:not(.js) .hero .lede { position: static; grid-column: 1 / -1; width: auto; 
       $('plan-for').textContent = p.for;
       $('plan-limits').innerHTML = limitsList(name).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
       $('plan-action').textContent = p.action;
-      st.classList.remove('swap');
     };
-    if (animate && !reduce) { st.classList.add('swap'); setTimeout(paint, 200); } else paint();
+    if (animate === 'billing') glide($('plan-price').parentNode, yearly ? 1 : -1, paint);
+    else if (animate) glide(st, dir, paint);
+    else paint();
+    moveDot(name, !!animate);
   }
+  window.addEventListener('resize', function () { moveDot(current, false); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { moveDot(current, false); });
   document.querySelectorAll('.plan-names button').forEach(function (b) {
     b.addEventListener('click', function () { if (b.getAttribute('data-plan') !== current) showPlan(b.getAttribute('data-plan'), true); });
     b.addEventListener('focus', function () { if (b.getAttribute('data-plan') !== current) showPlan(b.getAttribute('data-plan'), true); });
   });
-  $('bill-monthly').addEventListener('click', function () { yearly = false; try { localStorage.setItem('billing', 'monthly'); } catch (e) {} showPlan(current, false); });
-  $('bill-annual').addEventListener('click', function () { yearly = true; try { localStorage.setItem('billing', 'annual'); } catch (e) {} showPlan(current, false); });
+  $('bill-monthly').addEventListener('click', function () { yearly = false; try { localStorage.setItem('billing', 'monthly'); } catch (e) {} showPlan(current, 'billing'); });
+  $('bill-annual').addEventListener('click', function () { yearly = true; try { localStorage.setItem('billing', 'annual'); } catch (e) {} showPlan(current, 'billing'); });
   showPlan('builder', false);
   getJSON('/v1/public/plans').then(function (d) {
     d.data.forEach(function (p) {
