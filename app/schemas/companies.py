@@ -26,8 +26,13 @@ class CompanyOut(ORMModel):
     )
     match_type: str | None = Field(
         default=None,
-        description="Search only: cik | ticker | name_exact | name_prefix | name_contains | "
-        "name_fuzzy (a spelling one or two letters off; offered only when nothing else matches)",
+        description="Search only: cik | ticker | name_exact (the name, ignoring words such as Inc. "
+        "and Corp.) | name_prefix | name_contains | "
+        "former_name (a name the company used before; see matched_name) | name_fuzzy (a "
+        "spelling one or two letters off; offered only when nothing else matches)",
+    )
+    matched_name: str | None = Field(
+        default=None, description="Search only: the former name that matched, for former_name"
     )
 
     @computed_field(description="The company's filing list on SEC EDGAR")

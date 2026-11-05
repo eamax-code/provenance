@@ -14,11 +14,11 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.logging import log_event
-from app.db.models import Company, FinancialFact, IngestionRun, utcnow
+from app.db.models import Company, CompanyAlias, FinancialFact, IngestionRun, utcnow
 from app.db.models import Filing as FilingRow
 from app.services import events, notifications
 from app.services.fact_normalizer import NormalizedFact, normalize_company_facts
@@ -53,6 +53,8 @@ class CompanyRecord:
     state_of_incorporation: str | None
     fiscal_year_end: str | None
     source_url: str
+    # (name, used from, used to) for each name the SEC lists as the company's former name
+    former_names: list[tuple[str, date | None, date | None]] = field(default_factory=list)
 
 
 @dataclass
@@ -140,6 +142,23 @@ def _str_or_none(value: Any) -> str | None:
     return text or None
 
 
+def parse_former_names(value: Any) -> list[tuple[str, date | None, date | None]]:
+    out: list[tuple[str, date | None, date | None]] = []
+    for item in value if isinstance(value, list) else []:
+        name = _str_or_none(item.get("name")) if isinstance(item, dict) else None
+        if name and name.lower() not in {n.lower() for n, _, _ in out}:
+            out.append((name, parse_iso_date(item.get("from")), parse_iso_date(item.get("to"))))
+    return out
+
+
+def store_aliases(db: Session, cik: str, current_name: str, former_names) -> None:
+    """Replace the company's former names; the current name is never its own alias."""
+    db.execute(delete(CompanyAlias).where(CompanyAlias.cik == cik, CompanyAlias.kind == "former"))
+    for name, start, end in former_names:
+        if name.lower() != current_name.lower():
+            db.add(CompanyAlias(cik=cik, alias=name, kind="former", valid_from=start, valid_to=end))
+
+
 def parse_submissions(
     payload: dict, www_base: str = "https://www.sec.gov"
 ) -> tuple[CompanyRecord, list[FilingRecord]]:
@@ -166,6 +185,7 @@ def parse_submissions(
         state_of_incorporation=_str_or_none(payload.get("stateOfIncorporation")),
         fiscal_year_end=_str_or_none(payload.get("fiscalYearEnd")),
         source_url=submissions_url(cik),
+        former_names=parse_former_names(payload.get("formerNames")),
     )
 
     filings_block = payload.get("filings")
@@ -369,6 +389,7 @@ def upsert_company(db: Session, rec: CompanyRecord, now: datetime, source_update
         )
         db.add(company)
     company.legal_name = rec.legal_name
+    store_aliases(db, rec.cik, rec.legal_name, rec.former_names)
     if rec.ticker:
         company.ticker = rec.ticker
     if rec.exchange:

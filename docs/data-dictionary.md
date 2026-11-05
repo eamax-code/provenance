@@ -148,6 +148,12 @@ quarterly), `unit` and `period_end`, the annual report's observation first. Each
 annual USD figures as columns, plus `sources` (JSON: each figure's filing link). Exported by
 `GET /v1/exports/company-years`.
 
+`company_aliases` (issue #3, step 2): other names a company is found by, one row per `cik`
+and `alias`, with `kind` (`former`: a name the SEC lists as the company's former name) and the
+dates it was used (`valid_from`, `valid_to`). Ingestion replaces a company's former names from its
+submissions; `scripts/load_aliases.py` fills them from the submissions archive without SEC
+requests. Company search matches them as `match_type: "former_name"`.
+
 `company_documents` (issue #3): readable documents per company, one row per `cik` and `kind`.
 Today the only kind is `profile`: `title` (the company's display name), `markdown` (identity,
 latest annual figures, revenue by fiscal year, going public, leadership changes in the last two

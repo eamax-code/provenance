@@ -158,6 +158,12 @@ def _names_it(hit, phrase: str) -> bool:
     """A name match counts only when it ends on a word boundary ("active" does not name
     ActiveCare), and a single lower-case word must be the whole name ("apple" is Apple Inc.,
     "active" is not Active Network Inc.); tickers and exact names always count."""
+    if hit.match_type == "former_name":
+        # "Facebook" names Meta Platforms; "book" or a common word inside an old name does not.
+        core = core_name(hit.former_name or "")
+        return core == phrase.lower() or (
+            phrase[:1].isupper() and core.startswith(phrase.lower() + " ")
+        )
     if hit.match_type not in ("name_prefix", "name_exact"):
         return True
     if hit.match_type == "name_exact":
@@ -200,13 +206,15 @@ def is_coverage_question(text: str) -> bool:
     return bool(_COVERAGE_Q.search(text))
 
 
-_MATCH_RANK = {"ticker": 3, "name_exact": 2, "name_prefix": 1}
+_MATCH_RANK = {"ticker": 3, "name_exact": 2, "name_prefix": 1, "former_name": 1}
 
 
 def _named(hit, phrase: str) -> bool:
     """Whether the phrase clearly names this company rather than merely starting its name."""
     if hit.match_type == "ticker":
         return phrase.isupper()
+    if hit.match_type == "former_name":
+        return _core_name(hit.former_name or "") == _core_name(phrase) or phrase[:1].isupper()
     if hit.match_type == "name_exact" or _core_name(hit.company.legal_name) == _core_name(phrase):
         return True
     return phrase[:1].isupper()

@@ -545,3 +545,13 @@ def test_summary_is_answered_from_the_profile(app, client, auth, ingested_aapl):
         "/v1/chat", json={"message": "Summarise Apple", "as_of": "2024-12-31"}, headers=auth
     ).json()
     assert dated["intent"] == "question"
+
+
+def test_a_former_name_resolves_but_never_beats_a_current_name(db, ingested_aapl):
+    from app.services import intel
+    from app.services.ingestion import store_aliases
+
+    store_aliases(db, "0000320193", "Apple Inc.", [("Apple Computer Inc", None, None)])
+    db.commit()
+    assert intel.resolve_company(db, "What did apple computer earn?").cik == "0000320193"
+    assert intel.resolve_company(db, "Is the computer business growing?") is None

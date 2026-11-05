@@ -47,7 +47,7 @@ def test_search_by_ticker_cik_and_name(client, auth, ingested_aapl):
         ("aapl", "ticker"),
         ("320193", "cik"),
         ("0000320193", "cik"),
-        ("apple", "name_prefix"),
+        ("apple", "name_exact"),
     ]:
         r = client.get(f"/v1/companies/search?q={q}", headers=auth)
         assert r.status_code == 200, r.text
@@ -298,3 +298,31 @@ def test_console_module_is_served(client):
     assert js.status_code == 200
     for route in ("/v1/developer/usage", "/v1/developer/api-keys", "/v1/watches"):
         assert route in js.text
+
+
+def test_former_names_find_the_company(client, auth, db, ingested_aapl):
+    from app.services.ingestion import parse_former_names, store_aliases
+
+    former = parse_former_names(
+        [
+            {"name": "APPLE COMPUTER INC", "from": "1994-01-26T00:00:00.000Z", "to": "2007-01-04"},
+            {"name": "Apple Computer Inc"},  # a repeat in other case
+            {"name": "Apple Inc."},  # the current name is not an alias
+            "not a record",
+        ]
+    )
+    assert [n for n, _, _ in former] == ["APPLE COMPUTER INC", "Apple Inc."]
+    store_aliases(db, "0000320193", "Apple Inc.", former)
+    db.commit()
+    for q in ("apple computer", "computer"):
+        hit = client.get(f"/v1/companies/search?q={q}", headers=auth).json()["data"][0]
+        assert hit["cik"] == "0000320193" and hit["match_type"] == "former_name"
+        assert hit["matched_name"] == "APPLE COMPUTER INC"
+    # The current name still wins over the former one.
+    assert (
+        client.get("/v1/companies/search?q=apple", headers=auth).json()["data"][0]["match_type"]
+        == "name_exact"
+    )
+    store_aliases(db, "0000320193", "Apple Inc.", [])
+    db.commit()
+    assert client.get("/v1/companies/search?q=apple computer", headers=auth).json()["data"] == []

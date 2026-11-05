@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
-from app.db.models import Company, Filing
+from app.db.models import Company, CompanyAlias, Filing
 from app.services.sec_client import is_cik_like, normalize_cik
 
 MAX_QUERY_LENGTH = 100
@@ -26,8 +26,10 @@ def normalize_name(value: str) -> str:
 @dataclass
 class SearchHit:
     company: Company
-    match_type: str  # cik | ticker | name_exact | name_prefix | name_contains | name_fuzzy
+    match_type: str  # cik | ticker | name_exact | name_prefix | name_contains | former_name
+    # | name_fuzzy
     score: int
+    former_name: str | None = None  # the former name that matched, for former_name hits
 
 
 _SCORES = {
@@ -36,6 +38,7 @@ _SCORES = {
     "name_exact": 80,
     "name_prefix": 60,
     "name_contains": 40,
+    "former_name": 50,  # below a prefix of the current name, above a word inside one
     "name_fuzzy": 20,
 }
 # Words that end a name rather than identify it ("Apple Inc." is "apple").
@@ -87,7 +90,8 @@ def search_companies(db: Session, query: str, limit: int = 10) -> tuple[list[Sea
         ).all()
         for c in rows:
             lname = normalize_name(c.legal_name)
-            if lname == name:
+            # "apple" is Apple Inc. exactly: the corporate words do not count.
+            if lname == name or (core_name(lname) and core_name(lname) == core_name(name)):
                 mt = "name_exact"
             elif lname.startswith(name):
                 mt = "name_prefix"
@@ -97,15 +101,46 @@ def search_companies(db: Session, query: str, limit: int = 10) -> tuple[list[Sea
             if existing is None or existing.score < _SCORES[mt]:
                 hits[c.cik] = SearchHit(c, mt, _SCORES[mt])
 
+        for c, alias in _former_name_matches(db, name, fetch):
+            if c.cik not in hits or hits[c.cik].score < _SCORES["former_name"]:
+                hits[c.cik] = SearchHit(c, "former_name", _SCORES["former_name"], alias)
+
     if not hits and len(name) >= FUZZY_MIN_LENGTH:
         for _, c in fuzzy_companies(db, name, limit=limit + 1):
             hits.setdefault(c.cik, SearchHit(c, "name_fuzzy", _SCORES["name_fuzzy"]))
         ordered = list(hits.values())  # already ranked by distance
         return ordered[:limit], len(ordered) > limit
 
-    ordered = sorted(hits.values(), key=lambda h: (-h.score, h.company.legal_name, h.company.cik))
+    ordered = sorted(
+        hits.values(),
+        key=lambda h: (-h.score, not h.company.ticker, h.company.legal_name.lower(), h.company.cik),
+    )
     has_more = len(ordered) > limit
     return ordered[:limit], has_more
+
+
+def _former_name_matches(db: Session, name: str, limit: int) -> list[tuple[Company, str]]:
+    """Companies that were once called this: "facebook" finds Meta Platforms."""
+    alias = func.lower(CompanyAlias.alias)
+    rows = db.execute(
+        select(Company, CompanyAlias.alias)
+        .join(CompanyAlias, CompanyAlias.cik == Company.cik)
+        .where(
+            or_(
+                alias == name,
+                alias.like(_escape_like(name) + "%", escape="\\"),
+                alias.like("% " + _escape_like(name) + "%", escape="\\"),
+            )
+        )
+        .order_by((alias == name).desc(), CompanyAlias.valid_to.desc().nulls_last())
+        .limit(limit * 3)
+    ).all()
+    seen, out = set(), []
+    for c, a in rows:
+        if c.cik not in seen:
+            seen.add(c.cik)
+            out.append((c, a))
+    return out[:limit]
 
 
 def _escape_like(value: str) -> str:

@@ -12,7 +12,7 @@
 
 ## Endpoints
 - GET /v1/companies?exchange=&sic=&state=&ingested=true|false&sort={name|cik|last_processed}&limit<=200&offset=
-- GET /v1/companies/search?q={ticker|cik|name}&limit=1..50
+- GET /v1/companies/search?q={ticker|cik|name}&limit=1..50  match_type is cik, ticker, name_exact (ignoring Inc., Corp. and the like), name_prefix, name_contains, former_name (with matched_name: "facebook" finds Meta Platforms) or name_fuzzy
   match_type: cik, ticker, name_exact, name_prefix, name_contains; name_fuzzy (a typo, e.g. "mircosoft") only when nothing else matches.
 - GET /v1/companies/{cik}  (202 + Retry-After while on-demand ingestion runs; 404 if unknown)
 - GET /v1/companies/{cik}/filings?limit=1..100&form_type=&since=YYYY-MM-DD&offset=

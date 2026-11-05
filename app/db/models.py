@@ -20,6 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     event,
+    func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -650,6 +651,22 @@ class CompanyDocument(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     markdown: Mapped[str] = mapped_column(Text, nullable=False)
     built_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class CompanyAlias(Base):
+    """Another name a company is found by (issue #3, step 2). Today the former names the SEC
+    lists for the company ("Facebook Inc" for Meta Platforms), with the dates each was used."""
+
+    __tablename__ = "company_aliases"
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    alias: Mapped[str] = mapped_column(Text, primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False, default="former")
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+Index("ix_company_aliases_lower", func.lower(CompanyAlias.alias))
 
 
 # Search structures that exist only on PostgreSQL. The migrations f1b7c3a9d2e5 and b9d4e2f7a6c1

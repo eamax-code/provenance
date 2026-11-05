@@ -33,7 +33,11 @@ class CompanyHit(BaseModel):
     legal_name: str
     ticker: str | None
     exchange: str | None
-    match: str = Field(description="name (ticker, CIK or name lookup) or profile (profile text)")
+    match: str = Field(
+        description="name (ticker, CIK or name lookup), former_name (a name it used before, in "
+        "matched_name) or profile (profile text)"
+    )
+    matched_name: str | None = None
     filings_url: str
 
 
@@ -199,7 +203,8 @@ def _companies(db: Session, q: str) -> list[CompanyHit]:
             legal_name=h.company.legal_name,
             ticker=h.company.ticker,
             exchange=h.company.exchange,
-            match="name",
+            match="former_name" if h.match_type == "former_name" else "name",
+            matched_name=h.former_name,
             filings_url=company_filings_url(h.company.cik),
         )
         for h in hits
