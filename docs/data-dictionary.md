@@ -145,12 +145,14 @@ quarterly), `unit` and `period_end`, the annual report's observation first. Each
 `mapping_version`. Derived quarters are not stored.
 
 `mart_company_period`: one row per `cik` and `fiscal_year`, with `period_end` and the five
-annual USD figures as columns, plus `sources` (JSON: each figure's filing link).
+annual USD figures as columns, plus `sources` (JSON: each figure's filing link). Exported by
+`GET /v1/exports/company-years`.
 
 `company_documents` (issue #3): readable documents per company, one row per `cik` and `kind`.
 Today the only kind is `profile`: `title` (the company's display name), `markdown` (identity,
 latest annual figures, revenue by fiscal year, going public, leadership changes in the last two
-years, recent filings; every figure links to its filing on sec.gov) and `built_at`. On
+years, the risk factor categories of the latest prospectus read here, recent filings; every
+figure links to its filing on sec.gov) and `built_at`. On
 PostgreSQL a stored `search_vector` (tsvector of title and markdown, GIN-indexed) lets
 `GET /v1/search` find companies by the words of their profiles. Rebuilt by
 `scripts/build_marts.py` and after each company ingestion.

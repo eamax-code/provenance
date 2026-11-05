@@ -16,7 +16,14 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Company, CompanyDocument, Filing, MartCompany, OfficerChange
+from app.db.models import (
+    Company,
+    CompanyDocument,
+    Filing,
+    FilingSection,
+    MartCompany,
+    OfficerChange,
+)
 from app.services import periods
 from app.services.form8k import ITEM_TITLES, split_items
 
@@ -30,6 +37,13 @@ PROFILE_METRICS = (
 RECENT_FILINGS = 5
 RECENT_CHANGES = 5
 LEADERSHIP_YEARS = 2
+RISK_HEADINGS = 8
+# "Risks Related to Our Business" and its variants, as a heading on its own line.
+_RISK_HEADING = re.compile(
+    r"^\s*(R(?:ISKS?|isks?)\s+(?:Related|RELATED|Relating|RELATING|Associated|ASSOCIATED)"
+    r"\s+(?:[Tt]o|TO|[Ww]ith|WITH)\s+[^\n]{3,110}?)\s*$",
+    re.M,
+)
 MONTHS = (
     "January February March April May June July August September October November December"
 ).split()
@@ -58,6 +72,8 @@ def _money(v: float | None) -> str:
 def article(word: str) -> str:
     """ "a 10-K", "an 8-K", "an S-1": the article as the form's name is spoken."""
     w = word.upper()
+    if w.isalpha() and len(w) > 4:  # a word, not letters: "a REVOKED", "an UPLOAD"
+        return ("an " if w[0] in "AEIOU" else "a ") + word
     vowel_sound = w[:1] in "AEFHILMNORSX" or w.startswith(("8", "11", "18"))
     return ("an " if vowel_sound else "a ") + word
 
@@ -207,6 +223,29 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
             f"{subject} latest leadership change, filed {first.filing_date}, concerns {who} [{n}]."
         )
 
+    # Risk factors, from the latest prospectus read here
+    risk = db.execute(
+        select(FilingSection.text, FilingSection.source_url, Filing.form_type, Filing.filing_date)
+        .join(
+            Filing,
+            (Filing.cik == FilingSection.cik)
+            & (Filing.accession_number == FilingSection.accession_number),
+        )
+        .where(
+            FilingSection.cik == cik,
+            FilingSection.item == "pr:risk",
+            FilingSection.status == "ok",
+        )
+        .order_by(Filing.filing_date.desc())
+        .limit(1)
+    ).first()
+    heads = risk_headings(risk.text) if risk and risk.text else []
+    if heads:
+        source = _link(f"{risk.form_type} filed {risk.filing_date}", risk.source_url)
+        lines += ["", "## Risk factors", "", f"The prospectus ({source}) groups its risks under:"]
+        lines += [""]
+        lines += [f"- {h}" for h in heads]
+
     # Filings
     recent = db.scalars(
         select(Filing)
@@ -244,6 +283,21 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
         summary=" ".join(sentences),
         citations=cites,
     )
+
+
+def risk_headings(body: str) -> list[str]:
+    """The category headings of a risk factors section ("Risks Related to Our Business"), in
+    order, without repeats or lines that are only part of a sentence."""
+    out: list[str] = []
+    for m in _RISK_HEADING.finditer(body):
+        h = " ".join(m.group(1).split())
+        if ". " in h or h.endswith((",", ";", ":", "-")):
+            continue
+        if h.isupper():
+            h = h.capitalize()
+        if h.lower() not in {x.lower() for x in out}:
+            out.append(h)
+    return out[:RISK_HEADINGS]
 
 
 _CITE = re.compile(r"\[(\d+)\]")

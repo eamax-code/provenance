@@ -87,3 +87,32 @@ def test_the_screen_reads_the_mart_and_agrees_with_the_facts(client, auth, db, s
     # A point-in-time screen still reads the observations.
     early = client.get(url + "&as_of=2020-01-01", headers=auth).json()
     assert early["data"] == [] and early["as_of"] == "2020-01-01"
+
+
+def test_company_years_export(client, auth, db, sec_client):
+    import csv
+    import io
+
+    _ingest_both(db, sec_client)
+    marts.build_financial_marts(db)
+    r = client.get("/v1/exports/company-years", params={"ciks": "320193,789019"}, headers=auth)
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
+    rows = list(csv.DictReader(io.StringIO(r.text)))
+    fy24 = next(x for x in rows if x["cik"] == "0000320193" and x["fiscal_year"] == "2024")
+    assert fy24["revenue"] == "391035000000" and fy24["company"] == "Apple Inc."
+    assert fy24["revenue_filing_url"].startswith("https://www.sec.gov/Archives/")
+    assert r.headers["X-Export-Rows"] == str(len(rows))
+    one_year = client.get(
+        "/v1/exports/company-years",
+        params={"from_year": 2024, "to_year": 2024, "format": "json", "limit": 1},
+        headers=auth,
+    )
+    body = one_year.json()
+    assert len(body["data"]) == 1 and body["meta"]["truncated"] is True
+    assert body["data"][0]["fiscal_year"] == 2024
+    unbounded = client.get("/v1/exports/company-years", params={"from_year": 2020}, headers=auth)
+    assert unbounded.status_code == 422
+    assert (
+        client.get("/v1/exports/company-years?ciks=1", headers={"X-API-Key": "demo"}).status_code
+        == 401
+    )

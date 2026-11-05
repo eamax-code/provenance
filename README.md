@@ -27,6 +27,7 @@ file.
 | Watches and signed webhook deliveries | `POST/GET/DELETE /v1/watches`, `GET /v1/watches/{id}/deliveries` |
 | API keys and usage | `POST/GET/DELETE /v1/developer/api-keys`, `GET /v1/developer/usage` |
 | Bounded CSV/JSON export with provenance | `GET /v1/exports/facts` |
+| Company-year export: five annual figures side by side per fiscal year, each with its filing link | `GET /v1/exports/company-years?ciks=` or `?from_year=2025&to_year=2025` |
 | Explorer web app: search, filings, facts chart with provenance, freshness | `GET /app/` (static, key stays in the browser) |
 | Developer console: usage and plan meters, keys, watches, deliveries | `GET /app/#console` |
 | Public coverage stats, cached 30 s, no key | `GET /v1/stats` |

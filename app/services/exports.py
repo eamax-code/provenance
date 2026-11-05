@@ -9,7 +9,7 @@ import re
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from app.db.models import FinancialFact
+from app.db.models import FinancialFact, MartCompanyPeriod
 
 EXPORT_COLUMNS = [
     "cik",
@@ -81,11 +81,55 @@ def render_json(facts: list[FinancialFact], meta: dict) -> bytes:
     return json.dumps({"data": rows, "meta": meta}, separators=(",", ":")).encode("utf-8")
 
 
+PERIOD_METRICS = [
+    "revenue",
+    "operating_income",
+    "net_income",
+    "total_assets",
+    "operating_cash_flow",
+]
+PERIOD_COLUMNS = (
+    ["cik", "company", "fiscal_year", "period_end", "unit"]
+    + PERIOD_METRICS
+    + [f"{m}_filing_url" for m in PERIOD_METRICS]
+)
+
+
+def period_row(row: MartCompanyPeriod, company: str | None) -> dict:
+    """One company-year of mart_company_period, with each figure's filing link."""
+    sources = json.loads(row.sources) if row.sources else {}
+    out = {
+        "cik": row.cik,
+        "company": company,
+        "fiscal_year": row.fiscal_year,
+        "period_end": row.period_end,
+        "unit": "USD",
+    }
+    out |= {m: getattr(row, m) for m in PERIOD_METRICS}
+    return out | {f"{m}_filing_url": sources.get(m) for m in PERIOD_METRICS}
+
+
+def render_rows_csv(rows: list[dict], columns: list[str]) -> bytes:
+    buf = io.StringIO()
+    writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
+    writer.writerow(columns)
+    for row in rows:
+        writer.writerow([_cell(row[c]) for c in columns])
+    return buf.getvalue().encode("utf-8")
+
+
+def render_rows_json(rows: list[dict], meta: dict) -> bytes:
+    data = [{c: _json_cell(v) for c, v in row.items()} for row in rows]
+    return json.dumps({"data": data, "meta": meta}, separators=(",", ":")).encode("utf-8")
+
+
 _SAFE = re.compile(r"[^A-Za-z0-9_-]+")
 
 
-def export_filename(metric: str | None, ciks: list[str], fmt: str, now: datetime) -> str:
-    parts = ["facts"]
+def export_filename(
+    metric: str | None, ciks: list[str], fmt: str, now: datetime, kind: str = "facts"
+) -> str:
+    parts = [kind]
     if metric:
         parts.append(_SAFE.sub("", metric)[:32])
     if ciks:

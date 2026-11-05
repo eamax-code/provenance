@@ -6,7 +6,7 @@ from datetime import date
 
 from sqlalchemy import select
 
-from app.db.models import CompanyDocument
+from app.db.models import CompanyDocument, FilingSection
 from app.services import documents, marts
 from tests.integration.test_section_search import ACCESSION, CIK, INDEX, stored_s1  # noqa: F401
 
@@ -52,6 +52,32 @@ def test_article_follows_how_the_form_is_said():
     assert documents.article("8-K") == "an 8-K"
     assert documents.article("S-1/A") == "an S-1/A"
     assert documents.article("424B4") == "a 424B4"
+    assert (
+        documents.article("REVOKED") == "a REVOKED" and documents.article("SC 13G") == "an SC 13G"
+    )
+
+
+def test_risk_headings_are_the_section_categories():
+    body = (
+        "Risk Factors\nInvesting involves a high degree of risk.\n"
+        "Risks Related to Our Business and Industry\nWe may lose money. Other\n"
+        "risks related to autonomy and models. These risks could\n"
+        "RISKS RELATED TO THIS OFFERING\nThe price may fall.\n"
+        "Risks Related to Our Business and Industry\n"
+    )
+    assert documents.risk_headings(body) == [
+        "Risks Related to Our Business and Industry",
+        "Risks related to this offering",
+    ]
+
+
+def test_profile_lists_the_prospectus_risk_categories(db, stored_s1):  # noqa: F811
+    section = db.scalars(select(FilingSection).where(FilingSection.item == "pr:risk")).one()
+    section.text = "Risks Related to Our Compute Supply\n" + section.text
+    db.commit()
+    p = documents.build_profile(db, CIK)
+    assert "## Risk factors" in p.markdown and "- Risks Related to Our Compute Supply" in p.markdown
+    assert INDEX in p.markdown
 
 
 def test_store_profiles_replaces_rows(db, sec_client):
