@@ -568,6 +568,7 @@ def _refresh_mart(db: Session, cik: str) -> None:
 
     try:
         marts.build_company_marts(db, [cik])
+        marts.build_financial_marts(db, [cik])
     except Exception as exc:  # noqa: BLE001
         db.rollback()
         log_event(logger, logging.WARNING, "mart refresh failed", cik=cik, error=_redact_error(exc))

@@ -2,6 +2,7 @@
 services:
   db:
     image: pgvector/pgvector:pg16  # PostgreSQL 16 with pgvector (vector search, issue #2)
+    shm_size: 1gb  # parallel queries, vacuum and HNSW builds need more than Docker's 64 MB
     environment:
       POSTGRES_USER: companydata
       POSTGRES_PASSWORD: companydata

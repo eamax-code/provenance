@@ -137,6 +137,16 @@ after it is ingested). Nothing here is new data: every value is copied from `fil
 
 `mart_filing_activity` has one row per month and form type: `filings` and distinct `companies`.
 
+`mart_financials` (ADR 0009): one reported value per `cik`, `metric`, `period_class` (annual or
+quarterly), `unit` and `period_end`, the annual report's observation first. Each row also has
+`period_start`, `value`, `currency`, the fiscal labels `fiscal_year` and `fiscal_quarter` (from
+`app/services/periods.py`, named by the period end and the company's year end), `form_type`,
+`filed_date`, `accession_number`, `source_tag`, `source_url`, `quality_status` and
+`mapping_version`. Derived quarters are not stored.
+
+`mart_company_period`: one row per `cik` and `fiscal_year`, with `period_end` and the five
+annual USD figures as columns, plus `sources` (JSON: each figure's filing link).
+
 ## ingestion_runs
 
 Counts and status (`running`, `succeeded`, `partial`, `failed`) per ingestion pass, with a

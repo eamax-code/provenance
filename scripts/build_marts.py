@@ -26,6 +26,12 @@ def main() -> None:
         t = time.perf_counter()
         n = marts.build_company_marts(db, ciks)
         print(f"mart_company: {n} rows in {time.perf_counter() - t:.1f}s")
+        t = time.perf_counter()
+        n, years = marts.build_financial_marts(db, ciks)
+        print(
+            f"mart_financials: {n} rows, mart_company_period: {years} rows in "
+            f"{time.perf_counter() - t:.1f}s"
+        )
         if not ciks:
             t = time.perf_counter()
             n = marts.build_filing_activity(db)

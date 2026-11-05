@@ -1,4 +1,5 @@
-"""Quick-answer marts (issue #8): one row per company and filing counts per month and form.
+"""Marts: one row per company, filing counts per month and form (issue #8), and one reported value
+per company, metric and period with a wide company-by-year view (issue #3).
 
 Built with window functions in SQL so a full rebuild reads the large tables once, and a rebuild
 for a few companies after an ingestion run touches only their rows. Every figure keeps the filing
@@ -19,8 +20,11 @@ from app.db.models import (
     Filing,
     FinancialFact,
     MartCompany,
+    MartCompanyPeriod,
     MartFilingActivity,
+    MartFinancial,
 )
+from app.services import periods
 
 REGISTRATION_FORMS = ("S-1", "F-1")
 IPO_PROSPECTUS_FORMS = ("424B4",)
@@ -260,3 +264,118 @@ def company_row(db: Session, cik: str) -> MartCompany | None:
 
 def loads(text: str | None):
     return json.loads(text) if text else None
+
+
+FINANCIAL_BATCH = 10000
+WIDE_METRICS = ("revenue", "operating_income", "net_income", "total_assets", "operating_cash_flow")
+
+
+def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) -> tuple[int, int]:
+    """Rebuild mart_financials and mart_company_period for these companies, or all of them.
+    Returns (financial rows, company-year rows)."""
+    f = FinancialFact
+    scope = f.cik.in_(ciks) if ciks else True
+    best = (
+        func.row_number()
+        .over(
+            partition_by=(f.cik, f.metric, f.period_class, f.unit, f.period_end),
+            # The annual report's figure over a proxy statement's repeat of it, then the latest.
+            order_by=(
+                f.form_type.in_(ANNUAL_REPORT_FORMS).desc(),
+                f.filed_date.desc(),
+                f.accession_number.desc(),
+            ),
+        )
+        .label("rn")
+    )
+    chosen = (
+        select(
+            f.cik, f.metric, f.period_class, f.unit, f.period_end, f.period_start, f.value,
+            f.currency, f.form_type, f.filed_date, f.accession_number, f.source_tag, f.source_url,
+            f.quality_status, f.mapping_version, best,
+        )
+        .where(
+            f.period_class.in_(("annual", "quarterly")),
+            f.derived.is_(False),
+            f.quality_status.in_(("ok", "partial")),
+            f.value.is_not(None),
+            scope,
+        )
+        .subquery()
+    )  # fmt: skip
+    fye = dict(
+        db.execute(
+            select(Company.cik, Company.fiscal_year_end).where(
+                Company.cik.in_(ciks) if ciks else True
+            )
+        ).all()
+    )
+    if ciks:
+        db.execute(delete(MartFinancial).where(MartFinancial.cik.in_(ciks)))
+        db.execute(delete(MartCompanyPeriod).where(MartCompanyPeriod.cik.in_(ciks)))
+    else:
+        db.execute(delete(MartFinancial))
+        db.execute(delete(MartCompanyPeriod))
+    written, batch = 0, []
+    wide: dict[tuple[str, int], dict] = {}
+    result = db.execute(
+        select(chosen).where(chosen.c.rn == 1),
+        execution_options={"yield_per": FINANCIAL_BATCH},
+    )
+    for r in result:
+        year_end = fye.get(r.cik)
+        fiscal_year = periods.fiscal_year(r.period_end, year_end)
+        quarter = (
+            periods.fiscal_quarter(r.period_end, year_end)
+            if r.period_class == "quarterly"
+            else None
+        )
+        batch.append(
+            {
+                "cik": r.cik, "metric": r.metric, "period_class": r.period_class, "unit": r.unit,
+                "period_end": r.period_end, "period_start": r.period_start, "value": r.value,
+                "currency": r.currency, "fiscal_year": fiscal_year, "fiscal_quarter": quarter,
+                "form_type": r.form_type, "filed_date": r.filed_date,
+                "accession_number": r.accession_number, "source_tag": r.source_tag,
+                "source_url": r.source_url, "quality_status": r.quality_status,
+                "mapping_version": r.mapping_version,
+            }
+        )  # fmt: skip
+        if r.period_class == "annual" and r.unit == "USD" and r.metric in WIDE_METRICS:
+            row = wide.setdefault(
+                (r.cik, fiscal_year), {"period_end": r.period_end, "values": {}, "sources": {}}
+            )
+            # Two periods in one fiscal year (a change of year end): keep the later one.
+            if r.period_end > row["period_end"]:
+                row.update(period_end=r.period_end, values={}, sources={})
+            if r.period_end == row["period_end"]:
+                row["values"][r.metric] = r.value
+                row["sources"][r.metric] = r.source_url
+        if len(batch) >= FINANCIAL_BATCH:
+            written += _flush(db, MartFinancial, batch)
+            if log:
+                log(f"mart_financials: {written} rows")
+    written += _flush(db, MartFinancial, batch)
+    company_years = [
+        {
+            "cik": cik,
+            "fiscal_year": fy,
+            "period_end": row["period_end"],
+            **{m: row["values"].get(m) for m in WIDE_METRICS},
+            "sources": json.dumps(row["sources"]),
+        }
+        for (cik, fy), row in wide.items()
+    ]
+    for i in range(0, len(company_years), FINANCIAL_BATCH):
+        db.execute(insert(MartCompanyPeriod), company_years[i : i + FINANCIAL_BATCH])
+    db.commit()
+    return written, len(company_years)
+
+
+def _flush(db: Session, model, batch: list[dict]) -> int:
+    if not batch:
+        return 0
+    db.execute(insert(model), batch)
+    n = len(batch)
+    batch.clear()
+    return n

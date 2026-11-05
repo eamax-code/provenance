@@ -592,6 +592,53 @@ class MartFilingActivity(Base):
     companies: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
+class MartFinancial(Base):
+    """One reported value per company, metric, period and unit: the annual report's observation
+    for its period when there is one, else the latest filed (issue #3). Derived quarters stay
+    out (ADR 0003); point-in-time questions read financial_facts (ADR 0009)."""
+
+    __tablename__ = "mart_financials"
+    __table_args__ = (
+        Index("ix_mart_financials_screen", "metric", "period_class", "unit", "period_end", "cik"),
+        Index("ix_mart_financials_company", "cik", "metric", "period_class", "period_end"),
+    )
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    metric: Mapped[str] = mapped_column(Text, primary_key=True)
+    period_class: Mapped[str] = mapped_column(Text, primary_key=True)  # annual | quarterly
+    unit: Mapped[str] = mapped_column(Text, primary_key=True)
+    period_end: Mapped[date] = mapped_column(Date, primary_key=True)
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    value: Mapped[Decimal] = mapped_column(Numeric, nullable=False)
+    currency: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fiscal_year: Mapped[int] = mapped_column(Integer, nullable=False)  # app.services.periods
+    fiscal_quarter: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    form_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    filed_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    accession_number: Mapped[str | None] = mapped_column(String(25), nullable=True)
+    source_tag: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    quality_status: Mapped[str] = mapped_column(Text, nullable=False)
+    mapping_version: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class MartCompanyPeriod(Base):
+    """One row per company and fiscal year with the five annual figures side by side, for
+    exports and quick reads (issue #3). `sources` holds each figure's filing link."""
+
+    __tablename__ = "mart_company_period"
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    fiscal_year: Mapped[int] = mapped_column(Integer, primary_key=True)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    revenue: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    operating_income: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    net_income: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    total_assets: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    operating_cash_flow: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    sources: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON {metric: url}
+
+
 # Search structures that exist only on PostgreSQL. The migrations f1b7c3a9d2e5 and b9d4e2f7a6c1
 # create them on real databases; these hooks give a schema built from the models (a PostgreSQL test
 # database) the same ones. SQLite skips them and the lookups fall back to scans.
