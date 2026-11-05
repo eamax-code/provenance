@@ -21,6 +21,7 @@ from app.schemas.common import ErrorEnvelope
 from app.services import (
     chat_sessions,
     conversation,
+    documents,
     forecast,
     humanize,
     intel,
@@ -574,6 +575,38 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             widgets=shown,
             notes=notes,
         )
+    # "Summarise X" today: the stored profile's cited sentences, no model.
+    if (
+        plan.kind == "overview"
+        and not quoted
+        and not body.as_of
+        and brief.metrics
+        and humanize.wants_overview(body.message)
+    ):
+        profile = documents.build_profile(db, company.cik)
+        if profile is not None:
+
+            def cite(label: str, url: str) -> int:
+                for c in brief.citations:  # the brief's own entry for this source, if any
+                    if c["label"] == label:
+                        return c["n"]
+                same = next((c["n"] for c in brief.citations if url and c["url"] == url), None)
+                return same or brief.cite(label, url)
+
+            answer = documents.summary_for(profile, cite)
+            brief.context_lines.append(profile.markdown)
+            return ChatReply(
+                company=_company_dict(company),
+                answer=answer,
+                brief=brief_out,
+                citations=brief.citations,
+                checks=check_answer(answer, brief.context(), len(brief.citations)),
+                model=None,
+                answered_by="data",
+                intent="summary",
+                widgets=shown,
+                notes=notes,
+            )
     # A plain figure question needs no model: one cited sentence from the brief.
     if plan.kind == "metric" and not quoted and intel.is_simple_lookup(body.message):
         figure = next((m for m in brief.metrics if m["metric"] == plan.metric), None)

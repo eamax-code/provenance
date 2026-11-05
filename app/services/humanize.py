@@ -92,6 +92,10 @@ def sentence_limit(question: str) -> int | None:
     return 5 if _OVERVIEW_ASK.search(question) else 3
 
 
+def wants_overview(question: str) -> bool:
+    return bool(_OVERVIEW_ASK.search(question))
+
+
 def keep_sentences(text: str, limit: int | None) -> str:
     """The first `limit` whole sentences, with their citations. A reply cut off by the token cap
     loses its unfinished last sentence."""

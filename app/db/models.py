@@ -639,6 +639,19 @@ class MartCompanyPeriod(Base):
     sources: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON {metric: url}
 
 
+class CompanyDocument(Base):
+    """A readable document about a company, built from the marts (issue #3). On PostgreSQL a
+    generated search_vector makes the documents searchable across companies."""
+
+    __tablename__ = "company_documents"
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)  # profile
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    built_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 # Search structures that exist only on PostgreSQL. The migrations f1b7c3a9d2e5 and b9d4e2f7a6c1
 # create them on real databases; these hooks give a schema built from the models (a PostgreSQL test
 # database) the same ones. SQLite skips them and the lookups fall back to scans.
@@ -685,4 +698,14 @@ def _drop_chunks(target, connection, **kw):
 
 
 event.listen(FilingSection.__table__, "after_create", _create_chunks)
+event.listen(
+    CompanyDocument.__table__,
+    "after_create",
+    DDL(
+        "ALTER TABLE company_documents ADD COLUMN IF NOT EXISTS search_vector tsvector "
+        "GENERATED ALWAYS AS (to_tsvector('english'::regconfig, title || ' ' || markdown)) STORED; "
+        "CREATE INDEX IF NOT EXISTS ix_company_documents_search "
+        "ON company_documents USING gin (search_vector)"
+    ).execute_if(dialect="postgresql"),
+)
 event.listen(FilingSection.__table__, "before_drop", _drop_chunks)

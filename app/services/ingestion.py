@@ -562,13 +562,14 @@ def ingest_company(
 
 
 def _refresh_mart(db: Session, cik: str) -> None:
-    """Keep the company's quick-answer row (issue #8) in step with what was just ingested. A
-    failure here never fails the ingestion; the nightly full build repairs it."""
-    from app.services import marts
+    """Keep the company's quick-answer rows (issue #8) and profile (#3) in step with what was
+    just ingested. A failure here never fails the ingestion; the nightly full build repairs it."""
+    from app.services import documents, marts
 
     try:
         marts.build_company_marts(db, [cik])
         marts.build_financial_marts(db, [cik])
+        documents.store_profiles(db, [cik])
     except Exception as exc:  # noqa: BLE001
         db.rollback()
         log_event(logger, logging.WARNING, "mart refresh failed", cik=cik, error=_redact_error(exc))

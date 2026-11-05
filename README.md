@@ -17,6 +17,8 @@ file.
 | Company list with filters (exchange, SIC, state, ingested) | `GET /v1/companies` |
 | Cross-company screen: rank one metric across all companies for a year or quarter; `/v1/facts/screen/periods` lists the years and quarters with data | `GET /v1/facts/screen?metric=&year=&period=quarterly&quarter=` |
 | Company profile, on-demand ingestion (`202`) | `GET /v1/companies/{cik}` |
+| Search: companies by name or ticker, plus passages of stored filing sections by keyword or meaning (semantic needs your own key), each linked to its filing | `GET /v1/search?q=&mode=keyword\|semantic` |
+| Readable company profile in Markdown, every figure linked to its filing, with a short cited summary (the chat answers "summarise X" from it) | `GET /v1/companies/{cik}/profile` |
 | Recent filings with SEC source links and honest timestamps | `GET /v1/companies/{cik}/filings` |
 | Normalized facts: revenue, operating income, net income, total assets, operating cash flow | `GET /v1/companies/{cik}/facts` |
 | Point-in-time facts and screen: only what had been filed by a date, for backtests | `?as_of=YYYY-MM-DD` on `/facts` and `/v1/facts/screen` |
@@ -132,6 +134,8 @@ curl -H "X-API-Key: $API_KEY" "localhost:8000/v1/companies/search?q=AAPL"
 curl -H "X-API-Key: $API_KEY" "localhost:8000/v1/companies/320193/filings?form_type=10-K&limit=5"
 curl -H "X-API-Key: $API_KEY" "localhost:8000/v1/companies/320193/facts?metric=revenue&period=annual"
 curl -H "X-API-Key: $API_KEY" "localhost:8000/v1/companies/320193/freshness"
+curl -H "X-API-Key: $API_KEY" "localhost:8000/v1/search?q=use%20of%20proceeds&form=S-1"
+curl -H "X-API-Key: $API_KEY" "localhost:8000/v1/companies/320193/profile"
 curl -H "X-API-Key: $API_KEY" -o facts.csv "localhost:8000/v1/exports/facts?metric=revenue&ciks=320193&format=csv"
 ```
 
@@ -196,8 +200,11 @@ them by vector, keyword or both, within a company or across all, with a filing d
 
 The tables are `mart_company` (one row per company: filing history, going-public dates, latest
 annual figures and five years of revenue, each with its filing) and `mart_filing_activity`
-(filings per month and form). `python scripts/build_marts.py` rebuilds them in about 20 seconds
-on 20,000 companies; ingestion refreshes a company's row as it runs.
+(filings per month and form), plus `mart_financials` and `mart_company_period` (one value per
+period with fiscal labels; ADR 0009) and `company_documents` (a readable Markdown profile per
+company). `python scripts/build_marts.py` rebuilds them all in about four minutes on 20,000
+companies; ingestion refreshes a company's rows as it runs. "Summarise Microsoft" is answered
+from the profile's cited sentences without the model (`intent: "summary"`, about 0.1 s).
 
 Forecast questions ("Forecast Microsoft revenue for the next 4 years", "What is the outlook for
 Apple net income?") get `intent: "forecast"` and a forecast chart widget. The evidence is cited

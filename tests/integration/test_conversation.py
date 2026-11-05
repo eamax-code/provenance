@@ -207,7 +207,8 @@ def test_model_answers_are_capped_at_whole_sentences(client, auth, items_aapl, a
     app.state.llm_factory = lambda: fake
     body = _chat(client, auth, "Is Apple doing well?")
     assert body["answer"].count("[2]") == 3 and body["answer"].endswith("[2].")
-    overview = _chat(client, auth, "Tell me about Apple")
+    # Dated, so the model answers rather than the stored profile.
+    overview = _chat(client, auth, "Tell me about Apple", as_of="2025-06-30")
     assert overview["answer"].count("[2]") == 5
 
 
