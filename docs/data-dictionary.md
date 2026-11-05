@@ -110,6 +110,12 @@ Text read once from a filing and kept, so it can be searched and re-read without
 | `source_url` | The filing's index page on sec.gov |
 | `search_vector` | PostgreSQL only: a stored `tsvector` (English) generated from `text`, with a GIN index, used by full-text section search. Not in the ORM model. |
 
+`section_chunks` (PostgreSQL with pgvector only): each searchable section cut into chunks of
+about 1,500 characters with 200 of overlap, with `chunk_no`, the chunk `text`, a generated
+`search_vector` and one `halfvec` embedding column per model (`embedding_bge` for bge-m3, the
+default; `embedding_nomic` for nomic-embed-text), each with an HNSW index. Rows cascade with
+their section.
+
 `companies` also has PostgreSQL-only indexes for lookup: a trigram index on `lower(legal_name)`
 (typo-tolerant names, `match_type: name_fuzzy`) and one on `upper(ticker)`.
 
@@ -130,6 +136,32 @@ after it is ingested). Nothing here is new data: every value is copied from `fil
 | `revenue_history` | JSON: up to five fiscal years of revenue, newest first, each with its filing |
 
 `mart_filing_activity` has one row per month and form type: `filings` and distinct `companies`.
+
+`mart_financials` (ADR 0009): one reported value per `cik`, `metric`, `period_class` (annual or
+quarterly), `unit` and `period_end`, the annual report's observation first. Each row also has
+`period_start`, `value`, `currency`, the fiscal labels `fiscal_year` and `fiscal_quarter` (from
+`app/services/periods.py`, named by the period end and the company's year end), `form_type`,
+`filed_date`, `accession_number`, `source_tag`, `source_url`, `quality_status` and
+`mapping_version`. Derived quarters are not stored.
+
+`mart_company_period`: one row per `cik` and `fiscal_year`, with `period_end` and the five
+annual USD figures as columns, plus `sources` (JSON: each figure's filing link). Exported by
+`GET /v1/exports/company-years`.
+
+`company_aliases` (issue #3, step 2): other names a company is found by, one row per `cik`
+and `alias`, with `kind` (`former`: a name the SEC lists as the company's former name) and the
+dates it was used (`valid_from`, `valid_to`). Ingestion replaces a company's former names from its
+submissions; `scripts/load_aliases.py` fills them from the submissions archive without SEC
+requests. Company search matches them as `match_type: "former_name"`.
+
+`company_documents` (issue #3): readable documents per company, one row per `cik` and `kind`.
+Today the only kind is `profile`: `title` (the company's display name), `markdown` (identity,
+latest annual figures, revenue by fiscal year, going public, leadership changes in the last two
+years, the risk factor categories of the latest prospectus read here, recent filings; every
+figure links to its filing on sec.gov) and `built_at`. On
+PostgreSQL a stored `search_vector` (tsvector of title and markdown, GIN-indexed) lets
+`GET /v1/search` find companies by the words of their profiles. Rebuilt by
+`scripts/build_marts.py` and after each company ingestion.
 
 ## ingestion_runs
 

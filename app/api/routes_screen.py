@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import db_session, require_reader
 from app.core.errors import APIError
-from app.db.models import Company, FinancialFact
+from app.db.models import Company, FinancialFact, MartFinancial
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.public import LatestRevenueCard
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS
@@ -70,6 +70,79 @@ def _rank(f: FinancialFact) -> tuple:
     )
 
 
+def _screen_from_mart(db, metric, year, period, quarter, unit, order, limit, offset, start, stop):
+    """The screen from mart_financials: each company's latest period in the window, ranked and
+    paged in SQL, so only the rows shown are read."""
+    m = MartFinancial
+    latest = func.row_number().over(partition_by=m.cik, order_by=m.period_end.desc()).label("rn")
+    # Rank and page on the covering index alone; read whole rows only for the page shown.
+    inner = (
+        select(m.cik, m.period_end, m.value, latest)
+        .where(
+            m.metric == metric,
+            m.period_class == period,
+            m.unit == unit,
+            m.period_end >= start,
+            m.period_end < stop,
+        )
+        .subquery()
+    )
+    picked = select(inner).where(inner.c.rn == 1).subquery()
+    total = int(db.scalar(select(func.count()).select_from(picked)) or 0)
+    direction = picked.c.value.asc() if order == "asc" else picked.c.value.desc()
+    tie = picked.c.cik.asc() if order == "asc" else picked.c.cik.desc()
+    page = (
+        select(picked.c.cik, picked.c.period_end, picked.c.value)
+        .order_by(direction, tie)
+        .limit(limit)
+        .offset(offset)
+        .subquery()
+    )
+    shown = page.c.value.asc() if order == "asc" else page.c.value.desc()
+    rows = db.execute(
+        select(m, Company.legal_name, Company.ticker, Company.exchange)
+        .join(
+            page,
+            (m.cik == page.c.cik)
+            & (m.period_end == page.c.period_end)
+            & (m.metric == metric)
+            & (m.period_class == period)
+            & (m.unit == unit),
+        )
+        .join(Company, Company.cik == m.cik)
+        .order_by(shown, page.c.cik.asc() if order == "asc" else page.c.cik.desc())
+    ).all()
+    out = [
+        ScreenRow(
+            cik=f.cik,
+            legal_name=name,
+            ticker=ticker,
+            exchange=exchange,
+            metric=f.metric,
+            value=f.value,
+            unit=f.unit,
+            currency=f.currency,
+            period_start=f.period_start.isoformat() if f.period_start else None,
+            period_end=f.period_end.isoformat(),
+            fiscal_year=f.fiscal_year,
+            form_type=f.form_type,
+            filed_date=f.filed_date.isoformat() if f.filed_date else None,
+            accession_number=f.accession_number,
+            source_tag=f.source_tag,
+            source_url=f.source_url,
+            quality_status=f.quality_status,
+            mapping_version=f.mapping_version or MAPPING_VERSION,
+        )
+        for f, name, ticker, exchange in rows
+    ]
+    return _result(metric, year, period, quarter, unit, None, out, limit, offset, total)
+
+
+def _marts_ready(db: Session) -> bool:
+    """Whether mart_financials has been built (scripts/build_marts.py)."""
+    return db.scalar(select(MartFinancial.cik).limit(1)) is not None
+
+
 def _month_after(year: int, month: int) -> date:
     return date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
 
@@ -122,7 +195,15 @@ def screen_periods(
     hit = _periods_cache.get(key)
     if hit and time.monotonic() - hit[0] < PERIODS_CACHE_SECONDS:
         return hit[1]
-    usable = _usable(metric, period, unit).subquery()
+    if _marts_ready(db):
+        m = MartFinancial
+        usable = (
+            select(m.cik, m.period_end)
+            .where(m.metric == metric, m.period_class == period, m.unit == unit)
+            .subquery()
+        )
+    else:
+        usable = _usable(metric, period, unit).subquery()
     year = cast(extract("year", usable.c.period_end), Integer)
     month = cast(extract("month", usable.c.period_end), Integer)
     quarter = (month + 2) // 3
@@ -188,9 +269,14 @@ def screen(
     if quarter is not None and period != "quarterly":
         raise APIError(422, "invalid_parameter", "quarter needs period=quarterly.")
     first_month, last_month = (1, 12) if quarter is None else (3 * quarter - 2, 3 * quarter)
+    start, stop = date(year, first_month, 1), _month_after(year, last_month)
+    if as_of is None and _marts_ready(db):
+        return _screen_from_mart(
+            db, metric, year, period, quarter, unit, order, limit, offset, start, stop
+        )
+    # Point in time reads every observation, to keep only what was filed by the date.
     stmt = _usable(metric, period, unit).where(
-        FinancialFact.period_end >= date(year, first_month, 1),
-        FinancialFact.period_end < _month_after(year, last_month),
+        FinancialFact.period_end >= start, FinancialFact.period_end < stop
     )
     if as_of:
         stmt = known_by(stmt, as_of)
@@ -234,7 +320,11 @@ def screen(
                 mapping_version=f.mapping_version or MAPPING_VERSION,
             )
         )
-    has_more = offset + limit < len(ranked)
+    return _result(metric, year, period, quarter, unit, as_of, out, limit, offset, len(ranked))
+
+
+def _result(metric, year, period, quarter, unit, as_of, out, limit, offset, total) -> ScreenResult:
+    has_more = offset + limit < total
     span = "calendar year" if quarter is None else f"calendar quarter Q{quarter}"
     notes = [
         "One row per company: the latest reported period whose period_end falls in the "
@@ -261,7 +351,7 @@ def screen(
             offset=offset,
             has_more=has_more,
             next_offset=offset + limit if has_more else None,
-            total_matched=len(ranked),
+            total_matched=total,
         ),
         notes=notes,
     )

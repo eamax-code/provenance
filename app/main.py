@@ -25,6 +25,7 @@ from app.api import (
     routes_notifications,
     routes_public,
     routes_screen,
+    routes_search,
     routes_stats,
 )
 from app.core.config import Settings, get_settings
@@ -129,6 +130,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_events.router)
     app.include_router(routes_chat.router)
     app.include_router(routes_screen.router)
+    app.include_router(routes_search.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")
     def healthz():

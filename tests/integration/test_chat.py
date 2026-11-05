@@ -157,7 +157,7 @@ def test_check_answer_flags_citations_on_their_own_line():
 def test_brief_context_states_coverage(app, client, auth, items_aapl):
     fake = FakeLLM()
     app.state.llm_factory = lambda: fake
-    client.post("/v1/chat", json={"message": "Summarise AAPL"}, headers=auth)
+    client.post("/v1/chat", json={"message": "Why did AAPL margins change?"}, headers=auth)
     assert "Filings loaded in this service for the company: " in fake.calls[0][1]["content"]
 
 
@@ -319,7 +319,7 @@ def test_growth_question_is_charted_from_cited_figures(app, client, auth, items_
 def test_overview_question_gets_figure_tiles(app, client, auth, items_aapl):
     app.state.llm_factory = lambda: FakeLLM()
     body = client.post("/v1/chat", json={"message": "Summarise Apple"}, headers=auth).json()
-    assert body["answered_by"] == "model"
+    assert body["answered_by"] == "data" and body["intent"] == "summary"  # tiles still shown
     tiles = body["widgets"][0]
     assert tiles["type"] == "stats"
     rev = next(i for i in tiles["items"] if i["metric"] == "revenue")
@@ -530,3 +530,28 @@ def test_unclear_question_offers_the_nearest_companies(client, auth, items_aapl,
     assert body["company"] is None and body["answer"] is None
     assert any("ACTIVECARE" in s["legal_name"] for s in body["suggestions"])
     assert "Which company do you mean?" in body["notes"][0]
+
+
+def test_summary_is_answered_from_the_profile(app, client, auth, ingested_aapl):
+    fake = FakeLLM()
+    app.state.llm_factory = lambda: fake
+    body = client.post("/v1/chat", json={"message": "Summarise Apple"}, headers=auth).json()
+    assert body["intent"] == "summary" and body["answered_by"] == "data" and not fake.calls
+    assert body["checks"]["grounded"] is True and not body["checks"]["unknown_citations"]
+    labels = [c["label"] for c in body["citations"]]
+    assert len(labels) == len(set(labels))  # the brief's entries are reused, not repeated
+    # A point-in-time question still goes to the model, which reads the brief as of that date.
+    dated = client.post(
+        "/v1/chat", json={"message": "Summarise Apple", "as_of": "2024-12-31"}, headers=auth
+    ).json()
+    assert dated["intent"] == "question"
+
+
+def test_a_former_name_resolves_but_never_beats_a_current_name(db, ingested_aapl):
+    from app.services import intel
+    from app.services.ingestion import store_aliases
+
+    store_aliases(db, "0000320193", "Apple Inc.", [("Apple Computer Inc", None, None)])
+    db.commit()
+    assert intel.resolve_company(db, "What did apple computer earn?").cik == "0000320193"
+    assert intel.resolve_company(db, "Is the computer business growing?") is None

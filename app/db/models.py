@@ -20,6 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     event,
+    func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -592,6 +593,91 @@ class MartFilingActivity(Base):
     companies: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
+class MartFinancial(Base):
+    """One reported value per company, metric, period and unit: the annual report's observation
+    for its period when there is one, else the latest filed (issue #3). Derived quarters stay
+    out (ADR 0003); point-in-time questions read financial_facts (ADR 0009)."""
+
+    __tablename__ = "mart_financials"
+    __table_args__ = (
+        # Covers the screen's ranking (value included), so it reads no table pages.
+        Index(
+            "ix_mart_financials_screen",
+            "metric",
+            "period_class",
+            "unit",
+            "period_end",
+            "cik",
+            postgresql_include=["value"],
+        ),
+        Index("ix_mart_financials_company", "cik", "metric", "period_class", "period_end"),
+    )
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    metric: Mapped[str] = mapped_column(Text, primary_key=True)
+    period_class: Mapped[str] = mapped_column(Text, primary_key=True)  # annual | quarterly
+    unit: Mapped[str] = mapped_column(Text, primary_key=True)
+    period_end: Mapped[date] = mapped_column(Date, primary_key=True)
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    value: Mapped[Decimal] = mapped_column(Numeric, nullable=False)
+    currency: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fiscal_year: Mapped[int] = mapped_column(Integer, nullable=False)  # app.services.periods
+    fiscal_quarter: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    form_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    filed_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    accession_number: Mapped[str | None] = mapped_column(String(25), nullable=True)
+    source_tag: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    quality_status: Mapped[str] = mapped_column(Text, nullable=False)
+    mapping_version: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class MartCompanyPeriod(Base):
+    """One row per company and fiscal year with the five annual figures side by side, for
+    exports and quick reads (issue #3). `sources` holds each figure's filing link."""
+
+    __tablename__ = "mart_company_period"
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    fiscal_year: Mapped[int] = mapped_column(Integer, primary_key=True)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    revenue: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    operating_income: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    net_income: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    total_assets: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    operating_cash_flow: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    sources: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON {metric: url}
+
+
+class CompanyDocument(Base):
+    """A readable document about a company, built from the marts (issue #3). On PostgreSQL a
+    generated search_vector makes the documents searchable across companies."""
+
+    __tablename__ = "company_documents"
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)  # profile
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    built_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class CompanyAlias(Base):
+    """Another name a company is found by (issue #3, step 2). Today the former names the SEC
+    lists for the company ("Facebook Inc" for Meta Platforms), with the dates each was used."""
+
+    __tablename__ = "company_aliases"
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    alias: Mapped[str] = mapped_column(Text, primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False, default="former")
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+Index("ix_company_aliases_lower", func.lower(CompanyAlias.alias))
+
+
 # Search structures that exist only on PostgreSQL. The migrations f1b7c3a9d2e5 and b9d4e2f7a6c1
 # create them on real databases; these hooks give a schema built from the models (a PostgreSQL test
 # database) the same ones. SQLite skips them and the lookups fall back to scans.
@@ -615,3 +701,37 @@ event.listen(
         "ON filing_sections USING gin (search_vector)"
     ).execute_if(dialect="postgresql"),
 )
+
+
+def _create_chunks(target, connection, **kw):
+    """section_chunks (pgvector) for a PostgreSQL schema built from the models; skipped where
+    the database is not PostgreSQL or the vector extension is not installed."""
+    if connection.dialect.name != "postgresql":
+        return
+    from sqlalchemy import text
+
+    from app.db.search_ddl import CHUNKS_DDL
+
+    if connection.execute(
+        text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")
+    ).first():
+        connection.exec_driver_sql(CHUNKS_DDL)
+
+
+def _drop_chunks(target, connection, **kw):
+    if connection.dialect.name == "postgresql":
+        connection.exec_driver_sql("DROP TABLE IF EXISTS section_chunks")
+
+
+event.listen(FilingSection.__table__, "after_create", _create_chunks)
+event.listen(
+    CompanyDocument.__table__,
+    "after_create",
+    DDL(
+        "ALTER TABLE company_documents ADD COLUMN IF NOT EXISTS search_vector tsvector "
+        "GENERATED ALWAYS AS (to_tsvector('english'::regconfig, title || ' ' || markdown)) STORED; "
+        "CREATE INDEX IF NOT EXISTS ix_company_documents_search "
+        "ON company_documents USING gin (search_vector)"
+    ).execute_if(dialect="postgresql"),
+)
+event.listen(FilingSection.__table__, "before_drop", _drop_chunks)

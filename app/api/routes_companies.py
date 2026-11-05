@@ -108,9 +108,12 @@ def _schedule_ingestion(cik: str, background: BackgroundTasks, request: Request)
     return True
 
 
-def _company_out(c: Company, match_type: str | None = None) -> CompanyOut:
+def _company_out(
+    c: Company, match_type: str | None = None, matched_name: str | None = None
+) -> CompanyOut:
     out = CompanyOut.model_validate(c)
     out.match_type = match_type
+    out.matched_name = matched_name
     if c.last_processed_at is None:
         out.ingestion_status = "failed" if c.last_fetch_error else "pending"
     return out
@@ -173,7 +176,7 @@ def search(
 ):
     hits, has_more = search_companies(db, q, limit)
     return CompanyList(
-        data=[_company_out(h.company, h.match_type) for h in hits],
+        data=[_company_out(h.company, h.match_type, h.former_name) for h in hits],
         meta=PageMeta(limit=limit, has_more=has_more),
     )
 

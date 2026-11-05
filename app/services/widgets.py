@@ -12,7 +12,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.services import intel
+from app.services import intel, periods
 
 _METRIC_WORDS = [
     ("operating_cash_flow", r"operating cash ?flows?|cash ?flows? from operations|cash ?flows?"),
@@ -103,12 +103,13 @@ def add_trend(b: intel.Brief, db: Session, metric: str, years: int) -> dict | No
         return None
     facts.reverse()
     label = intel.METRIC_LABELS[metric]
+    names = periods.labels([f.period_end for f in facts], "annual", b.company.fiscal_year_end)
     points = []
     for i, f in enumerate(facts):
         prev = float(facts[i - 1].value) if i else None
         points.append(
             {
-                "label": f"FY{f.period_end.year}",
+                "label": names[i],
                 "period_end": f.period_end.isoformat(),
                 "value": float(f.value),
                 "display": intel.money(f.value),
