@@ -28,6 +28,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 # Any warning fails the suite, so a new one is seen the day it appears (ticket 15).
 filterwarnings = ["error"]
 
