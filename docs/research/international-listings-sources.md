@@ -41,10 +41,38 @@ the stated date; sample files were downloaded and inspected. Decisions feed ADR 
 - Content: UK venues, UK systematic internalisers, and the ESMA EU27 files mirrored. The adapter keeps only UK MICs so EU rows are not double counted.
 - Terms: fca.org.uk/legal claims FCA copyright; clause 2.2 applies the UK Open Government Licence to datasets in the Data section; no FIRDS-specific licence. Attribute the FCA; keep to identity metadata.
 
+## What the registers code as shares (ticket 08, checked 2026-11-06)
+
+ESMA's full equity files of 2026-10-31 hold 196,822 records with CFI ES (shares) or EP (preferred
+shares) across all venues. Findings and the rules taken from them (`firds.not_a_share`):
+
+- **International ISINs.** None of the 196,822 has an XS or EU ISIN: those prefixes number debt
+  and structured products issued through Euroclear/Clearstream, so an XS/EU ISIN coded as a share
+  (such as a BNP Paribas certificate seen on Luxembourg in October) is excluded.
+- **Exchange-traded products.** A few products carry share codes, e.g. `US90137T1034`
+  "21SHARES XRP ETF" (Tradeweb). A whole-word ETF/ETN/ETC/ETP not followed by a company form is
+  excluded; "S.D. STANDARD ETC PLC" (a drilling company) is kept.
+- **Trust-preferred CDOs.** "ALESCO PREFERRED FUNDING V/VI LTD" and "TABERNA PREFERRED FUNDING VI"
+  on Euronext Dublin (XMSM) are preferred shares of funding vehicles that hold bank trust-preferred
+  securities; EP records named "Preferred Funding" are excluded.
+- **Not rules, on purpose.** Name words would remove real companies: "express" (Anhui Expressway,
+  J&T Global Express), "turbo" (Turbomecanica), "note" (Note AB), "factor" (Gamfactor). Dutch
+  "certificaten van aandelen" (NPEX) are depositary receipts for shares and stay. Investment-fund
+  share classes coded ES (Triodos Fair Share Fund, Kempen funds on Euronext Amsterdam) also stay:
+  they are shares of investment companies; a fund flag is a possible follow-up.
+
+Listings stored before a rule existed are deleted with their events at the next FIRDS run.
+
+**Primary-listing signal.** FIRDS `IssrReq` (TradgVnRltdAttrbts) says whether the issuer requested
+admission to the venue. It is stored as `issuer_requested`; a `new_listing` is
+`likely_primary_listing` when the issuer requested it and it is the issuer's first listing in our
+data. Venues admitting a share listed elsewhere (multilateral trading lines) report false.
+
 ## GLEIF (used)
 
 - `https://api.gleif.org/api/v1/lei-records/{lei}` and `?filter[isin]=…`, `?filter[entity.legalName]=…`, `/lei-records/{lei}/isins`; JSON:API with `attributes.entity.legalName.name`, `entity.legalAddress.country`, `entity.status`, `registration.status`.
 - Rate limit 60 requests per minute per user (no headers; self-throttle). Bulk: golden copy three times daily; ISIN-LEI mapping daily (~33 MB zip, 9.4 M rows).
+- How it is used (ticket 07, verified 2026-11-06): `?filter[lei]=a,b,…&page[size]=200` returns up to 200 records per call, so a run resolves thousands of issuers inside the rate limit; the full golden copy (hundreds of MB) is not needed for the few tens of thousands of issuers covered. The daily ISIN-LEI file (`/api/v2/isin-lei/latest` gives the current file name and link) is downloaded once a day, streamed and filtered to ISINs whose register record has no issuer LEI. GLEIF records are re-read after 30 days instead of applying golden-copy deltas.
 - Licence: CC0; do not suggest GLEIF endorsement.
 - Canadian coverage: about 59,000 LEI records with a Canadian legal address, 27,800 issued; ISIN coverage for equities is patchy (Shopify has an LEI but no ISIN mapping).
 

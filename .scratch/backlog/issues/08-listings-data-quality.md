@@ -4,8 +4,8 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done (2026-11-06)
 
-- [ ] Rules for excluding structured products recorded and tested on real records
-- [ ] `issuer_requested` stored on instruments and exposed; `new_listing` details include it
-- [ ] Data dictionary and research report updated
+- [x] Rules for excluding structured products recorded and tested on real records
+- [x] `issuer_requested` stored on instruments and exposed; `new_listing` details include it
+- [x] Data dictionary and research report updated

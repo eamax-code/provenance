@@ -110,7 +110,7 @@
       res.body.data.forEach(function (w) {
         var actions = el('td', { class: 'row' });
         var dl = el('button', { class: 'btn small', type: 'button', text: 'Deliveries' });
-        dl.addEventListener('click', function () { loadDeliveries(w); });
+        dl.addEventListener('click', function () { loadDeliveries('/v1/watches/' + w.id, 'CIK ' + w.cik + ' → ' + w.destination, 'a new filing is detected'); });
         actions.appendChild(dl);
         if (w.is_active) {
           var off = el('button', { class: 'btn small danger', type: 'button', text: 'Deactivate' });
@@ -126,17 +126,69 @@
     });
   }
 
-  function loadDeliveries(w) {
+  function loadDeliveries(path, label, trigger) {
     var box = $('con-deliveries'); box.innerHTML = ''; box.hidden = false;
-    box.appendChild(el('h3', { text: 'Deliveries for CIK ' + w.cik + ' → ' + w.destination }));
-    api('/v1/watches/' + w.id + '/deliveries?limit=100').then(function (res) {
-      if (!res.body.data.length) { box.appendChild(el('p', { class: 'muted', text: 'No deliveries yet. Events are created when a new filing is detected after the watch exists.' })); return; }
+    box.appendChild(el('h3', { text: 'Deliveries for ' + label }));
+    api(path + '/deliveries?limit=100').then(function (res) {
+      if (!res.body.data.length) { box.appendChild(el('p', { class: 'muted', text: 'No deliveries yet. Events are created when ' + trigger + ' after the watch exists.' })); return; }
       var tbl = el('table', {}, [el('thead', {}, [el('tr', {}, [el('th', { text: 'Event' }), el('th', { text: 'Status' }), el('th', { class: 'num', text: 'Attempts' }), el('th', { text: 'HTTP' }), el('th', { text: 'Last error' }), el('th', { text: 'Next attempt' }), el('th', { text: 'Delivered' })])])]);
       var tb = el('tbody');
       res.body.data.forEach(function (d) {
         tb.appendChild(el('tr', {}, [el('td', { class: 'mono', text: d.event_id }), el('td', {}, [el('span', { class: 'badge ' + ({ delivered: 'ok', failed: 'failed', retrying: 'partial', pending: 'partial' }[d.status] || ''), text: d.status })]), el('td', { class: 'num', text: String(d.attempt_count) }), el('td', { text: d.last_status_code == null ? '—' : String(d.last_status_code) }), el('td', { class: 'wrap', text: d.last_error_redacted || '—' }), el('td', { class: 'mono', text: fmtTs(d.next_attempt_at) }), el('td', { class: 'mono', text: fmtTs(d.delivered_at) })]));
       });
       tbl.appendChild(tb); box.appendChild(el('div', { class: 'table-wrap' }, [tbl]));
+    });
+  }
+
+  /* Listing watches: new listings, delistings, suspensions on a venue, country or region. */
+  var SCOPES = { mic: 'Venue (MIC)', country: 'Country', region: 'Region' };
+  function loadListingWatches() {
+    var box = $('con-lwatches'); if (!box) return; box.innerHTML = '';
+    api('/v1/listing-watches?include_inactive=true&limit=100').then(function (res) {
+      if (!res.body.data.length) { box.appendChild(el('p', { class: 'muted', text: 'No listing watches yet. Events on the venues you choose are delivered as signed webhooks or emails.' })); return; }
+      var tbl = el('table', {}, [el('thead', {}, [el('tr', {}, ['Scope', 'Events', 'Destination', 'Created', 'Last delivered', 'Status', ''].map(function (h) { return el('th', { text: h }); }))])]);
+      var tb = el('tbody');
+      res.body.data.forEach(function (w) {
+        var label = SCOPES[w.scope_type] + ' ' + w.scope_value;
+        var actions = el('td', { class: 'row' });
+        var dl = el('button', { class: 'btn small', type: 'button', text: 'Deliveries' });
+        dl.addEventListener('click', function () { loadDeliveries('/v1/listing-watches/' + w.id, label + ' → ' + w.destination, 'a listing event is detected'); });
+        actions.appendChild(dl);
+        if (w.is_active) {
+          var off = el('button', { class: 'btn small danger', type: 'button', text: 'Deactivate' });
+          off.addEventListener('click', function () {
+            if (off.getAttribute('data-armed') !== '1') { off.setAttribute('data-armed', '1'); off.textContent = 'Confirm'; setTimeout(function () { off.removeAttribute('data-armed'); off.textContent = 'Deactivate'; }, 4000); return; }
+            api('/v1/listing-watches/' + w.id, { method: 'DELETE' }).then(function () { toast('Listing watch deactivated. Historical deliveries are kept.', 'ok'); loadListingWatches(); loadUsage(); });
+          });
+          actions.appendChild(off);
+        }
+        tb.appendChild(el('tr', {}, [el('td', { text: label }), el('td', { text: w.event_types.join(', ').replace(/_/g, ' ') }), el('td', { class: 'mono wrap', text: w.destination }), el('td', { class: 'mono', text: fmtTs(w.created_at) }), el('td', { class: 'mono', text: fmtTs(w.last_delivered_at) }), el('td', {}, [el('span', { class: 'badge ' + (w.is_active ? 'ok' : 'failed'), text: w.is_active ? 'active' : 'inactive' })]), actions]));
+      });
+      tbl.appendChild(tb); box.appendChild(el('div', { class: 'table-wrap' }, [tbl]));
+    });
+  }
+  function showSecret(out, title, secret) {
+    out.hidden = false; out.innerHTML = '';
+    out.appendChild(el('p', {}, [el('strong', { text: title })]));
+    if (!secret) return;
+    out.appendChild(el('p', { class: 'small', text: 'Webhook secret, shown once. Verify X-Signature = v1=HMAC-SHA256(secret, "<X-Signature-Timestamp>.<body>").' }));
+    var code = el('code', { class: 'secret', text: secret });
+    var copy = el('button', { class: 'btn small', type: 'button', text: 'copy' });
+    copy.addEventListener('click', function () { try { navigator.clipboard.writeText(secret).then(function () { copy.textContent = 'copied'; }); } catch (err) { var r = document.createRange(); r.selectNodeContents(code); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } });
+    out.appendChild(el('div', { class: 'row' }, [code, copy]));
+  }
+  function bindListingCreate() {
+    var form = $('lwatch-form'); if (!form || form.getAttribute('data-bound')) return; form.setAttribute('data-bound', '1');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var types = Array.prototype.map.call(form.querySelectorAll('input[name="lw-ev"]:checked'), function (c) { return c.value; });
+      if (!types.length) { toast('Pick at least one event type.', 'error'); return; }
+      var body = { scope_type: $('lw-scope').value, scope_value: $('lw-value').value.trim(), event_types: types, destination_type: $('lw-type').value, destination: $('lw-dest').value.trim() };
+      api('/v1/listing-watches', { method: 'POST', body: body }).then(function (res) {
+        var w = res.body;
+        showSecret($('lwatch-secret'), 'Listing watch created for ' + SCOPES[w.scope_type].toLowerCase() + ' ' + w.scope_value + '.', w.webhook_secret);
+        form.reset(); loadListingWatches(); loadUsage();
+      });
     });
   }
 
@@ -147,15 +199,8 @@
       e.preventDefault();
       var body = { cik: $('w-cik').value.trim(), destination_type: $('w-type').value, destination: $('w-dest').value.trim() };
       api('/v1/watches', { method: 'POST', body: body }).then(function (res) {
-        var w = res.body, out = $('watch-secret'); out.hidden = false; out.innerHTML = '';
-        out.appendChild(el('p', {}, [el('strong', { text: 'Watch created for CIK ' + w.cik + '.' })]));
-        if (w.webhook_secret) {
-          out.appendChild(el('p', { class: 'small', text: 'Webhook secret, shown once. Verify X-Signature = v1=HMAC-SHA256(secret, "<X-Signature-Timestamp>.<body>").' }));
-          var code = el('code', { class: 'secret', text: w.webhook_secret });
-          var copy = el('button', { class: 'btn small', type: 'button', text: 'copy' });
-          copy.addEventListener('click', function () { try { navigator.clipboard.writeText(w.webhook_secret).then(function () { copy.textContent = 'copied'; }); } catch (err) { /* selection fallback */ var r = document.createRange(); r.selectNodeContents(code); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } });
-          out.appendChild(el('div', { class: 'row' }, [code, copy]));
-        }
+        var w = res.body;
+        showSecret($('watch-secret'), 'Watch created for CIK ' + w.cik + '.', w.webhook_secret);
         form.reset(); loadWatches(); loadUsage();
       });
     });
@@ -163,9 +208,9 @@
 
   window.ProvenanceConsole = {
     load: function (apiFn, toastFn) {
-      api = apiFn; toast = toastFn; bindCreate();
+      api = apiFn; toast = toastFn; bindCreate(); bindListingCreate();
       $('con-deliveries').hidden = true;
-      loadUsage(); loadKeys(); loadWatches();
+      loadUsage(); loadKeys(); loadWatches(); loadListingWatches();
     }
   };
 })();

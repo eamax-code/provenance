@@ -35,6 +35,28 @@ _ERRORS = {
 _EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}\.[A-Za-z]{2,}$")
 
 
+def validated_destination(destination_type: str, destination: str, settings: Settings) -> str:
+    """A webhook URL that passes the SSRF checks, or a plausible email address when email
+    delivery is configured; raises a 422 otherwise."""
+    destination = destination.strip()
+    if destination_type == "webhook":
+        try:
+            return validate_webhook_url(
+                destination, allow_private=settings.webhook_allow_private_destinations
+            )
+        except UnsafeDestination as exc:
+            raise APIError(422, "invalid_destination", str(exc)) from exc
+    if not settings.email_configured:
+        raise APIError(
+            422,
+            "email_delivery_not_configured",
+            "Email notifications are not configured on this deployment; use a webhook.",
+        )
+    if not _EMAIL_RE.match(destination) or len(destination) > 254:
+        raise APIError(422, "invalid_destination", "destination must be a valid email address.")
+    return destination
+
+
 @router.post("/watches", response_model=WatchCreated, status_code=201, responses=_ERRORS)
 def create_watch(
     body: WatchCreate,
@@ -55,23 +77,7 @@ def create_watch(
             "Company must be known before it can be watched. "
             "Request GET /v1/companies/{cik} first.",
         )
-    destination = body.destination.strip()
-    if body.destination_type == "webhook":
-        try:
-            destination = validate_webhook_url(
-                destination, allow_private=settings.webhook_allow_private_destinations
-            )
-        except UnsafeDestination as exc:
-            raise APIError(422, "invalid_destination", str(exc)) from exc
-    else:
-        if not settings.email_configured:
-            raise APIError(
-                422,
-                "email_delivery_not_configured",
-                "Email notifications are not configured on this deployment; use a webhook.",
-            )
-        if not _EMAIL_RE.match(destination) or len(destination) > 254:
-            raise APIError(422, "invalid_destination", "destination must be a valid email address.")
+    destination = validated_destination(body.destination_type, body.destination, settings)
 
     limits = plan_limits(key.plan, settings)
     already_watched = db.scalar(

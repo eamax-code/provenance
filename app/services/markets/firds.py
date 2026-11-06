@@ -13,6 +13,7 @@ Attribution: ESMA and FCA are the sources; this service is not endorsed by eithe
 from __future__ import annotations
 
 import logging
+import re
 import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -25,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.logging import log_event
-from app.db.models import IngestionRun, MarketSourceFile, utcnow
+from app.db.models import IngestionRun, ListedInstrument, MarketSourceFile, utcnow
 from app.services.ingestion import finish_run, start_run
 from app.services.markets.http import MarketFetchError, MarketHttp
 from app.services.markets.ingest import MarketIngestResult, ingest_records
@@ -47,6 +48,28 @@ RECORD_TAGS = {
     "RefData": "full",
 }
 EQUITY_CFI_PREFIXES = ("ES", "EP")  # shares and preferred shares; funds (EU), rights etc. excluded
+
+# Instruments the registers code as shares that are not (ticket 08). Each rule was checked on the
+# ESMA full equity files of 2026-10-31 (196,822 ES/EP records): see
+# docs/research/international-listings-sources.md. Name keywords such as "certificate" or
+# "express" are deliberately not rules: Dutch "certificaten van aandelen" are depositary receipts
+# for shares, and Anhui Expressway or J&T Global Express are companies.
+_ETP_NAME = re.compile(
+    r"\bET[FNPC]\b(?!\s*(?:PLC|LTD|LIMITED|AB|ASA|AS|SA|AG|SE|NV|INC|CORP|S\.?A\.?|S\.?P\.?A\.?))",
+    re.I,
+)
+_TRUST_PREFERRED = re.compile(r"\bPREFERRED\s+FUNDING\b", re.I)
+
+
+def not_a_share(isin: str | None, cfi: str, name: str) -> str | None:
+    """Why a record coded as a share is excluded, or None to keep it."""
+    if isin and isin[:2] in ("XS", "EU"):
+        return "international (XS/EU) ISIN: numbered as debt or a structured product, not a share"
+    if _ETP_NAME.search(name or ""):
+        return "exchange-traded product (ETF, ETN, ETC or ETP), not a company's share"
+    if cfi.startswith("EP") and _TRUST_PREFERRED.search(name or ""):
+        return "trust-preferred securities of a funding vehicle (a CDO), not a company's share"
+    return None
 
 
 @dataclass(frozen=True)
@@ -163,6 +186,13 @@ def _find_text(el: ET.Element, path: list[str]) -> str | None:
     return cur.text.strip() if cur is not None and cur.text else None
 
 
+def _to_bool(value: str | None) -> bool | None:
+    if value is None:
+        return None
+    v = value.strip().lower()
+    return True if v == "true" else False if v == "false" else None
+
+
 def _to_date(value: str | None) -> date | None:
     if not value:
         return None
@@ -198,6 +228,9 @@ def parse_firds_xml(
         cfi = _find_text(el, ["FinInstrmGnlAttrbts", "ClssfctnTp"]) or ""
         if mic in covered_mics and cfi.startswith(cfi_prefixes):
             isin = _find_text(el, ["FinInstrmGnlAttrbts", "Id"])
+            if not_a_share(isin, cfi, _find_text(el, ["FinInstrmGnlAttrbts", "FullNm"]) or ""):
+                el.clear()
+                continue
             term = _to_date(_find_text(el, ["TradgVnRltdAttrbts", "TermntnDt"]))
             if term == OPEN_ENDED:
                 term = None
@@ -231,6 +264,7 @@ def parse_firds_xml(
                 admission_approved_date=_to_date(
                     _find_text(el, ["TradgVnRltdAttrbts", "AdmssnApprvlDtByIssr"])
                 ),
+                issuer_requested=_to_bool(_find_text(el, ["TradgVnRltdAttrbts", "IssrReq"])),
                 first_trade_date=first,
                 termination_date=term,
                 status=status if status else STATUS_LISTED,
@@ -313,6 +347,41 @@ def ingest_firds_file(
     return result
 
 
+def remove_non_shares(db: Session, source: str) -> int:
+    """Delete stored listings of this register that the share rules now exclude, with their
+    events and any deliveries of those events. Returns how many listings were removed."""
+    from sqlalchemy import delete
+
+    from app.db.models import ListingEvent, NotificationDelivery
+
+    rows = db.execute(
+        select(
+            ListedInstrument.id,
+            ListedInstrument.isin,
+            ListedInstrument.cfi_code,
+            ListedInstrument.short_name,
+            ListedInstrument.issuer_name,
+        ).where(ListedInstrument.source == source)
+    ).all()
+    doomed = [
+        r.id
+        for r in rows
+        if not_a_share(r.isin, r.cfi_code or "", r.issuer_name)
+        or not_a_share(r.isin, r.cfi_code or "", r.short_name or "")
+    ]
+    if not doomed:
+        return 0
+    events = select(ListingEvent.id).where(ListingEvent.instrument_id.in_(doomed))
+    db.execute(
+        delete(NotificationDelivery).where(NotificationDelivery.listing_event_id.in_(events))
+    )
+    db.execute(delete(ListingEvent).where(ListingEvent.instrument_id.in_(doomed)))
+    db.execute(delete(ListedInstrument).where(ListedInstrument.id.in_(doomed)))
+    db.commit()
+    log_event(logger, logging.INFO, "non-share listings removed", source=source, count=len(doomed))
+    return len(doomed)
+
+
 def ingest_firds(
     db: Session,
     settings: Settings,
@@ -325,6 +394,7 @@ def ingest_firds(
 ) -> dict:
     """Discover and ingest the last N days of FIRDS files for one register. Skips files done."""
     now = now or utcnow()
+    remove_non_shares(db, source)
     days = settings.markets_firds_days_back if days_back is None else days_back
     since, until = (now - timedelta(days=days)).date(), now.date()
     run = start_run(db, source=f"markets:{source}")

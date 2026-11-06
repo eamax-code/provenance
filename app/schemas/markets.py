@@ -49,6 +49,11 @@ class InstrumentOut(ORMModel):
     currency: str | None
     admission_requested_date: date | None
     admission_approved_date: date | None
+    issuer_requested: bool | None = Field(
+        default=None,
+        description="FIRDS IssrReq: admission requested by the issuer (a likely primary "
+        "listing) rather than by the venue or a member; null where the source does not say",
+    )
     first_trade_date: date | None
     termination_date: date | None
     status: str

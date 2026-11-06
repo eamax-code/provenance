@@ -174,12 +174,20 @@ Keys store a prefix and a peppered SHA-256 hash only. `api_usage` has one row pe
 authenticated request with `route_template`, status, `response_bytes`, and `export_rows` for
 exports. `audit_events` records key creation/revocation and watch changes.
 
-## company_watches, notification_deliveries
+## company_watches, listing_watches, notification_deliveries
 
-A watch binds an API key to a CIK and a destination. Webhook secrets are derived from
-`WEBHOOK_SIGNING_SECRET` and the watch id (only the hash is stored). Deliveries have a stable
-`event_id` (`evt_` + hash of watch, CIK, accession) and a status of `pending`, `retrying`,
-`delivered` or `failed`.
+A company watch binds an API key to a CIK and a destination. A listing watch (ticket 09) binds it
+to listing events in a scope: `scope_type` `mic`, `country` or `region` with its `scope_value`
+(`XPAR`, `FR`, `europe`), and `event_types` (comma-separated: `new_listing`, `ipo`, `delisting`,
+`suspended`, `reinstated`, `modified`). Both count toward the plan's active-watch limit. Webhook
+secrets are derived from `WEBHOOK_SIGNING_SECRET` and the watch id (only the hash is stored).
+
+A delivery is one event for one watch: `watch_id` and `filing_id` for a filing, or
+`listing_watch_id` and `listing_event_id` for a listing event. It has a stable `event_id`
+(`evt_` + hash of the watch and the filing accession or listing event key) and a status of
+`pending`, `retrying`, `delivered` or `failed`. Listing payloads carry `event_type`
+`listing.<type>` and the instrument, venue, country, region and event details; never the
+register file URL.
 
 ## International listings (ADR 0006)
 
@@ -189,15 +197,21 @@ One row per covered venue: `mic` (ISO 10383), `operating_mic`, `name`, `country`
 
 ### issuers
 `lei` (unique when known), `legal_name`, `country`, `jurisdiction`, `registration_status`
-(GLEIF: ISSUED, LAPSED, …), `source` (`gleif` once enriched), `first_detected_at`, `updated_at`.
+(GLEIF: ISSUED, LAPSED, …), `source` (`gleif` once enriched; `gleif_isin_map` for an issuer
+found through the ISIN-LEI mapping and not yet read from GLEIF), `first_detected_at`,
+`updated_at`. GLEIF records are read in batches of 200 and re-read after
+`MARKETS_GLEIF_REFRESH_DAYS` (30), so renames and lapsed registrations show.
 
 ### listed_instruments
 One row per instrument on one venue. `listing_key` is the ISIN when the source provides a
 valid one, else `SYM:<symbol>` (Canadian exchange feeds carry no ISIN). Fields: `isin`,
 `symbol`, `issuer_name` (instrument full name from FIRDS until GLEIF supplies the legal name),
-`issuer_lei`, `short_name`, `cfi_code`, `instrument_type` (`share`, `preferred_share`,
+`issuer_lei` (from the register, else from GLEIF's daily ISIN-LEI mapping), `short_name`, `cfi_code`, `instrument_type` (`share`, `preferred_share`,
 `listing` when the source does not say), `currency`, `admission_requested_date`,
-`admission_approved_date`, `first_trade_date`, `termination_date`, `status` (`listed`,
+`admission_approved_date`, `issuer_requested` (FIRDS `IssrReq`: the issuer asked for admission to
+this venue, as for a primary listing, rather than the venue or a member admitting an instrument
+listed elsewhere; null where the source does not say), `first_trade_date`, `termination_date`,
+`status` (`listed`,
 `delisted`, `suspended`), `source`, `source_url` (the register file or feed URL),
 `source_record_hash`, `source_published_at`, `first_detected_at`, `last_seen_at`,
 `processed_at`, `quality_status` (`partial` when ISIN or first-trade date is missing).
@@ -206,7 +220,8 @@ valid one, else `SYM:<symbol>` (Canadian exchange feeds carry no ISIN). Fields: 
 Idempotent per (`listing_key`, `mic`, `event_type`, `event_date`). `event_type` is one of
 `new_listing` (first-trade date within 45 days of detection; `details.first_listing_for_issuer_in_our_data`
 says whether this service knew other listings of the issuer, which is **not** an IPO
-determination), `ipo` (only when a source states it), `delisting` (termination date set or
+determination; `details.issuer_requested` and `details.likely_primary_listing`, true when the
+issuer requested admission and it is the issuer's first listing in our data), `ipo` (only when a source states it), `delisting` (termination date set or
 passed), `suspended`, `reinstated`, `modified` (name or symbol change, with before/after in
 `details`). Dates older than the window seen for the first time are backfill and raise nothing.
 

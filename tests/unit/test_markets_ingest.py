@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import func, select
@@ -82,6 +83,7 @@ def test_recent_first_trade_date_raises_new_listing_with_first_listing_flag(db):
                 issuer_name="Exosens",
                 issuer_lei="969500ABCDEFGHIJ1234",
                 first_trade_date=NOW.date() - timedelta(days=3),
+                issuer_requested=True,
             )
         ],
         "esma_firds",
@@ -90,7 +92,10 @@ def test_recent_first_trade_date_raises_new_listing_with_first_listing_flag(db):
     assert res.events == {"new_listing": 1}
     ev = db.scalar(select(ListingEvent))
     assert ev.event_type == "new_listing" and ev.event_date == NOW.date() - timedelta(days=3)
-    assert '"first_listing_for_issuer_in_our_data": true' in ev.details
+    details = json.loads(ev.details)
+    assert details["first_listing_for_issuer_in_our_data"] is True
+    assert details["issuer_requested"] is True and details["likely_primary_listing"] is True
+    assert db.scalar(select(ListedInstrument.issuer_requested)) is True
     # second line for the same issuer is not a "first listing"
     ingest.ingest_records(
         db,

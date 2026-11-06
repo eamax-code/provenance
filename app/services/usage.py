@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import ApiUsage, CompanyWatch, utcnow
+from app.db.models import ApiUsage, CompanyWatch, ListingWatch, utcnow
 
 
 def record_usage(
@@ -103,14 +103,18 @@ def watched_companies_used(db: Session, api_key_id: uuid.UUID) -> int:
 
 
 def active_watches_used(db: Session, api_key_id: uuid.UUID) -> int:
-    return int(
-        db.scalar(
-            select(func.count(CompanyWatch.id)).where(
-                CompanyWatch.api_key_id == api_key_id, CompanyWatch.is_active.is_(True)
-            )
+    """Active company watches plus active listing watches: both count toward the plan."""
+    companies = db.scalar(
+        select(func.count(CompanyWatch.id)).where(
+            CompanyWatch.api_key_id == api_key_id, CompanyWatch.is_active.is_(True)
         )
-        or 0
     )
+    listings = db.scalar(
+        select(func.count(ListingWatch.id)).where(
+            ListingWatch.api_key_id == api_key_id, ListingWatch.is_active.is_(True)
+        )
+    )
+    return int(companies or 0) + int(listings or 0)
 
 
 MAX_SERIES_DAYS = 366

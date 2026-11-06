@@ -48,6 +48,9 @@ class ListingRecord:
     currency: str | None = None
     admission_requested_date: date | None = None
     admission_approved_date: date | None = None
+    # FIRDS IssrReq: admission to this venue was requested by the issuer (True), or by the venue
+    # or a member without the issuer (False): a likely primary listing versus a trading line.
+    issuer_requested: bool | None = None
     first_trade_date: date | None = None
     termination_date: date | None = None
     status: str | None = None  # explicit source status, else derived from termination_date
@@ -83,6 +86,7 @@ class ListingRecord:
             "ccy": self.currency,
             "req": _d(self.admission_requested_date),
             "appr": _d(self.admission_approved_date),
+            "issr_req": self.issuer_requested,
             "first": _d(self.first_trade_date),
             "term": _d(self.termination_date),
             "status": self.status,

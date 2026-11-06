@@ -3,7 +3,7 @@
 
   python scripts/ingest_markets.py --source esma_firds [--days-back 3]
   python scripts/ingest_markets.py --source fca_firds
-  python scripts/ingest_markets.py --source gleif [--limit 50]      # issuer enrichment
+  python scripts/ingest_markets.py --source gleif [--limit 50]      # ISIN-LEI map, then issuers
   python scripts/ingest_markets.py --source tsx | cse   # only when enabled (see below)
   python scripts/ingest_markets.py --all                 # every enabled source, in order
   python scripts/ingest_markets.py --loop                # daily at MARKETS_DAILY_HOUR_UTC, forever
@@ -76,7 +76,11 @@ def main() -> int:
                     db, settings, http, source, days_back=args.days_back, file_types=types
                 )
             elif source == "gleif":
-                out = gleif.enrich_issuers(db, settings, http, limit=args.limit)
+                mapped = gleif.map_isins(db, settings, http)
+                out = {
+                    "isin_map": mapped,
+                    **gleif.enrich_issuers(db, settings, http, limit=args.limit),
+                }
             else:
                 out = canada.ingest_source(db, settings, http, source)
             print(json.dumps({"source": source, **out}, default=str))

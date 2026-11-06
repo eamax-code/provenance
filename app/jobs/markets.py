@@ -48,7 +48,11 @@ def run_all(
                 if source in ("esma_firds", "fca_firds"):
                     results[source] = firds.ingest_firds(db, settings, http, source)
                 elif source == "gleif":
-                    results[source] = gleif.enrich_issuers(db, settings, http)
+                    mapped = gleif.map_isins(db, settings, http)
+                    results[source] = {
+                        "isin_map": mapped,
+                        **gleif.enrich_issuers(db, settings, http),
+                    }
                 else:
                     results[source] = canada.ingest_source(db, settings, http, source)
                 errors.extend(f"{source}: {e}" for e in results[source].get("errors", []))

@@ -4,8 +4,13 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done (2026-11-06)
 
-- [ ] Bulk mapping download (size-capped, cached) and LEI record loading for covered issuers
-- [ ] Issuer names, country and status on all listings; per-call lookups only for gaps
-- [ ] Tests on trimmed real mapping and golden-copy fixtures
+- [x] Bulk mapping download (size-capped, cached) and LEI record loading for covered issuers
+- [x] Issuer names, country and status on all listings; per-call lookups only for gaps
+- [x] Tests on trimmed real mapping and golden-copy fixtures
+
+**Done differently:** GLEIF's batch filter (`filter[lei]=a,b,…`, 200 a call) resolves every issuer
+in one pass (4,287 issuers in 22 calls, 32 s, on 2026-11-06), so the full golden copy (hundreds of
+MB) is not downloaded; records older than 30 days are re-read instead of applying golden-copy
+deltas. The daily ISIN-LEI file fills issuer LEIs the register lacks.

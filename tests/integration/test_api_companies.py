@@ -296,8 +296,24 @@ def test_console_module_is_served(client):
     assert "/app/console.js" in html and 'id="watch-form"' in html
     js = client.get("/app/console.js")
     assert js.status_code == 200
-    for route in ("/v1/developer/usage", "/v1/developer/api-keys", "/v1/watches"):
+    for route in (
+        "/v1/developer/usage",
+        "/v1/developer/api-keys",
+        "/v1/watches",
+        "/v1/listing-watches",
+    ):
         assert route in js.text
+    assert 'id="lwatch-form"' in html
+
+
+def test_listings_view_is_served(client):
+    html = client.get("/app/").text
+    assert "/app/listings.js" in html and 'data-view="listings"' in html and 'id="l-form"' in html
+    js = client.get("/app/listings.js")
+    assert js.status_code == 200
+    for route in ("/v1/markets/instruments", "/v1/markets/events", "/v1/markets/issuers/"):
+        assert route in js.text
+    assert "source_url" not in js.text  # only source names, never register file links
 
 
 def test_former_names_find_the_company(client, auth, db, ingested_aapl):

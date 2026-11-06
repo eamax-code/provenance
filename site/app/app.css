@@ -35,7 +35,7 @@ code { font-family: var(--font-mono); font-size: .85em; }
 .session { display: flex; align-items: center; gap: 10px; }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: .72rem; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); }
 .status-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); } .status-pill.on i { background: var(--good); box-shadow: 0 0 8px var(--good); }
-.panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
 .gate h1 { margin-bottom: 4px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 input, select, textarea { font: inherit; color: var(--fg); background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 12px; min-width: 0; }
@@ -87,3 +87,13 @@ tr:last-child td { border-bottom: 0; } td.wrap { white-space: normal; }
 .usage-chart rect.ok { fill: var(--brand); }
 .usage-chart rect.err { fill: var(--accent-hi); }
 .usage-chart text { font-size: 11px; fill: var(--stone); }
+
+/* listings: event timeline and inline links */
+.timeline { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 2px; }
+.timeline li { display: grid; grid-template-columns: 7.5em 14em 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+@media (max-width: 640px) { .timeline li { grid-template-columns: 1fr; gap: 2px; } }
+.linkish { padding: 0; border: 0; background: none; font: inherit; color: var(--accent); cursor: pointer; text-align: left; }
+.linkish:hover { text-decoration: underline; }
+#l-detail h3 { margin: 18px 0 8px; font-size: 1rem; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; border: 0; margin: 0; padding: 0; }
+.checks legend { padding: 0; margin-bottom: 4px; color: var(--muted); }

@@ -17,14 +17,11 @@ decision or account; **ready-for-agent** can be built now; **needs-triage** is a
 ## Ready for agent
 | # | Item |
 | --- | --- |
-| 07 | [Issuer identity for every listing from GLEIF bulk files](.scratch/backlog/issues/07-listings-issuer-identity-at-scale.md) |
-| 08 | [Listings data quality: structured products, primary-listing flag](.scratch/backlog/issues/08-listings-data-quality.md) |
-| 09 | [Watches and webhooks for listing events](.scratch/backlog/issues/09-listing-watches.md) |
-| 10 | [Listings in the Explorer app](.scratch/backlog/issues/10-explorer-listings.md) |
 | 20 | [Officer changes: the remaining parts (event feed, tenure context, backtests)](.scratch/backlog/issues/20-officer-change-analysis.md) |
 
 ## Done
-21 the ChatGPT design with clay.com-style motion is the main page (2026-11-06), 01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 11 usage series, SEC responses by endpoint, detection-to-processing latency, 12 shared rate limits, daily retention, webhook alerts, 15 test hygiene
+21 the ChatGPT design with clay.com-style motion is the main page (2026-11-06), 01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 11 usage series, SEC responses by endpoint, detection-to-processing latency, 07-10 listings: GLEIF identity in batches, non-share exclusion and primary-listing flag,
+listing watches, Listings view in the Explorer; 12 shared rate limits, daily retention, webhook alerts, 15 test hygiene
 (no warnings, `--clock`), 16
 point-in-time facts, 17 event feed, 18 Python client. GitHub Issues #1 to #8 are closed (search,
 marts, profiles and /v1/search, chat flow, redesigns).

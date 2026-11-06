@@ -53,7 +53,7 @@
   function signOut(message) {
     state.key = null; storage(false, null); state.company = null;
     $('gate').hidden = false; $('gate-showcase').hidden = false; $('signout').hidden = true; $('key-pill').classList.remove('on'); $('key-label').textContent = 'no key';
-    $('explore').hidden = true; $('console').hidden = true; $('company').hidden = true;
+    $('explore').hidden = true; $('console').hidden = true; $('listings').hidden = true; $('company').hidden = true;
     if (message) { $('gate-status').textContent = message; }
   }
   $('key-form').addEventListener('submit', function (e) {
@@ -88,8 +88,9 @@
   function showView(name) {
     state.view = name;
     document.querySelectorAll('.view-btn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-view') === name)); });
-    $('explore').hidden = name !== 'explore'; $('console').hidden = name !== 'console';
+    $('explore').hidden = name !== 'explore'; $('console').hidden = name !== 'console'; $('listings').hidden = name !== 'listings';
     if (name === 'console' && window.ProvenanceConsole) window.ProvenanceConsole.load(api, toast);
+    if (name === 'listings' && window.ProvenanceListings) window.ProvenanceListings.load(api, toast);
     try { location.hash = name; } catch (e) {}
   }
   document.querySelectorAll('.view-btn').forEach(function (b) { b.addEventListener('click', function () { if (state.key) showView(b.getAttribute('data-view')); }); });
@@ -260,5 +261,5 @@
   /* ---- boot ---- */
   var saved = storage(true);
   if (saved) { state.key = saved; api('/v1/developer/usage').then(function () { setKey(saved); }).catch(function () {}); }
-  var h = (location.hash || '').replace('#', ''); if (h === 'console') state.view = 'console';
+  var h = (location.hash || '').replace('#', ''); if (h === 'console' || h === 'listings') state.view = h;
 })();

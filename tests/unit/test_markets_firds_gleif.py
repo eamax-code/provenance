@@ -57,6 +57,9 @@ def test_parse_dltins_covers_only_equities_on_covered_venues():
         and new.admission_requested_date == date(2026, 10, 1)
         and new.admission_approved_date == date(2026, 10, 15)
     )
+    # IssrReq: the issuer asked for admission (a primary listing) vs a venue's trading line.
+    assert new.issuer_requested is True and mod.record.issuer_requested is False
+    assert kinds[("FR0000120271", "XPAR")].record.issuer_requested is None  # not in the record
     assert (
         new.issuer_lei == "969500ABCDEFGHIJ1234"
         and new.currency == "EUR"
@@ -253,8 +256,11 @@ def test_gleif_parse_and_enrichment(db, settings, tmp_path):
         sleep=lambda s: None,
     )
     summary = gleif.enrich_issuers(db, settings, http, now=NOW)
-    assert summary == {"looked_up": 1, "enriched": 1, "not_found": 0}
-    assert urls == ["https://api.gleif.org/api/v1/lei-records/529900S21EQ1BO4ESM68"]
+    assert summary == {"calls": 1, "looked_up": 1, "enriched": 1, "refreshed": 0, "not_found": 0}
+    assert urls == [
+        "https://api.gleif.org/api/v1/lei-records?filter%5Blei%5D=529900S21EQ1BO4ESM68"
+        "&page%5Bsize%5D=200"
+    ]
     issuer = db.scalar(select(Issuer))
     assert (
         issuer.source == "gleif"
@@ -297,3 +303,169 @@ def test_full_file_listing_keeps_only_equities_part(settings, tmp_path):
         )
     ]
     assert names == ["FULINS_E_20261024_01of02.zip", "FULINS_E_20261024_02of02.zip"]
+
+
+def _gleif_server(urls):
+    """GLEIF as recorded on 2026-11-06: batch LEI records and the ISIN-LEI mapping (trimmed)."""
+    records = json.loads((FIX / "gleif_lei_batch.json").read_text())["data"] + [
+        json.loads((FIX / "gleif_lei_record.json").read_text())["data"]
+    ]
+    zip_bytes = (FIX / "gleif_isin_lei_sample.zip").read_bytes()
+
+    def handler(request):
+        urls.append(str(request.url))
+        if request.url.path.endswith("/isin-lei/latest"):
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "attributes": {
+                            "fileName": "isin-lei-20261106T081508.zip",
+                            "downloadLink": "https://mapping.gleif.org/api/v2/isin-lei/x/download",
+                        }
+                    }
+                },
+            )
+        if request.url.path.endswith("/download"):
+            return httpx.Response(200, content=zip_bytes)
+        wanted = set(request.url.params.get("filter[lei]", "").split(","))
+        found = [r for r in records if r["attributes"]["lei"] in wanted]
+        return httpx.Response(200, json={"data": found})
+
+    return handler
+
+
+def _three_listings(db):
+    from app.services.markets import ingest
+    from app.services.markets.records import ListingRecord
+
+    for mic, name, cc in (("XPAR", "Euronext Paris", "FR"), ("XLON", "London", "GB")):
+        ingest.ensure_market(db, mic, name, cc, "europe", "esma_firds", "https://x")
+    db.commit()
+    rows = [
+        ("FR0000120271", "XPAR", "TOTALENERGIES SE Registered Shares o.N.", "529900S21EQ1BO4ESM68"),
+        ("GB0007980591", "XLON", "BP PLC ORD USD0.25", None),  # register gives no issuer LEI
+        ("US0378331005", "XLON", "APPLE INC COM NPV", None),
+    ]
+    ingest.ingest_records(
+        db,
+        [
+            ListingRecord(isin=i, mic=m, issuer_name=n, issuer_lei=lei, source="esma_firds",
+                          source_url="https://x",
+                          first_trade_date=NOW.date() if i == "GB0007980591" else None)
+            for i, m, n, lei in rows
+        ],
+        "esma_firds",
+        now=NOW,
+    )  # fmt: skip
+
+
+def test_isin_map_then_batch_lookup_resolves_every_issuer(db, settings, tmp_path):
+    _three_listings(db)
+    urls = []
+    http = MarketHttp(
+        settings,
+        http=httpx.Client(transport=httpx.MockTransport(_gleif_server(urls))),
+        cache_dir=tmp_path,
+        sleep=lambda s: None,
+    )
+    mapped = gleif.map_isins(db, settings, http, now=NOW)
+    assert mapped == {"isins_without_lei": 2, "mapped": 2, "new_issuers": 2}
+    leis = dict(db.execute(select(ListedInstrument.isin, ListedInstrument.issuer_lei)).all())
+    assert leis["GB0007980591"] == "213800LH1BZH3DI6G760"
+    assert leis["US0378331005"] == "HWUPKR0MPOU8FGXBT394"
+    summary = gleif.enrich_issuers(db, settings, http, now=NOW)
+    assert summary["calls"] == 1 and summary["enriched"] == 3 and summary["not_found"] == 0
+    from app.db.models import ListingEvent
+
+    assert [e.issuer_name for e in db.scalars(select(ListingEvent))] == ["BP P.L.C."]
+    names = dict(db.execute(select(ListedInstrument.isin, ListedInstrument.issuer_name)).all())
+    assert names == {
+        "FR0000120271": "TotalEnergies SE",
+        "GB0007980591": "BP P.L.C.",
+        "US0378331005": "Apple Inc.",
+    }
+    countries = {i.lei: i.country for i in db.scalars(select(Issuer))}
+    assert countries["213800LH1BZH3DI6G760"] == "GB" and countries["HWUPKR0MPOU8FGXBT394"] == "US"
+    # The mapping file is downloaded once and cached; nothing is left to map.
+    downloads = sum(u.endswith("/download") for u in urls)
+    assert gleif.map_isins(db, settings, http, now=NOW)["isins_without_lei"] == 0
+    assert sum(u.endswith("/download") for u in urls) == downloads == 1
+
+
+def test_stale_records_are_refreshed_and_missing_ones_wait(db, settings, tmp_path):
+    from datetime import timedelta
+
+    _three_listings(db)
+    urls = []
+    http = MarketHttp(
+        settings,
+        http=httpx.Client(transport=httpx.MockTransport(_gleif_server(urls))),
+        cache_dir=tmp_path,
+        sleep=lambda s: None,
+    )
+    gleif.map_isins(db, settings, http, now=NOW)
+    gleif.enrich_issuers(db, settings, http, now=NOW)
+    later = NOW + timedelta(days=settings.markets_gleif_refresh_days + 1)
+    summary = gleif.enrich_issuers(db, settings, http, now=later)
+    assert summary["refreshed"] == 3 and summary["enriched"] == 0
+    assert gleif.enrich_issuers(db, settings, http, now=later)["looked_up"] == 0
+    # An LEI GLEIF does not know is counted and left for a later run.
+    db.add(Issuer(lei="000000000000000000X0", legal_name="UNKNOWN", source="esma_firds",
+                  first_detected_at=NOW, updated_at=NOW))  # fmt: skip
+    db.commit()
+    assert gleif.enrich_issuers(db, settings, http, now=later)["not_found"] == 1
+
+
+def test_read_isin_map_streams_only_wanted_rows():
+    found = gleif.read_isin_map(FIX / "gleif_isin_lei_sample.zip", {"FR0000120271", "XX0"})
+    assert found == {"FR0000120271": "529900S21EQ1BO4ESM68"}
+
+
+def test_non_shares_coded_as_shares_are_excluded():
+    """Real records from ESMA's FULINS_E files of 2026-10-31 (ticket 08)."""
+    recs = list(
+        firds.parse_firds_xml(
+            io.BytesIO((FIX / "fulins_non_shares.xml").read_bytes()),
+            "esma_firds",
+            "https://firds.esma.europa.eu/firds/FULINS_E_20261031_02of02.zip",
+            {"XMSM", "TWEM", "XOSL", "NPEX"},
+            published_at=datetime(2026, 10, 31, tzinfo=UTC),
+        )
+    )
+    kept = {r.record.isin for r in recs}
+    # Kept: a company named "... ETC PLC" and Dutch depositary receipts for shares.
+    assert kept == {"CY0101550917", "NL0015001A60"}
+    assert firds.not_a_share("XS2000000000", "ESVUFR", "BNP PARIBAS CERT") is not None
+    assert "CDO" in firds.not_a_share("KYG015912085", "EPNXFR", "ALESCO PREFERRED FUNDING VI")
+    assert firds.not_a_share("US90137T1034", "ESNUFR", "21SHARES XRP ETF").startswith("exchange")
+    for company in ("Anhui Expressway Co. Ltd.", "NOTE AB", "TURBOMECANICA S.A.", "BONDUELLE"):
+        assert firds.not_a_share("FR0000063935", "ESVUFR", company) is None
+
+
+def test_stored_non_shares_are_removed_with_their_events(db):
+    from app.db.models import ListingEvent
+    from app.services.markets import ingest
+    from app.services.markets.records import ListingRecord
+
+    ingest.ensure_market(db, "XMSM", "Euronext Dublin MSM", "IE", "europe", "esma_firds", "x")
+    ingest.ensure_market(db, "XPAR", "Euronext Paris", "FR", "europe", "esma_firds", "x")
+    db.commit()
+    ingest.ingest_records(
+        db,
+        [
+            ListingRecord(isin="KYG015912085", mic="XMSM", cfi_code="EPNXFR",
+                          issuer_name="ALESCO PREFERRED FUNDING  VI LTD Preferred Shares",
+                          first_trade_date=NOW.date(), source="esma_firds", source_url="x"),
+            ListingRecord(isin="FR001400AJ45", mic="XPAR", cfi_code="ESVUFR",
+                          issuer_name="EXOSENS", first_trade_date=NOW.date(),
+                          source="esma_firds", source_url="x"),
+        ],
+        "esma_firds",
+        now=NOW,
+    )  # fmt: skip
+    assert db.scalar(select(func.count(ListingEvent.id))) == 2
+    assert firds.remove_non_shares(db, "esma_firds") == 1
+    assert [i.isin for i in db.scalars(select(ListedInstrument))] == ["FR001400AJ45"]
+    assert db.scalar(select(func.count(ListingEvent.id))) == 1
+    assert firds.remove_non_shares(db, "esma_firds") == 0

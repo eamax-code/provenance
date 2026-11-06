@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** done (2026-11-06)
 
-- [ ] Watch model and API for listing scopes; plan limits apply
-- [ ] Deliveries created per new event; console shows them; tests
+- [x] Watch model and API for listing scopes; plan limits apply
+- [x] Deliveries created per new event; console shows them; tests

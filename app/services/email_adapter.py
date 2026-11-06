@@ -35,6 +35,24 @@ def send_filing_email(settings: Settings, to_address: str, payload: dict) -> Non
     _send(settings, msg)
 
 
+def send_listing_email(settings: Settings, to_address: str, payload: dict) -> None:
+    data = payload["data"]
+    kind = data["event_type"].replace("_", " ")
+    msg = EmailMessage()
+    msg["Subject"] = (
+        f"Listing event: {kind}, {data['issuer_name']} on {data['venue'] or data['mic']}"
+    )
+    msg["To"] = to_address
+    msg.set_content(
+        f"A listing event was detected: {kind}.\n\n"
+        f"Instrument: {data['issuer_name']} ({data['isin'] or data['listing_key']})\n"
+        f"Venue: {data['venue'] or ''} ({data['mic']}), {data['country'] or ''}\n"
+        f"Date: {data['event_date']}\nSource register: {data['source']}\n\n"
+        f"Event: {payload['event_id']}\n\n{DISCLAIMER}\n\n" + json.dumps(payload, indent=2)
+    )
+    _send(settings, msg)
+
+
 def send_api_key_email(settings: Settings, to_address: str, raw_key: str, plan: str) -> None:
     msg = EmailMessage()
     msg["Subject"] = f"Your {settings.app_name} API key"

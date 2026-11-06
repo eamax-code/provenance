@@ -21,6 +21,7 @@ from app.api import (
     routes_events,
     routes_exports,
     routes_key_requests,
+    routes_listing_watches,
     routes_markets,
     routes_notifications,
     routes_public,
@@ -123,6 +124,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(routes_companies.router)
     app.include_router(routes_notifications.router)
+    app.include_router(routes_listing_watches.router)
     app.include_router(routes_developer.router)
     app.include_router(routes_exports.router)
     app.include_router(routes_stats.router)

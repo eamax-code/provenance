@@ -45,6 +45,8 @@ class MarketIngestResult:
     skipped: int = 0
     events: dict[str, int] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
+    new_events: list = field(default_factory=list)  # ListingEvent rows created by this run
+    deliveries_created: int = 0  # listing-watch deliveries for those events
 
     def bump(self, event_type: str) -> None:
         self.events[event_type] = self.events.get(event_type, 0) + 1
@@ -172,6 +174,7 @@ def ingest_records(
                 currency=rec.currency,
                 admission_requested_date=rec.admission_requested_date,
                 admission_approved_date=rec.admission_approved_date,
+                issuer_requested=rec.issuer_requested,
                 first_trade_date=rec.first_trade_date,
                 termination_date=rec.termination_date,
                 status=status,
@@ -205,6 +208,8 @@ def ingest_records(
         row.currency = rec.currency or row.currency
         row.admission_requested_date = rec.admission_requested_date or row.admission_requested_date
         row.admission_approved_date = rec.admission_approved_date or row.admission_approved_date
+        if rec.issuer_requested is not None:
+            row.issuer_requested = rec.issuer_requested
         row.first_trade_date = rec.first_trade_date or row.first_trade_date
         row.termination_date = rec.termination_date
         row.status = status
@@ -218,6 +223,13 @@ def ingest_records(
         _events_for_change(db, row, before, rec, now, result)
     db.commit()
     publish_pending(db)  # after the commit, so the feed never runs ahead of visible rows
+    if result.new_events:
+        from app.services.notifications import create_deliveries_for_listing_events
+
+        result.deliveries_created = create_deliveries_for_listing_events(
+            db, result.new_events, now=now
+        )
+        db.commit()
     log_event(
         logger,
         logging.INFO,
@@ -256,24 +268,24 @@ def _add_event(
     exists = db.scalar(select(ListingEvent.id).where(ListingEvent.event_key == key))
     if exists is not None:
         return False
-    db.add(
-        ListingEvent(
-            instrument_id=row.id,
-            isin=row.isin,
-            listing_key=row.listing_key,
-            symbol=row.symbol,
-            mic=row.mic,
-            issuer_name=row.issuer_name,
-            event_type=event_type,
-            event_date=event_date,
-            event_key=key,
-            source=row.source,
-            source_url=row.source_url,
-            details=json.dumps(details) if details else None,
-            detected_at=now,
-            quality_status=quality,
-        )
+    event = ListingEvent(
+        instrument_id=row.id,
+        isin=row.isin,
+        listing_key=row.listing_key,
+        symbol=row.symbol,
+        mic=row.mic,
+        issuer_name=row.issuer_name,
+        event_type=event_type,
+        event_date=event_date,
+        event_key=key,
+        source=row.source,
+        source_url=row.source_url,
+        details=json.dumps(details) if details else None,
+        detected_at=now,
+        quality_status=quality,
     )
+    db.add(event)
+    result.new_events.append(event)
     result.bump(event_type)
     return True
 
@@ -322,8 +334,12 @@ def _events_for_new_row(
             result,
             {
                 "first_listing_for_issuer_in_our_data": first,
+                "issuer_requested": rec.issuer_requested,
+                "likely_primary_listing": bool(rec.issuer_requested) and first,
                 "note": "first_listing_for_issuer_in_our_data is relative to what this service "
-                "has ingested; it is not an IPO determination",
+                "has ingested; it is not an IPO determination. issuer_requested is the register's "
+                "IssrReq flag: the issuer asked for admission to this venue, as for a primary "
+                "listing, rather than the venue admitting an instrument listed elsewhere.",
             },
         )
     elif (

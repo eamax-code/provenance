@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** done (2026-11-06)
 
-- [ ] Search and instrument view using `/v1/markets/*`; event timeline; source links
-- [ ] Served-file test and script check
+- [x] Search and instrument view using `/v1/markets/*`; event timeline; source links
+- [x] Served-file test and script check

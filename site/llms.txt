@@ -27,6 +27,7 @@
 - GET /v1/events?after={cursor}&since=&types={filing|listing}&cik=&form_type=&mic=&event_type=&limit<=100  one ordered feed of new SEC filings and listing events; pass next_cursor as after
 - GET /v1/events/stream  same feed as Server-Sent Events (X-API-Key header; resume with Last-Event-ID; demo key not accepted)
 - POST /v1/watches {"cik","destination_type":"webhook|email","destination"} ; GET /v1/watches ; DELETE /v1/watches/{id} ; GET /v1/watches/{id}/deliveries
+- POST /v1/listing-watches {"scope_type":"mic|country|region","scope_value":"XPAR|FR|europe","event_types"?:["new_listing","delisting","suspended"],"destination_type":"webhook|email","destination"} ; GET /v1/listing-watches ; DELETE /v1/listing-watches/{id} ; GET /v1/listing-watches/{id}/deliveries  signed like filing watches; X-Event-Type is listing.<event_type>; counts toward the plan's active watches
 - GET /v1/developer/usage?from=&to=  totals by route plus "daily": requests and errors per UTC day ; GET/DELETE /v1/developer/api-keys
 - GET /v1/exports/facts?metric=&ciks=a,b&format={csv|json}&limit<=1000
 - GET /v1/exports/company-years?ciks=a,b&from_year=&to_year=&format={csv|json}&limit=  one row per company and fiscal year: revenue, operating_income, net_income, total_assets, operating_cash_flow (USD, from each year's annual report) and each figure's filing link; give ciks (max 50) or one fiscal year (from_year = to_year) across all companies; your own key only
@@ -39,9 +40,9 @@
 
 ## International listings (Canada / Europe / UK; key required)
 - GET /v1/markets/  venues covered (MIC, country, region, counts)
-- GET /v1/markets/instruments?mic=&country=&region={canada|europe|uk}&status={listed|delisted|suspended}&q=&first_trade_since=
+- GET /v1/markets/instruments?mic=&country=&region={canada|europe|uk}&status={listed|delisted|suspended}&q={issuer name|symbol|ISIN|LEI}&first_trade_since=  each listing has issuer_requested (FIRDS IssrReq: a likely primary listing when true)
 - GET /v1/markets/instruments/{isin}  listings across venues + issuer (LEI)
-- GET /v1/markets/events?type={new_listing|ipo|delisting|modified|suspended|reinstated}&region=&mic=&since=
+- GET /v1/markets/events?type={new_listing|ipo|delisting|modified|suspended|reinstated}&region=&mic=&isin=&since=  new_listing details carry issuer_requested and likely_primary_listing
 - GET /v1/markets/issuers/{lei}
 - new_listing = instrument first traded on a venue recently; NOT an IPO determination. ipo only when the source states it.
 - Sources: ESMA FIRDS, FCA FIRDS, GLEIF (CC0). Rows carry source.

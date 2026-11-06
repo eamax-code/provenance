@@ -128,6 +128,8 @@ def test_instruments_filters_and_search(client, auth, db):
         is True
     )
     assert client.get("/v1/markets/instruments?status=bogus", headers=auth).status_code == 422
+    by_isin = client.get("/v1/markets/instruments?q=fr0000120271", headers=auth).json()["data"]
+    assert {i["isin"] for i in by_isin} == {"FR0000120271"} and len(by_isin) == 2
 
 
 def test_instrument_detail_and_issuer(client, auth, db):
@@ -166,6 +168,8 @@ def test_events_listing_and_filters(client, auth, db):
         == "delisting"
     )
     assert client.get("/v1/markets/events?type=merger", headers=auth).status_code == 422
+    one = client.get("/v1/markets/events?isin=fr001400aj45", headers=auth).json()["data"]
+    assert one and {e["isin"] for e in one} == {"FR001400AJ45"}
     assert (
         client.get(f"/v1/markets/events?since={NOW.date().isoformat()}", headers=auth).json()[
             "data"

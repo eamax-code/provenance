@@ -75,7 +75,7 @@ def instruments(
     region: str | None = Query(None, pattern="^(canada|europe|uk)$"),
     status: str | None = Query(None, pattern="^(listed|delisted|suspended)$"),
     q: str | None = Query(
-        None, min_length=2, max_length=100, description="Issuer name, symbol or LEI"
+        None, min_length=2, max_length=100, description="Issuer name, symbol, ISIN or LEI"
     ),
     first_trade_since: date | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
@@ -100,6 +100,7 @@ def instruments(
             or_(
                 func.lower(ListedInstrument.issuer_name).like(like, escape="\\"),
                 func.upper(ListedInstrument.symbol) == q.upper(),
+                ListedInstrument.isin == q.upper(),
                 ListedInstrument.issuer_lei == q.upper(),
             )
         )
@@ -160,6 +161,7 @@ def events(
     type: str | None = Query(None, alias="type", description=", ".join(EVENT_TYPES)),
     mic: str | None = Query(None, min_length=4, max_length=4),
     region: str | None = Query(None, pattern="^(canada|europe|uk)$"),
+    isin: str | None = Query(None, min_length=12, max_length=12, description="One instrument"),
     since: date | None = Query(None, description="event_date >= since"),
     detected_since: date | None = Query(None, description="detected_at >= date"),
     limit: int = Query(50, ge=1, le=200),
@@ -176,6 +178,8 @@ def events(
         stmt = stmt.where(ListingEvent.mic == mic.upper())
     if region:
         stmt = stmt.where(Market.region == region)
+    if isin:
+        stmt = stmt.where(ListingEvent.isin == isin.upper())
     if since:
         stmt = stmt.where(ListingEvent.event_date >= since)
     if detected_since:

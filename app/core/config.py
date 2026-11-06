@@ -59,7 +59,8 @@ class Settings(BaseSettings):
         "esma_firds,fca_firds,gleif"  # comma list; exchange adapters opt-in
     )
     markets_firds_days_back: int = 3
-    markets_gleif_lookups_per_run: int = 50
+    markets_gleif_lookups_per_run: int = 50  # API calls of up to 200 LEIs each
+    markets_gleif_refresh_days: int = 30
     # Daily scheduler: the poller runs all enabled sources once per UTC day after this hour
     # (ESMA and FCA publish deltas by 09:00 CET/UTC). Set false where a platform cron runs it.
     markets_daily_enabled: bool = True

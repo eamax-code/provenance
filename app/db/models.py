@@ -216,15 +216,48 @@ class CompanyWatch(Base):
     last_delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
 
+class ListingWatch(Base):
+    """A key holder's subscription to listing events on a venue, country or region (ticket 09)."""
+
+    __tablename__ = "listing_watches"
+    __table_args__ = (
+        Index("ix_listing_watches_scope_active", "scope_type", "scope_value", "is_active"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    api_key_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("api_keys.id"), nullable=False)
+    scope_type: Mapped[str] = mapped_column(Text, nullable=False)  # mic | country | region
+    scope_value: Mapped[str] = mapped_column(Text, nullable=False)  # XPAR | FR | europe
+    event_types: Mapped[str] = mapped_column(Text, nullable=False)  # comma-separated
+    destination_type: Mapped[str] = mapped_column(Text, nullable=False)  # webhook | email
+    destination: Mapped[str] = mapped_column(Text, nullable=False)
+    secret_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    deactivated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    last_delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+
+
 class NotificationDelivery(Base):
+    """One event to one watch: a filing for a company watch, or a listing event for a listing
+    watch. Exactly one of the two pairs of ids is set."""
+
     __tablename__ = "notification_deliveries"
     __table_args__ = (Index("ix_deliveries_status_next", "status", "next_attempt_at"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    watch_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("company_watches.id"), nullable=False
+    watch_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("company_watches.id"), nullable=True
     )
-    filing_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("filings.id"), nullable=False)
+    filing_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("filings.id"), nullable=True
+    )
+    listing_watch_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("listing_watches.id"), nullable=True
+    )
+    listing_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("listing_events.id"), nullable=True
+    )
     event_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -397,6 +430,8 @@ class ListedInstrument(Base):
     currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     admission_requested_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     admission_approved_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Admission requested by the issuer (FIRDS IssrReq); None where the source does not say.
+    issuer_requested: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     first_trade_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     termination_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False)  # listed | delisted | suspended

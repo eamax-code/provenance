@@ -24,7 +24,7 @@ file.
 | Point-in-time facts and screen: only what had been filed by a date, for backtests | `?as_of=YYYY-MM-DD` on `/facts` and `/v1/facts/screen` |
 | Freshness: fetch age, detection/processing times, status | `GET /v1/companies/{cik}/freshness` |
 | Event feed: new SEC filings and listing events, ordered and resumable, by polling or Server-Sent Events | `GET /v1/events?after=`, `GET /v1/events/stream` |
-| Watches and signed webhook deliveries | `POST/GET/DELETE /v1/watches`, `GET /v1/watches/{id}/deliveries` |
+| Watches and signed webhook deliveries: new filings for a company, or new listings, delistings and suspensions on a venue, country or region | `POST/GET/DELETE /v1/watches`, `/v1/listing-watches`, `GET .../{id}/deliveries` |
 | API keys and usage | `POST/GET/DELETE /v1/developer/api-keys`, `GET /v1/developer/usage` |
 | Bounded CSV/JSON export with provenance | `GET /v1/exports/facts` |
 | Company-year export: five annual figures side by side per fiscal year, each with its filing link | `GET /v1/exports/company-years?ciks=` or `?from_year=2025&to_year=2025` |
