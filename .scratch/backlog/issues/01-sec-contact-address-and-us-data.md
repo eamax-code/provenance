@@ -4,7 +4,7 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-human (owner supplies the address), then ready-for-agent
+**Status:** done locally (2026-11-03: personal address in the local config, every XBRL filer loaded from the bulk archives); repeat on the deployed host (02)
 
 - [ ] Owner provides a monitored personal mailbox for `SEC_USER_AGENT`
 - [ ] `scripts/import_tickers.py`, `scripts/sec_bulk.py --download`, `--scope facts --dry-run`, then `--scope facts`
