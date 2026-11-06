@@ -7,7 +7,6 @@ decision or account; **ready-for-agent** can be built now; **needs-triage** is a
 ## Needs you
 | # | Item | Why it is blocked |
 | --- | --- | --- |
-| 21 | Make the ChatGPT design primary: merge `design/chatgpt-feedback` (now with the clay.com motion) into `main` | Your go-ahead |
 | 02 | [Choose a host and deploy the pilot](.scratch/backlog/issues/02-deploy-pilot.md) | Account, domain, payment |
 | 03 | [Live-week pilot report and outreach](.scratch/backlog/issues/03-pilot-report-and-outreach.md) | Needs a deployment and interviews |
 | 04 | [TMX / CSE permissions for Canadian feeds](.scratch/backlog/issues/04-canadian-exchange-permissions.md) | Non-commercial terms |
@@ -28,7 +27,7 @@ decision or account; **ready-for-agent** can be built now; **needs-triage** is a
 | 20 | [Officer changes: the remaining parts (event feed, tenure context, backtests)](.scratch/backlog/issues/20-officer-change-analysis.md) |
 
 ## Done
-01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 16
+21 the ChatGPT design with clay.com-style motion is the main page (2026-11-06), 01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 16
 point-in-time facts, 17 event feed, 18 Python client. GitHub Issues #1 to #8 are closed (search,
 marts, profiles and /v1/search, chat flow, redesigns).
 
