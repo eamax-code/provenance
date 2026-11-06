@@ -309,7 +309,6 @@ an instrument first trading on a venue; the API never calls it an IPO.
 - SSRF protection validates at creation and re-resolves DNS immediately before each delivery,
   but the HTTP client still connects by hostname, leaving a small rebinding window.
 - Company search uses `LIKE` with a bounded scan; no trigram index yet.
-- Retention purges run from `scripts/retention.py`; schedule it (daily cron) yourself, it is not automatic.
 - Coverage is limited to companies that have been ingested; nothing is "complete".
 - Listings: FIRDS first-trade dates are per instrument and venue, so secondary-venue admissions
   look like new listings; issuer names are instrument names until GLEIF enrichment runs (bounded

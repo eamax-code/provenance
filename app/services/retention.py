@@ -8,7 +8,8 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.db.models import ApiUsage, NotificationDelivery
+from app.core.rate_limits import KEEP_SECONDS
+from app.db.models import ApiUsage, NotificationDelivery, RateLimitCounter
 
 
 def purge(db: Session, settings: Settings, now: datetime | None = None) -> dict[str, int]:
@@ -22,5 +23,14 @@ def purge(db: Session, settings: Settings, now: datetime | None = None) -> dict[
             NotificationDelivery.created_at < delivery_cutoff,
         )
     ).rowcount
+    counters_deleted = db.execute(
+        delete(RateLimitCounter).where(
+            RateLimitCounter.window_start < int(now.timestamp()) - KEEP_SECONDS
+        )
+    ).rowcount
     db.commit()
-    return {"api_usage": int(usage_deleted), "notification_deliveries": int(deliveries_deleted)}
+    return {
+        "api_usage": int(usage_deleted),
+        "notification_deliveries": int(deliveries_deleted),
+        "rate_limit_counters": int(counters_deleted),
+    }

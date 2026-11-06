@@ -22,7 +22,7 @@ logger = logging.getLogger("app.auth")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False, scheme_name="ApiKeyAuth")
 admin_token_header = APIKeyHeader(name="X-Admin-Token", auto_error=False, scheme_name="AdminToken")
 
-rate_limiter = FixedWindowRateLimiter(window_seconds=60)
+rate_limiter = FixedWindowRateLimiter(window_seconds=60, name="key-minute")
 
 
 def db_session() -> Generator[Session, None, None]:
@@ -119,8 +119,8 @@ def enforce_ip_limit(limiter: FixedWindowRateLimiter, key: str, limit: int, mess
 # ---- public demo key ---------------------------------------------------------------------
 
 DEMO_KEY = "demo"
-demo_minute_limiter = FixedWindowRateLimiter(window_seconds=60)
-demo_day_limiter = FixedWindowRateLimiter(window_seconds=86400)
+demo_minute_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-minute")
+demo_day_limiter = FixedWindowRateLimiter(window_seconds=86400, name="demo-day")
 DEMO_UPGRADE = "Request a free key at /#contact for full access."
 
 

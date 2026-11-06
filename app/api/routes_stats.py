@@ -12,7 +12,7 @@ from app.services.stats import CACHE_TTL_SECONDS, cached_stats
 router = APIRouter(prefix="/v1", tags=["operations"])
 
 STATS_RATE_LIMIT_PER_MINUTE = 30
-ip_limiter = FixedWindowRateLimiter(window_seconds=60)
+ip_limiter = FixedWindowRateLimiter(window_seconds=60, name="stats-minute")
 
 
 @router.get(

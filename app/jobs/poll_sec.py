@@ -20,7 +20,7 @@ from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import Company, CompanyWatch, utcnow
 from app.jobs import markets as markets_job
-from app.services import quality, universe
+from app.services import alerts, quality, retention, universe
 from app.services.events import publish_pending
 from app.services.ingestion import finish_run, start_run
 from app.services.notifications import deliver_pending
@@ -119,6 +119,10 @@ def run_once(
             snap = quality.take_snapshot(db, settings, run_id=run.id)
             db.commit()
             summary["snapshot_id"] = str(snap.id)
+            try:
+                summary["alerts"] = alerts.check_and_notify(db, settings, snap)
+            except Exception:  # noqa: BLE001 - an alert failure never fails the poll
+                logger.exception("alert check failed")
         finally:
             if own_client:
                 client.close()
@@ -131,7 +135,18 @@ def run_once(
         return summary
 
 
+def maybe_purge(db: Session, settings: Settings, last_day, now=None):
+    """Run the retention purge once per UTC day; returns the day it last ran."""
+    today = (now or utcnow()).date()
+    if not settings.retention_enabled or last_day == today:
+        return last_day
+    counts = retention.purge(db, settings)
+    log_event(logger, logging.INFO, "retention purge", **counts)
+    return today
+
+
 def run_forever(session_maker, settings: Settings, include_all_companies: bool = False) -> None:
+    purged_on = None
     while True:
         db = session_maker()
         try:
@@ -139,6 +154,7 @@ def run_forever(session_maker, settings: Settings, include_all_companies: bool =
             with single_run_guard(db, lock_file=".markets_daily.lock") as acquired:
                 if acquired:
                     markets_job.maybe_run(db, settings)
+                    purged_on = maybe_purge(db, settings, purged_on)
         except Exception:  # noqa: BLE001
             logger.exception("poll iteration crashed")
         finally:

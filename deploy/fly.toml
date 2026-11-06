@@ -20,6 +20,9 @@ primary_region = "iad"          # close to data.sec.gov (US East)
   INGESTION_POLL_INTERVAL_SECONDS = "300"
   UNIVERSE_REQUEST_BUDGET_PER_RUN = "400"
   SEC_CACHE_DIR = "/data/sec_cache"
+  # The poller also purges old usage, deliveries and rate-limit windows once a UTC day.
+  # Rate limits live in Postgres, so the api group can run more than one machine.
+  # Alerts: `fly secrets set ALERT_WEBHOOK_URL=https://hooks.slack.com/...` (optional).
 
 [processes]
   api = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=*"

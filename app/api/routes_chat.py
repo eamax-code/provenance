@@ -36,7 +36,7 @@ from app.services.llm import LLMUnavailable, LocalLLM
 from app.services.sec_client import company_filings_url, normalize_cik
 
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
-chat_limiter = FixedWindowRateLimiter(window_seconds=60)
+chat_limiter = FixedWindowRateLimiter(window_seconds=60, name="chat-minute")
 HISTORY_TURNS = 2
 
 SYSTEM_PROMPT = """You are Provenance's company-intelligence assistant.

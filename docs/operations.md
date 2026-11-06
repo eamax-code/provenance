@@ -83,9 +83,15 @@ Metrics to track (from the database): companies/filings/facts counts, duplicate-
 
 ## Rate limiting
 
-Per-key fixed-window limits are kept in process memory. With more than one API replica, each
-replica enforces the limit independently (effective limit = replicas x limit). Move the counter
-to PostgreSQL before scaling out.
+Per-key, per-IP and demo-key limits are fixed windows counted in PostgreSQL
+(`rate_limit_counters`, one atomic upsert per check), so any number of API replicas share them.
+`RATE_LIMIT_STORE` is `auto` by default (the database on PostgreSQL, memory on SQLite); `memory`
+keeps counters per process, `database` forces the table.
+
+If the database cannot be reached, each replica falls back to its own in-memory counter and logs
+`rate-limit store unavailable` (at most once a minute): limits then hold per replica (effective
+limit = replicas x limit) instead of failing requests. Finished windows are deleted by the daily
+retention purge.
 
 ## International listings job
 
@@ -118,9 +124,25 @@ Alert on: `facts_ambiguous / facts_total` rising, `companies_stale > 0` for two 
 
 ## Retention jobs
 
-`python scripts/retention.py` deletes `api_usage` older than `USAGE_RETENTION_DAYS` and
-delivered/failed `notification_deliveries` older than `DELIVERY_RETENTION_DAYS`; pending or
-retrying deliveries are never purged. Schedule it daily.
+The poller runs the purge once per UTC day (`RETENTION_ENABLED`, default true), on every host:
+it deletes `api_usage` older than `USAGE_RETENTION_DAYS`, delivered/failed
+`notification_deliveries` older than `DELIVERY_RETENTION_DAYS` (pending or retrying deliveries
+are never purged) and rate-limit windows older than two days. `python scripts/retention.py` runs
+the same purge by hand.
+
+## Alerts
+
+Set `ALERT_WEBHOOK_URL` to a Slack or Discord incoming webhook and the poller posts a message when
+a condition starts, again every `ALERT_REPEAT_SECONDS` (default an hour) while it lasts, and at
+once if it returns after clearing:
+
+- the last two SEC poll runs failed;
+- a webhook or email delivery has waited more than an hour;
+- the 95th percentile from detection to processing exceeds the poll interval plus 10 minutes;
+- duplicate filings were recorded.
+
+Without the URL the same conditions are logged as `alert` warnings. API 5xx rates and host health
+come from the platform's own monitoring (Fly or Render metrics, the `/readyz` check).
 
 ## Budget
 

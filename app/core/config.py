@@ -130,6 +130,14 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_use_tls: bool = True
 
+    # Where rate-limit counters live: "auto" (the database on PostgreSQL, so replicas share
+    # them), "memory" (per process) or "database".
+    rate_limit_store: str = "auto"
+    # Operator alerts (Slack or Discord incoming webhook); empty sends nothing.
+    alert_webhook_url: str = ""
+    alert_repeat_seconds: int = 3600
+    # The poller purges old usage, deliveries and rate-limit windows once a UTC day.
+    retention_enabled: bool = True
     usage_retention_days: int = 90
     delivery_retention_days: int = 90
 

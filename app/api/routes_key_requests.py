@@ -18,7 +18,7 @@ RECEIVED_MESSAGE = (
     "Request received. An operator reviews requests manually during the pilot; if this address "
     "is new, your key will be sent to it."
 )
-ip_limiter = FixedWindowRateLimiter(window_seconds=3600)
+ip_limiter = FixedWindowRateLimiter(window_seconds=3600, name="key-requests-hour")
 
 
 class KeyRequestIn(BaseModel):

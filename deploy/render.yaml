@@ -44,10 +44,14 @@ services:
     name: provenance-poller
     runtime: docker
     plan: starter
+    # Also purges old usage, deliveries and rate-limit windows once a UTC day, and posts
+    # operator alerts when ALERT_WEBHOOK_URL is set.
     dockerCommand: python scripts/poll_sec.py
     envVars:
       - key: APP_ENV
         value: production
+      - key: ALERT_WEBHOOK_URL
+        sync: false
       - key: MARKETS_DAILY_ENABLED
         value: "false"
       - key: DATABASE_URL

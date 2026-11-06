@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     DDL,
+    BigInteger,
     Boolean,
     Date,
     Float,
@@ -667,6 +668,16 @@ class CompanyDocument(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     markdown: Mapped[str] = mapped_column(Text, nullable=False)
     built_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class RateLimitCounter(Base):
+    """Requests counted in one fixed window, for rate limits shared by every API replica."""
+
+    __tablename__ = "rate_limit_counters"
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)  # "<limiter>:<api key id or ip>"
+    window_start: Mapped[int] = mapped_column(BigInteger, primary_key=True)  # epoch seconds
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class CompanyAlias(Base):

@@ -185,11 +185,15 @@ def test_retention_purges_only_beyond_window(db, settings, sec_client):
         )
     db.commit()
     counts = retention.purge(db, settings, now=now)
-    assert counts == {"api_usage": 2, "notification_deliveries": 2}
+    assert counts == {"api_usage": 2, "notification_deliveries": 2, "rate_limit_counters": 0}
     assert db.scalar(select(func.count(ApiUsage.id))) == 1
     remaining = {d.status for d in db.scalars(select(NotificationDelivery))}
     assert remaining == {"pending", "delivered"}  # pending is never purged
-    assert retention.purge(db, settings, now=now) == {"api_usage": 0, "notification_deliveries": 0}
+    assert retention.purge(db, settings, now=now) == {
+        "api_usage": 0,
+        "notification_deliveries": 0,
+        "rate_limit_counters": 0,
+    }
 
 
 def test_quality_report_renders(db, settings, sec_client):

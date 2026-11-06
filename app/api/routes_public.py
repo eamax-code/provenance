@@ -15,7 +15,7 @@ from app.services.sec_client import normalize_cik
 router = APIRouter(prefix="/v1/public", tags=["public"])
 
 PUBLIC_RATE_LIMIT_PER_MINUTE = 60
-ip_limiter = FixedWindowRateLimiter(window_seconds=60)
+ip_limiter = FixedWindowRateLimiter(window_seconds=60, name="public-minute")
 _ERRORS = {
     404: {"model": ErrorEnvelope},
     422: {"model": ErrorEnvelope},

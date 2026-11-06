@@ -42,7 +42,8 @@ services:
 
   poller:
     build: .
-    # Also runs the daily international-listings job (MARKETS_DAILY_ENABLED, default true).
+    # Also runs the daily international-listings job (MARKETS_DAILY_ENABLED, default true), the
+    # daily retention purge and operator alerts (ALERT_WEBHOOK_URL in .env).
     command: ["python", "scripts/poll_sec.py"]
     env_file: .env
     environment:

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done (2026-11-06)
 
-- [ ] Shared rate-limit store with tests; documented behaviour on DB outage
-- [ ] Retention job scheduled in each deploy config; alert hooks documented or wired
+- [x] Shared rate-limit store with tests; documented behaviour on DB outage
+- [x] Retention job scheduled in each deploy config; alert hooks documented or wired
