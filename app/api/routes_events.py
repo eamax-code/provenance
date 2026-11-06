@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import threading
 import time
 from collections.abc import AsyncIterator
@@ -77,27 +78,36 @@ def _filters(
     form_type: str | None,
     mic: str | None,
     event_type: str | None,
+    items: str | None = None,
 ) -> feed.EventFilters:
     kinds = set(_split(types) or feed.KINDS)
     if not kinds <= set(feed.KINDS):
-        raise APIError(422, "invalid_parameter", "types must be filing, listing or both.")
+        raise APIError(
+            422, "invalid_parameter", "types must be among filing, leadership and listing."
+        )
     try:
         ciks = [normalize_cik(c) for c in _split(cik)]
     except ValueError as exc:
         raise APIError(422, "invalid_parameter", "cik must be numeric CIKs.") from exc
     forms = _split(form_type, upper=True)
+    item_codes = _split(items)
+    if any(not re.fullmatch(r"\d{1,2}\.\d{2}", code) for code in item_codes):
+        raise APIError(422, "invalid_parameter", "items must be 8-K item codes such as 5.02.")
     mics = _split(mic, upper=True)
     event_types = _split(event_type)
-    filing_filters, listing_filters = bool(ciks or forms), bool(mics or event_types)
+    filing_filters = bool(ciks or forms or item_codes)
+    listing_filters = bool(mics or event_types)
     if filing_filters and listing_filters:
         raise APIError(
             422,
             "invalid_parameter",
-            "Filing filters (cik, form_type) and listing filters (mic, event_type) cannot be "
-            "combined; use two requests.",
+            "Company filters (cik, form_type, items) and listing filters (mic, event_type) "
+            "cannot be combined; use two requests.",
         )
-    if filing_filters:
+    if forms or item_codes:
         kinds &= {"filing"}
+    elif ciks:
+        kinds &= {"filing", "leadership"}
     if listing_filters:
         kinds &= {"listing"}
     if not kinds:
@@ -106,6 +116,7 @@ def _filters(
         kinds=tuple(k for k in feed.KINDS if k in kinds),
         ciks=ciks,
         form_types=forms,
+        items=item_codes,
         mics=mics,
         event_types=event_types,
     )
@@ -132,9 +143,11 @@ def _start(after: str | None, since: datetime | None, settings: Settings, defaul
 
 
 _FILTER_DOCS = {
-    "types": "filing, listing or both (comma-separated)",
+    "types": "filing, leadership (officer changes read from 8-K item 5.02), listing; "
+    "comma-separated, default all",
     "cik": "Filings for these CIKs only (comma-separated, at most 50)",
     "form_type": "Filings of these form types only, e.g. 8-K,10-Q",
+    "items": "8-K filings with any of these items, e.g. 5.02,2.02",
     "mic": "Listing events on these venues only, e.g. XLON,XETA",
     "event_type": "Listing event types, e.g. new_listing,delisting",
 }
@@ -149,6 +162,7 @@ def list_events(
     types: str | None = Query(None, max_length=40, description=_FILTER_DOCS["types"]),
     cik: str | None = Query(None, max_length=700, description=_FILTER_DOCS["cik"]),
     form_type: str | None = Query(None, max_length=300, description=_FILTER_DOCS["form_type"]),
+    items: str | None = Query(None, max_length=100, description=_FILTER_DOCS["items"]),
     mic: str | None = Query(None, max_length=300, description=_FILTER_DOCS["mic"]),
     event_type: str | None = Query(None, max_length=300, description=_FILTER_DOCS["event_type"]),
     limit: int = Query(50, ge=1, le=100),
@@ -156,7 +170,7 @@ def list_events(
     settings: Settings = Depends(settings_dep),
     _key=Depends(require_reader),
 ):
-    filters = _filters(types, cik, form_type, mic, event_type)
+    filters = _filters(types, cik, form_type, mic, event_type, items)
     start = _start(after, since, settings, default=utcnow() - timedelta(hours=24))
     until = feed.settled_until(settings.events_settle_seconds)
     page = feed.fetch_page(db, start, until, filters, limit)
@@ -190,6 +204,7 @@ async def stream_events(
     types: str | None = Query(None, max_length=40, description=_FILTER_DOCS["types"]),
     cik: str | None = Query(None, max_length=700, description=_FILTER_DOCS["cik"]),
     form_type: str | None = Query(None, max_length=300, description=_FILTER_DOCS["form_type"]),
+    items: str | None = Query(None, max_length=100, description=_FILTER_DOCS["items"]),
     mic: str | None = Query(None, max_length=300, description=_FILTER_DOCS["mic"]),
     event_type: str | None = Query(None, max_length=300, description=_FILTER_DOCS["event_type"]),
     last_event_id: str | None = Header(None, alias="Last-Event-ID", max_length=200),
@@ -201,7 +216,7 @@ async def stream_events(
     heartbeat comments and an updated `id:`; connections close after a maximum duration and the
     client reconnects. Browsers' EventSource cannot send X-API-Key, so use a fetch-based client
     or the Python client."""
-    filters = _filters(types, cik, form_type, mic, event_type)
+    filters = _filters(types, cik, form_type, mic, event_type, items)
     start = _start(last_event_id or after, since, settings, default=utcnow())
     limit = plan_limits(key.plan, settings)["max_event_streams"]
     key_id = str(key.id)

@@ -316,13 +316,28 @@ def ensure_extracted(db: Session, filings: Iterable[Filing], *, sec: SecClient |
             continue
         try:
             _extract(db, llm, f, row)
+            attach_context(db, f.accession_number)
             db.commit()
             summary["extracted"] += 1
+            from app.services.events import publish_pending
+
+            publish_pending(db)  # after the commit: the feed never runs ahead of visible rows
         except LLMUnavailable:
             db.rollback()
             summary["failed"] += 1
             break  # the model is down; later filings would fail the same way
     return summary
+
+
+def attach_context(db: Session, accession_number: str) -> None:
+    """Company and peer figures as filed by the filing date, on each change of the filing."""
+    from app.services.leadership_context import context_for
+
+    for c in db.scalars(
+        select(OfficerChange).where(OfficerChange.accession_number == accession_number)
+    ):
+        ctx = context_for(db, c)
+        c.context = json.dumps(ctx) if ctx else None
 
 
 def changes_by_accession(db: Session, accessions: list[str]) -> dict[str, dict]:
@@ -362,6 +377,7 @@ def change_dict(c: OfficerChange) -> dict:
         "evidence": c.evidence,
         "verified": c.verified,
         "sentence": describe(c),
+        "context": json.loads(c.context) if c.context else None,
     }
 
 

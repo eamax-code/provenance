@@ -531,6 +531,7 @@ class OfficerChange(Base):
     __table_args__ = (
         UniqueConstraint("accession_number", "seq", name="uq_officer_changes_accession_seq"),
         Index("ix_officer_changes_cik_filing_date", "cik", "filing_date"),
+        Index("ix_officer_changes_stream_at", "stream_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -550,6 +551,15 @@ class OfficerChange(Base):
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     extractor_version: Mapped[str] = mapped_column(Text, nullable=False)
     model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Event feed (ADR 0007): changes read from now on are published as sec.officer_change events.
+    # Rows read before the feed carried them default to published without a stream time, so
+    # they never appear as new.
+    stream_status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="pending", server_default="published"
+    )
+    stream_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    # JSON: company and peer figures as filed by the filing date (app.services.leadership_context)
+    context: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 

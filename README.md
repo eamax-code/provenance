@@ -173,6 +173,17 @@ date, stated reason and successor. A person whose name is not in the text is dro
 row is traced to the filing sentence it came from, or marked unverified. The public demo key
 never triggers these fetches. `scripts/read_officer_changes.py --cik ...` reads ahead of time.
 
+`python scripts/poll_current_8k.py` reads EDGAR's latest-filings feed every 45 s
+(`CURRENT_8K_POLL_SECONDS`) and reads each new 8-K with item 5.02 within a couple of minutes of
+filing; the changes reach the event feed as `sec.officer_change` events (`types=leadership`). Each
+change carries context computed from figures as filed by its filing date: revenue growth and
+operating margin over the three fiscal years before it, over the person's tenure when their
+appointment was recorded, and the median of two-digit SIC peers over the same years. This is
+evidence, not a signal: across 54,736 company-years since 2004, companies that filed item 5.02
+beat their peers' next-year revenue growth as often as those that did not (48.9% against 50.5%);
+see `docs/benchmarks/officer-changes-base-rates-2026-11.md` and
+`scripts/backtest_officer_changes.py`.
+
 Companies going public have no annual XBRL figures yet; their numbers are in the prospectus.
 When a company has no annual figures, or the question is about an offering or its risks, the
 chat quotes its latest S-1, F-1 or final prospectus (424B). The document is fetched once, cut

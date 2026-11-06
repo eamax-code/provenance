@@ -1,4 +1,5 @@
-"""Event feed (ADR 0007): new SEC filings and listing events in one ordered, resumable stream.
+"""Event feed (ADR 0007): new SEC filings, officer changes read from 8-K item 5.02, and listing
+events in one ordered, resumable stream.
 
 Ingestion marks new rows `stream_status=pending` and, after its transaction commits, stamps them
 `published` with `stream_at` in a short separate transaction (`publish_pending`). Readers order by
@@ -20,10 +21,12 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.timeutil import iso_z
-from app.db.models import Company, Filing, ListingEvent, utcnow
+from app.db.models import Company, Filing, ListingEvent, OfficerChange, utcnow
+from app.services.form8k import split_items
 from app.services.notifications import EVENT_TYPE as FILING_EVENT_TYPE
 
-KINDS = ("filing", "listing")
+KINDS = ("filing", "leadership", "listing")  # feed order breaks ties in this (alphabetical) order
+OFFICER_CHANGE_EVENT_TYPE = "sec.officer_change"
 _MAX_UUID = uuid.UUID(int=(1 << 128) - 1)
 
 
@@ -67,6 +70,7 @@ class EventFilters:
     kinds: tuple[str, ...] = KINDS
     ciks: list[str] = field(default_factory=list)
     form_types: list[str] = field(default_factory=list)
+    items: list[str] = field(default_factory=list)  # 8-K item codes, e.g. 5.02
     mics: list[str] = field(default_factory=list)
     event_types: list[str] = field(default_factory=list)
 
@@ -82,7 +86,7 @@ def publish_pending(db: Session, now: datetime | None = None) -> int:
     """Stamp committed pending rows as published. Call after the ingesting transaction commits."""
     now = now or utcnow()
     total = 0
-    for model in (Filing, ListingEvent):
+    for model in (Filing, OfficerChange, ListingEvent):
         result = db.execute(
             update(model)
             .where(model.stream_status == "pending")
@@ -127,9 +131,29 @@ def fetch_page(
             stmt = stmt.where(Filing.cik.in_(filters.ciks))
         if filters.form_types:
             stmt = stmt.where(Filing.form_type.in_(filters.form_types))
+        if filters.items:
+            stmt = stmt.where(or_(*(Filing.items.like(f"%{code}%") for code in filters.items)))
         for filing, name, ticker in db.execute(stmt):
             pos = Cursor(filing.stream_at, "filing", filing.id)
             candidates.append((pos, _filing_event(pos, filing, name, ticker)))
+    if "leadership" in filters.kinds:
+        stmt = (
+            select(OfficerChange, Company.legal_name, Company.ticker)
+            .join(Company, Company.cik == OfficerChange.cik)
+            .where(
+                OfficerChange.stream_status == "published",
+                OfficerChange.stream_at.is_not(None),
+                OfficerChange.stream_at <= until,
+                _after(OfficerChange.stream_at, OfficerChange.id, "leadership", after),
+            )
+            .order_by(OfficerChange.stream_at, OfficerChange.id)
+            .limit(limit + 1)
+        )
+        if filters.ciks:
+            stmt = stmt.where(OfficerChange.cik.in_(filters.ciks))
+        for change, name, ticker in db.execute(stmt):
+            pos = Cursor(change.stream_at, "leadership", change.id)
+            candidates.append((pos, _officer_event(pos, change, name, ticker)))
     if "listing" in filters.kinds:
         stmt = (
             select(ListingEvent)
@@ -176,7 +200,28 @@ def _filing_event(pos: Cursor, f: Filing, name: str, ticker: str | None) -> dict
             "filing_date": f.filing_date.isoformat() if f.filing_date else None,
             "report_date": f.report_date.isoformat() if f.report_date else None,
             "accepted_at": iso_z(f.accepted_at),
+            "items": split_items(f.items),
             "source_url": f.source_url,
+        },
+    }
+
+
+def _officer_event(pos: Cursor, c: OfficerChange, name: str, ticker: str | None) -> dict:
+    from app.services.officer_changes import change_dict
+
+    return {
+        "id": pos.encode(),
+        "type": OFFICER_CHANGE_EVENT_TYPE,
+        "kind": "leadership",
+        "stream_at": iso_z(c.stream_at),
+        "data": {
+            "cik": c.cik,
+            "company_name": name,
+            "ticker": ticker,
+            "accession_number": c.accession_number,
+            "filing_date": c.filing_date.isoformat() if c.filing_date else None,
+            **change_dict(c),
+            "source_url": c.source_url,
         },
     }
 

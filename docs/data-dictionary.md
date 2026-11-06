@@ -119,6 +119,18 @@ their section.
 `companies` also has PostgreSQL-only indexes for lookup: a trigram index on `lower(legal_name)`
 (typo-tolerant names, `match_type: name_fuzzy`) and one on `upper(ticker)`.
 
+## officer_changes
+
+One change of a director or officer read from an 8-K item 5.02: `person`, `role`, `change_type`,
+`what`, `effective`, `reason`, `successor`, `evidence` (the filing sentence), `verified` (the
+person and the quoted words were found in the filing text), `source_url` (the 8-K on sec.gov),
+`extractor_version`, `model`. `stream_status` and `stream_at` put changes read from 2026-11-06
+on the event feed (earlier readings never stream). `context` (JSON): from the latest observations
+filed by the filing date, revenue growth per year and operating margin over the three fiscal
+years before the change (`before_change`, with the filings it used), the same over the person's
+tenure when their appointment was recorded (`tenure`), and two-digit SIC peer medians (`peers`,
+five or more companies).
+
 ## mart_company, mart_filing_activity (quick answers)
 
 Precomputed by `app/services/marts.py` (`scripts/build_marts.py`; a company's row is refreshed

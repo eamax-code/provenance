@@ -191,3 +191,105 @@ def test_appointee_shows_who_they_replace():
         successor="Jeff Williams",
     )
     assert oc.describe(c).endswith("effective July 25, 2025. Replaces: Jeff Williams.")
+
+
+def test_changes_read_from_now_on_are_published_on_the_feed(
+    client, auth, db, settings, leadership_8k, sec_client
+):
+    from datetime import UTC, datetime, timedelta
+
+    settings.events_settle_seconds = 0
+    old = OfficerChange(
+        cik=leadership_8k.cik, accession_number="0000000000-20-000001", seq=0,
+        change_type="departed", source_url="https://www.sec.gov/x", verified=True,
+        extractor_version="1.0.0", stream_status="published", stream_at=None,
+    )  # fmt: skip
+    db.add(old)
+    db.commit()
+    oc.ensure_extracted(db, [leadership_8k], sec=sec_client, llm=ExtractingLLM([change()]))
+    since = (datetime.now(UTC) - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+    body = client.get(f"/v1/events?types=leadership&since={since}", headers=auth).json()
+    assert len(body["data"]) == 1  # the one read now; the older reading never streams
+    event = body["data"][0]
+    assert event["type"] == "sec.officer_change" and event["kind"] == "leadership"
+    data = event["data"]
+    assert data["person"] == "Reid Hoffman" and data["verified"] is True
+    assert "On June 2, 2026, Reid Hoffman" in data["evidence"]  # the filing sentence
+    assert data["source_url"].startswith("https://www.sec.gov/Archives/")
+    assert data["company_name"] and data["accession_number"] == leadership_8k.accession_number
+    by_cik = client.get(f"/v1/events?cik=320193&since={since}", headers=auth).json()["data"]
+    assert "leadership" in {e["kind"] for e in by_cik}
+
+
+def test_latest_8k_feed_is_parsed():
+    from app.jobs.current_8k import parse_feed
+
+    entries = parse_feed((FIX / "edgar_current_8k.atom").read_text(encoding="utf-8"))
+    assert len(entries) == 4
+    by_cik = {e.cik: e for e in entries}
+    algo = by_cik["0000923601"]
+    assert algo.company == "Algorhythm Holdings, Inc." and algo.form == "8-K"
+    assert algo.items == ("5.02", "8.01", "9.01") and algo.updated is not None
+    assert sum("5.02" in e.items for e in entries) == 2
+
+
+def test_latest_8k_poll_reads_new_502_filings_once(
+    client, auth, db, settings, leadership_8k, sec_client, fake_sec
+):
+    from datetime import UTC, datetime, timedelta
+
+    from app.jobs import current_8k
+
+    settings.events_settle_seconds = 0
+    feed = (FIX / "edgar_current_8k.atom").read_text(encoding="utf-8")
+    # Point Datavault's 5.02 entry at the Apple 8-K whose document the fixtures hold.
+    feed = feed.replace("(0001682149)", "(0000320193)").replace(
+        next(e.accession_number for e in current_8k.parse_feed(feed) if e.cik == "0001682149"),
+        leadership_8k.accession_number,
+    )
+    fake_sec.add(current_8k.FEED_URL, feed)
+    fake_sec.add(
+        "https://data.sec.gov/submissions/CIK0000923601.json", {"cik": "923601"}, status=404
+    )
+    llm = ExtractingLLM([change()])
+    summary = current_8k.run_once(db, settings, sec_client, llm)
+    assert summary["entries"] == 4 and summary["with_502"] == 2
+    assert summary["read"] == 1 and summary["extracted"] == 1 and llm.calls == 1
+    since = (datetime.now(UTC) - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+    events = client.get(f"/v1/events?types=leadership&since={since}", headers=auth).json()
+    assert [e["data"]["person"] for e in events["data"]] == ["Reid Hoffman"]
+    again = current_8k.run_once(db, settings, sec_client, llm)
+    assert again["read"] == 0 and llm.calls == 1  # read once
+
+
+def test_context_uses_only_figures_filed_by_the_change(db, items_aapl):
+    from datetime import date
+
+    from app.services import marts
+    from app.services.leadership_context import context_for
+
+    marts.build_financial_marts(db)
+
+    def officer(change_type, filed, person="Jeff Williams", seq=0):
+        c = OfficerChange(
+            cik="0000320193", accession_number=f"0000320193-{filed.year % 100}-{seq:06d}", seq=seq,
+            filing_date=filed, person=person, change_type=change_type, verified=True,
+            source_url="https://www.sec.gov/x", extractor_version="t",
+        )  # fmt: skip
+        db.add(c)
+        db.flush()
+        return c
+
+    late = officer("departure", date(2024, 12, 31))
+    ctx = context_for(db, late)
+    window = ctx["before_change"]
+    assert window["fiscal_years"] == [2023, 2024] and window["revenue_growth_per_year_pct"] < 5
+    assert all(u.startswith("https://www.sec.gov/") for u in window["sources"])
+    assert ctx["peers"] is None  # fewer than five SIC peers in the fixtures
+    # Before the FY2024 10-K was filed (2024-11-01) only fiscal 2023 is known: no window yet.
+    early = officer("departure", date(2024, 10, 1), seq=1)
+    assert context_for(db, early)["before_change"] is None
+    # A recorded appointment of the same person gives a tenure window.
+    officer("appointment", date(2022, 1, 15), person="Jeffrey E. Williams", seq=2)
+    tenure = context_for(db, late)["tenure"]
+    assert tenure["appointed_filing_date"] == "2022-01-15" and tenure["fiscal_years"][1] == 2024

@@ -23,10 +23,12 @@ def _fast_feed(settings):
     settings.events_stream_max_seconds = 0.4
 
 
-def _new_filing(fake_sec, submissions, accession, form="8-K"):
+def _new_filing(fake_sec, submissions, accession, form="8-K", items=None):
     """Serve the submissions payload with one more, recent filing on top."""
     today = date.today().isoformat()
     recent = {k: list(v) for k, v in submissions["filings"]["recent"].items()}
+    if items is not None:
+        recent["items"] = [items] + [""] * len(recent["accessionNumber"])
     for col, val in [
         ("accessionNumber", accession),
         ("filingDate", today),
@@ -245,3 +247,23 @@ def test_cursor_roundtrip_and_order():
     assert feed.Cursor(at, "listing", uuid.uuid4()) < feed.Cursor.end(at)
     with pytest.raises(ValueError):
         feed.Cursor.decode("bm9wZQ")
+
+
+def test_items_filter_and_items_on_filing_events(client, auth, db, sec_client, fake_sec,
+                                                  submissions_aapl):  # fmt: skip
+    ingest_company(db, sec_client, "320193")
+    _new_filing(fake_sec, submissions_aapl, "0000320193-26-000104", items="5.02,9.01")
+    ingest_company(db, sec_client, "320193")
+
+    def data(q):
+        r = client.get("/v1/events?" + q + SINCE, headers=auth)
+        assert r.status_code == 200, r.text
+        return [e["data"] for e in r.json()["data"]]
+
+    found = data("items=5.02")
+    assert [d["accession_number"] for d in found] == ["0000320193-26-000104"]
+    assert found[0]["items"] == ["5.02", "9.01"]
+    assert data("items=2.02") == [] and data("items=2.02,9.01")
+    assert data("types=leadership") == []  # nothing read from the filing yet
+    for bad in ("items=abc", "items=5.02&mic=XPAR", "types=filing,news"):
+        assert client.get("/v1/events?" + bad, headers=auth).status_code == 422, bad

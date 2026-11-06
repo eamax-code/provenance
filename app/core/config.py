@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     sec_bulk_max_bytes: int = 6 * 1024 * 1024 * 1024
 
     ingestion_poll_interval_seconds: int = 300
+    current_8k_poll_seconds: int = 45  # scripts/poll_current_8k.py (officer changes, ticket 20)
     # Newly detected filings older than this are treated as backfill and never notified
     notify_max_filing_age_days: int = 30
     # Universe (bulk coverage) settings

@@ -62,6 +62,27 @@ services:
         sync: false
       - key: WEBHOOK_SIGNING_SECRET
         sync: false
+  - type: worker
+    name: provenance-current-8k
+    runtime: docker
+    plan: starter
+    # Officer changes from new 8-K item 5.02 filings within minutes (ticket 20).
+    dockerCommand: python scripts/poll_current_8k.py
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase: { name: provenance-db, property: connectionString }
+      - key: SEC_USER_AGENT
+        sync: false
+      - key: API_KEY_PEPPER
+        sync: false
+      - key: WEBHOOK_SIGNING_SECRET
+        sync: false
+      - key: LLM_ENABLED
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
 databases:
   - name: provenance-db
     plan: basic-256mb

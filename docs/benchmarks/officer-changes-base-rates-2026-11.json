@@ -1,0 +1,130 @@
+{
+ "table": [
+  {
+   "group": "No item 5.02 filed in the year",
+   "company_years": 22134,
+   "beat_peer_growth_pct": 50.5,
+   "beat_peer_growth_ci95": [
+    49.8,
+    51.1
+   ],
+   "median_excess_growth_pp": 0.11,
+   "margin_years": 15768,
+   "beat_peer_margin_change_pct": 48.1,
+   "median_excess_margin_change_pp": -0.05
+  },
+  {
+   "group": "At least one item 5.02",
+   "company_years": 32602,
+   "beat_peer_growth_pct": 48.9,
+   "beat_peer_growth_ci95": [
+    48.3,
+    49.4
+   ],
+   "median_excess_growth_pp": -0.05,
+   "margin_years": 23693,
+   "beat_peer_margin_change_pct": 50.3,
+   "median_excess_margin_change_pp": 0.02
+  },
+  {
+   "group": "Exactly one",
+   "company_years": 9692,
+   "beat_peer_growth_pct": 50.3,
+   "beat_peer_growth_ci95": [
+    49.3,
+    51.3
+   ],
+   "median_excess_growth_pp": 0.08,
+   "margin_years": 6840,
+   "beat_peer_margin_change_pct": 49.0,
+   "median_excess_margin_change_pp": 0.0
+  },
+  {
+   "group": "Two or three",
+   "company_years": 14254,
+   "beat_peer_growth_pct": 50.1,
+   "beat_peer_growth_ci95": [
+    49.3,
+    50.9
+   ],
+   "median_excess_growth_pp": 0.03,
+   "margin_years": 10426,
+   "beat_peer_margin_change_pct": 49.3,
+   "median_excess_margin_change_pp": 0.0
+  },
+  {
+   "group": "Four or more",
+   "company_years": 8656,
+   "beat_peer_growth_pct": 45.3,
+   "beat_peer_growth_ci95": [
+    44.2,
+    46.3
+   ],
+   "median_excess_growth_pp": -1.17,
+   "margin_years": 6427,
+   "beat_peer_margin_change_pct": 53.2,
+   "median_excess_margin_change_pp": 0.29
+  }
+ ],
+ "by_period": [
+  {
+   "group": "With 5.02, fiscal 2004-2014",
+   "company_years": 8514,
+   "beat_peer_growth_pct": 48.5,
+   "beat_peer_growth_ci95": [
+    47.5,
+    49.6
+   ],
+   "median_excess_growth_pp": -0.2,
+   "margin_years": 6341,
+   "beat_peer_margin_change_pct": 49.4,
+   "median_excess_margin_change_pp": 0.0
+  },
+  {
+   "group": "With 5.02, fiscal 2015-2025",
+   "company_years": 24088,
+   "beat_peer_growth_pct": 49.0,
+   "beat_peer_growth_ci95": [
+    48.4,
+    49.7
+   ],
+   "median_excess_growth_pp": -0.01,
+   "margin_years": 17352,
+   "beat_peer_margin_change_pct": 50.6,
+   "median_excess_margin_change_pp": 0.04
+  },
+  {
+   "group": "Without, fiscal 2004-2014",
+   "company_years": 9810,
+   "beat_peer_growth_pct": 50.3,
+   "beat_peer_growth_ci95": [
+    49.3,
+    51.3
+   ],
+   "median_excess_growth_pp": 0.09,
+   "margin_years": 7219,
+   "beat_peer_margin_change_pct": 49.3,
+   "median_excess_margin_change_pp": 0.0
+  },
+  {
+   "group": "Without, fiscal 2015-2025",
+   "company_years": 12324,
+   "beat_peer_growth_pct": 50.6,
+   "beat_peer_growth_ci95": [
+    49.7,
+    51.4
+   ],
+   "median_excess_growth_pp": 0.13,
+   "margin_years": 8549,
+   "beat_peer_margin_change_pct": 47.0,
+   "median_excess_margin_change_pp": -0.16
+  }
+ ],
+ "meta": {
+  "company_years": 54736,
+  "companies": 8762,
+  "item_502_filings": 232488,
+  "peer_group": "two-digit SIC and fiscal year, at least 5 companies",
+  "excluded": "next-year revenue moves beyond +/-500%"
+ }
+}

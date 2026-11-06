@@ -56,6 +56,17 @@ services:
       - seccache:/app/.sec_cache
       - marketscache:/app/.markets_cache
 
+  current8k:
+    build: .
+    # Officer changes from new 8-K item 5.02 filings within minutes (ticket 20).
+    command: ["python", "scripts/poll_current_8k.py"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://companydata:companydata@db:5432/companydata
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
 volumes:
   pgdata:
   seccache:
