@@ -4,8 +4,8 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done (2026-11-06)
 
-- [ ] Usage time series endpoint field and console chart
-- [ ] Per-endpoint/status SEC request counters persisted per run
-- [ ] Snapshot gains detection-to-processing percentiles
+- [x] Usage time series endpoint field and console chart
+- [x] Per-endpoint/status SEC request counters persisted per run
+- [x] Snapshot gains detection-to-processing percentiles

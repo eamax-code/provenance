@@ -21,12 +21,12 @@ decision or account; **ready-for-agent** can be built now; **needs-triage** is a
 | 08 | [Listings data quality: structured products, primary-listing flag](.scratch/backlog/issues/08-listings-data-quality.md) |
 | 09 | [Watches and webhooks for listing events](.scratch/backlog/issues/09-listing-watches.md) |
 | 10 | [Listings in the Explorer app](.scratch/backlog/issues/10-explorer-listings.md) |
-| 11 | [Close partial review items: usage series, SEC metrics, latency](.scratch/backlog/issues/11-console-and-metrics-gaps.md) |
 | 12 | [Multi-replica rate limits, retention schedule, alerts](.scratch/backlog/issues/12-multi-replica-and-ops.md) |
 | 20 | [Officer changes: the remaining parts (event feed, tenure context, backtests)](.scratch/backlog/issues/20-officer-change-analysis.md) |
 
 ## Done
-21 the ChatGPT design with clay.com-style motion is the main page (2026-11-06), 01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 15 test hygiene (no warnings, `--clock`), 16
+21 the ChatGPT design with clay.com-style motion is the main page (2026-11-06), 01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 11 usage series, SEC responses by endpoint, detection-to-processing latency, 15 test hygiene
+(no warnings, `--clock`), 16
 point-in-time facts, 17 event feed, 18 Python client. GitHub Issues #1 to #8 are closed (search,
 marts, profiles and /v1/search, chat flow, redesigns).
 

@@ -16,7 +16,7 @@ import random
 import threading
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -55,18 +55,56 @@ class SecMetrics:
     errors: int = 0
     cached: int = 0
     duration_ms: int = 0
+    # "submissions 200", "archives 404", "companyfacts network": responses by endpoint and status
+    by_endpoint: dict[str, int] = field(default_factory=dict)
+
+    def count(self, url: str, status: int | str) -> None:
+        key = f"{endpoint_kind(url)} {status}"
+        self.by_endpoint[key] = self.by_endpoint.get(key, 0) + 1
 
     def snapshot(self) -> SecMetrics:
-        return SecMetrics(self.requests, self.retries, self.errors, self.cached, self.duration_ms)
+        return SecMetrics(
+            self.requests,
+            self.retries,
+            self.errors,
+            self.cached,
+            self.duration_ms,
+            dict(self.by_endpoint),
+        )
 
-    def delta(self, before: SecMetrics) -> dict[str, int]:
+    def delta(self, before: SecMetrics) -> dict:
+        changed = {
+            k: n - before.by_endpoint.get(k, 0)
+            for k, n in self.by_endpoint.items()
+            if n != before.by_endpoint.get(k, 0)
+        }
         return {
             "requests": self.requests - before.requests,
             "retries": self.retries - before.retries,
             "errors": self.errors - before.errors,
             "cached": self.cached - before.cached,
             "duration_ms": self.duration_ms - before.duration_ms,
+            "by_endpoint": changed,
         }
+
+
+def endpoint_kind(url: str) -> str:
+    """Which SEC endpoint a URL is, for the per-endpoint request counts."""
+    path = url.split("://", 1)[-1]
+    for marker, kind in (
+        ("/submissions/", "submissions"),
+        ("/api/xbrl/companyfacts/", "companyfacts"),
+        ("/api/xbrl/", "xbrl"),
+        ("company_tickers", "tickers"),
+        ("/Archives/edgar/daily-index/", "daily-index"),
+        ("/Archives/edgar/full-index/", "full-index"),
+        ("/Archives/", "archives"),
+        ("/cgi-bin/browse-edgar", "current-feed"),
+        ("bulkdata", "bulk"),
+    ):
+        if marker in path:
+            return kind
+    return "other"
 
 
 @dataclass
@@ -252,6 +290,7 @@ class SecClient:
             except httpx.HTTPError as exc:
                 duration = time.monotonic() - started
                 self.metrics.duration_ms += int(duration * 1000)
+                self.metrics.count(url, "network")
                 log_event(
                     logger,
                     logging.WARNING,
@@ -270,6 +309,7 @@ class SecClient:
 
             duration = time.monotonic() - started
             self.metrics.duration_ms += int(duration * 1000)
+            self.metrics.count(url, resp.status_code)
             log_event(
                 logger,
                 logging.INFO,
@@ -398,6 +438,7 @@ class SecClient:
             try:
                 with self.http.stream("GET", url, headers=headers) as resp:
                     status = resp.status_code
+                    self.metrics.count(url, status)
                     if status == 304 and dest.exists():
                         self.metrics.cached += 1
                         return {

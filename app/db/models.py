@@ -158,6 +158,8 @@ class IngestionRun(Base):
     sec_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     sec_errors: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     sec_cached: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # JSON {"submissions 200": n, "archives 404": n, ...}: SEC responses by endpoint and status
+    sec_by_endpoint: Mapped[str | None] = mapped_column(Text, nullable=True)
     sec_duration_ms: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
@@ -291,6 +293,11 @@ class DataQualitySnapshot(Base):
     delivered_24h: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     failed_24h: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     oldest_pending_age_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Filings processed in the 24 hours before the snapshot: seconds from first detection to
+    # processing, median and 95th percentile, and how many filings that is.
+    detect_to_process_p50_s: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    detect_to_process_p95_s: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    processed_24h: Mapped[int | None] = mapped_column(Integer, nullable=True)
     active_watches: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     universe_active: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     universe_due: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

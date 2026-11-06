@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -47,6 +47,12 @@ class PlanInfo(BaseModel):
     active_watches_used: int
 
 
+class UsageDay(BaseModel):
+    day: date
+    requests: int
+    errors: int
+
+
 class UsageOut(BaseModel):
     from_: datetime = Field(alias="from")
     to: datetime
@@ -57,6 +63,9 @@ class UsageOut(BaseModel):
     export_rows: int
     export_bytes: int
     response_bytes: int
+    daily: list[UsageDay] = Field(
+        default_factory=list, description="Requests and errors per UTC day in the window"
+    )
     plan: PlanInfo
 
     model_config = {"populate_by_name": True}

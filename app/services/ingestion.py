@@ -611,6 +611,11 @@ def account_sec_metrics(run: IngestionRun, delta: dict[str, int]) -> None:
     run.sec_errors = (run.sec_errors or 0) + delta["errors"]
     run.sec_cached = (run.sec_cached or 0) + delta["cached"]
     run.sec_duration_ms = (run.sec_duration_ms or 0) + delta["duration_ms"]
+    if delta.get("by_endpoint"):
+        counts = json.loads(run.sec_by_endpoint) if run.sec_by_endpoint else {}
+        for key, n in delta["by_endpoint"].items():
+            counts[key] = counts.get(key, 0) + n
+        run.sec_by_endpoint = json.dumps(dict(sorted(counts.items())))
 
 
 def _ingest_company(

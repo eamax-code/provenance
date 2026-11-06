@@ -27,7 +27,7 @@
 - GET /v1/events?after={cursor}&since=&types={filing|listing}&cik=&form_type=&mic=&event_type=&limit<=100  one ordered feed of new SEC filings and listing events; pass next_cursor as after
 - GET /v1/events/stream  same feed as Server-Sent Events (X-API-Key header; resume with Last-Event-ID; demo key not accepted)
 - POST /v1/watches {"cik","destination_type":"webhook|email","destination"} ; GET /v1/watches ; DELETE /v1/watches/{id} ; GET /v1/watches/{id}/deliveries
-- GET /v1/developer/usage?from=&to= ; GET/DELETE /v1/developer/api-keys
+- GET /v1/developer/usage?from=&to=  totals by route plus "daily": requests and errors per UTC day ; GET/DELETE /v1/developer/api-keys
 - GET /v1/exports/facts?metric=&ciks=a,b&format={csv|json}&limit<=1000
 - GET /v1/exports/company-years?ciks=a,b&from_year=&to_year=&format={csv|json}&limit=  one row per company and fiscal year: revenue, operating_income, net_income, total_assets, operating_cash_flow (USD, from each year's annual report) and each figure's filing link; give ciks (max 50) or one fiscal year (from_year = to_year) across all companies; your own key only
 - GET /v1/stats  (public, no key; coverage and health of this deployment, cached 30s)

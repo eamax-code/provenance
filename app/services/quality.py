@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import math
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -16,6 +18,7 @@ from app.db.models import (
     DataQualitySnapshot,
     Filing,
     FinancialFact,
+    IngestionRun,
     ListedInstrument,
     ListingEvent,
     NotificationDelivery,
@@ -140,9 +143,40 @@ def take_snapshot(
             db, select(func.count(ListingEvent.id)).where(ListingEvent.detected_at >= day_ago)
         ),
     )
+    latency = detect_to_process(db, day_ago)
+    snap.detect_to_process_p50_s, snap.detect_to_process_p95_s, snap.processed_24h = latency
     db.add(snap)
     db.flush()
     return snap
+
+
+LATENCY_SAMPLE = 200_000
+
+
+def percentile(sorted_values: list[float], q: float) -> float:
+    """Nearest-rank percentile of an ascending list."""
+    rank = max(1, math.ceil(q * len(sorted_values)))
+    return sorted_values[rank - 1]
+
+
+def detect_to_process(db: Session, since: datetime) -> tuple[int | None, int | None, int]:
+    """Median and 95th percentile seconds from first detection to processing, for filings
+    processed since then, and their count."""
+    rows = db.execute(
+        select(Filing.first_detected_at, Filing.processed_at)
+        .where(Filing.processed_at >= since, Filing.processed_at.is_not(None))
+        .limit(LATENCY_SAMPLE)
+    ).all()
+    waits = sorted(
+        max(0.0, (_utc(done) - _utc(seen)).total_seconds()) for seen, done in rows if seen and done
+    )
+    if not waits:
+        return None, None, 0
+    return round(percentile(waits, 0.5)), round(percentile(waits, 0.95)), len(waits)
+
+
+def _utc(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def latest_snapshot(db: Session) -> DataQualitySnapshot | None:
@@ -182,6 +216,11 @@ def snapshot_to_dict(snap: DataQualitySnapshot) -> dict:
             "oldest_pending_age_seconds": snap.oldest_pending_age_seconds,
             "active_watches": snap.active_watches,
         },
+        "latency": {
+            "filings_processed_24h": snap.processed_24h,
+            "detect_to_process_p50_seconds": snap.detect_to_process_p50_s,
+            "detect_to_process_p95_seconds": snap.detect_to_process_p95_s,
+        },
         "universe": {
             "active": snap.universe_active,
             "due": snap.universe_due,
@@ -218,6 +257,23 @@ def render_report(db: Session, limit: int = 10) -> str:
         f"oldest_pending_s={latest.oldest_pending_age_seconds}",
         f"  universe: active={latest.universe_active} due={latest.universe_due} "
         f"disabled={latest.universe_disabled}",
+        f"  latency: processed_24h={latest.processed_24h} "
+        f"detect_to_process_p50_s={latest.detect_to_process_p50_s} "
+        f"p95_s={latest.detect_to_process_p95_s}",
+    ]
+    last_run = db.scalar(
+        select(IngestionRun)
+        .where(IngestionRun.sec_by_endpoint.is_not(None))
+        .order_by(IngestionRun.started_at.desc())
+        .limit(1)
+    )
+    if last_run is not None:
+        counts = json.loads(last_run.sec_by_endpoint)
+        lines.append(
+            f"  SEC responses, run {last_run.started_at.strftime('%Y-%m-%d %H:%M')} "
+            f"({last_run.source}): " + ", ".join(f"{k}={n}" for k, n in counts.items())
+        )
+    lines += [
         "",
         "Trend (newest first): taken_at | companies_ingested | filings | facts | ambiguous "
         "| pending",

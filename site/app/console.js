@@ -19,6 +19,39 @@
     wrap.appendChild(fill); return wrap;
   }
 
+  /* Requests per UTC day: one bar a day, the error share in red on top. */
+  function dailyChart(days) {
+    var NS = 'http://www.w3.org/2000/svg', W = 720, H = 140, pad = 18;
+    var max = Math.max(1, Math.max.apply(null, days.map(function (d) { return d.requests; })));
+    var total = days.reduce(function (a, d) { return a + d.requests; }, 0);
+    var errors = days.reduce(function (a, d) { return a + d.errors; }, 0);
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (H + pad)); svg.setAttribute('class', 'usage-chart');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Requests per day: ' + fmt(total) + ' over ' + days.length + ' days, ' + fmt(errors) + ' errors, busiest day ' + fmt(max) + '.');
+    var step = W / days.length, bw = Math.max(1, step * 0.72);
+    days.forEach(function (d, i) {
+      var x = i * step + (step - bw) / 2, h = H * d.requests / max, he = H * d.errors / max;
+      var g = document.createElementNS(NS, 'g');
+      var t = document.createElementNS(NS, 'title'); t.textContent = d.day + ': ' + fmt(d.requests) + ' requests, ' + fmt(d.errors) + ' errors'; g.appendChild(t);
+      var ok = document.createElementNS(NS, 'rect');
+      ok.setAttribute('x', x); ok.setAttribute('y', H - h); ok.setAttribute('width', bw); ok.setAttribute('height', Math.max(h, d.requests ? 1 : 0)); ok.setAttribute('class', 'ok');
+      g.appendChild(ok);
+      if (d.errors) {
+        var er = document.createElementNS(NS, 'rect');
+        er.setAttribute('x', x); er.setAttribute('y', H - h); er.setAttribute('width', bw); er.setAttribute('height', Math.max(he, 1)); er.setAttribute('class', 'err');
+        g.appendChild(er);
+      }
+      svg.appendChild(g);
+    });
+    [[0, days[0].day], [days.length - 1, days[days.length - 1].day]].forEach(function (p, j) {
+      var lab = document.createElementNS(NS, 'text');
+      lab.setAttribute('x', j ? W : 0); lab.setAttribute('y', H + pad - 4); lab.setAttribute('text-anchor', j ? 'end' : 'start');
+      lab.textContent = p[1]; svg.appendChild(lab);
+    });
+    return el('figure', { class: 'usage-fig' }, [svg, el('figcaption', { class: 'muted small', text: 'Requests per UTC day; red is the share that ended in an error.' })]);
+  }
+
   function loadUsage() {
     var box = $('con-usage'); box.innerHTML = ''; box.appendChild(el('p', { class: 'skeleton', text: 'Loading usage…' }));
     var days = parseInt(($('con-window') || { value: '30' }).value, 10) || 30;
@@ -36,6 +69,7 @@
       kv('requests (window)', fmt(u.total_requests) + ' · ' + fmt(u.successful_requests) + ' ok · ' + fmt(u.error_requests) + ' errors');
       kv('exports (window)', fmt(u.export_rows) + ' rows · ' + fmt(u.export_bytes) + ' bytes');
       box.appendChild(grid);
+      if (u.daily && u.daily.length) box.appendChild(dailyChart(u.daily));
       var routes = Object.keys(u.requests_by_route);
       if (routes.length) {
         var tbl = el('table', {}, [el('thead', {}, [el('tr', {}, [el('th', { text: 'Route' }), el('th', { class: 'num', text: 'Requests' })])])]);

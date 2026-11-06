@@ -23,6 +23,7 @@ from app.schemas.developer import (
 from app.services.api_keys import create_key_record, revoke_key  # noqa: F401 - re-exported
 from app.services.usage import (
     active_watches_used,
+    daily_usage,
     requests_this_month,
     usage_summary,
     watched_companies_used,
@@ -113,6 +114,7 @@ def usage(
     if start >= end:
         raise APIError(422, "invalid_parameter", "'from' must be earlier than 'to'.")
     summary = usage_summary(db, key.id, start, end)
+    summary["daily"] = daily_usage(db, key.id, start, end)
     limits = plan_limits(key.plan, settings)
     return UsageOut(
         **{"from": start},

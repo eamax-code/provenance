@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
@@ -111,3 +111,36 @@ def active_watches_used(db: Session, api_key_id: uuid.UUID) -> int:
         )
         or 0
     )
+
+
+MAX_SERIES_DAYS = 366
+
+
+def daily_usage(db: Session, api_key_id: uuid.UUID, start: datetime, end: datetime) -> list[dict]:
+    """Requests and errors per UTC day in [start, end), every day present (zeros included);
+    at most the last MAX_SERIES_DAYS days of the window."""
+    first = max(start, end - timedelta(days=MAX_SERIES_DAYS)).astimezone(UTC).date()
+    if db.get_bind().dialect.name == "postgresql":
+        day = func.date(func.timezone("UTC", ApiUsage.occurred_at))
+    else:
+        day = func.date(ApiUsage.occurred_at)
+    rows = db.execute(
+        select(
+            day.label("day"),
+            func.count(ApiUsage.id),
+            func.coalesce(func.sum(case((ApiUsage.http_status >= 400, 1), else_=0)), 0),
+        )
+        .where(
+            ApiUsage.api_key_id == api_key_id,
+            ApiUsage.occurred_at >= datetime.combine(first, datetime.min.time(), UTC),
+            ApiUsage.occurred_at < end,
+        )
+        .group_by(day)
+    ).all()
+    found = {str(d)[:10]: (int(n), int(e)) for d, n, e in rows}
+    out, d, last = [], first, (end - timedelta(microseconds=1)).astimezone(UTC).date()
+    while d <= last:
+        n, e = found.get(d.isoformat(), (0, 0))
+        out.append({"day": d, "requests": n, "errors": e})
+        d += timedelta(days=1)
+    return out

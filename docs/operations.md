@@ -102,14 +102,19 @@ snapshot and `/v1/stats.listings`.
 Every poller pass and every standalone bulk-ingest run ends by writing a row to
 `data_quality_snapshots`: companies known/ingested/stale, filings and acceptance-timestamp
 coverage, duplicate filings (expected 0), facts by quality status and provenance completeness,
-delivery backlog and 24h outcomes, universe active/due/disabled. `ingestion_runs` also records
-SEC request totals, retries, errors, 304 cache hits and cumulative duration per run.
+delivery backlog and 24h outcomes, universe active/due/disabled, and the median and 95th
+percentile seconds from first detection to processing for filings processed in the last 24 hours
+(`latency` in `/v1/stats.quality_snapshot`). `ingestion_runs` also records SEC request totals,
+retries, errors, 304 cache hits and cumulative duration per run, and `sec_by_endpoint`: responses
+by endpoint and status (`{"submissions 200": 41, "archives 404": 1, "companyfacts network": 2}`).
 
 - `python scripts/quality_report.py [--take]` prints the latest snapshot and a trend.
 - `/v1/stats` exposes the latest snapshot as `quality_snapshot`.
 
 Alert on: `facts_ambiguous / facts_total` rising, `companies_stale > 0` for two snapshots,
-`oldest_pending_age_seconds > 3600`, `duplicate_filings > 0`, `sec_errors` growing run to run.
+`oldest_pending_age_seconds > 3600`, `duplicate_filings > 0`, `sec_errors` growing run to run,
+`detect_to_process_p95_s` above the poll interval plus a few minutes, and any `429` or `403` in
+`sec_by_endpoint` (the SEC is throttling or refusing this User-Agent).
 
 ## Retention jobs
 

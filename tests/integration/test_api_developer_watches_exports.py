@@ -74,6 +74,14 @@ def test_usage_metering_and_summary(client, auth, ingested_aapl, db):
     assert body["plan"]["plan"] == "free" and body["plan"]["monthly_requests_used"] == 2
     assert body["plan"]["rate_limit_per_minute"] == 60 and body["plan"]["max_export_rows"] == 1000
     assert "from" in body and "to" in body
+    # One bar a day across the 30-day window, today's holding both requests.
+    assert len(body["daily"]) in (30, 31)
+    assert body["daily"][-1] == {
+        "day": datetime.now(UTC).date().isoformat(),
+        "requests": 2,
+        "errors": 1,
+    }
+    assert sum(d["requests"] for d in body["daily"]) == 2
     rows = db.scalars(select(ApiUsage)).all()
     assert all(r.request_id.startswith("req_") for r in rows)
     assert (

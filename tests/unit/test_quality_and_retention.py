@@ -52,6 +52,52 @@ def test_sec_request_metrics_recorded_on_run(db, settings, sec_client, fake_sec)
     result2 = ingest_company(db, sec_client, "320193")
     run2 = db.get(IngestionRun, result2.run_id)
     assert run2.sec_requests == 2 and run2.sec_cached == 2 and run2.sec_retries == 0
+    # Responses by endpoint and status: the 503 and its retry, then 304s from the cache.
+    import json
+
+    first = json.loads(run.sec_by_endpoint)
+    assert (
+        sum(first.values()) == 3
+        and first.get("submissions 503", 0) + first.get("companyfacts 503", 0) == 1
+    )
+    assert json.loads(run2.sec_by_endpoint) == {"companyfacts 304": 1, "submissions 304": 1}
+
+
+def test_endpoint_kinds_and_metric_deltas():
+    from app.services.sec_client import SecMetrics, endpoint_kind
+
+    assert endpoint_kind("https://data.sec.gov/submissions/CIK0000320193.json") == "submissions"
+    assert endpoint_kind("https://data.sec.gov/api/xbrl/companyfacts/CIK1.json") == "companyfacts"
+    assert endpoint_kind("https://www.sec.gov/Archives/edgar/data/1/x.htm") == "archives"
+    assert endpoint_kind("https://www.sec.gov/files/company_tickers_exchange.json") == "tickers"
+    assert endpoint_kind("https://example.com/") == "other"
+    m = SecMetrics()
+    m.count("https://www.sec.gov/Archives/a", 200)
+    before = m.snapshot()
+    m.count("https://www.sec.gov/Archives/b", 200)
+    m.count("https://www.sec.gov/Archives/c", "network")
+    assert m.delta(before)["by_endpoint"] == {"archives 200": 1, "archives network": 1}
+
+
+def test_snapshot_has_detection_to_processing_percentiles(db, settings, sec_client):
+    from app.db.models import Filing
+
+    ingest_company(db, sec_client, "320193")
+    now = datetime.now(UTC)
+    filings = db.scalars(select(Filing).order_by(Filing.accession_number)).all()
+    for i, f in enumerate(filings):  # waits of 10, 20, 30 ... seconds
+        f.first_detected_at = now - timedelta(minutes=5)
+        f.processed_at = f.first_detected_at + timedelta(seconds=10 * (i + 1))
+    db.commit()
+    snap = quality.take_snapshot(db, settings, now=now)
+    n = len(filings)
+    assert snap.processed_24h == n
+    assert snap.detect_to_process_p50_s == 10 * ((n + 1) // 2)
+    assert snap.detect_to_process_p95_s == 10 * max(1, -(-95 * n // 100))
+    shown = quality.snapshot_to_dict(snap)["latency"]
+    assert shown["detect_to_process_p95_seconds"] == snap.detect_to_process_p95_s
+    assert "latency: processed_24h=" in quality.render_report(db)
+    assert quality.percentile([1.0, 2.0, 3.0, 4.0], 0.5) == 2.0
 
 
 def test_poll_run_writes_snapshot(db, settings, sec_client, tickers_payload):
