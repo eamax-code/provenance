@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16  # the same image as local; section_chunks needs pgvector
         env:
           POSTGRES_USER: companydata
           POSTGRES_PASSWORD: companydata
@@ -46,6 +46,8 @@ jobs:
           console.log('site scripts ok');"
       - name: Tests (SQLite)
         run: pytest -q
+      - name: Tests with the clock two years ahead (SQLite)
+        run: pytest -q -p no:cacheprovider --clock "$(date -u -d '+2 years' +%Y-%m-%d)"
       - name: Migrations + tests (PostgreSQL)
         env:
           DATABASE_URL: postgresql+psycopg://companydata:companydata@localhost:5432/companydata_test

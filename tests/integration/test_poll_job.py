@@ -1,3 +1,5 @@
+from datetime import date
+
 import httpx
 
 from app.jobs.poll_sec import run_once, single_run_guard, watched_ciks
@@ -33,7 +35,7 @@ def test_run_once_polls_watched_companies_and_delivers(
     recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
     for col, val in [
         ("accessionNumber", "0000320193-25-000002"),
-        ("filingDate", "2026-10-15"),
+        ("filingDate", date.today().isoformat()),
         ("reportDate", ""),
         ("acceptanceDateTime", ""),
         ("form", "8-K"),

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 from sqlalchemy import select
@@ -95,9 +95,9 @@ def test_backfill_does_not_fan_out_but_new_filing_does(
     recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
     for col, val in [
         ("accessionNumber", "0000320193-25-000001"),
-        ("filingDate", "2026-10-15"),
+        ("filingDate", date.today().isoformat()),
         ("reportDate", "2024-12-28"),
-        ("acceptanceDateTime", "2026-10-15T06:00:00.000Z"),
+        ("acceptanceDateTime", datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")),
         ("form", "10-Q"),
         ("primaryDocument", "x.htm"),
     ]:

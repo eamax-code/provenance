@@ -28,6 +28,33 @@ TEST_ENV = {
 }
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--clock",
+        default=None,
+        help="Run the suite with the clock moved to this date (e.g. 2030-06-01), to catch "
+        "tests that only pass in the month they were written.",
+    )
+
+
+_clock = None
+
+
+def pytest_configure(config):
+    global _clock
+    when = config.getoption("--clock")
+    if when:
+        import time_machine
+
+        _clock = time_machine.travel(when, tick=True)
+        _clock.start()
+
+
+def pytest_unconfigure(config):
+    if _clock is not None:
+        _clock.stop()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _env():
     for k, v in TEST_ENV.items():

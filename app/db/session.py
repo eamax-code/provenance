@@ -28,7 +28,13 @@ def make_engine(database_url: str) -> Engine:
 
 
 def configure_engine(database_url: str) -> Engine:
+    """The engine for this URL: the current one if it already points there, else a new one (the
+    one it replaces is disposed, so its pooled connections are closed, not left to the GC)."""
     global _engine, _SessionLocal
+    if _engine is not None and _engine.url.render_as_string(hide_password=False) == database_url:
+        return _engine
+    if _engine is not None:
+        _engine.dispose()
     _engine = make_engine(database_url)
     _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False, autoflush=False)
     return _engine
@@ -36,6 +42,8 @@ def configure_engine(database_url: str) -> Engine:
 
 def set_engine(engine: Engine) -> None:
     global _engine, _SessionLocal
+    if _engine is not None and _engine is not engine:
+        _engine.dispose()
     _engine = engine
     _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False, autoflush=False)
 

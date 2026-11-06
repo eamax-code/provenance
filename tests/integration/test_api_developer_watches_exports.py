@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 
@@ -228,9 +229,9 @@ def test_new_filing_creates_delivery_and_webhook_is_verifiable(
     recent = {k: list(v) for k, v in submissions_aapl["filings"]["recent"].items()}
     for col, val in [
         ("accessionNumber", "0000320193-25-000001"),
-        ("filingDate", "2026-10-15"),
+        ("filingDate", date.today().isoformat()),
         ("reportDate", "2024-12-28"),
-        ("acceptanceDateTime", "2026-10-15T06:00:00.000Z"),
+        ("acceptanceDateTime", datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")),
         ("form", "10-Q"),
         ("primaryDocument", "x.htm"),
     ]:

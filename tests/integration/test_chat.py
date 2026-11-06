@@ -33,7 +33,11 @@ def test_filings_expose_8k_items(client, auth, items_aapl):
 def test_chat_resolves_company_and_grounds_answer(app, client, auth, items_aapl):
     fake = FakeLLM()
     app.state.llm_factory = lambda: fake
-    r = client.post("/v1/chat", json={"message": "What drives Apple's revenue?"}, headers=auth)
+    r = client.post(
+        "/v1/chat",
+        json={"message": "What drives Apple's revenue?", "as_of": "2024-12-31"},  # fixture's year
+        headers=auth,
+    )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["company"]["cik"] == "0000320193" and body["model"] == "fake:1b"

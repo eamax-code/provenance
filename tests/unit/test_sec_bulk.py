@@ -13,22 +13,27 @@ from app.services.sec_client import SecClient, SecClientError
 FIX = Path(__file__).parents[1] / "fixtures"
 
 
-def _build_archives(tmp_path):
+def _build_archives(tmp_path, subs_override=None, facts_override=None):
+    """Two archives shaped like the SEC's; the overrides replace members by name."""
     subs, facts = tmp_path / "submissions.zip", tmp_path / "companyfacts.zip"
-    with zipfile.ZipFile(subs, "w") as zf:
-        zf.writestr("CIK0000320193.json", (FIX / "submissions_0000320193.json").read_text())
-        zf.writestr("CIK0000789019.json", (FIX / "submissions_0000789019.json").read_text())
-        zf.writestr(
-            "CIK0000320193-submissions-001.json",
-            (FIX / "submissions_0000320193_page1.json").read_text(),
-        )
-        zf.writestr(
-            "CIK0001234567.json",
-            json.dumps({"cik": "1234567", "name": "A PERSON", "filings": {"recent": {}}}),
-        )
-    with zipfile.ZipFile(facts, "w") as zf:
-        zf.writestr("CIK0000320193.json", (FIX / "companyfacts_0000320193.json").read_text())
-        zf.writestr("CIK0000789019.json", (FIX / "companyfacts_0000789019.json").read_text())
+    sub_members = {
+        "CIK0000320193.json": (FIX / "submissions_0000320193.json").read_text(),
+        "CIK0000789019.json": (FIX / "submissions_0000789019.json").read_text(),
+        "CIK0000320193-submissions-001.json": (
+            FIX / "submissions_0000320193_page1.json"
+        ).read_text(),
+        "CIK0001234567.json": json.dumps(
+            {"cik": "1234567", "name": "A PERSON", "filings": {"recent": {}}}
+        ),
+    } | (subs_override or {})
+    fact_members = {
+        "CIK0000320193.json": (FIX / "companyfacts_0000320193.json").read_text(),
+        "CIK0000789019.json": (FIX / "companyfacts_0000789019.json").read_text(),
+    } | (facts_override or {})
+    for path, members in ((subs, sub_members), (facts, fact_members)):
+        with zipfile.ZipFile(path, "w") as zf:
+            for name, body in members.items():
+                zf.writestr(name, body)
     return subs, facts
 
 
@@ -75,9 +80,10 @@ def test_one_broken_company_does_not_stop_the_load(db, settings, tmp_path, monke
 
 def test_combined_report_facts_load_for_both_registrants(db, settings, tmp_path):
     """A parent and subsidiary filing one report share accession numbers, hence fact keys."""
-    subs, facts = _build_archives(tmp_path)
-    with zipfile.ZipFile(facts, "a") as zf:
-        zf.writestr("CIK0000789019.json", (FIX / "companyfacts_0000320193.json").read_text())
+    subs, facts = _build_archives(
+        tmp_path,
+        facts_override={"CIK0000789019.json": (FIX / "companyfacts_0000320193.json").read_text()},
+    )
     summary = sec_bulk.bulk_ingest(db, settings, subs, facts, scope="facts")
     assert summary["failed"] == 0 and summary["ingested"] == 2
     counts = dict(
@@ -105,12 +111,10 @@ def test_scope_known_and_ciks_and_limit(db, settings, tmp_path, tickers_payload)
 
 
 def test_missing_facts_and_history_pages_from_archive(db, settings, tmp_path, monkeypatch):
-    subs, _ = _build_archives(tmp_path)
     monkeypatch.setattr(settings, "sec_filings_history_pages", 1)
     payload = json.loads((FIX / "submissions_0000320193.json").read_text())
     payload["filings"]["files"] = [{"name": "CIK0000320193-submissions-001.json"}]
-    with zipfile.ZipFile(subs, "a") as zf:
-        zf.writestr("CIK0000320193.json", json.dumps(payload))  # duplicate name: last wins on read
+    subs, _ = _build_archives(tmp_path, subs_override={"CIK0000320193.json": json.dumps(payload)})
     summary = sec_bulk.bulk_ingest(db, settings, subs, None, scope="ciks", ciks=["320193"])
     assert summary["ingested"] == 1 and summary["facts_unavailable"] == 1
     assert db.scalar(select(func.count(Filing.id))) == 8  # 6 recent + 2 new from the history page

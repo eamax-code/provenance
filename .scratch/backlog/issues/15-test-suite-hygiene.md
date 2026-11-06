@@ -4,6 +4,6 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done (2026-11-06)
 
-- [ ] Zero warnings in `pytest -q`; no test depends on today's date
+- [x] Zero warnings in `pytest -q`; no test depends on today's date

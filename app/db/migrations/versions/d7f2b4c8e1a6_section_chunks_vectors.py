@@ -8,6 +8,7 @@ Revision ID: d7f2b4c8e1a6
 Revises: c5e8a1d3f9b2
 """
 
+import sqlalchemy as sa
 from alembic import op
 
 from app.db.search_ddl import CHUNKS_DDL
@@ -19,9 +20,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    if op.get_bind().dialect.name != "postgresql":
+    bind = op.get_bind()
+    if bind.dialect.name != "postgresql":
         return
-    op.execute(CHUNKS_DDL)
+    # Without pgvector the table is skipped, as the models do; semantic search then reports the
+    # embedding index as unavailable and keyword search still works.
+    available = bind.execute(
+        sa.text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")
+    ).first()
+    if available:
+        op.execute(CHUNKS_DDL)
 
 
 def downgrade() -> None:

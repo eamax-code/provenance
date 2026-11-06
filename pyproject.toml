@@ -21,12 +21,15 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.6",
     "respx>=0.21",
+    "httpx2>=2.9,<3",  # Starlette's TestClient runs on it; httpx there is deprecated
+    "time-machine>=2.15",  # pytest --clock: the suite with the clock moved forward
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-filterwarnings = ["error::DeprecationWarning:app.*"]
+# Any warning fails the suite, so a new one is seen the day it appears (ticket 15).
+filterwarnings = ["error"]
 
 [tool.ruff]
 line-length = 100
