@@ -77,3 +77,13 @@ def test_overview_has_every_section_and_no_source_api_links(client, db, ingested
         assert hidden not in text, hidden
     assert client.get("/v1/public/companies/789019/overview").status_code == 404  # not showcase
     assert client.get("/v1/public/companies/abc/overview").status_code == 422
+
+
+def test_design_prototypes_are_served(client):
+    for v in ("a", "b", "c"):
+        r = client.get(f"/companies/0000320193?v={v}")
+        assert r.status_code == 200 and "/companies/poc/common.js" in r.text, v
+        assert 'aria-current="page"' in r.text
+    assert "common.js" not in client.get("/companies/0000320193?v=z").text  # the current page
+    js = client.get("/companies/poc/common.js").text
+    assert "/v1/public/companies/" in js and "/overview" in js

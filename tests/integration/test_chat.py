@@ -390,6 +390,8 @@ def test_display_name_reads_naturally():
     assert display_name("COSTCO WHOLESALE CORP /NEW") == "Costco Wholesale Corp"
     assert display_name("Apple Inc.") == "Apple Inc."
     assert display_name("ABC HOLDINGS LLC") == "Abc Holdings LLC"
+    assert display_name("AMAZON COM INC") == "Amazon.com Inc"  # the SEC drops the dot
+    assert display_name("COM DEV INC") == "Com Dev Inc"
 
 
 def test_a_common_word_that_is_a_ticker_loses_to_a_named_company(db, items_aapl):

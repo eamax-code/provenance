@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Company report · Provenance</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/companies/poc/shared.css">
+<style>
+/* C, Report: written first, then the figures behind it, section by section. */
+body { background: #f6f8fa; }
+.doc { max-width: 1120px; margin: 0 auto; padding: 40px clamp(16px, 4vw, 48px) 72px; display: grid; gap: 56px; }
+.mast { display: grid; gap: 18px; padding-bottom: 32px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-size: 13px; font-weight: 600; color: var(--muted); }
+.mast h1 { font-size: clamp(36px, 5vw, 60px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.98; }
+.deck { font-size: clamp(17px, 1.6vw, 20px); line-height: 1.55; max-width: 64ch; }
+.mast .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.big { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+.big div { display: grid; gap: 4px; align-content: start; }
+.big b { font-size: clamp(34px, 4vw, 52px); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.big b.accent { color: var(--accent); }
+.big span { color: var(--muted); font-size: 14px; }
+section.sec { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px 48px; }
+section.sec > header { display: grid; gap: 8px; align-content: start; }
+section.sec h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+section.sec > header p { color: var(--muted); font-size: 14.5px; }
+.body { min-width: 0; display: grid; gap: 16px; }
+.sheet { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; margin: 0; }
+.sheet div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.sheet dt { color: var(--muted); font-size: 13.5px; }
+.sheet dd { margin: 0; overflow-wrap: anywhere; }
+.people { display: grid; gap: 14px; }
+.person { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; }
+.person .ini { width: 40px; height: 40px; border-radius: 50%; background: #e3e9ee; color: var(--slate-deep); display: grid; place-items: center; font-weight: 800; font-size: 14px; }
+.person blockquote { margin: 4px 0 0; font-size: 14px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 10px; }
+.peers { display: grid; gap: 8px; }
+.peers .r { display: grid; grid-template-columns: 220px minmax(0, 1fr) 80px; gap: 12px; align-items: center; font-size: 14px; }
+.peers .r .bar-h { height: 10px; border-radius: 2px; background: var(--mist); }
+.peers .r.me { font-weight: 800; } .peers .r.me .bar-h { background: var(--accent-hi); }
+.files { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 32px; }
+.act { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 6px 12px; font-size: 14px; }
+.foot { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 20px; display: grid; gap: 6px; }
+@media (max-width: 900px) {
+  section.sec { grid-template-columns: 1fr; gap: 16px; }
+  .big { grid-template-columns: 1fr 1fr; } .sheet { grid-template-columns: 1fr; }
+  .files { grid-template-columns: 1fr; } .peers .r { grid-template-columns: minmax(0, 1fr) 72px; } .peers .r .bar-h { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (max-width: 520px) { .big { grid-template-columns: 1fr; gap: 18px; } .sheet div { grid-template-columns: 1fr; gap: 2px; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><i aria-hidden="true"></i>Provenance</a>
+  <nav aria-label="Site"><a href="/companies/">Companies</a><a href="/chat/">Chat</a><a href="/app/">Explorer</a><a href="/docs">API docs</a></nav>
+  <span class="variants" aria-label="Prototype"><a href="?v=a">A Dossier</a><a href="?v=b">B Snapshot</a><a href="?v=c" aria-current="page">C Report</a></span>
+</header>
+<p class="state" id="state">Loading the company…</p>
+<article class="doc" id="page" hidden>
+  <header class="mast">
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1 id="name"></h1>
+    <p class="deck" id="deck"></p>
+    <div class="row"><a class="btn primary" id="ask" href="/chat/">Ask about this company</a><a class="btn" id="edgar" target="_blank" rel="noopener">All filings on EDGAR</a><span class="small muted" id="asof"></span></div>
+    <div class="big" id="big"></div>
+  </header>
+  <section class="sec" aria-labelledby="t-grow"><header><h2 id="t-grow">How it grew</h2><p id="grow-line"></p></header><div class="body"><div id="chart"></div><div class="tw quiet"><table id="years"></table></div></div></section>
+  <section class="sec" aria-labelledby="t-who"><header><h2 id="t-who">Who it is</h2><p>As the company registers itself with the SEC.</p></header><div class="body"><dl class="sheet" id="sheet"></dl></div></section>
+  <section class="sec" aria-labelledby="t-lead"><header><h2 id="t-lead">Who runs it</h2><p id="lead-line"></p></header><div class="body"><div class="people" id="people"></div></div></section>
+  <section class="sec" aria-labelledby="t-files"><header><h2 id="t-files">What it files</h2><p id="files-line"></p></header><div class="body files"><div class="act" id="activity"></div><div class="tw"><table id="filings"></table></div></div></section>
+  <section class="sec" aria-labelledby="t-peers"><header><h2 id="t-peers">Among its peers</h2><p id="peer-line"></p></header><div class="body"><div class="peers quiet" id="peers"></div></div></section>
+  <section class="sec" aria-labelledby="t-risk" id="risk-sec"><header><h2 id="t-risk">What it says could go wrong</h2><p id="risk-line"></p></header><div class="body"><ul id="risk" style="margin:0; padding-left:18px; display:grid; gap:6px"></ul></div></section>
+  <footer class="foot" id="foot"></footer>
+</article>
+<script src="/companies/poc/common.js"></script>
+<script>
+(function () {
+  'use strict';
+  var P = window.CompanyPoc, $ = P.$, el = P.el;
+  P.load().then(function (d) {
+    var c = d.company, h = d.history || {};
+    document.title = c.display_name + ' · company report · Provenance';
+    $('eyebrow').textContent = [c.ticker && c.ticker + (c.exchange ? ' on ' + c.exchange : ''), c.sic_description, 'CIK ' + c.cik].filter(Boolean).join(' · ');
+    $('name').textContent = c.display_name;
+    var cites = (d.summary && d.summary.citations) || [];
+    ((d.summary && d.summary.text) || '').split(/(\[\d+\])/).forEach(function (part) {
+      var m = part.match(/^\[(\d+)\]$/);
+      if (!m) { $('deck').appendChild(document.createTextNode(part)); return; }
+      var ref = cites.filter(function (x) { return x.n === +m[1]; })[0];
+      $('deck').appendChild(el('cite', {}, [P.link('[' + m[1] + ']', ref && ref.url)]));
+    });
+    $('ask').href = P.chatUrl(d); $('edgar').href = c.filings_url;
+    $('asof').textContent = h.latest_filing_date ? 'Latest filing ' + P.date(h.latest_filing_date) : '';
+    var fig = function (m) { return d.key_figures.filter(function (k) { return k.metric === m; })[0]; };
+    var rev = fig('revenue'), ni = fig('net_income'), last = d.years[d.years.length - 1];
+    var bigs = [];
+    if (rev) bigs.push([P.money(rev.value), 'Revenue, ' + rev.fiscal_label + (rev.change_pct != null ? ', ' + P.pct(rev.change_pct, true) + ' on the year' : ''), rev.source_url, true]);
+    if (last && last.operating_margin_pct != null) bigs.push([P.pct(last.operating_margin_pct), 'Operating margin, ' + last.fiscal_label, last.sources.operating_income]);
+    if (ni) bigs.push([P.money(ni.value), 'Net income, ' + ni.fiscal_label, ni.source_url]);
+    bigs.forEach(function (b) { $('big').appendChild(el('div', {}, [el('b', { class: b[3] ? 'accent' : null, text: b[0] }), el('span', { class: 'quiet' }, [b[1] + ' · ', P.link('filing', b[2])])])); });
+    var first = d.years.filter(function (y) { return y.revenue; })[0];
+    $('grow-line').textContent = (first && last && last.revenue ? 'Revenue went from ' + P.money(first.revenue) + ' in ' + first.fiscal_label + ' to ' + P.money(last.revenue) + ' in ' + last.fiscal_label + '. ' : '') + (P.finding(d) || '');
+    $('chart').appendChild(P.revenueChart(d.years, { width: 820, height: 260, values: true }));
+    var yt = $('years'), head = el('tr', {}, [el('th', { text: '' })]), shown = d.years.slice(-5);
+    shown.forEach(function (y) { head.appendChild(el('th', { class: 'n', text: y.fiscal_label })); });
+    yt.appendChild(el('thead', {}, [head]));
+    var tb = el('tbody');
+    ['revenue', 'operating_income', 'net_income', 'operating_cash_flow', 'total_assets'].forEach(function (m) {
+      var tr = el('tr', {}, [el('td', { text: P.LABELS[m] })]);
+      shown.forEach(function (y) { tr.appendChild(el('td', { class: 'n' }, [y[m] == null ? '—' : P.link(P.money(y[m]), y.sources[m])])); });
+      tb.appendChild(tr);
+    });
+    yt.appendChild(tb);
+    var S = $('sheet'), row = function (k, v) { if (v == null || (Array.isArray(v) && !v.length)) return; var dd = el('dd'); (Array.isArray(v) ? v : [v]).forEach(function (line, i) { if (i) dd.appendChild(el('br')); dd.appendChild(typeof line === 'string' ? document.createTextNode(line) : line); }); S.appendChild(el('div', {}, [el('dt', { text: k }), dd])); };
+    row('Legal name', P.title(c.legal_name) === c.display_name ? c.legal_name : c.legal_name);
+    row('Traded as', c.tickers.map(function (t, i) { return t + (c.exchanges[i] ? ' on ' + c.exchanges[i] : ''); }));
+    row('Industry', c.sic_code ? 'SIC ' + c.sic_code + ', ' + (c.sic_description || '') : null);
+    row('Filer status', c.filer_category ? c.filer_category.split('; ') : null);
+    row('Incorporated in', P.state(c.state_of_incorporation));
+    row('Fiscal year ends', c.fiscal_year_end_month);
+    row('Business address', P.address(c.business_address));
+    row('Phone', P.phone(c.phone));
+    row('EIN', c.ein ? c.ein.slice(0, 2) + '-' + c.ein.slice(2) : null);
+    row('LEI', c.lei || 'Not filed with the SEC');
+    row('SEC office', c.sec_office);
+    row('Former names', c.former_names.length ? c.former_names.map(function (f) { return P.title(f.name) + (f.to ? ' (until ' + f.to.slice(0, 4) + ')' : ''); }) : 'None');
+    row('Filings loaded', h.first_filing_date ? P.date(h.first_filing_date) + ' to ' + P.date(h.latest_filing_date) : null);
+    row('Final IPO prospectus', h.ipo_prospectus ? P.link('424B4 filed ' + P.date(h.ipo_prospectus.filing_date), h.ipo_prospectus.source_url) : null);
+    var L = d.leadership;
+    $('lead-line').textContent = L.item_502_filings + ' filings reported officer or director changes (8-K item 5.02) since ' + P.date(L.since) + '. Each change below is read from the filing and checked against its text.';
+    if (!L.changes.length) $('people').appendChild(el('p', { class: 'muted', text: 'No change has been read from these filings yet.' }));
+    L.changes.slice(0, 5).forEach(function (ch) {
+      var nm = ch.person || 'An officer', ini = nm.split(/\s+/).filter(function (w) { return /^[A-Z]/.test(w); }).map(function (w) { return w[0]; }).slice(0, 2).join('');
+      $('people').appendChild(el('div', { class: 'person' }, [el('span', { class: 'ini', 'aria-hidden': 'true', text: ini }), el('div', {}, [
+        el('div', {}, [el('b', { text: nm }), ch.role ? el('span', { class: 'muted', text: ', ' + ch.role }) : null]),
+        el('div', { class: 'small' }, [ch.change_label + ' · filed ' + P.date(ch.filing_date) + ' · ', P.link('8-K', ch.source_url), ch.verified ? null : el('span', { class: 'chip warn', text: 'unverified' })]),
+        ch.evidence ? el('blockquote', { text: ch.evidence.length > 240 ? ch.evidence.slice(0, 237) + '…' : ch.evidence }) : null,
+      ])]));
+    });
+    var tot = d.filing_activity.reduce(function (a, x) { return a + x.last_12_months; }, 0);
+    $('files-line').textContent = tot + ' filings in the last 12 months, by kind. Recent ones on the right, with the items an 8-K reports.';
+    d.filing_activity.forEach(function (a) { $('activity').appendChild(el('span', { text: a.group })); $('activity').appendChild(el('span', { class: 'n', text: String(a.last_12_months) })); });
+    var fl = $('filings'), flb = el('tbody');
+    d.filings.slice(0, 8).forEach(function (x) {
+      var about = x.items.map(function (i) { return i.title || i.code; }).join('; ');
+      flb.appendChild(el('tr', {}, [el('td', { class: 'muted', style: 'white-space:nowrap', text: P.date(x.filing_date) }), el('td', {}, [P.link(x.form_type, x.source_url)]), el('td', { class: 'muted small', text: about })]));
+    });
+    fl.appendChild(flb);
+    if (d.peers && rev) {
+      var rows = d.peers.companies.map(function (p) { return { name: p.name, v: p.latest_revenue, url: p.filings_url }; }).concat([{ name: c.display_name, v: rev.value, me: true }]);
+      rows.sort(function (a, b) { return b.v - a.v; });
+      var rank = rows.findIndex(function (r) { return r.me; }) + 1;
+      $('peer-line').textContent = 'Largest ' + rows.length + ' companies in ' + d.peers.basis + ' by latest annual revenue. ' + c.display_name + ' ranks ' + rank + (rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th') + '.';
+      rows.forEach(function (r) { var bar = el('div', { class: 'bar-h' }); bar.style.width = Math.max(1, 100 * r.v / rows[0].v) + '%'; $('peers').appendChild(el('div', { class: 'r' + (r.me ? ' me' : '') }, [el('span', {}, [r.me ? r.name : P.link(r.name, r.url)]), bar, el('span', { class: 'n', text: P.money(r.v) })])); });
+    } else $('peer-line').textContent = 'No peers with annual revenue in the same industry code.';
+    if (d.risk_factors) {
+      $('risk-line').appendChild(el('span', { class: 'quiet' }, ['The categories of the risk factors in its ', P.link(d.risk_factors.form_type + ' filed ' + P.date(d.risk_factors.filing_date), d.risk_factors.source_url), '.']));
+      d.risk_factors.headings.forEach(function (x) { $('risk').appendChild(el('li', { text: x })); });
+    } else $('risk-sec').hidden = true;
+    d.notes.forEach(function (n) { $('foot').appendChild(el('p', { text: n })); });
+    $('state').hidden = true; $('page').hidden = false;
+  }).catch(function () { $('state').textContent = 'This company is not available on the public page.'; });
+})();
+</script>
+</body>
+</html>

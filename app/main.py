@@ -193,9 +193,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if site_dir.is_dir():
         company_page = site_dir / "company.html"
 
+        poc_pages = {v: site_dir / "companies" / "poc" / f"{v}.html" for v in ("a", "b", "c")}
+
         @app.get("/companies/{cik}", include_in_schema=False, response_class=FileResponse)
-        def public_company_page(cik: str):
+        def public_company_page(cik: str, v: str | None = None):
             # Shareable URL; the page script reads the CIK from the path and calls the API.
+            # ?v=a|b|c serves a design prototype of the page (issue #9).
+            page = poc_pages.get(v or "")
+            if page is not None and page.is_file():
+                return FileResponse(page, media_type="text/html")
             return FileResponse(company_page, media_type="text/html")
 
         app.mount("/", StaticFiles(directory=str(site_dir), html=True), name="site")

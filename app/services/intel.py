@@ -244,9 +244,13 @@ def display_name(legal_name: str) -> str:
     name = re.sub(r"\s*/[A-Z]{1,5}/?\s*$", "", legal_name).strip()
     if name != name.upper():
         return name
-    return " ".join(
-        w if w in _KEEP_UPPER or not w[:1].isalpha() else w.capitalize() for w in name.split()
-    )
+    words: list[str] = []
+    for w in name.split():
+        if w == "COM" and words:  # the SEC drops the dot: "AMAZON COM INC" is Amazon.com
+            words[-1] += ".com"
+            continue
+        words.append(w if w in _KEEP_UPPER or not w[:1].isalpha() else w.capitalize())
+    return " ".join(words)
 
 
 def money(v: Decimal | float) -> str:
