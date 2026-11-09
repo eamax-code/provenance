@@ -54,7 +54,7 @@ def reset_cache() -> None:
         _cache.clear()
 
 
-def _cached(key: str, build):
+def cached(key: str, build):
     with _lock:
         hit = _cache.get(key)
         if hit and time.monotonic() - hit[0] < CACHE_TTL_SECONDS:
@@ -99,7 +99,7 @@ def public_plans(settings: Settings) -> PublicPlans:
             generated_at=_now_iso(),
         )
 
-    return _cached("plans", build)
+    return cached("plans", build)
 
 
 # ---- showcase -----------------------------------------------------------------------------
@@ -250,7 +250,7 @@ def public_companies(db: Session, settings: Settings) -> ShowcaseList:
             disclaimer=DISCLAIMER,
         )
 
-    return _cached("companies", build)
+    return cached("companies", build)
 
 
 def company_bundle(db: Session, settings: Settings, cik: str) -> PublicCompanyBundle | None:
@@ -323,7 +323,7 @@ def company_bundle(db: Session, settings: Settings, cik: str) -> PublicCompanyBu
             generated_at=_now_iso(),
         )
 
-    return _cached(f"company:{cik}", build)
+    return cached(f"company:{cik}", build)
 
 
 LISTINGS_ATTRIBUTION = (
@@ -353,4 +353,4 @@ def public_listing_events(db: Session, limit: int = 30) -> dict:
             "disclaimer": LISTINGS_ATTRIBUTION,
         }
 
-    return _cached("listing_events", build)
+    return cached("listing_events", build)

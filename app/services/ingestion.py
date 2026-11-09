@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -55,6 +56,7 @@ class CompanyRecord:
     source_url: str
     # (name, used from, used to) for each name the SEC lists as the company's former name
     former_names: list[tuple[str, date | None, date | None]] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)  # Company columns from parse_metadata (#9)
 
 
 @dataclass
@@ -142,6 +144,61 @@ def _str_or_none(value: Any) -> str | None:
     return text or None
 
 
+def _address(value: Any) -> str | None:
+    if not isinstance(value, dict):
+        return None
+    keys = ("street1", "street2", "city", "stateOrCountry", "zipCode")
+    parts = {k: _str_or_none(value.get(k)) for k in keys}
+    if not any(parts.values()):
+        return None
+    parts["country"] = (
+        _str_or_none(value.get("stateOrCountryDescription"))
+        if value.get("isForeignLocation")
+        else "United States"
+    )
+    return json.dumps(parts)
+
+
+def _category(value: Any) -> str | None:
+    """'Non-accelerated filer<br>Smaller reporting company' -> 'Non-accelerated filer; Smaller
+    reporting company' (the SEC separates statuses with an HTML line break)."""
+    parts = [p.strip() for p in re.split(r"<br\s*/?>", str(value or ""), flags=re.I)]
+    return "; ".join(p for p in parts if p) or None
+
+
+def _flag(value: Any) -> bool | None:
+    return None if value in (None, "") else bool(int(value)) if str(value).isdigit() else None
+
+
+def parse_metadata(payload: dict) -> dict:
+    """Identity fields of a submissions payload, as Company column values (issue #9)."""
+    addresses = payload.get("addresses") if isinstance(payload.get("addresses"), dict) else {}
+    tickers = [t for t in payload.get("tickers") or [] if _str_or_none(t)]
+    exchanges = [e for e in payload.get("exchanges") or [] if _str_or_none(e)]
+    ein = _str_or_none(payload.get("ein"))
+    lei = _str_or_none(payload.get("lei"))
+    return {
+        "filer_category": _category(payload.get("category")),
+        "sec_office": _str_or_none(payload.get("ownerOrg")),
+        "ein": ein if ein and ein.isdigit() and len(ein) == 9 and ein != "000000000" else None,
+        "lei": lei if lei and len(lei) == 20 else None,
+        "phone": _str_or_none(payload.get("phone")),
+        "website": _str_or_none(payload.get("website")),
+        "investor_website": _str_or_none(payload.get("investorWebsite")),
+        "business_address": _address(addresses.get("business")),
+        "mailing_address": _address(addresses.get("mailing")),
+        "tickers": json.dumps(tickers) if tickers else None,
+        "exchanges": json.dumps(exchanges) if exchanges else None,
+        "insider_filings_as_issuer": _flag(payload.get("insiderTransactionForIssuerExists")),
+        "insider_filings_as_owner": _flag(payload.get("insiderTransactionForOwnerExists")),
+    }
+
+
+def apply_metadata(company: Company, metadata: dict) -> None:
+    for column, value in metadata.items():
+        setattr(company, column, value)
+
+
 def parse_former_names(value: Any) -> list[tuple[str, date | None, date | None]]:
     out: list[tuple[str, date | None, date | None]] = []
     for item in value if isinstance(value, list) else []:
@@ -186,6 +243,7 @@ def parse_submissions(
         fiscal_year_end=_str_or_none(payload.get("fiscalYearEnd")),
         source_url=submissions_url(cik),
         former_names=parse_former_names(payload.get("formerNames")),
+        metadata=parse_metadata(payload),
     )
 
     filings_block = payload.get("filings")
@@ -390,6 +448,8 @@ def upsert_company(db: Session, rec: CompanyRecord, now: datetime, source_update
         db.add(company)
     company.legal_name = rec.legal_name
     store_aliases(db, rec.cik, rec.legal_name, rec.former_names)
+    if rec.metadata:
+        apply_metadata(company, rec.metadata)
     if rec.ticker:
         company.ticker = rec.ticker
     if rec.exchange:

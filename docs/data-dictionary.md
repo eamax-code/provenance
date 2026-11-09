@@ -37,6 +37,15 @@ company's EDGAR filing list as `filings_url`.
 | `last_fetch_error_at`, `last_fetch_error` | Most recent failed attempt (redacted message). Data shown is from the last success. |
 | `quality_status` | `ok` when filings and facts both ingested; `partial` otherwise |
 
+SEC metadata from the submissions (issue #9), refreshed on each ingestion and backfilled from the
+bulk archive by `scripts/load_aliases.py`: `filer_category` (e.g. "Large accelerated filer";
+several statuses joined with "; "), `sec_office` (the SEC review office, `ownerOrg`), `ein`,
+`lei` (rarely filed), `phone`, `website` and `investor_website` (rarely filed),
+`business_address` and `mailing_address` (JSON: street1, street2, city, stateOrCountry, zipCode,
+country), `tickers` and `exchanges` (JSON lists, every one the SEC lists), and
+`insider_filings_as_issuer` / `_as_owner` (insiders file Forms 3, 4 and 5 about the company, or
+the company files them about others). Empty strings are stored as null.
+
 ## filings
 
 | Column | Meaning |
@@ -68,7 +77,7 @@ from later filings are additional rows, never overwrites.
 | `currency` | ISO code when the unit is a plain currency; otherwise `null` |
 | `period_start`, `period_end` | Duration bounds; `period_start` is `null` for instants |
 | `period_type` | `duration` or `instant` |
-| `period_class` | `annual` (350-380 days), `quarterly` (80-100 days), `ytd` (160-290 days), `other`. For instants: by form (`10-K`=annual, `10-Q`=quarterly). Derived from the reported dates, **not** from the SEC `fp` label. |
+| `period_class` | `annual` (350-380 days, from an annual report or another non-quarterly form), `ttm` (350-380 days in a 10-Q: trailing twelve months to a quarter end, since mapping 1.2.0), `quarterly` (80-100 days), `ytd` (160-290 days), `other`. For instants: by form (`10-K`=annual, `10-Q`=quarterly). Derived from the reported dates, **not** from the SEC `fp` label. |
 | `fiscal_year`, `fiscal_period` | SEC `fy`/`fp` of the *filing* that reported the value (a 6-month YTD value carries `fp=Q2`) |
 | `form_type`, `filed_date`, `accession_number` | Filing that reported the observation |
 | `source_tag`, `source_taxonomy` | XBRL concept and taxonomy (`us-gaap`) |
@@ -79,7 +88,7 @@ from later filings are additional rows, never overwrites.
 | `observation_key` | SHA-256 over metric, taxonomy, tag, unit, period, accession, derived flag; unique |
 | `first_detected_at`, `processed_at` | Provenance timestamps |
 
-### Concept mapping v1.0.0
+### Concept mapping v1.0.0 (now 1.2.0)
 
 | Metric | Candidate tags, in precedence order | Period |
 | --- | --- | --- |

@@ -23,7 +23,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-MAPPING_VERSION = "1.1.0"
+MAPPING_VERSION = "1.2.0"  # 1.2.0: twelve months in a quarterly report is "ttm", not annual
 
 # Ordered by precedence (first wins when several tags cover the same period).
 CONCEPT_MAP: dict[str, dict[str, Any]] = {
@@ -250,6 +250,9 @@ def _normalize_observation(
     if start is not None:
         period_type = "duration"
         period_class = classify_duration(start, end)
+        if period_class == "annual" and form in QUARTERLY_FORMS:
+            # Trailing twelve months to a quarter end (Amazon reports them): not a fiscal year.
+            period_class = "ttm"
     else:
         period_type = "instant"
         period_class = classify_instant(form, fp)

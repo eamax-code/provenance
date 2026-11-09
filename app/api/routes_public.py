@@ -9,6 +9,7 @@ from app.core.errors import APIError
 from app.core.rate_limits import FixedWindowRateLimiter
 from app.schemas.common import ErrorEnvelope
 from app.schemas.public import PublicCompanyBundle, PublicPlans, ShowcaseList
+from app.services import company_overview as company_overview_service
 from app.services import public as public_service
 from app.services.sec_client import normalize_cik
 
@@ -83,6 +84,36 @@ def company(
     if bundle is None:
         raise APIError(404, "company_not_found", "This company is not part of the public showcase.")
     return bundle
+
+
+@router.get(
+    "/companies/{cik}/overview",
+    responses=_ERRORS,
+    summary="Everything known about a company, for one page (public)",
+    description="Identity and SEC metadata, former names, a cited summary, filing history, key "
+    "annual figures, ten fiscal years, recent filings with 8-K item titles, filing activity, "
+    "leadership changes, risk factor categories, peers by SIC and international listings. "
+    "Showcase companies only; built from stored data, never calls the SEC.",
+)
+def company_overview(
+    request: Request,
+    response: Response,
+    cik: str = Path(max_length=13),
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+):
+    _guard(request, response)
+    try:
+        cik = normalize_cik(cik)
+    except ValueError as exc:
+        raise APIError(422, "invalid_parameter", "cik must be 1-10 digits.") from exc
+    ciks, _ = public_service.showcase_ciks(db, settings)
+    if cik not in ciks:
+        raise APIError(404, "company_not_found", "This company is not part of the public showcase.")
+    body = public_service.cached(f"overview:{cik}", lambda: company_overview_service.build(db, cik))
+    if body is None:
+        raise APIError(404, "company_not_found", "This company is not part of the public showcase.")
+    return body
 
 
 @router.get(

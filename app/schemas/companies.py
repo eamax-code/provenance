@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -19,6 +20,23 @@ class CompanyOut(ORMModel):
     entity_type: str | None = None
     state_of_incorporation: str | None = None
     fiscal_year_end: str | None = Field(default=None, description="MMDD as reported by SEC")
+    filer_category: str | None = Field(
+        default=None, description="SEC filer status, e.g. Large accelerated filer"
+    )
+    sec_office: str | None = Field(default=None, description="SEC review office (ownerOrg)")
+    ein: str | None = Field(default=None, description="Employer Identification Number")
+    lei: str | None = Field(default=None, description="Legal Entity Identifier, when filed")
+    phone: str | None = None
+    website: str | None = None
+    investor_website: str | None = None
+    business_address: dict | None = None
+    mailing_address: dict | None = None
+    tickers: list[str] = Field(default_factory=list, description="Every ticker the SEC lists")
+    exchanges: list[str] = Field(default_factory=list)
+    insider_filings_as_issuer: bool | None = Field(
+        default=None, description="Insiders file Forms 3, 4 or 5 about this company"
+    )
+    insider_filings_as_owner: bool | None = None
     last_processed_at: datetime | None
     quality_status: str
     ingestion_status: str = Field(
@@ -34,6 +52,18 @@ class CompanyOut(ORMModel):
     matched_name: str | None = Field(
         default=None, description="Search only: the former name that matched, for former_name"
     )
+
+    @field_validator("business_address", "mailing_address", mode="before")
+    @classmethod
+    def _address(cls, value):
+        return json.loads(value) if isinstance(value, str) else value
+
+    @field_validator("tickers", "exchanges", mode="before")
+    @classmethod
+    def _list(cls, value):
+        if value is None:
+            return []
+        return json.loads(value) if isinstance(value, str) else value
 
     @computed_field(description="The company's filing list on SEC EDGAR")
     @property

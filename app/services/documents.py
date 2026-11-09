@@ -224,27 +224,12 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
         )
 
     # Risk factors, from the latest prospectus read here
-    risk = db.execute(
-        select(FilingSection.text, FilingSection.source_url, Filing.form_type, Filing.filing_date)
-        .join(
-            Filing,
-            (Filing.cik == FilingSection.cik)
-            & (Filing.accession_number == FilingSection.accession_number),
-        )
-        .where(
-            FilingSection.cik == cik,
-            FilingSection.item == "pr:risk",
-            FilingSection.status == "ok",
-        )
-        .order_by(Filing.filing_date.desc())
-        .limit(1)
-    ).first()
-    heads = risk_headings(risk.text) if risk and risk.text else []
-    if heads:
-        source = _link(f"{risk.form_type} filed {risk.filing_date}", risk.source_url)
+    risk = latest_risk(db, cik)
+    if risk:
+        source = _link(f"{risk['form_type']} filed {risk['filing_date']}", risk["source_url"])
         lines += ["", "## Risk factors", "", f"The prospectus ({source}) groups its risks under:"]
         lines += [""]
-        lines += [f"- {h}" for h in heads]
+        lines += [f"- {h}" for h in risk["headings"]]
 
     # Filings
     recent = db.scalars(
@@ -283,6 +268,34 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
         summary=" ".join(sentences),
         citations=cites,
     )
+
+
+def latest_risk(db: Session, cik: str) -> dict | None:
+    """The risk factor categories of the latest prospectus read here, with its filing."""
+    row = db.execute(
+        select(FilingSection.text, FilingSection.source_url, Filing.form_type, Filing.filing_date)
+        .join(
+            Filing,
+            (Filing.cik == FilingSection.cik)
+            & (Filing.accession_number == FilingSection.accession_number),
+        )
+        .where(
+            FilingSection.cik == cik,
+            FilingSection.item == "pr:risk",
+            FilingSection.status == "ok",
+        )
+        .order_by(Filing.filing_date.desc())
+        .limit(1)
+    ).first()
+    heads = risk_headings(row.text) if row and row.text else []
+    if not heads:
+        return None
+    return {
+        "headings": heads,
+        "form_type": row.form_type,
+        "filing_date": row.filing_date,
+        "source_url": row.source_url,
+    }
 
 
 def risk_headings(body: str) -> list[str]:

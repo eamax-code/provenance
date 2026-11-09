@@ -49,6 +49,20 @@ class Company(Base):
     entity_type: Mapped[str | None] = mapped_column(Text, nullable=True)
     state_of_incorporation: Mapped[str | None] = mapped_column(Text, nullable=True)
     fiscal_year_end: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Identity the SEC publishes in the submissions (issue #9); empty strings are stored as null.
+    filer_category: Mapped[str | None] = mapped_column(Text, nullable=True)  # Large accelerated…
+    sec_office: Mapped[str | None] = mapped_column(Text, nullable=True)  # ownerOrg
+    ein: Mapped[str | None] = mapped_column(String(9), nullable=True)
+    lei: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    phone: Mapped[str | None] = mapped_column(Text, nullable=True)
+    website: Mapped[str | None] = mapped_column(Text, nullable=True)
+    investor_website: Mapped[str | None] = mapped_column(Text, nullable=True)
+    business_address: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    mailing_address: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    tickers: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list
+    exchanges: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list
+    insider_filings_as_issuer: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    insider_filings_as_owner: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     source_updated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     first_detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)

@@ -196,3 +196,30 @@ def test_later_restatement_does_not_change_earlier_filing_quality(facts_aapl):
         facts, "revenue", period_end=date(2023, 9, 30), accession_number="0000320193-23-000106"
     )
     assert {f.quality_status for f in original} == {"ambiguous_mapping"}
+
+
+def test_twelve_months_in_a_quarterly_report_is_ttm_not_annual():
+    """Amazon's 10-Qs report net income for the twelve months to the quarter end (mapping 1.2.0)."""
+    payload = {
+        "cik": 1018724,
+        "entityName": "AMAZON COM INC",
+        "facts": {
+            "us-gaap": {
+                "NetIncomeLoss": {
+                    "units": {
+                        "USD": [
+                            {"start": "2025-10-01", "end": "2026-09-30", "val": 134779000000,
+                             "accn": "0001018724-26-000040", "fy": 2026, "fp": "Q3",
+                             "form": "10-Q", "filed": "2026-10-30"},
+                            {"start": "2025-01-01", "end": "2025-12-31", "val": 77670000000,
+                             "accn": "0001018724-26-000004", "fy": 2025, "fp": "FY",
+                             "form": "10-K", "filed": "2026-02-06"},
+                        ]
+                    }
+                }
+            }
+        },
+    }  # fmt: skip
+    facts = {f.period_end: f for f in normalize_company_facts(payload, "0001018724")}
+    assert facts[date(2026, 9, 30)].period_class == "ttm"
+    assert facts[date(2025, 12, 31)].period_class == "annual"

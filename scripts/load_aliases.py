@@ -1,6 +1,7 @@
-"""Fill company_aliases with the former names in the SEC submissions archive (issue #3, step 2).
+"""Fill former names (company_aliases, issue #3) and company metadata (address, phone, filer
+category, EIN, LEI, tickers; issue #9) from the SEC submissions archive.
 
-Ingestion keeps them current from then on; this reads them for companies already loaded, without
+Ingestion keeps both current from then on; this reads them for companies already loaded, without
 any SEC request.
 
 python scripts/load_aliases.py                        # archive in SEC_BULK_DIR
@@ -16,10 +17,10 @@ import zipfile
 from pathlib import Path
 
 from _bootstrap import bootstrap
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.db.models import Company
-from app.services.ingestion import parse_former_names, store_aliases
+from app.services.ingestion import parse_former_names, parse_metadata, store_aliases
 
 
 def main() -> None:
@@ -37,8 +38,10 @@ def main() -> None:
             member = f"CIK{cik}.json"
             if member not in members:
                 continue
-            former = parse_former_names(json.loads(archive.read(member)).get("formerNames"))
+            payload = json.loads(archive.read(member))
+            former = parse_former_names(payload.get("formerNames"))
             store_aliases(db, cik, legal_name, former)
+            db.execute(update(Company).where(Company.cik == cik).values(**parse_metadata(payload)))
             companies += 1
             names += len(former)
             if companies % 2000 == 0:
@@ -46,7 +49,8 @@ def main() -> None:
         db.commit()
     finally:
         db.close()
-    print(f"{names} former names for {companies} companies in {time.perf_counter() - started:.0f}s")
+    took = time.perf_counter() - started
+    print(f"metadata and {names} former names for {companies} companies in {took:.0f}s")
 
 
 if __name__ == "__main__":
