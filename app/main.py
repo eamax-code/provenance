@@ -36,6 +36,10 @@ from app.core.logging import configure_logging, log_event, request_id_var
 from app.db.session import configure_engine, get_engine, session_factory
 from app.services.usage import record_usage
 
+# The company page layouts; the first is the default.
+COMPANY_LAYOUTS = ("snapshot", "report", "dossier")
+COMPANY_LAYOUT_COOKIE = "company_layout"
+
 logger = logging.getLogger("app.http")
 
 DESCRIPTION = """
@@ -191,18 +195,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Static marketing site (index.html, llms.txt). Mounted last so API routes win.
     site_dir = Path(__file__).resolve().parent.parent / "site"
     if site_dir.is_dir():
-        company_page = site_dir / "company.html"
-
-        poc_pages = {v: site_dir / "companies" / "poc" / f"{v}.html" for v in ("a", "b", "c")}
+        layout_dir = site_dir / "companies" / "page"
 
         @app.get("/companies/{cik}", include_in_schema=False, response_class=FileResponse)
-        def public_company_page(cik: str, v: str | None = None):
+        def public_company_page(request: Request, cik: str, layout: str | None = None):
             # Shareable URL; the page script reads the CIK from the path and calls the API.
-            # ?v=a|b|c serves a design prototype of the page (issue #9).
-            page = poc_pages.get(v or "")
-            if page is not None and page.is_file():
-                return FileResponse(page, media_type="text/html")
-            return FileResponse(company_page, media_type="text/html")
+            # Snapshot is the page; ?layout= picks Report or Dossier and is remembered.
+            chosen = layout if layout in COMPANY_LAYOUTS else None
+            remembered = request.cookies.get(COMPANY_LAYOUT_COOKIE)
+            name = chosen or (remembered if remembered in COMPANY_LAYOUTS else COMPANY_LAYOUTS[0])
+            response = FileResponse(layout_dir / f"{name}.html", media_type="text/html")
+            response.headers["Vary"] = "Cookie"
+            if chosen:
+                response.set_cookie(
+                    COMPANY_LAYOUT_COOKIE,
+                    chosen,
+                    max_age=365 * 24 * 3600,
+                    path="/companies",
+                    samesite="lax",
+                    httponly=True,
+                )
+            return response
 
         app.mount("/", StaticFiles(directory=str(site_dir), html=True), name="site")
     return app

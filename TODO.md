@@ -18,9 +18,10 @@ decision or account; **ready-for-agent** can be built now; **needs-triage** is a
 ## Ready for agent
 | # | Item |
 | --- | --- |
+| GH #10 | [Company page: a figure's mini trend opens a large chart with insights](https://github.com/eamax-code/provenance/issues/10) (built 2026-11-10; waiting on your review) |
 
 ## Done
-21 the ChatGPT design with clay.com-style motion is the main page (2026-11-06), 01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 11 usage series, SEC responses by endpoint, detection-to-processing latency, 07-10 listings: GLEIF identity in batches, non-share exclusion and primary-listing flag,
+GH #9 the company page is Snapshot, with Report and Dossier as layouts a reader picks (2026-11-10), 21 the ChatGPT design with clay.com-style motion is the main page (2026-11-06), 01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 11 usage series, SEC responses by endpoint, detection-to-processing latency, 07-10 listings: GLEIF identity in batches, non-share exclusion and primary-listing flag,
 listing watches, Listings view in the Explorer; 12 shared rate limits, 20 officer changes on the feed within minutes with point-in-time
 context and measured base rates, daily retention, webhook alerts, 15 test hygiene
 (no warnings, `--clock`), 16

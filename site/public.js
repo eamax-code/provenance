@@ -50,79 +50,6 @@
     }).catch(function () { setState('dir-state', 'Live data unavailable right now.'); });
   }
 
-  /* ---- company page ---- */
-  function companyPage() {
-    var root = $('company-page'); if (!root) return;
-    var m = location.pathname.match(/\/companies\/(\d{1,10})/);
-    var cik = (m && m[1]) || new URLSearchParams(location.search).get('cik');
-    if (!cik) { setState('co-state', 'No company selected. Browse the directory.'); return; }
-    getJSON('/v1/public/companies/' + encodeURIComponent(cik)).then(function (res) {
-      if (res.status === 404) { setState('co-state', 'CIK ' + cik + ' is not part of the public showcase. Key holders can open any ingested company in the Explorer.'); return; }
-      if (!res.ok) throw new Error(res.status);
-      var b = res.body, c = b.company;
-      setState('co-state', '');
-      document.title = c.legal_name + ' · Provenance';
-      $('co-name').textContent = c.legal_name; $('co-cik').textContent = 'CIK ' + c.cik;
-      $('co-meta').textContent = [c.ticker, c.exchange, c.sic_description, c.state_of_incorporation ? 'inc. ' + c.state_of_incorporation : null, c.fiscal_year_end ? 'FYE ' + c.fiscal_year_end : null].filter(Boolean).join(' · ');
-      var badges = $('co-badges'); badges.innerHTML = '';
-      badges.appendChild(el('span', { class: 'badge ' + c.quality_status, text: 'quality ' + c.quality_status }));
-      badges.appendChild(el('a', { class: 'badge', href: c.filings_url, target: '_blank', rel: 'noopener', text: 'SEC filings ↗' }));
-      badges.appendChild(el('span', { class: 'badge', text: 'mapping ' + b.mapping_version }));
-      /* filings */
-      var tb = $('co-filings').querySelector('tbody'); tb.innerHTML = '';
-      b.filings.forEach(function (f) {
-        tb.appendChild(el('tr', {}, [el('td', { class: 'mono', text: f.filing_date || 'null' }), el('td', { text: f.form_type }), el('td', { class: 'mono', text: f.accession_number }), el('td', { class: 'mono', text: fmtTs(f.accepted_at) }), el('td', {}, [el('span', { class: 'badge ' + f.quality_status, text: f.quality_status })]), el('td', {}, [el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: 'SEC index ↗' })])]));
-      });
-      /* metrics */
-      var wrap = $('co-metrics'); wrap.innerHTML = '';
-      b.metrics.forEach(function (ms) {
-        var block = el('section', { class: 'metric-block' });
-        var h = el('h3', {}, [el('span', { text: ms.label }), el('span', { class: 'badge ' + ms.status, text: ms.status })]);
-        block.appendChild(h);
-        block.appendChild(el('p', { class: 'muted small', text: ms.note }));
-        if (ms.facts.length) {
-          var series = el('div', { class: 'series' });
-          var chartWrap = el('div', { class: 'chart-wrap' }); var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 600 220'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', ms.label + ' by fiscal year'); chartWrap.appendChild(svg);
-          drawBars(svg, ms.facts.slice().reverse());
-          var tbl = el('table', {}, [el('thead', {}, [el('tr', {}, [el('th', { text: 'Period end' }), el('th', { class: 'num', text: 'Value' }), el('th', { text: 'Form' }), el('th', { text: 'Tag' }), el('th', { text: 'Source' })])])]);
-          var body = el('tbody');
-          ms.facts.forEach(function (f) {
-            body.appendChild(el('tr', {}, [el('td', { class: 'mono', text: f.period_end + (f.fiscal_year ? ' (FY' + f.fiscal_year + ')' : '') }), el('td', { class: 'num', text: fmtNum(f.value) + ' ' + f.unit, title: String(f.value) }), el('td', { text: (f.form_type || '—') + ' ' + (f.filed_date || '') }), el('td', { class: 'mono wrap', text: f.source_tag + (f.revision_count > 1 ? ' · ' + f.revision_count + ' obs' : '') }), el('td', {}, [el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: f.accession_number || 'source' })])]));
-          });
-          tbl.appendChild(body);
-          series.appendChild(chartWrap); series.appendChild(el('div', { class: 'table-wrap' }, [tbl]));
-          block.appendChild(series);
-        }
-        wrap.appendChild(block);
-      });
-      /* freshness */
-      var fr = b.freshness, grid = $('co-fresh'); grid.innerHTML = '';
-      var kv = function (k, v) { grid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
-      kv('status', fr.status); kv('last successful SEC fetch', fmtTs(fr.last_successful_fetch_at)); kv('fetch age (s)', fr.last_successful_fetch_age_seconds == null ? 'null' : String(fr.last_successful_fetch_age_seconds));
-      if (fr.latest_filing) { var lf = fr.latest_filing; kv('latest filing', lf.form_type + ' ' + lf.accession_number); kv('SEC accepted_at', fmtTs(lf.accepted_at)); kv('processed', fmtTs(lf.processed_at)); kv('publication → detection (s)', lf.publication_to_detection_seconds == null ? 'null (SEC publishes no dissemination time)' : String(lf.publication_to_detection_seconds)); kv('acceptance → detection (s)', lf.acceptance_to_detection_seconds == null ? 'null' : String(lf.acceptance_to_detection_seconds)); }
-      var notes = $('co-notes'); notes.innerHTML = ''; fr.notes.concat(b.notes).forEach(function (n) { notes.appendChild(el('li', { text: n })); });
-      $('co-body').hidden = false;
-    }).catch(function () { setState('co-state', 'Live data unavailable right now.'); });
-  }
-  function drawBars(svg, facts) {
-    var NS = 'http://www.w3.org/2000/svg';
-    var mk = function (t, a) { var n = document.createElementNS(NS, t); Object.keys(a).forEach(function (k) { n.setAttribute(k, a[k]); }); return n; };
-    var pts = facts.filter(function (f) { return f.value != null; });
-    var W = 600, H = 220, L = 60, R = 10, T = 12, B = 36;
-    if (!pts.length) return;
-    var vals = pts.map(function (p) { return Number(p.value); }), max = Math.max(0, Math.max.apply(null, vals)), min = Math.min(0, Math.min.apply(null, vals)), span = (max - min) || 1;
-    var y = function (v) { return T + (max - v) / span * (H - T - B); };
-    for (var i = 0; i <= 4; i++) { var v = min + span * i / 4, yy = y(v); svg.appendChild(mk('line', { x1: L, x2: W - R, y1: yy, y2: yy, class: 'grid' })); var t = mk('text', { x: L - 6, y: yy + 4, 'text-anchor': 'end' }); t.textContent = fmtNum(v); svg.appendChild(t); }
-    svg.appendChild(mk('line', { x1: L, x2: W - R, y1: y(0), y2: y(0), class: 'axis' }));
-    var bw = (W - L - R) / pts.length;
-    pts.forEach(function (p, i) {
-      var v = Number(p.value), x = L + i * bw + bw * 0.18;
-      var r = mk('rect', { x: x, y: Math.min(y(v), y(0)), width: Math.max(2, bw * 0.64), height: Math.max(1, Math.abs(y(v) - y(0))), rx: 2, class: 'bar' + (v < 0 ? ' neg' : '') + (i === pts.length - 1 ? ' latest' : '') });
-      var title = document.createElementNS(NS, 'title'); title.textContent = p.period_end + ': ' + Number(p.value).toLocaleString('en-US') + ' ' + p.unit; r.appendChild(title); svg.appendChild(r);
-      var xl = mk('text', { x: x + bw * 0.32, y: H - B + 16, 'text-anchor': 'middle' }); xl.textContent = p.fiscal_year ? 'FY' + p.fiscal_year : p.period_end.slice(0, 4); svg.appendChild(xl);
-    });
-  }
-
   /* ---- status page ---- */
   function statusPage() {
     var grid = $('status-kv'); if (!grid) return;
@@ -227,5 +154,5 @@
     }).catch(function () { setState('listings-state', 'Live data unavailable right now.'); });
   }
 
-  directory(); companyPage(); statusPage(); landing(); listingsPage();
+  directory(); statusPage(); landing(); listingsPage();
 })();

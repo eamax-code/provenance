@@ -79,11 +79,34 @@ def test_overview_has_every_section_and_no_source_api_links(client, db, ingested
     assert client.get("/v1/public/companies/abc/overview").status_code == 422
 
 
-def test_design_prototypes_are_served(client):
-    for v in ("a", "b", "c"):
-        r = client.get(f"/companies/0000320193?v={v}")
-        assert r.status_code == 200 and "/companies/poc/common.js" in r.text, v
-        assert 'aria-current="page"' in r.text
-    assert "common.js" not in client.get("/companies/0000320193?v=z").text  # the current page
-    js = client.get("/companies/poc/common.js").text
+def _layout(r):
+    return r.text.split('aria-current="page">')[1].split("<")[0]
+
+
+def test_company_page_layouts(client):
+    # Snapshot is the page; Report and Dossier are layouts a reader picks, and the pick is kept.
+    r = client.get("/companies/0000320193")
+    assert r.status_code == 200 and _layout(r) == "Snapshot" and "/companies/page/page.js" in r.text
+    assert "not affiliated" in r.text.lower() and r.headers["vary"] == "Cookie"
+    assert "company_layout" not in r.headers.get("set-cookie", "")
+    r = client.get("/companies/0000320193?layout=report")
+    assert _layout(r) == "Report" and "company_layout=report" in r.headers["set-cookie"]
+    assert _layout(client.get("/companies/0000789019")) == "Report"  # remembered
+    assert _layout(client.get("/companies/0000789019?layout=dossier")) == "Dossier"
+    assert _layout(client.get("/companies/0000789019?layout=nope")) == "Dossier"
+    client.cookies.clear()
+    assert _layout(client.get("/companies/0000789019?layout=nope")) == "Snapshot"
+    client.cookies.set("company_layout", "../etc", path="/companies")
+    assert _layout(client.get("/companies/0000789019")) == "Snapshot"
+    client.cookies.clear()
+
+
+def test_figure_view_is_wired_into_every_layout(client):
+    js = client.get("/companies/page/page.js").text
     assert "/v1/public/companies/" in js and "/overview" in js
+    for hook in ("P.openFigure", "P.insights", "P.figureChart", "#figure=", "showModal"):
+        assert hook in js, hook
+    for layout in ("snapshot", "report", "dossier"):
+        html = client.get(f"/companies/0000320193?layout={layout}").text
+        assert "P.figureButton(d," in html and "P.openFromHash(d)" in html, layout
+    client.cookies.clear()

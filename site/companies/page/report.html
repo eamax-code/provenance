@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex">
 <title>Company report · Provenance</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/companies/poc/shared.css">
+<link rel="stylesheet" href="/companies/page/page.css">
 <style>
-/* C, Report: written first, then the figures behind it, section by section. */
+/* Report, a layout option: written first, then the figures behind it, section by section. */
 body { background: #f6f8fa; }
 .doc { max-width: 1120px; margin: 0 auto; padding: 40px clamp(16px, 4vw, 48px) 72px; display: grid; gap: 56px; }
 .mast { display: grid; gap: 18px; padding-bottom: 32px; border-bottom: 1px solid var(--line); }
@@ -54,8 +53,8 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
 <body>
 <header class="topbar">
   <a class="brand" href="/"><i aria-hidden="true"></i>Provenance</a>
-  <nav aria-label="Site"><a href="/companies/">Companies</a><a href="/chat/">Chat</a><a href="/app/">Explorer</a><a href="/docs">API docs</a></nav>
-  <span class="variants" aria-label="Prototype"><a href="?v=a">A Dossier</a><a href="?v=b">B Snapshot</a><a href="?v=c" aria-current="page">C Report</a></span>
+  <nav aria-label="Site"><a href="/companies/">Companies</a><a href="/chat/">Chat</a><a href="/listings/">Listings</a><a href="/app/">Explorer</a><a href="/docs">API docs</a></nav>
+  <span class="variants" aria-label="Layout"><a href="?layout=snapshot">Snapshot</a><a href="?layout=report" aria-current="page">Report</a><a href="?layout=dossier">Dossier</a></span>
 </header>
 <p class="state" id="state">Loading the company…</p>
 <article class="doc" id="page" hidden>
@@ -74,11 +73,12 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
   <section class="sec" aria-labelledby="t-risk" id="risk-sec"><header><h2 id="t-risk">What it says could go wrong</h2><p id="risk-line"></p></header><div class="body"><ul id="risk" style="margin:0; padding-left:18px; display:grid; gap:6px"></ul></div></section>
   <footer class="foot" id="foot"></footer>
 </article>
-<script src="/companies/poc/common.js"></script>
+<footer class="site-foot">Data from SEC EDGAR. Provenance is independent and not affiliated with or endorsed by the SEC. Not investment advice; review the filing before relying on a figure. <a href="/docs">API docs</a> · <a href="/llms.txt">llms.txt</a></footer>
+<script src="/companies/page/page.js"></script>
 <script>
 (function () {
   'use strict';
-  var P = window.CompanyPoc, $ = P.$, el = P.el;
+  var P = window.CompanyPage, $ = P.$, el = P.el;
   P.load().then(function (d) {
     var c = d.company, h = d.history || {};
     document.title = c.display_name + ' · company report · Provenance';
@@ -96,10 +96,10 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
     var fig = function (m) { return d.key_figures.filter(function (k) { return k.metric === m; })[0]; };
     var rev = fig('revenue'), ni = fig('net_income'), last = d.years[d.years.length - 1];
     var bigs = [];
-    if (rev) bigs.push([P.money(rev.value), 'Revenue, ' + rev.fiscal_label + (rev.change_pct != null ? ', ' + P.pct(rev.change_pct, true) + ' on the year' : ''), rev.source_url, true]);
-    if (last && last.operating_margin_pct != null) bigs.push([P.pct(last.operating_margin_pct), 'Operating margin, ' + last.fiscal_label, last.sources.operating_income]);
-    if (ni) bigs.push([P.money(ni.value), 'Net income, ' + ni.fiscal_label, ni.source_url]);
-    bigs.forEach(function (b) { $('big').appendChild(el('div', {}, [el('b', { class: b[3] ? 'accent' : null, text: b[0] }), el('span', { class: 'quiet' }, [b[1] + ' · ', P.link('filing', b[2])])])); });
+    if (rev) bigs.push([P.money(rev.value), 'Revenue, ' + rev.fiscal_label + (rev.change_pct != null ? ', ' + P.pct(rev.change_pct, true) + ' on the year' : ''), rev.source_url, true, 'revenue']);
+    if (last && last.operating_margin_pct != null) bigs.push([P.pct(last.operating_margin_pct), 'Operating margin, ' + last.fiscal_label, last.sources.operating_income, false, 'operating_income']);
+    if (ni) bigs.push([P.money(ni.value), 'Net income, ' + ni.fiscal_label, ni.source_url, false, 'net_income']);
+    bigs.forEach(function (b) { $('big').appendChild(el('div', {}, [el('b', { class: b[3] ? 'accent' : null, text: b[0] }), el('span', { class: 'quiet' }, [b[1] + ' · ', P.link('filing', b[2])]), P.figureButton(d, b[4], [P.spark(P.series(d.years, b[4])), el('span', { class: 'spark-hint', text: b[4] === 'operating_income' ? 'Operating income over the years' : 'Over the years' })])])); });
     var first = d.years.filter(function (y) { return y.revenue; })[0];
     $('grow-line').textContent = (first && last && last.revenue ? 'Revenue went from ' + P.money(first.revenue) + ' in ' + first.fiscal_label + ' to ' + P.money(last.revenue) + ' in ' + last.fiscal_label + '. ' : '') + (P.finding(d) || '');
     $('chart').appendChild(P.revenueChart(d.years, { width: 820, height: 260, values: true }));
@@ -159,8 +159,9 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
       $('risk-line').appendChild(el('span', { class: 'quiet' }, ['The categories of the risk factors in its ', P.link(d.risk_factors.form_type + ' filed ' + P.date(d.risk_factors.filing_date), d.risk_factors.source_url), '.']));
       d.risk_factors.headings.forEach(function (x) { $('risk').appendChild(el('li', { text: x })); });
     } else $('risk-sec').hidden = true;
-    d.notes.forEach(function (n) { $('foot').appendChild(el('p', { text: n })); });
+    P.notes(d).forEach(function (n) { $('foot').appendChild(el('p', { text: n })); });
     $('state').hidden = true; $('page').hidden = false;
+    P.openFromHash(d);
   }).catch(function () { $('state').textContent = 'This company is not available on the public page.'; });
 })();
 </script>

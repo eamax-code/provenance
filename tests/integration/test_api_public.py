@@ -175,11 +175,8 @@ def test_public_pages_are_served(client):
     for path in ("/companies/", "/status/", "/companies/0000320193"):
         r = client.get(path)
         assert r.status_code == 200 and r.headers["content-type"].startswith("text/html"), path
-        assert (
-            "not affiliated" in r.text.lower()
-            and "/site/public.js" in r.text
-            or "/public.js" in r.text
-        ), path
+        script = "/companies/page/page.js" if path[-1].isdigit() else "/public.js"
+        assert "not affiliated" in r.text.lower() and script in r.text, path
     assert "/v1/public/companies" in client.get("/public.js").text
     html = client.get("/").text
     assert (
