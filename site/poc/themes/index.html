@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en" data-theme="archive">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Theme sampler · Provenance</title>
+<script>
+  (function () { var q = new URLSearchParams(location.search).get('theme'), s = null; try { s = localStorage.getItem('poc-theme'); } catch (e) {}
+    var t = q || s; if (['archive', 'archive-dark', 'ledger', 'terminal'].indexOf(t) >= 0) document.documentElement.setAttribute('data-theme', t); })();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap">
+<link rel="stylesheet" href="/poc/poc.css">
+<style>
+main { display: grid; gap: 20px; padding-block: 28px 56px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+.hero .lead { display: grid; gap: 18px; align-content: center; padding: clamp(8px, 2vw, 24px) 0; }
+.eyebrow { font-size: 13px; font-weight: 600; color: var(--muted); }
+.hero h1 { font-size: clamp(40px, 5.4vw, 76px); line-height: .98; max-width: 15ch; text-wrap: balance; }
+.hero .intro { font-size: clamp(17px, 1.4vw, 20px); max-width: 44ch; }
+.hero .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.note h2 { font-size: 22px !important; font-family: var(--display) !important; font-weight: var(--display-weight) !important; }
+.note dl { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px 14px; font-size: 14px; }
+.note dt { color: var(--muted); }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.sw { display: grid; gap: 4px; font: 11px "IBM Plex Mono", monospace; color: var(--muted); }
+.sw i { width: 46px; height: 30px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--c); }
+.type-sample { display: grid; gap: 2px; }
+.type-sample .d { font-family: var(--display); font-weight: var(--display-weight); font-size: 26px; letter-spacing: var(--display-track); line-height: 1.1; }
+.type-sample .n { font-family: var(--num); font-size: 15px; }
+.strip { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 20px; align-items: center; }
+.strip h2 { font-size: 24px !important; font-family: var(--display) !important; font-weight: var(--display-weight) !important; letter-spacing: var(--display-track) !important; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.strip h2 .chip { font-family: var(--face); letter-spacing: 0; }
+.strip .finding { font-weight: 600; padding-left: 10px; border-left: 3px solid var(--accent-hi); }
+.strip .actions { grid-row: 1 / span 3; grid-column: 2; display: flex; gap: 8px; }
+.g { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.s4 { grid-column: span 4; } .s5 { grid-column: span 5; } .s3 { grid-column: span 3; } .s6 { grid-column: span 6; } .s7 { grid-column: span 7; } .s12 { grid-column: span 12; }
+.chat { display: grid; gap: 12px; }
+.q { justify-self: end; max-width: 80%; background: var(--panel-2); padding: 10px 14px; border-radius: 14px 14px 4px 14px; font-weight: 600; }
+.a { display: grid; gap: 8px; max-width: 62ch; line-height: 1.6; }
+.a sup a { text-decoration: none; color: var(--accent-text); font-weight: 700; font-size: 11px; }
+.ask { display: flex; gap: 8px; }
+.field { flex: 1; min-width: 0; min-height: 40px; padding: 0 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: 400 14px var(--face); }
+.field::placeholder { color: var(--muted); }
+.req { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.req code { background: var(--panel-2); padding: 6px 10px; border-radius: var(--radius); overflow-wrap: anywhere; }
+pre.json { margin: 0; max-height: 280px; overflow: auto; background: var(--bg); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 12px; font-size: 12.5px; line-height: 1.55; }
+pre.json .k { color: var(--accent-text); } pre.json .s { color: var(--good); } pre.json .d { color: var(--line-2); }
+.notice { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 10px 12px; font-size: 13.5px; background: var(--panel); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.toggle i { width: 34px; height: 20px; border-radius: 999px; background: var(--accent); position: relative; }
+.toggle i::after { content: ""; position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-ink); }
+/* compare: each theme in a frame, scaled */
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding-block: 20px 48px; }
+.frame { display: grid; gap: 8px; }
+.frame header { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; }
+.frame .box { position: relative; aspect-ratio: 1440 / 1100; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--panel); }
+.frame iframe { position: absolute; top: 0; left: 0; width: 1440px; height: 1100px; border: 0; transform-origin: 0 0; transform: scale(var(--k, .45)); pointer-events: none; }
+@media (max-width: 1100px) { .s4, .s5, .s3, .s6, .s7 { grid-column: span 12; } .hero { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .strip { grid-template-columns: 1fr; } .strip .actions { grid-row: auto; grid-column: 1; } .compare { grid-template-columns: 1fr; } .poc-strip .links { margin-left: 0; } }
+</style>
+</head>
+<body>
+<div class="poc-strip" id="poc-strip"><div class="wrap"><b>Prototype</b><span>Theme</span><span class="themes" id="themes"></span><span class="links"><a id="compare-link" href="?compare=1">Compare side by side</a><a href="/poc/gamification/">Gamification prototype</a></span></div></div>
+<header class="bar"><div class="wrap">
+  <a class="wordmark" href="/"><i aria-hidden="true"></i>Provenance</a>
+  <nav aria-label="Primary"><a href="/docs">Platform</a><a href="/companies/" aria-current="page">Companies</a><a href="/chat/">Chat</a><a href="/listings/">Listings</a><a href="/#pricing">Pricing</a></nav>
+  <div class="end"><a class="btn small" href="/app/">Sign in</a><a class="btn small primary" href="/#contact">Get a free key</a></div>
+</div></header>
+<main class="wrap" id="sample">
+  <section class="hero">
+    <div class="lead">
+      <p class="eyebrow">SEC filings, normalized and cited</p>
+      <h1>Every figure, traced to its filing.</h1>
+      <p class="intro">Company figures from SEC filings, ten years at a time, each one linked to the annual report it came from.</p>
+      <div class="actions"><a class="btn primary" href="/companies/">Explore companies</a><a class="btn" href="/chat/">Ask a question</a></div>
+    </div>
+    <aside class="panel note" aria-labelledby="note-title">
+      <h2 id="note-title"></h2>
+      <p id="note-idea"></p>
+      <dl><dt>Type</dt><dd class="type-sample"><span class="d">Amazon.com Inc</span><span class="n">$716.9B · +12.4% · FY2025</span></dd><dt>Colours</dt><dd class="swatches" id="swatches"></dd><dt>Best for</dt><dd id="note-best"></dd><dt>To adopt</dt><dd id="note-cost"></dd></dl>
+    </aside>
+  </section>
+  <p class="state muted" id="state">Loading Amazon from the overview API…</p>
+  <section class="panel strip" id="strip" hidden>
+    <h2 id="name"></h2>
+    <p class="muted small" id="meta"></p>
+    <p class="finding" id="finding"></p>
+    <div class="actions"><a class="btn primary small" href="/chat/">Ask about this company</a><a class="btn small" id="edgar" target="_blank" rel="noopener">EDGAR filings</a></div>
+  </section>
+  <div class="g" id="grid" hidden>
+    <section class="panel s4"><header><h2>Latest annual figures</h2><span id="fig-year"></span></header><table id="figs"></table></section>
+    <section class="panel s5"><header><h2>Revenue by fiscal year</h2><span>bars; line is operating margin</span></header><div id="chart"></div></section>
+    <section class="panel s3"><header><h2>Recent filings</h2></header><table id="filings"></table></section>
+    <section class="panel s7"><header><h2>Chat</h2><span>answers cite the filing</span></header>
+      <div class="chat"><p class="q">How did Amazon's revenue and margin move last year?</p><div class="a" id="answer"></div>
+      <form class="ask" onsubmit="return false"><input class="field" placeholder="Ask about any US-listed company" aria-label="Question"><button class="btn primary" type="button">Ask</button></form></div>
+    </section>
+    <section class="panel s5"><header><h2>API playground</h2><span id="latency"></span></header>
+      <div class="req"><span class="chip good" id="status">200</span><code>GET /v1/public/companies/0001018724/overview</code></div>
+      <pre class="json" id="json"></pre>
+    </section>
+    <section class="panel s12"><header><h2>Controls and states</h2><span>the same tokens drive every component</span></header>
+      <div class="controls">
+        <button class="btn primary">Primary action</button><button class="btn">Secondary</button><button class="btn" disabled>Disabled</button>
+        <span class="chip">10-K</span><span class="chip accent">unverified</span><span class="chip good">ok</span>
+        <span class="toggle"><i aria-hidden="true"></i>Email alerts</span>
+        <input class="field" style="max-width:280px" placeholder="Search companies or tickers" aria-label="Search">
+      </div>
+      <p class="notice">Figures are as filed. Missing values mean no mappable figure was filed, not that there is none.</p>
+    </section>
+  </div>
+</main>
+<script src="/poc/poc.js"></script>
+<script>
+(function () {
+  'use strict';
+  var X = window.Poc, $ = X.$, el = X.el;
+  X.switcher($('themes'));
+  var NOTES = {
+    'archive': ['Archive', 'The current look: a cool grey ground, charcoal ink and one red that means "this links to its source". Schibsted Grotesk throughout.', 'Everyone. It is already on the home page and company page.', 'Nothing for light pages; #11 can start now.'],
+    'archive-dark': ['Archive, dark', 'The same tokens for evening and all-day use. Offered as a switch beside Archive, not instead of it.', 'Analysts who keep a tab open; API users in dark editors.', 'A token set and a switch in the header; charts already read tokens.'],
+    'ledger': ['Ledger', 'A financial publication: warm paper, near-black ink and a deep green accent. Newsreader headlines over IBM Plex Sans.', 'Reports and sharing; readers new to filings. Calm and trustworthy.', 'Redo the home page colours and the red-means-source cue (green would carry it).'],
+    'terminal': ['Terminal', 'A workstation: dark, dense 14px type, an amber accent and every figure in IBM Plex Mono.', 'Power users all day: Explorer, playground, watch lists.', 'Least welcoming on a first visit; the marketing pages would want a light theme beside it.']
+  };
+  var COLOURS = ['--bg', '--panel', '--ink', '--muted', '--accent', '--chart', '--good'];
+  function notes() {
+    var n = NOTES[X.theme()]; $('note-title').textContent = n[0]; $('note-idea').textContent = n[1]; $('note-best').textContent = n[2]; $('note-cost').textContent = n[3];
+    var cs = getComputedStyle(document.documentElement), sw = $('swatches'); sw.textContent = '';
+    COLOURS.forEach(function (c) { var v = cs.getPropertyValue(c).trim(), i = el('i'); i.style.setProperty('--c', v); sw.appendChild(el('span', { class: 'sw', title: c }, [i, v])); });
+  }
+  document.addEventListener('poc:theme', notes); notes();
+  var params = new URLSearchParams(location.search);
+  if (params.get('embed')) $('poc-strip').hidden = true;
+  if (params.get('compare')) {
+    $('sample').className = 'wrap compare'; $('sample').textContent = ''; $('compare-link').textContent = 'One theme'; $('compare-link').href = location.pathname;
+    X.THEMES.forEach(function (t) {
+      var f = el('iframe', { src: location.pathname + '?embed=1&theme=' + t[0], title: t[1] + ' theme', loading: 'lazy', tabindex: '-1' });
+      var box = el('div', { class: 'box' }, [f]);
+      $('sample').appendChild(el('section', { class: 'frame' }, [el('header', {}, [el('span', { text: t[1] }), el('a', { href: location.pathname + '?theme=' + t[0], class: 'small', text: 'Open' })]), box]));
+    });
+    var fit = function () { document.querySelectorAll('.frame .box').forEach(function (b) { b.querySelector('iframe').style.setProperty('--k', b.clientWidth / 1440); }); };
+    addEventListener('resize', fit); requestAnimationFrame(fit);
+    // the strip's theme buttons still set this page's own look; the frames keep theirs
+    try { localStorage.removeItem('poc-theme-compare'); } catch (e) {}
+    return;
+  }
+  var CIK = '0001018724';
+  var started = performance.now();
+  X.overview(CIK).then(function (d) {
+    var ms = Math.round(performance.now() - started), c = d.company;
+    $('name').appendChild(document.createTextNode(c.display_name));
+    (c.tickers.length ? c.tickers : [c.ticker]).filter(Boolean).forEach(function (t, i) { $('name').appendChild(el('span', { class: 'chip', text: t + (c.exchanges[i] ? ' · ' + c.exchanges[i] : '') })); });
+    $('meta').textContent = [c.sic_description, c.fiscal_year_end_month && 'fiscal year ends ' + c.fiscal_year_end_month, 'CIK ' + c.cik].filter(Boolean).join(' · ');
+    var last = d.years[d.years.length - 1], prev = d.years[d.years.length - 2];
+    $('finding').textContent = 'Operating margin ' + X.pct(last.operating_margin_pct) + ' in ' + last.fiscal_label + ', against ' + X.pct(prev.operating_margin_pct) + ' a year before.';
+    $('edgar').href = c.filings_url;
+    var t = $('figs'), tb = el('tbody');
+    t.appendChild(el('thead', {}, [el('tr', {}, [el('th', { text: 'Figure' }), el('th', { class: 'n', text: 'Value' }), el('th', { class: 'n', text: 'Change' }), el('th', { text: 'Trend' })])]));
+    d.key_figures.forEach(function (k) {
+      var a = last[k.metric], b = prev[k.metric], ch = a != null && b > 0 ? 100 * (a - b) / b : null;
+      tb.appendChild(el('tr', {}, [el('td', { text: X.LABELS[k.metric] }), el('td', { class: 'n' }, [X.link(X.money(k.value), k.source_url)]), el('td', { class: 'n ' + (ch == null ? 'muted' : ch >= 0 ? 'up' : 'down'), text: X.pct(ch, true) }), el('td', {}, [X.spark(d.years.map(function (y) { return y[k.metric]; }))])]));
+    });
+    t.appendChild(tb);
+    $('fig-year').textContent = last.fiscal_label;
+    $('chart').appendChild(X.bars(d.years, 560, 210));
+    var ft = $('filings'), fb = el('tbody');
+    d.filings.slice(0, 7).forEach(function (f) { fb.appendChild(el('tr', {}, [el('td', { class: 'muted', style: 'white-space:nowrap', text: X.date(f.filing_date) }), el('td', {}, [X.link(f.form_type, f.source_url)])])); });
+    ft.appendChild(fb);
+    var rev = d.key_figures.filter(function (k) { return k.metric === 'revenue'; })[0];
+    var A = $('answer');
+    A.appendChild(el('p', {}, ['Revenue was ' + X.money(rev.value) + ' in ' + rev.fiscal_label + ', up ' + X.pct(rev.change_pct) + ' on the year before', el('sup', {}, [X.link('1', rev.source_url)]), '. Operating margin ' + (last.operating_margin_pct >= prev.operating_margin_pct ? 'rose' : 'fell') + ' to ' + X.pct(last.operating_margin_pct) + ' from ' + X.pct(prev.operating_margin_pct), el('sup', {}, [X.link('2', last.sources.operating_income)]), '.']));
+    A.appendChild(el('p', { class: 'small muted' }, ['Sources: ', X.link('[1] 10-K filed ' + X.date(rev.filed_date), rev.source_url), ' · ', X.link('[2] the same 10-K', last.sources.operating_income)]));
+    $('latency').textContent = ms + ' ms · ' + (JSON.stringify(d).length / 1024).toFixed(0) + ' KB';
+    var sample = { company: { cik: c.cik, display_name: c.display_name, ticker: c.ticker, sic_code: c.sic_code, fiscal_year_end_month: c.fiscal_year_end_month }, key_figures: d.key_figures.slice(0, 2).map(function (k) { return { metric: k.metric, value: k.value, fiscal_label: k.fiscal_label, form_type: k.form_type, source_url: k.source_url }; }) };
+    var pre = $('json');
+    JSON.stringify(sample, null, 2).split(/("(?:[^"\\]|\\.)*"(?:\s*:)?|-?\d+(?:\.\d+)?)/).forEach(function (part) {
+      if (!part) return;
+      var cls = /^".*:$/.test(part.replace(/\s/g, '')) ? 'k' : part[0] === '"' ? 's' : /^-?\d/.test(part) ? 'd' : null;
+      pre.appendChild(cls ? el('span', { class: cls, text: part }) : document.createTextNode(part));
+    });
+    $('state').hidden = true; $('strip').hidden = false; $('grid').hidden = false;
+  }).catch(function () { $('state').textContent = 'The overview API is not answering; start the local server.'; });
+})();
+</script>
+</body>
+</html>

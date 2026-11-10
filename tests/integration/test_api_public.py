@@ -272,3 +272,17 @@ def test_annual_report_is_preferred_over_a_proxy_statement(client, db, ingested_
     series = public._annual_series(db, "0000320193", "net_income", 5)
     match = [f for f in series if f.period_end == ten_k.period_end]
     assert match and match[0].form_type == "10-K"
+
+
+def test_theme_and_gamification_prototypes_are_served(client):
+    pages = {"/poc/themes/": "?compare=1", "/poc/gamification/": "/poc/gamification/game.js"}
+    for path, hook in pages.items():
+        r = client.get(path)
+        assert r.status_code == 200 and hook in r.text, path
+        assert 'name="robots" content="noindex"' in r.text, path
+    css = client.get("/poc/poc.css").text
+    for theme in ("archive-dark", "ledger", "terminal"):
+        assert f'[data-theme="{theme}"]' in css
+    game = client.get("/poc/gamification/game.js").text
+    # the real public API; progress stays in the browser
+    assert "/v1/public/" in game and "localStorage" in game
