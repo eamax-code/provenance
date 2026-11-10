@@ -480,15 +480,16 @@ code, pre { font-family: var(--code); }
   /* Labels roll on hover: the word slides up and its copy comes in from below. */
   .roll { display: inline-grid; overflow: clip; padding-block: 0.14em; margin-block: -0.14em; vertical-align: top; }
   .roll > span { grid-area: 1 / 1; transition: transform 600ms var(--ease-expo); }
-  .roll > span + span { transform: translateY(110%); }
+  /* A whole line plus room for descenders, so no part of a moved word shows in the padding. */
+  .roll > span + span { transform: translateY(calc(100% + 0.5em)); }
   @media (hover: hover) {
-    a:hover > .roll > span:first-child, button:hover > .roll > span:first-child { transform: translateY(-110%); }
+    a:hover > .roll > span:first-child, button:hover > .roll > span:first-child { transform: translateY(calc(-100% - 0.5em)); }
     a:hover > .roll > span + span, button:hover > .roll > span + span { transform: none; }
   }
   /* Section headings rise word by word out of a mask, instead of fading in whole. */
   .js h2.split[data-reveal] { opacity: 1; transform: none; }
   .split .w { display: inline-block; overflow: clip; padding-bottom: 0.12em; margin-bottom: -0.12em; vertical-align: bottom; }
-  .split .w > span { display: inline-block; transform: translateY(110%); transition: transform 1000ms var(--ease-expo); transition-delay: calc(var(--w) * 40ms); }
+  .split .w > span { display: inline-block; transform: translateY(calc(100% + 0.5em)); transition: transform 1000ms var(--ease-expo); transition-delay: calc(var(--w) * 40ms); }
   .split.is-in .w > span { transform: none; }
   /* Phones and tablets: the menu opens downward from the bar and its groups rise in turn. */
   @media (max-width: 980px) {
