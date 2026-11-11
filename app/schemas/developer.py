@@ -27,6 +27,20 @@ class ApiKeyOut(ORMModel):
     revoked_at: datetime | None
 
 
+UI_THEMES = ("dark", "light", "ledger", "terminal")
+
+
+class ProfileOut(BaseModel):
+    key_prefix: str
+    label: str | None
+    plan: str
+    ui_theme: str = Field(description="The reader's theme in chat and the Explorer.")
+
+
+class ProfileUpdate(BaseModel):
+    ui_theme: str = Field(pattern="^(" + "|".join(UI_THEMES) + ")$")
+
+
 class ApiKeyCreated(ApiKeyOut):
     api_key: str = Field(description="Shown exactly once. Store it securely.")
 

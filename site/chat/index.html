@@ -4,11 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Company Intelligence Chat</title>
-<meta name="theme-color" content="#2b2f33">
+<meta name="theme-color" content="#141719">
 <meta name="description" content="Ask about a US public company. Answers come from SEC filings, every figure is cited, and a local language model writes the summary.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- shell:theme -->
+<script>/* the reader's theme before first paint (chat and the Explorer only; #12) */try{var t=localStorage.getItem('prv-theme');if(t==='light'||t==='ledger'||t==='terminal')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<!-- /shell:theme -->
+<!-- shell:head -->
+<link rel="stylesheet" href="/shell/shell.css">
+<script src="/shell/shell.js"></script>
+<!-- /shell:head -->
 <link rel="stylesheet" href="/app/app.css">
 <link rel="stylesheet" href="/chat.css">
 </head>
@@ -30,7 +37,7 @@
       <p class="cx-side-hint" id="cx-session-hint">Connect your API key to keep your chats on every device.</p>
     </div>
     <nav class="cx-links" aria-label="Site">
-      <a href="/companies/">Companies</a><a href="/playground/">Playground</a><a href="/listings/">Listings</a><a href="/app/">Explorer</a><a href="/docs">API docs</a>
+      <a href="/docs">Data API</a><a href="/app/">Explorer</a><a href="/companies/">Companies</a><a href="/listings/">Listings</a><a href="/playground/">Playground</a><a href="/#pricing">Pricing</a>
     </nav>
     <button class="cx-account" id="cx-account" type="button">
       <span class="cx-avatar" id="cx-avatar" aria-hidden="true">D</span>
@@ -101,9 +108,16 @@
   </aside>
 </div>
 
-<dialog class="cx-modal" id="cx-key-modal">
+<dialog class="cx-modal" id="cx-key-modal" aria-labelledby="cx-profile-title">
+  <div class="cx-profile-head"><h2 id="cx-profile-title">Profile</h2>
+    <button type="button" class="cx-icon" id="cx-profile-close" aria-label="Close profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="cx-connected" id="cx-connected" hidden>
+    <p><strong id="cx-connected-name"></strong><br><span class="cx-muted cx-small" id="cx-connected-sub"></span></p>
+    <button type="button" class="cx-ghost" id="cx-disconnect">Disconnect</button>
+  </div>
   <form method="dialog" id="cx-key-form">
-    <h2>Connect your API key</h2>
+    <h3 class="cx-h">Connect your API key</h3>
     <p class="cx-muted">With your own key, chats are saved to your account and open on any device, and filings not yet read here are fetched from the SEC when you ask. The demo key answers about every company from what is already stored, and saves nothing.</p>
     <label for="cx-key-input" class="cx-small">API key</label>
     <input id="cx-key-input" autocomplete="off" spellcheck="false" placeholder="prv_live_…">
@@ -113,6 +127,8 @@
       <button type="submit" class="cx-primary" id="cx-key-save">Connect</button>
     </div>
   </form>
+  <div class="cx-theme" id="cx-theme-host"></div>
+  <p class="cx-muted cx-small" id="cx-theme-note" role="status" aria-live="polite">Dark is the site theme. Your choice applies to chat and the Explorer.</p>
 </dialog>
 
 <script src="/chat.js"></script>

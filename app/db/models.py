@@ -194,6 +194,8 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     last_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    # The reader's theme in chat and the Explorer (GH #12); null means the site's dark theme.
+    ui_theme: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ApiUsage(Base):

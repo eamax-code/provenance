@@ -48,11 +48,15 @@
     state.key = key; storage(false, key);
     $('gate').hidden = true; $('gate-showcase').hidden = true; $('signout').hidden = false;
     $('key-pill').classList.add('on'); $('key-label').textContent = key.slice(0, 17) + '…';
+    window.Shell.syncTheme(key).then(function (p) {
+      if (p) $('profile-who').textContent = (p.label || p.key_prefix) + ' · ' + p.plan + ' plan';
+    });
     showView(state.view);
   }
   function signOut(message) {
     state.key = null; storage(false, null); state.company = null;
     $('gate').hidden = false; $('gate-showcase').hidden = false; $('signout').hidden = true; $('key-pill').classList.remove('on'); $('key-label').textContent = 'no key';
+    $('profile-who').textContent = 'Not connected. Your theme is kept in this browser.';
     $('explore').hidden = true; $('console').hidden = true; $('listings').hidden = true; $('company').hidden = true;
     if (message) { $('gate-status').textContent = message; }
   }
@@ -69,6 +73,19 @@
     }).catch(function () { state.key = null; if (!$('gate-status').textContent) $('gate-status').textContent = 'Could not verify the key.'; });
   });
   $('signout').addEventListener('click', function () { signOut('Signed out. The key was removed from this browser.'); });
+
+  /* ---- profile: the theme, saved with the key when one is connected (#12) ---- */
+  var pbtn = $('profile-btn'), pmenu = $('profile-menu');
+  function setProfile(open) { pmenu.hidden = !open; pbtn.setAttribute('aria-expanded', String(open)); }
+  pbtn.addEventListener('click', function () { setProfile(pmenu.hidden); });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.profile')) setProfile(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !pmenu.hidden) { setProfile(false); pbtn.focus(); } });
+  window.Shell.picker($('theme-host'), function (t) {
+    if (!state.key) { $('theme-note').textContent = 'Saved in this browser.'; return; }
+    window.Shell.saveTheme(state.key, t).then(function (p) {
+      $('theme-note').textContent = p ? 'Saved to your profile; it follows this key to other browsers.' : 'Saved in this browser only.';
+    });
+  });
 
   /* ---- without a key: the keyless showcase companies ---- */
   fetch('/v1/public/companies', { headers: { Accept: 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {

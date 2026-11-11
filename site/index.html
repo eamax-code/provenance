@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2b2f33">
+<meta name="theme-color" content="#141719">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
 <title>Provenance: public company intelligence</title>
 <meta name="description" content="Public company intelligence, built for humans and AI. Structured financial data, company intelligence and filing-backed answers, starting with US public companies. Every figure links to the filing it came from. Independent of the SEC.">
@@ -27,38 +27,26 @@
   ]
 }
 </script>
-<script>document.documentElement.classList.add('js');</script>
+<!-- shell:head -->
+<link rel="stylesheet" href="/shell/shell.css">
+<script src="/shell/shell.js"></script>
+<!-- /shell:head -->
 <style>
 /* Branch design/chatgpt-feedback: the page leads with three ways into one dataset (API, chat,
    explorer), shows each working in a tabbed demo, then says plainly what the data covers and where
    every number comes from. Same palette and family as main: mist ground, charcoal ink, slate fields,
    cardinal red only on actions, the selected tab and the latest bar. */
 :root {
-  --bg: #eef2f5; --surface: #e2e9ee; --surface-2: #d5dfe6; --paper: #ffffff;
-  --ink: #2b2f33; --soft: #565e66; --slate: #627b8c; --slate-deep: #4f6575; --mist: #b8c7d2;
-  --accent: #c92f28; --accent-hi: #e83c34; --accent-ink: #ffffff; --accent-text: #a72a24;
-  --field: #4f6575; --field-ink: #ffffff; --field-soft: #e4ebf0;
-  --coupon: #2b2f33; --coupon-2: #3b4248; --coupon-ink: #ffffff; --coupon-soft: #c9d2d9;
+  --coupon: var(--field); --coupon-2: color-mix(in srgb, var(--field) 72%, #000); --coupon-ink: var(--field-ink); --coupon-soft: var(--field-soft);
   --face: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
   --code: ui-monospace, /* taste-skill-ignore: only <pre>/<code> use it */ "SF Mono", Menlo, Consolas, monospace;
-  --step-small: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);
-  --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
-  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
-  --step-head: clamp(2rem, 1.2rem + 2.4vw, 3.5rem);
   --step-hero: clamp(1.5rem, 6.4vw, 6.25rem);
-  --step-display: clamp(4rem, 9vw, 8.5rem);
-  --m: clamp(16px, 2.3vw, 32px);
   --gap: 24px;
   --radius: 4px;
   --section: clamp(96px, 10vw, 168px);
-  --bar-h: 68px;
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --t-press: 140ms; --t-hover: 180ms; --t-ui: 240ms;
-  color-scheme: light;
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; overflow-x: clip; scroll-padding-top: calc(var(--bar-h) + 16px); }
+html { -webkit-text-size-adjust: 100%; overflow-x: clip; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--step-body)/1.5 var(--face); letter-spacing: -0.01em; overflow-x: clip; }
 img { display: block; max-width: 100%; height: auto; }
 a { color: inherit; text-decoration: underline; text-decoration-thickness: 0.07em; text-underline-offset: 0.2em; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); transition: text-decoration-color var(--t-hover) ease; }
@@ -68,7 +56,6 @@ h1, h2 { font-weight: 800; letter-spacing: -0.045em; line-height: 0.95; }
 h2 { font-size: var(--step-head); max-width: 18ch; text-wrap: balance; }
 h3 { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
 :focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 3px; }
-::selection { background: var(--ink); color: var(--paper); }
 code, pre { font-family: var(--code); }
 .vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .wrap { padding-inline: var(--m); max-width: 1600px; margin-inline: auto; }
@@ -84,48 +71,12 @@ code, pre { font-family: var(--code); }
 .button.quiet { background: var(--surface-2); color: var(--ink); }
 .button.light { background: var(--paper); color: var(--ink); }
 @media (hover: hover) and (pointer: fine) {
-  .button:hover { background: #ad2822; }
-  .button.quiet:hover { background: #c6d3dc; }
+  .button:hover { background: var(--accent-hover); }
+  .button.quiet:hover { background: var(--mist); }
   .button.light:hover { background: var(--bg); }
 }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
-/* ---------- header: wordmark, three grouped menus, contact, one action ---------- */
-.bar { position: sticky; top: 0; z-index: 30; background: var(--bg); }
-.bar .wrap { display: flex; align-items: center; gap: 20px; height: var(--bar-h); }
-.wordmark { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: var(--step-body); letter-spacing: -0.03em; text-decoration: none; }
-.wordmark i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-hi); }
-.bar nav { display: flex; align-items: center; gap: 2px; margin-left: auto; }
-.group { position: relative; }
-@media (min-width: 981px) { .bar nav { position: relative; isolation: isolate; } }
-.group-btn, .nav-link { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 0; border-radius: var(--radius); background: none; color: var(--ink); font: 600 var(--step-small)/1 var(--face); letter-spacing: -0.01em; text-decoration: none; cursor: pointer; transition: background-color var(--t-hover) ease; }
-.group-btn::after { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform var(--t-ui) var(--ease-out); }
-.group-btn[aria-expanded="true"]::after { transform: translateY(2px) rotate(225deg); }
-.group-btn:hover, .nav-link:hover, .group-btn[aria-expanded="true"] { background: var(--surface); }
-.group-name, .nav-cta { display: none; }
-.menu { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 2; width: 320px; list-style: none; margin: 0; padding: 8px; background: var(--paper); border-radius: 6px; /* taste-skill-ignore: open menu edge against white cards */ border: 1px solid var(--surface-2); }
-.group.open .menu { display: grid; gap: 2px; }
-.menu a { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--radius); text-decoration: none; }
-.menu a:hover, .menu a:focus-visible { background: var(--bg); }
-.menu b { font-weight: 600; font-size: 16px; }
-.menu span { font-size: var(--step-small); color: var(--soft); }
-.menu-btn { display: none; margin-left: auto; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--radius); background: var(--surface-2); color: var(--ink); font: 600 var(--step-small) var(--face); cursor: pointer; }
-@media (max-width: 980px) {
-  .menu-btn { display: inline-flex; align-items: center; }
-  .bar nav { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 20px; padding: 8px var(--m) 24px; background: var(--bg); height: calc(100svh - var(--bar-h)); overflow-y: auto; overscroll-behavior: contain; }
-  .bar nav.open { display: flex; }
-  .group-btn { display: none; }
-  .group-name { display: block; font-size: var(--step-small); color: var(--soft); margin-bottom: 2px; }
-  .menu { display: grid; position: static; width: auto; padding: 0; background: none; border: 0; }
-  .menu a { padding: 7px 0; }
-  .menu a:hover { background: none; text-decoration: underline; }
-  .menu b { font-size: var(--step-body); }
-  .menu span { display: none; }
-  .nav-link { padding: 0; min-height: 0; font-size: var(--step-body); }
-  .nav-link:hover { background: none; }
-  .nav-cta { display: inline-flex; align-self: flex-start; }
-  .bar .wrap > .button.small { display: none; }
-}
 
 /* ---------- hero: the claim, three ways in, proof ---------- */
 .hero { padding-block: clamp(28px, 5vw, 80px) 0; }
@@ -153,43 +104,43 @@ code, pre { font-family: var(--code); }
 .ui-card { background: var(--paper); padding: 18px 20px; display: grid; align-content: start; gap: 12px; border-radius: 6px; min-width: 0; }
 .ui-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .ui-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
-.ui-muted { color: #5c656d; }
-.ui-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #e3efe8; color: #12663f; white-space: nowrap; }
+.ui-muted { color: var(--soft); }
+.ui-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--good-soft); color: var(--good); white-space: nowrap; }
 .ui-big { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
 .ui-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 13px; }
-.ui-kv dt { color: #5c656d; }
+.ui-kv dt { color: var(--soft); }
 .ui-kv dd { overflow-wrap: anywhere; }
 .ui-link { color: var(--accent-text); font-weight: 600; font-size: 13px; }
 .ui-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.ui-table th { text-align: left; font-weight: 600; color: #5c656d; padding: 6px 8px; border-bottom: 1px solid #d7dfe5; }
-.ui-table td { padding: 7px 8px; border-bottom: 1px solid #e6ecf0; }
+.ui-table th { text-align: left; font-weight: 600; color: var(--soft); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.ui-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); }
 .ui-table th, .ui-table td { overflow-wrap: normal; }
 .ui-table .nw { white-space: nowrap; }
 .ui-table .num { text-align: right; white-space: nowrap; }
 .ui-table a { color: var(--accent-text); }
-.ui-table tr.is-hover td { background: #f3f6f8; }
-.ui-q { justify-self: end; max-width: 85%; background: #4f6575; color: #fff; padding: 9px 14px; border-radius: 14px 14px 4px 14px; font-size: 14px; }
+.ui-table tr.is-hover td { background: var(--surface); }
+.ui-q { justify-self: end; max-width: 85%; background: var(--field); color: var(--field-ink); padding: 9px 14px; border-radius: 14px 14px 4px 14px; font-size: 14px; }
 .ui-a { font-size: 14px; display: grid; gap: 8px; }
-.ui-cite { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e6ecf0; color: #4f6575; font-size: 12px; font-weight: 600; vertical-align: 1px; }
-.ui-src { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 13px; color: #5c656d; }
+.ui-cite { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--surface-2); color: var(--slate-deep); font-size: 12px; font-weight: 600; vertical-align: 1px; }
+.ui-src { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 13px; color: var(--soft); }
 .ui-src li { display: flex; gap: 8px; align-items: baseline; }
 .ui-src a { color: var(--accent-text); }
-.ui-code { margin: 0; padding: 14px 16px; background: #2b2f33; color: #e9eef2; font: 13px/1.6 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 6px; }
-.ui-code .k { color: #b8c7d2; } .ui-code .s { color: #ffffff; } .ui-code .n { color: #ff9a94; } .ui-code .c { color: #a3aeb7; }
+.ui-code { margin: 0; padding: 14px 16px; background: var(--code-bg); color: var(--code-ink); font: 13px/1.6 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 6px; }
+.ui-code .k { color: var(--slate-deep); } .ui-code .s { color: var(--code-ink); } .ui-code .n { color: var(--accent-text); } .ui-code .c { color: var(--soft); }
 .ui-code.paper { background: var(--paper); color: var(--ink); }
-.ui-code.paper .k { color: #4f6575; } .ui-code.paper .s { color: #2b2f33; } .ui-code.paper .n { color: #a72a24; } .ui-code.paper .c { color: #5c656d; }
+.ui-code.paper .k { color: var(--slate-deep); } .ui-code.paper .s { color: var(--ink); } .ui-code.paper .n { color: var(--accent-text); } .ui-code.paper .c { color: var(--soft); }
 .ui-events { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 13px; }
 .ui-events li { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 10px; }
 .ui-bars { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); align-items: end; gap: 6px; height: 120px; }
-.ui-bars a, .ui-bars div { position: relative; height: var(--h); min-height: 4px; background: #b8c7d2; border-radius: 2px 2px 0 0; transition: background-color var(--t-hover) ease; }
-.ui-bars .last { background: #e83c34; }
-.ui-bars a:hover { background: #627b8c; }
-.ui-bars a.last:hover { background: #c92f28; }
-.ui-axis { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: 6px; font-size: 12px; color: #5c656d; text-align: center; }
-.ui-axis b { display: block; color: #2b2f33; font-weight: 600; font-size: 13px; }
-.ui-seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: #eef2f5; border-radius: 6px; }
-.ui-seg button { min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: none; font: 600 13px var(--face); color: #4a5259; cursor: pointer; }
-.ui-seg button[aria-pressed="true"] { background: #fff; color: #2b2f33; }
+.ui-bars a, .ui-bars div { position: relative; height: var(--h); min-height: 4px; background: var(--mist); border-radius: 2px 2px 0 0; transition: background-color var(--t-hover) ease; }
+.ui-bars .last { background: var(--accent-hi); }
+.ui-bars a:hover { background: var(--slate); }
+.ui-bars a.last:hover { background: var(--accent); }
+.ui-axis { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: 6px; font-size: 12px; color: var(--soft); text-align: center; }
+.ui-axis b { display: block; color: var(--ink); font-weight: 600; font-size: 13px; }
+.ui-seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--bg); border-radius: 6px; }
+.ui-seg button { min-height: 32px; padding: 0 12px; border: 0; border-radius: 4px; background: none; font: 600 13px var(--face); color: var(--soft); cursor: pointer; }
+.ui-seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); }
 
 /* ---------- demo: one dataset, three tabs ---------- */
 .demo-head { align-items: end; row-gap: 20px; }
@@ -255,9 +206,9 @@ code, pre { font-family: var(--code); }
 .record { gap: 14px; }
 .rec-rows { display: grid; gap: 2px; }
 .rec-row { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 12px; padding: 8px 10px; margin-inline: -10px; border-radius: 4px; font-size: 14px; transition: background-color var(--t-hover) ease; }
-.rec-row dt { color: #5c656d; }
+.rec-row dt { color: var(--soft); }
 .rec-row dd { overflow-wrap: anywhere; }
-.rec-row.on { background: #fbe9e8; }
+.rec-row.on { background: var(--accent-soft); }
 @media (max-width: 1000px) {
   .trust .head, .attrs, .record-wrap { grid-column: 1 / -1; grid-row: auto; }
   .record-wrap { position: static; }
@@ -269,8 +220,8 @@ code, pre { font-family: var(--code); }
 .figure-field h2 { grid-column: 1 / span 8; max-width: 16ch; }
 .figure-field .control { grid-column: 1 / span 5; margin-top: 28px; width: min(400px, 100%); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 16px 18px; }
 .control label { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; font-size: 14px; }
-.control input[type=range] { width: 100%; margin: 14px 0 4px; accent-color: #c92f28; height: 28px; }
-.control .ticks { display: flex; justify-content: space-between; font-size: 13px; color: #5c656d; }
+.control input[type=range] { width: 100%; margin: 14px 0 4px; accent-color: var(--accent); height: 28px; }
+.control .ticks { display: flex; justify-content: space-between; font-size: 13px; color: var(--soft); }
 .figure-field .result { grid-column: 1 / span 8; grid-row: 4; align-self: end; display: flex; align-items: baseline; gap: 0.22em; flex-wrap: wrap; }
 .figure-field .result b { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.8; }
 .figure-field .result span { font-size: var(--step-lead); font-weight: 600; }
@@ -294,7 +245,7 @@ code, pre { font-family: var(--code); }
 .markets tbody th { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; width: 30%; }
 .markets td:nth-child(2) { width: 18%; white-space: nowrap; }
 .mstatus { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: var(--step-small); font-weight: 600; background: var(--surface); color: var(--ink); }
-.mstatus.now { background: #dcebe2; color: #0f5a37; }
+.mstatus.now { background: var(--good-soft); color: var(--good); }
 .mstatus.plan { background: transparent; color: var(--soft); padding-inline: 0; }
 .roadmap { margin-top: clamp(56px, 6vw, 88px); row-gap: 24px; }
 .roadmap .head { grid-column: 1 / span 4; display: grid; gap: 12px; align-content: start; }
@@ -328,7 +279,7 @@ code, pre { font-family: var(--code); }
 .cta .code { grid-column: 7 / span 6; display: grid; gap: 10px; min-width: 0; }
 .cta .code p { color: var(--field-soft); }
 .cta .call { position: relative; }
-.copybtn { position: absolute; top: 8px; right: 8px; min-height: 32px; padding: 0 12px; border: 0; border-radius: var(--radius); background: #4a5259; color: #fff; font: 600 13px var(--face); cursor: pointer; transition: transform var(--t-press) var(--ease-out); }
+.copybtn { position: absolute; top: 8px; right: 8px; min-height: 32px; padding: 0 12px; border: 0; border-radius: var(--radius); background: var(--surface-2); color: var(--ink); font: 600 13px var(--face); cursor: pointer; transition: transform var(--t-press) var(--ease-out); }
 .copybtn:active { transform: scale(0.97); }
 @media (max-width: 1000px) { .cta .copy, .cta .code { grid-column: 1 / -1; } }
 
@@ -346,7 +297,7 @@ code, pre { font-family: var(--code); }
 .plan-names.has-dot button[aria-pressed="true"]::before { background: transparent; }
 /* One thumb that glides to the pressed button of a segmented control, one underline under the tabs. */
 .ui-seg, .billing, .tabs { position: relative; isolation: isolate; }
-.seg-thumb { position: absolute; left: 0; top: 0; z-index: -1; width: var(--w); height: var(--h); transform: translate(var(--x), var(--y)); border-radius: 4px; background: #fff; pointer-events: none; transition: transform 600ms var(--ease-expo), width 600ms var(--ease-expo), height 600ms var(--ease-expo); }
+.seg-thumb { position: absolute; left: 0; top: 0; z-index: -1; width: var(--w); height: var(--h); transform: translate(var(--x), var(--y)); border-radius: 4px; background: var(--surface-2); pointer-events: none; transition: transform 600ms var(--ease-expo), width 600ms var(--ease-expo), height 600ms var(--ease-expo); }
 .billing .seg-thumb { border-radius: 3px; background: var(--paper); }
 .has-thumb > button[aria-pressed="true"] { background: none; }
 .tab-ink { position: absolute; left: 0; top: 0; height: 4px; width: var(--w); transform: translate(var(--x), var(--y)); background: var(--accent-hi); pointer-events: none; transition: transform 700ms var(--ease-expo), width 700ms var(--ease-expo); }
@@ -384,7 +335,7 @@ code, pre { font-family: var(--code); }
 .faq summary .plus { position: relative; flex: none; width: 16px; height: 16px; }
 .faq summary .plus::before, .faq summary .plus::after { content: ""; position: absolute; left: 0; top: 6.5px; width: 16px; height: 3px; background: currentColor; transition: transform var(--t-ui) var(--ease-out); }
 .faq summary .plus::after { transform: rotate(90deg); }
-.faq details[open] { background: var(--slate-deep); color: #fff; }
+.faq details[open] { background: var(--field); color: var(--field-ink); }
 .faq details[open] .plus::after { transform: rotate(0deg); }
 .faq details p { padding: 0 24px 24px; max-width: 56ch; }
 @media (max-width: 900px) {
@@ -405,7 +356,7 @@ code, pre { font-family: var(--code); }
 .coupon form { padding: 48px; border-left: 5px dotted var(--bg); display: grid; align-content: center; gap: 10px; }
 .coupon input, .coupon textarea, .coupon select { width: 100%; min-height: 52px; padding: 14px 16px; border: 0; border-radius: var(--radius); background: var(--coupon-2); color: var(--coupon-ink); font: 400 var(--step-body)/1.4 var(--face); }
 .coupon textarea { min-height: 96px; resize: vertical; }
-.coupon ::placeholder { color: #aab4bc; opacity: 1; }
+.coupon ::placeholder { color: var(--coupon-soft); opacity: 0.8; }
 .coupon input:focus-visible, .coupon textarea:focus-visible, .coupon select:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 0; }
 .coupon .submit { min-height: 56px; width: 100%; margin-top: 6px; }
 .coupon .status { min-height: 1.4em; font-size: var(--step-body); color: var(--coupon-soft); }
@@ -419,42 +370,6 @@ code, pre { font-family: var(--code); }
   .coupon input, .coupon select { min-height: 54px; }
 }
 
-/* ---------- footer: a board of tiles ---------- */
-.board { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; padding: 8px clamp(8px, 1vw, 12px) 12px; }
-.tile { background: var(--surface); border-radius: var(--radius); padding: 24px; min-height: 220px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
-.tile.statement { grid-column: 1 / span 4; }
-.tile.statement p:first-child { font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
-.tile.statement p + p { font-size: var(--step-small); color: var(--soft); }
-.tile.links { grid-column: 5 / span 3; justify-content: flex-start; }
-.tile.links .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.tile.links ul { list-style: none; padding: 0; display: grid; gap: 4px; align-content: start; font-size: var(--step-body); }
-.tile.links a { text-decoration: none; }
-.tile.links a:hover { text-decoration: underline; }
-.tile.photo { grid-column: 8 / span 2; padding: 0; overflow: clip; justify-content: flex-start; margin: 0; }
-.tile.photo img { width: 100%; height: 100%; min-height: 220px; object-fit: cover; }
-.tile.live { grid-column: 10 / span 3; }
-.tile.live dl { display: grid; gap: 6px; }
-.tile.live dt { font-size: var(--step-small); color: var(--soft); }
-.tile.live dd { font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; }
-.tile.live .note { font-size: var(--step-small); color: var(--soft); }
-.tile.mark { grid-column: 1 / span 8; min-height: 320px; background: var(--ink); color: var(--paper); align-items: center; justify-content: center; }
-.tile.mark span { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.9; }
-.tile.go { grid-column: 9 / span 4; min-height: 320px; background: var(--accent); color: var(--accent-ink); text-decoration: none; transition: background-color var(--t-hover) ease; }
-.tile.go:hover { background: #ad2822; }
-.tile.go span { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.03em; }
-.tile.go svg { align-self: flex-end; width: 56px; height: 56px; transition: transform var(--t-ui) var(--ease-out); }
-.tile.go:hover svg { transform: translate(4px, -4px); }
-.credits { padding: 4px var(--m) 24px; font-size: var(--step-small); color: var(--soft); }
-@media (max-width: 1000px) {
-  .board { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .tile { padding: 20px; min-height: 0; }
-  .tile.mark { grid-column: 1 / -1; order: -2; min-height: 160px; }
-  .tile.go { grid-column: 1 / -1; order: -1; min-height: 140px; }
-  .tile.links { grid-column: 1; } .tile.live { grid-column: 2; }
-  .tile.photo { grid-column: 1; min-height: 200px; } .tile.statement { grid-column: 2; }
-  .tile.mark span { font-size: var(--step-head); }
-}
-@media (max-width: 560px) { .tile.statement, .tile.photo, .tile.links, .tile.live { grid-column: 1 / -1; } }
 
 /* On phones every text block takes the full measure between the two margins. */
 @media (max-width: 600px) {
@@ -473,32 +388,11 @@ code, pre { font-family: var(--code); }
     .drift img { animation: drift linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
   }
   /* Borrowed from clay.com: one long expo ease; things glide to where they go instead of blinking. */
-  /* Header: a pill glides under the hovered item and rests on the open menu. */
-  .has-pill .group-btn:hover, .has-pill .nav-link:hover, .has-pill .group-btn[aria-expanded="true"] { background: none; }
-  .nav-pill { position: absolute; left: 0; top: 0; z-index: -1; width: var(--w, 0); height: var(--h, 40px); border-radius: var(--radius); background: var(--surface); opacity: 0; transform: translate(var(--x, 0), var(--y, 0)) scale(0.6); pointer-events: none; transition: transform 600ms var(--ease-expo), width 600ms var(--ease-expo), opacity 300ms ease; }
-  .nav-pill.on { opacity: 1; transform: translate(var(--x, 0), var(--y, 0)) scale(1); }
-  /* Labels roll on hover: the word slides up and its copy comes in from below. */
-  .roll { display: inline-grid; overflow: clip; padding-block: 0.14em; margin-block: -0.14em; vertical-align: top; }
-  .roll > span { grid-area: 1 / 1; transition: transform 600ms var(--ease-expo); }
-  /* A whole line plus room for descenders, so no part of a moved word shows in the padding. */
-  .roll > span + span { transform: translateY(calc(100% + 0.5em)); }
-  @media (hover: hover) {
-    a:hover > .roll > span:first-child, button:hover > .roll > span:first-child { transform: translateY(calc(-100% - 0.5em)); }
-    a:hover > .roll > span + span, button:hover > .roll > span + span { transform: none; }
-  }
   /* Section headings rise word by word out of a mask, instead of fading in whole. */
   .js h2.split[data-reveal] { opacity: 1; transform: none; }
   .split .w { display: inline-block; overflow: clip; padding-bottom: 0.12em; margin-bottom: -0.12em; vertical-align: bottom; }
   .split .w > span { display: inline-block; transform: translateY(calc(100% + 0.5em)); transition: transform 1000ms var(--ease-expo); transition-delay: calc(var(--w) * 40ms); }
   .split.is-in .w > span { transform: none; }
-  /* Phones and tablets: the menu opens downward from the bar and its groups rise in turn. */
-  @media (max-width: 980px) {
-    .js .bar nav { display: flex; visibility: hidden; clip-path: inset(0 0 100% 0); transition: clip-path 450ms var(--ease-expo), visibility 0s linear 450ms; }
-    .js .bar nav.open { visibility: visible; clip-path: inset(0 0 0 0); transition: clip-path 650ms var(--ease-expo); }
-    .js .bar nav > :not(.nav-pill) { opacity: 0; transform: translateY(24px); transition: opacity 250ms ease, transform 250ms ease; }
-    .js .bar nav.open > :not(.nav-pill) { opacity: 1; transform: none; transition: opacity 500ms ease, transform 750ms var(--ease-expo); transition-delay: calc(100ms + var(--i, 0) * 55ms); }
-    .nav-pill { display: none; }
-  }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
 @keyframes drift { from { transform: scale(1.08) translateY(-3%); } to { transform: scale(1.08) translateY(3%); } }
@@ -511,52 +405,53 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 </head>
 <body>
 
-<header class="bar">
-  <div class="wrap">
-    <a class="wordmark" href="#top"><i aria-hidden="true"></i>Provenance</a>
-    <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
-    <nav id="main-nav" aria-label="Primary">
-      <div class="group">
-        <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-platform">Platform</button>
-        <p class="group-name" aria-hidden="true">Platform</p>
-        <ul class="menu" id="nav-platform">
+<!-- shell:header -->
+<header class="site-bar">
+  <div class="site-wrap">
+    <a class="site-wordmark" href="/"><i aria-hidden="true"></i>Provenance</a>
+    <button class="site-menu-btn" id="site-menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav class="site-nav" id="site-nav" aria-label="Primary">
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Platform</button>
+        <p class="site-group-name" aria-hidden="true">Platform</p>
+        <ul class="site-menu" id="site-nav-platform">
           <li><a href="/docs"><b>Data API</b><span>Company and financial data over REST</span></a></li>
           <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
           <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
         </ul>
       </div>
-      <div class="group">
-        <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-data">Data</button>
-        <p class="group-name" aria-hidden="true">Data</p>
-        <ul class="menu" id="nav-data">
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-data">Data</button>
+        <p class="site-group-name" aria-hidden="true">Data</p>
+        <ul class="site-menu" id="site-nav-data">
           <li><a href="/companies/"><b>Companies</b><span>Showcase companies, no key needed</span></a></li>
-          <li><a href="/app/"><b>Filings and figures</b><span>Every filing and the five figures, by company</span></a></li>
-          <li><a href="/listings/"><b>Listings</b><span>Canada, UK and EU listings</span></a></li>
-        </ul>
-      </div>
-      <div class="group">
-        <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-coverage">Coverage</button>
-        <p class="group-name" aria-hidden="true">Coverage</p>
-        <ul class="menu" id="nav-coverage">
-          <li><a href="#markets"><b>Markets</b><span>What is available today, by market</span></a></li>
-          <li><a href="#roadmap"><b>Roadmap</b><span>India, the UK and Europe next</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>New and removed listings in Canada, the UK and the EU</span></a></li>
           <li><a href="/status/"><b>Status</b><span>What is loaded and how fresh it is</span></a></li>
         </ul>
       </div>
-      <div class="group">
-        <button class="group-btn" type="button" aria-expanded="false" aria-controls="nav-dev">Developers</button>
-        <p class="group-name" aria-hidden="true">Developers</p>
-        <ul class="menu" id="nav-dev">
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-coverage">Coverage</button>
+        <p class="site-group-name" aria-hidden="true">Coverage</p>
+        <ul class="site-menu" id="site-nav-coverage">
+          <li><a href="/#markets"><b>Markets</b><span>What is available today, by market</span></a></li>
+          <li><a href="/#roadmap"><b>Roadmap</b><span>India, the UK and Europe next</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
+        <p class="site-group-name" aria-hidden="true">Developers</p>
+        <ul class="site-menu" id="site-nav-dev">
           <li><a href="/docs"><b>API docs</b><span>Endpoints, parameters and errors</span></a></li>
           <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
         </ul>
       </div>
-      <a class="nav-link" href="#pricing">Pricing</a>
-      <a class="button small nav-cta" href="#contact">Get API key</a>
+      <a class="site-link" href="/#pricing">Pricing</a>
+      <a class="site-button site-cta" href="/#contact">Get API key</a>
     </nav>
-    <a class="button small" href="#contact">Get API key</a>
+    <a class="site-button" href="/#contact">Get API key</a>
   </div>
 </header>
+<!-- /shell:header -->
 
 <main id="top">
 
@@ -1035,24 +930,25 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 
 </main>
 
-<footer>
-  <div class="board">
-    <div class="tile statement">
+<!-- shell:footer -->
+<footer class="site-foot">
+  <div class="site-board">
+    <div class="site-tile statement">
       <p>Public company intelligence. Built for humans and AI.</p>
-      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC. Data comes from the SEC's EDGAR filings. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA or GLEIF. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
     </div>
-    <nav class="tile links" aria-label="Site">
+    <nav class="site-tile links" aria-label="Site">
       <div class="cols">
         <ul>
-          <li><a href="/docs">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="#pricing">Pricing</a></li>
+          <li><a href="/docs">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
         </ul>
         <ul>
-          <li><a href="#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
         </ul>
       </div>
     </nav>
-    <figure class="tile photo"><img src="/img/catalogue-card.jpg" width="1600" height="1200" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
-    <div class="tile live" id="live-facts" data-source="/v1/stats">
+    <figure class="site-tile photo"><img src="/img/catalogue-card.jpg" width="1600" height="1200" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
+    <div class="site-tile live" id="live-facts" data-source="/v1/stats">
       <dl>
         <div><dt>Companies</dt><dd data-stat="companies">20,540</dd></div>
         <div><dt>Filings</dt><dd data-stat="filings">8,734,078</dd></div>
@@ -1062,11 +958,12 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       <p class="note" id="status-empty" hidden>No companies ingested yet. Request any CIK through the API to start.</p>
       <p class="note" id="status-error" hidden>Live stats are unavailable right now; the figures above may be out of date.</p>
     </div>
-    <div class="tile mark" aria-hidden="true"><span>Provenance</span></div>
-    <a class="tile go" href="#contact"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
+    <div class="site-tile mark" aria-hidden="true"><span>Provenance</span></div>
+    <a class="site-tile go" href="/#contact"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
   </div>
-  <p class="credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons.</p>
+  <p class="site-credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons.</p>
 </footer>
+<!-- /shell:footer -->
 
 <script>
 (function () {
@@ -1147,7 +1044,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     h.classList.add('split');
   }
   if (!reduce) {
-    document.querySelectorAll('.nav-link, a.button:not([id])').forEach(roll);
+    document.querySelectorAll('main a.button:not([id])').forEach(roll);
     document.querySelectorAll('h2[data-reveal]').forEach(splitWords);
   }
   var fmtInt = function (n) { return n == null ? 'not reported' : Number(n).toLocaleString('en-US'); };
@@ -1164,70 +1061,6 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
   var srcLink = function (f) { return isSec(f.source_url) ? '<a href="' + esc(f.source_url) + '" target="_blank" rel="noopener">' + esc(f.form_type) + '<span class="hide-s">, ' + esc(f.filed_date) + '</span></a>' : esc(f.form_type); };
   var secLink = function (url, text) { return isSec(url) ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(text) + '</a>' : esc(text); };
 
-  /* header: phone menu, and the three grouped menus on wider screens */
-  var btn = $('menu-btn'), nav = $('main-nav'), groups = nav.querySelectorAll('.group');
-  var setMenu = function (open) {
-    nav.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? 'Close' : 'Menu';
-    if (!reduce && btn.animate) btn.animate([{ opacity: 0, transform: 'translateY(40%)' }, { opacity: 1, transform: 'none' }], { duration: 450, easing: EXPO });
-  };
-  var syncPill = function () {};
-  var closeGroups = function (except) {
-    groups.forEach(function (g) { if (g !== except) { g.classList.remove('open'); g.querySelector('.group-btn').setAttribute('aria-expanded', 'false'); } });
-    syncPill();
-  };
-  var desktop = window.matchMedia('(min-width: 981px)');
-  /* A menu unfolds from its button; switching from an open menu, the next slides in from its side. */
-  function unfold(g, dir) {
-    var m = g.querySelector('.menu');
-    if (reduce || !m.animate || !desktop.matches) return;
-    m.animate(dir
-      ? [{ opacity: 0, transform: 'translateX(' + dir * 28 + 'px)' }, { opacity: 1, transform: 'none' }]
-      : [{ opacity: 0, transform: 'translateY(-8px)', clipPath: 'inset(0 0 100% 0 round 6px)' }, { opacity: 1, transform: 'none', clipPath: 'inset(0 0 0 0 round 6px)' }],
-      { duration: dir ? 500 : 600, easing: EXPO });
-    cascade(m.querySelectorAll('li'), 1, 'Y');
-  }
-  btn.addEventListener('click', function () { setMenu(!nav.classList.contains('open')); });
-  nav.querySelectorAll(':scope > *').forEach(function (el, i) { el.style.setProperty('--i', i); });
-  groups.forEach(function (g, gi) {
-    var b = g.querySelector('.group-btn');
-    b.addEventListener('click', function () {
-      var was = indexOf(groups, function (x) { return x.classList.contains('open'); });
-      var open = !g.classList.contains('open');
-      closeGroups(g); g.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open));
-      if (open) unfold(g, was >= 0 && was !== gi ? (gi > was ? 1 : -1) : 0);
-      syncPill();
-    });
-    /* With one menu open, pointing at another group opens it, as in a menu bar. */
-    b.addEventListener('pointerenter', function () { if (canHover && desktop.matches && !g.classList.contains('open') && nav.querySelector('.group.open')) b.click(); });
-    g.addEventListener('focusout', function (e) { if (!g.contains(e.relatedTarget)) { g.classList.remove('open'); b.setAttribute('aria-expanded', 'false'); } });
-  });
-  nav.addEventListener('click', function (e) { if (e.target.closest('a')) { setMenu(false); closeGroups(null); } });
-  document.addEventListener('click', function (e) { if (!e.target.closest('.group')) closeGroups(null); });
-  /* a pill that appears under the first item hovered, glides between items and rests on the open menu */
-  if (canHover && !reduce) {
-    var pill = document.createElement('span');
-    pill.className = 'nav-pill'; pill.setAttribute('aria-hidden', 'true');
-    nav.insertBefore(pill, nav.firstChild); nav.classList.add('has-pill');
-    var pillTo = function (el) {
-      if (!el || !desktop.matches) { pill.classList.remove('on'); return; }
-      var nr = nav.getBoundingClientRect(), r = el.getBoundingClientRect(), appearing = !pill.classList.contains('on');
-      if (appearing) pill.style.transition = 'none';
-      pill.style.setProperty('--x', (r.left - nr.left) + 'px'); pill.style.setProperty('--y', (r.top - nr.top) + 'px');
-      pill.style.setProperty('--w', r.width + 'px'); pill.style.setProperty('--h', r.height + 'px');
-      if (appearing) { void pill.offsetWidth; pill.style.transition = ''; }
-      pill.classList.add('on');
-    };
-    var openBtn = function () { var g = nav.querySelector('.group.open'); return g ? g.querySelector('.group-btn') : null; };
-    nav.addEventListener('pointerover', function (e) { var t = e.target.closest('.group-btn, .nav-link'); if (t) pillTo(t); });
-    nav.addEventListener('pointerleave', function () { pillTo(openBtn()); });
-    syncPill = function () { if (!nav.matches(':hover')) pillTo(openBtn()); };
-  }
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    var openG = nav.querySelector('.group.open');
-    if (openG) { closeGroups(null); openG.querySelector('.group-btn').focus(); return; }
-    if (nav.classList.contains('open')) { setMenu(false); btn.focus(); }
-  });
 
   /* demo tabs: arrow keys move between tabs, the panel follows the selection */
   var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
@@ -1375,19 +1208,12 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
   }
   $('follow').addEventListener('input', follow);
 
-  /* live coverage from /v1/stats */
-  function set(name, value) { document.querySelectorAll('[data-stat="' + name + '"]').forEach(function (el) { el.textContent = value; }); }
-  function stats() {
-    getJSON($('live-facts').getAttribute('data-source')).then(function (d) {
-      var ingested = d.companies.ingested;
-      set('companies', fmtInt(ingested)); set('filings', fmtInt(d.filings.total)); set('facts', fmtInt(d.facts.total));
-      if (d.filings.last_12_months && d.companies.filed_last_12_months) rate = { filings: d.filings.last_12_months, filers: d.companies.filed_last_12_months };
-      follow();
-      $('status-empty').hidden = ingested > 0; $('status-error').hidden = true;
-      $('live-note').textContent = 'Live from /v1/stats, ' + d.generated_at.replace('T', ' ').slice(0, 16) + ' UTC. Latest filing ' + (d.filings.latest_filing_date || 'none') + '.';
-    }).catch(function () { $('status-error').hidden = false; follow(); });
-  }
-  stats(); setInterval(stats, 30000);
+  /* the footer's live figures (loaded by the shell) also set the watch-list rate */
+  document.addEventListener('shell:stats', function (e) {
+    var d = e.detail;
+    if (d && d.filings.last_12_months && d.companies.filed_last_12_months) rate = { filings: d.filings.last_12_months, filers: d.companies.filed_last_12_months };
+    follow();
+  });
 
   /* pricing: one stage that shows the selected plan */
   var PLANS = {

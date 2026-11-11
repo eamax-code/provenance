@@ -277,7 +277,7 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#2b2f33', padding: 10, cornerRadius: 10, titleFont: font, bodyFont: font,
+            backgroundColor: css('--ink'), titleColor: css('--bg'), bodyColor: css('--bg'), padding: 10, cornerRadius: 10, titleFont: font, bodyFont: font,
             callbacks: {
               title: function (items) { return 'Fiscal year ended ' + pts[items[0].dataIndex].period_end; },
               label: function (item) {
@@ -366,9 +366,9 @@
         labels: labels,
         datasets: [
           { type: 'bar', label: 'Reported', data: hist.map(function (p) { return p.value; }).concat(fc.map(function () { return null; })), backgroundColor: grad, borderRadius: 8, maxBarThickness: 48, grouped: false, order: 3 },
-          { type: 'bar', label: 'Base case', data: pad(fc.map(function (f) { return f.base; }), nh), backgroundColor: 'rgba(98,123,140,0.14)', borderColor: slate, borderWidth: 2, borderDash: [6, 4], borderRadius: 8, maxBarThickness: 48, grouped: false, order: 2 },
+          { type: 'bar', label: 'Base case', data: pad(fc.map(function (f) { return f.base; }), nh), backgroundColor: css('--mist-soft'), borderColor: slate, borderWidth: 2, borderDash: [6, 4], borderRadius: 8, maxBarThickness: 48, grouped: false, order: 2 },
           { type: 'line', label: 'Low case', data: low, borderColor: red, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, tension: 0.3, fill: false, spanGaps: false, order: 1 },
-          { type: 'line', label: 'High case', data: high, borderColor: red, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, tension: 0.3, fill: '-1', backgroundColor: 'rgba(232,60,52,0.10)', spanGaps: false, order: 1 }
+          { type: 'line', label: 'High case', data: high, borderColor: red, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, tension: 0.3, fill: '-1', backgroundColor: css('--accent-soft'), spanGaps: false, order: 1 }
         ]
       },
       options: {
@@ -380,7 +380,7 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#2b2f33', padding: 10, cornerRadius: 10, titleFont: font, bodyFont: font,
+            backgroundColor: css('--ink'), titleColor: css('--bg'), bodyColor: css('--bg'), padding: 10, cornerRadius: 10, titleFont: font, bodyFont: font,
             filter: function (item) { return item.raw != null && !(item.dataIndex === nh - 1 && item.datasetIndex > 1); },
             callbacks: {
               title: function (items) { var i = items[0].dataIndex; return i < nh ? 'Fiscal year ended ' + hist[i].period_end : fc[i - nh].label + ' (forecast)'; },
@@ -695,20 +695,30 @@
   // ---- account / API key ----
   function setAccount() {
     $('cx-account-name').textContent = state.connected ? 'Connected' : 'Demo mode';
-    $('cx-account-sub').textContent = state.connected ? state.key.slice(0, 14) + '… · Disconnect' : 'Connect API key';
+    $('cx-account-sub').textContent = state.connected ? state.key.slice(0, 14) + '… · Profile' : 'Connect a key · Theme';
     $('cx-avatar').textContent = state.connected ? 'K' : 'D';
   }
   function connect(key) {
     return fetch('/v1/chat/sessions?limit=1', { headers: { 'X-API-Key': key } }).then(function (r) {
       if (!r.ok) throw new Error(r.status === 401 ? 'That key was not accepted.' : 'Could not check the key (HTTP ' + r.status + ').');
       state.key = key; state.connected = true; store('prov_key', key); setAccount(); loadSessions();
+      window.Shell.syncTheme(key).then(function (p) { state.profile = p; });
     });
   }
-  $('cx-account').onclick = function () {
+  // The profile: the key, and the theme for chat and the Explorer (#12), saved with the key.
+  function showProfile() {
+    $('cx-connected').hidden = !state.connected; $('cx-key-form').hidden = state.connected;
     if (state.connected) {
-      state.key = DEMO; state.connected = false; store('prov_key', null); setAccount(); loadSessions(); newChat(); return;
+      $('cx-connected-name').textContent = state.profile ? (state.profile.label || state.profile.key_prefix) : 'Connected';
+      $('cx-connected-sub').textContent = state.key.slice(0, 14) + '…' + (state.profile ? ' · ' + state.profile.plan + ' plan' : '');
     }
-    $('cx-key-error').hidden = true; $('cx-key-input').value = ''; $('cx-key-modal').showModal();
+    $('cx-key-error').hidden = true; $('cx-key-input').value = '';
+    if (!$('cx-key-modal').open) $('cx-key-modal').showModal();
+  }
+  $('cx-account').onclick = showProfile;
+  $('cx-profile-close').onclick = function () { $('cx-key-modal').close(); };
+  $('cx-disconnect').onclick = function () {
+    state.key = DEMO; state.connected = false; state.profile = null; store('prov_key', null); setAccount(); loadSessions(); newChat(); showProfile();
   };
   $('cx-key-form').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -719,6 +729,12 @@
       .finally(function () { $('cx-key-save').disabled = false; });
   });
   $('cx-key-demo').onclick = function () { $('cx-key-modal').close(); };
+  window.Shell.picker($('cx-theme-host'), function (t) {
+    if (!state.connected) { $('cx-theme-note').textContent = 'Saved in this browser. Connect a key to keep it on every device.'; return; }
+    window.Shell.saveTheme(state.key, t).then(function (p) {
+      $('cx-theme-note').textContent = p ? 'Saved to your profile; it follows this key to other browsers.' : 'Saved in this browser only.';
+    });
+  });
 
   // ---- layout controls ----
   var mobile = window.matchMedia('(max-width: 860px)');

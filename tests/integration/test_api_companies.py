@@ -287,8 +287,9 @@ def test_explorer_app_is_served(client):
     js = client.get("/app/app.js")
     assert js.status_code == 200 and "/v1/companies/search" in js.text and "X-API-Key" in js.text
     assert "localStorage" in js.text
-    css = client.get("/app/app.css")
-    assert css.status_code == 200 and "--accent-hi: #e83c34" in css.text  # the site palette
+    css = client.get("/shell/shell.css")  # the site palette, shared by every page
+    assert css.status_code == 200 and "--accent-hi: #ff5a4f" in css.text
+    assert "/shell/shell.css" in r.text
 
 
 def test_console_module_is_served(client):

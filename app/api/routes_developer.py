@@ -18,6 +18,8 @@ from app.schemas.developer import (
     ApiKeyList,
     ApiKeyOut,
     PlanInfo,
+    ProfileOut,
+    ProfileUpdate,
     UsageOut,
 )
 from app.services.api_keys import create_key_record, revoke_key  # noqa: F401 - re-exported
@@ -90,6 +92,37 @@ def revoke_api_key(
     revoke_key(db, target, actor=f"api_key:{key.key_prefix}")
     db.commit()
     return ApiKeyOut.model_validate(target)
+
+
+def _profile(key: ApiKey) -> ProfileOut:
+    return ProfileOut(
+        key_prefix=key.key_prefix, label=key.label, plan=key.plan, ui_theme=key.ui_theme or "dark"
+    )
+
+
+@router.get(
+    "/profile",
+    response_model=ProfileOut,
+    responses=_ERRORS,
+    summary="The caller's profile: key, plan and theme",
+)
+def get_profile(key: ApiKey = Depends(require_api_key)):
+    return _profile(key)
+
+
+@router.patch(
+    "/profile",
+    response_model=ProfileOut,
+    responses=_ERRORS,
+    summary="Save the theme chat and the Explorer use for this key",
+)
+def update_profile(
+    body: ProfileUpdate, db: Session = Depends(db_session), key: ApiKey = Depends(require_api_key)
+):
+    row = db.get(ApiKey, key.id)
+    row.ui_theme = None if body.ui_theme == "dark" else body.ui_theme
+    db.commit()
+    return _profile(row)
 
 
 @router.get("/usage", response_model=UsageOut, response_model_by_alias=True, responses=_ERRORS)

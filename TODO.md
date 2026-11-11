@@ -24,8 +24,8 @@ Checklist: [GH #31](https://github.com/eamax-code/provenance/issues/31). Milesto
 ### Ready for agent
 | # | Item |
 | --- | --- |
-| GH #11 | [One layout and the dark theme on every page](https://github.com/eamax-code/provenance/issues/11) (in progress 2026-11-11) |
-| GH #12 | [Theme choice in the profile for chat and the Explorer](https://github.com/eamax-code/provenance/issues/12) (in progress 2026-11-11) |
+| GH #11 | [One layout and the dark theme on every page](https://github.com/eamax-code/provenance/issues/11) (built 2026-11-11; waiting on your review) |
+| GH #12 | [Theme choice in the profile for chat and the Explorer](https://github.com/eamax-code/provenance/issues/12) (built 2026-11-11; waiting on your review) |
 | GH #10 | [Company page: a figure's mini trend opens a large chart with insights](https://github.com/eamax-code/provenance/issues/10) (built 2026-11-10; waiting on your review) |
 | GH #15 | [Accounts: self-serve sign-up, sign-in and a profile](https://github.com/eamax-code/provenance/issues/15) (email delivery waits on 06) |
 | GH #18 | [Security review before launch](https://github.com/eamax-code/provenance/issues/18) |
