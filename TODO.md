@@ -49,6 +49,10 @@ Milestone "After release": the gaps with Bloomberg and FactSet that free, redist
 | 19 | [Bulk Parquet snapshots](.scratch/backlog/issues/19-parquet-snapshots.md) | needs you: bounded-export rule, 05 |
 | 04 | [TMX / CSE permissions for Canadian feeds](.scratch/backlog/issues/04-canadian-exchange-permissions.md) | needs you: non-commercial terms |
 
+## Future scope
+Sources and sub-products flagged for later, each with a description: [docs/future-scope.md](docs/future-scope.md).
+So far: EIA-860 (US power plants and generators).
+
 ## Done
 GH #9 the company page is Snapshot, with Report and Dossier as layouts a reader picks (2026-11-10), 21 the ChatGPT design with clay.com-style motion is the main page (2026-11-06), 01 (SEC contact address in local config; 20,540 companies loaded from the bulk archives), 11 usage series, SEC responses by endpoint, detection-to-processing latency, 07-10 listings: GLEIF identity in batches, non-share exclusion and primary-listing flag,
 listing watches, Listings view in the Explorer; 12 shared rate limits, 20 officer changes on the feed within minutes with point-in-time
