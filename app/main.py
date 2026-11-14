@@ -12,7 +12,9 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from app.api import (
@@ -35,6 +37,7 @@ from app.core import rate_limits
 from app.core.config import Settings, get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, log_event, request_id_var
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.db.session import configure_engine, get_engine, session_factory
 from app.services.usage import record_usage
 
@@ -146,9 +149,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json",
     )
     app.state.settings = settings
+    site_dir = Path(__file__).resolve().parent.parent / "site"
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # never compresses event streams
-    site_dir = Path(__file__).resolve().parent.parent / "site"
+    origins = [o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()]
+    if origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_methods=["GET", "POST", "PATCH", "DELETE"],
+            allow_headers=["X-API-Key", "Content-Type", "Last-Event-ID"],
+            expose_headers=[
+                "X-Request-ID",
+                "Retry-After",
+                "X-RateLimit-Limit",
+                "X-RateLimit-Remaining",
+            ],  # fmt: skip
+            allow_credentials=False,
+        )
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        site=site_dir if site_dir.is_dir() else None,
+        hsts=settings.is_production,
+    )
     install_error_handlers(app, site_dir if site_dir.is_dir() else None)
 
     app.include_router(routes_companies.router)
@@ -241,6 +264,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     httponly=True,
                 )
             return response
+
+        if settings.is_production:
+            # the design prototypes are for review, never for visitors (GH #18)
+            @app.get("/poc/{rest:path}", include_in_schema=False)
+            def no_prototypes(rest: str):
+                raise StarletteHTTPException(status_code=404)
 
         app.mount("/", StaticFiles(directory=str(site_dir), html=True), name="site")
     return app

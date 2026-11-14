@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Public origin for the sitemap and robots.txt, e.g. https://provenance.example; empty uses the
     # request's own host.
     public_base_url: str = ""
+    # Browser origins allowed to call the API directly (comma-separated); empty means same-origin
+    # only. Keys belong on a server, so most deployments leave this empty.
+    cors_allow_origins: str = ""
     app_version: str = "0.1.0"
     log_level: str = "INFO"
     log_json: bool = True
@@ -100,6 +103,8 @@ class Settings(BaseSettings):
     news_cache_hours: float = 6.0
     news_timeout_seconds: float = 10.0
     chat_rate_limit_per_minute: int = 10
+    # Questions a day per key (or per address for the demo key): every answer can run a model.
+    chat_requests_per_day: int = 200
     # Read 8-K item 5.02 text from EDGAR when a chat question needs it (needs SEC_USER_AGENT).
     officer_extraction_enabled: bool = True
     # Read a company's latest S-1/F-1 prospectus from EDGAR when a chat question needs it.

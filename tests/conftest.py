@@ -197,9 +197,12 @@ def sec_client(settings, fake_sec):
 @pytest.fixture
 def app(settings, engine, sec_client):
     from app.api.dependencies import rate_limiter
+    from app.api.routes_chat import chat_day_limiter, chat_limiter
     from app.main import create_app
 
     rate_limiter.reset()
+    chat_limiter.reset()
+    chat_day_limiter.reset()
     application = create_app(settings)
     application.state.sec_client_factory = lambda: sec_client
     return application
