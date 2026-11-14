@@ -63,6 +63,8 @@
       tb.appendChild(tr);
     });
     $('key-btn').disabled = active >= a.max_active_keys;
+    // the account's theme reaches chat and the Explorer in this browser too
+    if (a.ui_theme && Shell.stored() !== a.ui_theme) { try { localStorage.setItem('prv-theme', a.ui_theme); } catch (e) { /* storage blocked */ } }
     if (!$('acct-theme').firstChild) {
       Shell.picker($('acct-theme'), saveTheme, { keepPage: true, value: a.ui_theme });
     }
@@ -98,6 +100,8 @@
     api('POST', '/v1/account/keys', { label: $('key-label').value.trim() || null }).then(function (res) {
       if (!res.ok) { say('key-msg', errText(res), 'err'); return; }
       $('key-secret').textContent = res.body.api_key;
+      $('key-curl').textContent = 'curl -s "' + location.origin + '/v1/companies/320193/facts?metric=revenue&limit=3" \\\n  -H "X-API-Key: ' + res.body.api_key + '"';
+      say('key-try-msg', '');
       $('key-new').hidden = false; $('key-label').value = '';
       $('key-copy').focus();
       return load();
@@ -108,6 +112,18 @@
     (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () {
       $('key-copy').textContent = 'Copied';
     }).catch(function () { $('key-copy').textContent = 'Select the key and copy it'; });
+  });
+
+  $('key-try').addEventListener('click', function () {
+    say('key-try-msg', 'Calling the API with your new key…');
+    fetch('/v1/companies/320193/facts?metric=revenue&limit=1', { headers: { 'X-API-Key': $('key-secret').textContent, Accept: 'application/json' } })
+      .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+      .then(function (res) {
+        if (!res.ok) { say('key-try-msg', errText(res), 'err'); return; }
+        var f = res.body.data[0];
+        say('key-try-msg', 'It works. Apple revenue, ' + (f.period_label || f.period_end) + ': $' + (f.value / 1e9).toFixed(1) + 'B, from ' + (f.form_type || 'filing') + ' ' + f.accession_number + '.', 'ok');
+        load();
+      }).catch(function () { say('key-try-msg', 'Could not reach the API. Try the curl command instead.', 'err'); });
   });
 
   function revoke(k, btn) {

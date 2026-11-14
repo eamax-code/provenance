@@ -128,7 +128,10 @@
       <div class="secret-box" id="key-new" hidden>
         <strong>Your new key. Copy it now; it is shown only once.</strong>
         <code class="secret" id="key-secret"></code>
-        <div class="row"><button class="btn small" type="button" id="key-copy">Copy key</button><a class="btn small" href="/developers/#quickstart">Make your first request</a></div>
+        <div class="row"><button class="btn small" type="button" id="key-copy">Copy key</button><button class="btn small" type="button" id="key-try">Try it now</button><a class="btn small" href="/developers/#quickstart">Quickstart</a></div>
+        <p class="small">Your first request, ready to paste:</p>
+        <div class="code"><pre><code id="key-curl"></code></pre></div>
+        <p class="acct-msg" id="key-try-msg" role="status" aria-live="polite"></p>
       </div>
       <p class="acct-msg" id="key-msg" role="status" aria-live="polite"></p>
       <div class="table-wrap"><table class="doc-table" id="keys-table">

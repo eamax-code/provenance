@@ -180,3 +180,10 @@ def test_account_pages_are_served_in_the_shared_layout(client):
     assert 'class="site-button" href="/account/">Get API key' in header
     spec = client.get("/openapi.json").json()["paths"]
     assert spec["/v1/account/sign-in"]["post"]["security"] == []
+
+
+def test_account_page_gets_a_first_request_ready_and_carries_the_theme(client):
+    js = client.get("/account/account.js").text
+    assert "key-curl" in js and "/v1/companies/320193/facts" in js and "key-try" in js
+    assert "localStorage.setItem('prv-theme', a.ui_theme)" in js
+    assert "innerHTML" not in js
