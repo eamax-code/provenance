@@ -1,0 +1,26 @@
+# Only app/, scripts/, site/, pyproject.toml, README.md and alembic.ini go into the image.
+.git
+.github
+.venv
+.sec_bulk
+.sec_cache
+.markets_cache
+.news_cache
+.taste-skill
+.pytest_cache
+.ruff_cache
+.scratch
+**/__pycache__
+*.pyc
+*.sqlite3
+*.db
+.env
+.env.*
+exports
+tests
+docs
+data
+clients
+examples
+deploy
+site/poc

@@ -45,6 +45,25 @@ nginx) in front of port 8000 and set `.env` from `.env.example` with real secret
 - Either way the run is recorded under `ingestion_runs.source = markets:daily`, so a second
   trigger on the same day is a no-op.
 
+## Before the first deploy (checked locally on 2026-11-15)
+
+The production image was built from this repository and run with `APP_ENV=production` against
+a copy of the data. `/readyz` answered `ready`, migrations were at head, `/poc/` returned 404,
+HSTS and the content security policy were sent, MCP answered, and account sign-in answered 503
+because no email provider was set. `.dockerignore` keeps the image to `app/`, `scripts/`,
+`site/` and the build files (no SEC archives, tests or prototypes).
+
+Settings to fill in:
+
+| Setting | Why |
+| --- | --- |
+| `SEC_USER_AGENT` | Product name and a monitored contact address; the SEC requires it |
+| `API_KEY_PEPPER`, `WEBHOOK_SIGNING_SECRET`, `ADMIN_TOKEN` | New random values for production; never reuse development ones |
+| `PUBLIC_BASE_URL` | The domain, for sign-in links, the sitemap and robots.txt; also set `origin` in `site/shell/site.json` and run `scripts/sync_site_shell.py` so canonical and preview tags are absolute |
+| `EMAIL_PROVIDER=smtp`, `SMTP_*`, `EMAIL_FROM` | Sign-in links and email watches (ticket 06); without them sign-in points visitors to the key request form |
+| `PUBLIC_SHOWCASE_CIKS` | The companies on the public pages and open to the demo key (the deploy files list twelve) |
+| `LLM_ENABLED`, `LLM_BASE_URL` | Where chat's model runs (GH #13); with it off, chat still answers from data with charts and tables |
+
 ## After the first deploy
 
 1. `GET /readyz` must return `ready`; it lists any configuration problem (never secret values).

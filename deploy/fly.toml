@@ -15,6 +15,7 @@ primary_region = "iad"          # close to data.sec.gov (US East)
   MARKETS_SOURCES_ENABLED = "esma_firds,fca_firds,gleif"
   MARKETS_CACHE_DIR = "/data/markets_cache"
   APP_NAME = "Provenance"
+  PUBLIC_SHOWCASE_CIKS = "320193,789019,1652044,1018724,1045810,1326801,1318605,1065280,1067983,19617,1403161,104169"
   LOG_JSON = "true"
   SEC_MIN_REQUEST_INTERVAL_SECONDS = "0.25"
   INGESTION_POLL_INTERVAL_SECONDS = "300"

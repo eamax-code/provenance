@@ -121,7 +121,7 @@ def enforce_ip_limit(limiter: FixedWindowRateLimiter, key: str, limit: int, mess
 DEMO_KEY = "demo"
 demo_minute_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-minute")
 demo_day_limiter = FixedWindowRateLimiter(window_seconds=86400, name="demo-day")
-DEMO_UPGRADE = "Request a free key at /#contact for full access."
+DEMO_UPGRADE = "Create a free account at /account/ for your own key and full access."
 
 
 class DemoPrincipal:
