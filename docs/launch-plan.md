@@ -54,7 +54,7 @@ Not for now: traders who need prices or intraday data. We say so plainly (no mar
 Business (AGENTS.md §16): 15 interviews, 5 hands-on trials with a real use case, 3 explicit
 willingness-to-pay signals, 2 paid pilots (or 1 with a clear follow-on).
 
-Product, read weekly from `api_usage`, `accounts` and the quality snapshots:
+Product, read weekly with `python scripts/pilot_metrics.py` (from `api_usage`, `accounts` and the quality snapshots):
 
 | Measure | Target |
 | --- | --- |
