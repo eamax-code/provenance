@@ -171,8 +171,13 @@ def test_cache_policy_unit():
 
 
 def test_draft_legal_pages_are_linked_from_every_footer(client):
-    for slug, needle in {"terms": "not investment", "privacy": "prv_session",
-                         "acceptable-use": "rate limits", "data-sources": "GH #14"}.items():  # fmt: skip
+    needles = {
+        "terms": "not investment",
+        "privacy": "prv_session",
+        "acceptable-use": "rate limits",
+        "data-sources": "GH #14",
+    }
+    for slug, needle in needles.items():
         r = client.get(f"/legal/{slug}/")
         assert r.status_code == 200 and "pending legal review" in r.text, slug
         assert needle in r.text.lower() or needle in r.text, (slug, needle)
