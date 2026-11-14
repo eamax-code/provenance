@@ -107,8 +107,10 @@ In the order they unblock things:
   server)". Link the Playground and the Developer docs, not the home page.
 - **MCP directories and agent communities:** the official MCP registry and the community lists.
   The listing is the one-line install.
-- **Python and data communities:** a notebook that backtests a screen with `as_of` and shows the
-  look-ahead it avoids.
+- **Python and data communities:** `examples/point_in_time.py` compares a screen as of a date
+  with today's. On 15 November 2026 data: of 4,895 companies with 2023 revenue, only 3,563 had
+  filed by 31 March 2024, and 288 restated later. That is 1,332 figures a naive backtest would
+  have used before they existed. Lead the post with that number.
 - **Direct:** 40 founders of AI research and fintech copilots, found through their own launch
   posts. Use the message below and offer the design-partner deal.
 

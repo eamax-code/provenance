@@ -193,6 +193,7 @@ curl -s "{{BASE}}/v1/companies/320193/facts?metric=revenue&amp;as_of=2024-01-15"
 <span class="c"># the largest companies by total assets, as known on 31 March 2025</span>
 curl -s "{{BASE}}/v1/facts/screen?metric=total_assets&amp;year=2024&amp;as_of=2025-03-31" -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
         <p>To see every observation of a period, including restatements and alternative tags, add <code>include_all_observations=true</code>.</p>
+        <p>Why it matters: on the data loaded on 15 November 2026, a 2023 revenue screen has 4,895 companies, but only 3,563 had filed by 31 March 2024, and 288 have restated since. A backtest on today's data would have traded on 1,332 figures nobody had yet. <a href="https://github.com/eamax-code/provenance/blob/main/examples/point_in_time.py">examples/point_in_time.py</a> runs this comparison for any metric and date.</p>
       </section>
 
       <section id="events" aria-labelledby="events-h">
