@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.api import (
     routes_chat,
@@ -27,6 +28,7 @@ from app.api import (
     routes_public,
     routes_screen,
     routes_search,
+    routes_site,
     routes_stats,
 )
 from app.core import rate_limits
@@ -41,6 +43,23 @@ COMPANY_LAYOUTS = ("snapshot", "report", "dossier")
 COMPANY_LAYOUT_COOKIE = "company_layout"
 
 logger = logging.getLogger("app.http")
+
+# Static files are not fingerprinted, so they are cached for an hour and then revalidated with
+# their ETag; pages are always revalidated so a deploy shows at once (GH #21).
+STATIC_MAX_AGE = 3600
+STATIC_SUFFIXES = (".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".webp", ".woff2", ".ico")
+
+
+def cache_policy(path: str, content_type: str) -> str | None:
+    """The Cache-Control for a site response that did not set its own; None for the API."""
+    if path.startswith(("/v1/", "/mcp", "/openapi.json", "/healthz", "/readyz")):
+        return None
+    if path.lower().endswith(STATIC_SUFFIXES):
+        return f"public, max-age={STATIC_MAX_AGE}, stale-while-revalidate=86400"
+    if content_type.startswith("text/html"):
+        return "no-cache"
+    return None
+
 
 DESCRIPTION = """
 **Provenance** is a developer API for US public-company identity, SEC filings, normalized
@@ -72,6 +91,10 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             raise
         duration_ms = round((time.monotonic() - started) * 1000, 1)
         response.headers["X-Request-ID"] = rid
+        if "cache-control" not in response.headers:
+            policy = cache_policy(request.url.path, response.headers.get("content-type", ""))
+            if policy:
+                response.headers["Cache-Control"] = policy
         route = request.scope.get("route")
         route_template = getattr(route, "path", request.url.path)
         api_key_id = getattr(request.state, "api_key_id", None)
@@ -124,6 +147,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(GZipMiddleware, minimum_size=1024)  # never compresses event streams
     site_dir = Path(__file__).resolve().parent.parent / "site"
     install_error_handlers(app, site_dir if site_dir.is_dir() else None)
 
@@ -140,6 +164,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_chat.router)
     app.include_router(routes_screen.router)
     app.include_router(routes_search.router)
+    app.include_router(routes_site.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")
     def healthz():

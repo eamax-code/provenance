@@ -68,7 +68,7 @@
 .method.patch, .method.put { background: var(--warn-soft); color: var(--warn); }
 .ref-detail { padding: 16px; display: grid; gap: 14px; min-width: 0; }
 .ref-detail p { font-size: var(--step-small); }
-.ref-detail h4 { margin: 4px 0 0; font: 600 .9rem var(--face); color: var(--soft); }
+.ref-detail h3 { margin: 4px 0 0; font: 600 .9rem var(--face); color: var(--soft); }
 .ref-detail .doc-table { min-width: 520px; font-size: .84rem; }
 .ref-detail .req { color: var(--accent-text); font-size: .75rem; margin-left: 4px; }
 .ref-actions { display: flex; gap: 10px; flex-wrap: wrap; }

@@ -124,7 +124,8 @@ def test_demo_can_be_disabled(client, ingested_aapl, settings, monkeypatch):
 
 def test_playground_page_is_served(client):
     r = client.get("/playground/")
-    assert r.status_code == 200 and '<main id="main" class="pg">' in r.text and "/playground.js" in r.text
+    assert r.status_code == 200 and '<main id="main" class="pg">' in r.text
+    assert "/playground.js" in r.text
     js = client.get("/playground.js").text
     for route in (
         "/v1/companies/search",

@@ -5,6 +5,18 @@
   var NS = 'http://www.w3.org/2000/svg';
   var P = window.CompanyPage = {};
   P.cik = (location.pathname.match(/companies\/(\d{1,10})/) || [])[1] || '1018724';
+  /* one address per company whatever the layout (GH #21) */
+  (function () {
+    var href = location.origin + '/companies/' + ('0000000000' + P.cik).slice(-10);
+    var link = document.createElement('link');
+    link.rel = 'canonical';
+    link.href = href;
+    document.head.appendChild(link);
+    var og = document.querySelector('meta[property="og:url"]') || document.createElement('meta');
+    og.setAttribute('property', 'og:url');
+    og.setAttribute('content', href);
+    document.head.appendChild(og);
+  })();
   P.load = function () {
     return fetch('/v1/public/companies/' + P.cik + '/overview', { headers: { Accept: 'application/json' } })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });

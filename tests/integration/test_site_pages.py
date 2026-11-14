@@ -101,3 +101,70 @@ def test_every_page_has_a_main_landmark_and_a_skip_link():
         assert html.count("<main") == 1 and html.count("</main>") == 1, page
         assert 'class="skip-link" href="#main"' in html, page
         assert '<html lang="en">' in html, page
+
+
+def test_robots_and_sitemap(client, ingested_aapl, settings, monkeypatch):
+    from app.services import public as public_service
+
+    public_service.reset_cache()
+    robots = client.get("/robots.txt")
+    assert robots.status_code == 200 and "Disallow: /v1/" in robots.text
+    assert "Disallow: /poc/" in robots.text
+    assert "Sitemap: http://testserver/sitemap.xml" in robots.text
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/xml")
+    for path in ("/", "/developers/", "/docs/", "/companies/", "/changelog/"):
+        assert f"<loc>http://testserver{path}</loc>" in r.text, path
+    assert "<loc>http://testserver/companies/0000320193</loc>" in r.text  # showcase companies
+    assert "/poc/" not in r.text and "/v1/" not in r.text
+    monkeypatch.setattr(settings, "public_base_url", "https://provenance.example/")
+    public_service.reset_cache()
+    assert "Sitemap: https://provenance.example/sitemap.xml" in client.get("/robots.txt").text
+    assert "<loc>https://provenance.example/</loc>" in client.get("/sitemap.xml").text
+    assert "robots.txt" not in str(client.get("/openapi.json").json()["paths"])
+
+
+def test_every_indexable_page_has_canonical_and_preview_tags():
+    for page in sync_site_shell.PAGES:
+        html = (SITE / page).read_text()
+        if page in sync_site_shell.NOINDEX:
+            assert 'name="robots" content="noindex"' in html and "og:image" not in html, page
+            continue
+        assert '<meta property="og:image" content="' in html and "/img/og.png" in html, page
+        assert 'name="twitter:card" content="summary_large_image"' in html, page
+        assert '<meta name="description" content="' in html, page
+        if page in sync_site_shell.CANONICAL:
+            assert f'<link rel="canonical" href="{sync_site_shell.origin()}' in html, page
+    assert (SITE / "img" / "og.png").stat().st_size > 10_000
+    assert "rel = 'canonical'" in (SITE / "companies" / "page" / "page.js").read_text()
+
+
+def test_static_files_are_cached_and_pages_revalidated(client):
+    css = client.get("/shell/shell.css")
+    assert css.headers["cache-control"].startswith("public, max-age=3600") and css.headers["etag"]
+    assert client.get("/img/og.png").headers["cache-control"].startswith("public, max-age=")
+    assert client.get("/developers/").headers["cache-control"] == "no-cache"
+    assert client.get("/v1/public/plans").headers["cache-control"].startswith("public, max-age=")
+    assert "cache-control" not in client.get("/healthz").headers
+
+
+def test_responses_are_compressed_and_the_home_page_stays_in_budget(client):
+    r = client.get("/", headers={"Accept-Encoding": "gzip"})
+    assert r.headers.get("content-encoding") == "gzip"
+    import gzip
+
+    raw = (SITE / "index.html").read_bytes()
+    assert len(gzip.compress(raw)) < 40_000, "home page over its 40 KB compressed budget"
+    for img in (SITE / "img").glob("*.jpg"):
+        assert img.stat().st_size < 250_000, img.name  # sized for how large they are shown
+
+
+def test_cache_policy_unit():
+    from app.main import cache_policy
+
+    assert cache_policy("/v1/companies", "application/json") is None
+    assert cache_policy("/mcp", "application/json") is None
+    assert cache_policy("/chat.js", "text/javascript").startswith("public, max-age=3600")
+    assert cache_policy("/IMG/X.JPG", "image/jpeg").startswith("public")
+    assert cache_policy("/status/", "text/html; charset=utf-8") == "no-cache"
+    assert cache_policy("/llms.txt", "text/plain") is None

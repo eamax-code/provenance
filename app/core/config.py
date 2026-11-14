@@ -21,6 +21,9 @@ class Settings(BaseSettings):
 
     app_env: Literal["development", "test", "staging", "production"] = "development"
     app_name: str = "Provenance"
+    # Public origin for the sitemap and robots.txt, e.g. https://provenance.example; empty uses the
+    # request's own host.
+    public_base_url: str = ""
     app_version: str = "0.1.0"
     log_level: str = "INFO"
     log_json: bool = True

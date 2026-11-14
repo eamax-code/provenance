@@ -111,7 +111,7 @@
     if (op.description) op.description.split(/\n\n+/).forEach((para) => body.append(rich("p", para.trim())));
     const params = op.parameters || [];
     if (params.length) {
-      body.append(el("h4", null, "Parameters"));
+      body.append(el("h3", null, "Parameters"));
       body.append(table(["Name", "In", "Type", "Notes"], params.map((p) => {
         const n = el("span");
         n.append(el("code", null, p.name));
@@ -122,23 +122,23 @@
     }
     const rb = op.requestBody?.content?.["application/json"]?.schema;
     if (rb) {
-      body.append(el("h4", null, "Request body (JSON)"));
+      body.append(el("h3", null, "Request body (JSON)"));
       const rows = fieldRows(rb);
       if (rows.length) body.append(table(["Field", "Type", "Notes"], rows));
     }
     const responses = Object.entries(op.responses || {});
     if (responses.length) {
-      body.append(el("h4", null, "Responses"));
+      body.append(el("h3", null, "Responses"));
       body.append(table(["Status", "Meaning"], responses.map(([code, r]) => [code, r.description || ""])));
       const ok = op.responses["200"] || op.responses["201"];
       const schema = ok?.content?.["application/json"]?.schema;
       const rows = schema ? fieldRows(schema) : [];
       if (rows.length) {
-        body.append(el("h4", null, "Response fields"));
+        body.append(el("h3", null, "Response fields"));
         body.append(table(["Field", "Type", "Notes"], rows));
       }
     }
-    body.append(el("h4", null, "Example"));
+    body.append(el("h3", null, "Example"));
     const code = el("div", "code");
     const pre = el("pre");
     pre.append(el("code", null, curl(method, path, op)));

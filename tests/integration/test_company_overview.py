@@ -87,7 +87,7 @@ def test_company_page_layouts(client):
     # Snapshot is the page; Report and Dossier are layouts a reader picks, and the pick is kept.
     r = client.get("/companies/0000320193")
     assert r.status_code == 200 and _layout(r) == "Snapshot" and "/companies/page/page.js" in r.text
-    assert "not affiliated" in r.text.lower() and r.headers["vary"] == "Cookie"
+    assert "not affiliated" in r.text.lower() and "Cookie" in r.headers["vary"]
     assert "company_layout" not in r.headers.get("set-cookie", "")
     r = client.get("/companies/0000320193?layout=report")
     assert _layout(r) == "Report" and "company_layout=report" in r.headers["set-cookie"]
