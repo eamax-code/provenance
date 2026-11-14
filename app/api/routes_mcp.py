@@ -20,7 +20,7 @@ from app.api.dependencies import DEMO_KEY, client_ip
 
 router = APIRouter(include_in_schema=False)
 
-PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
+PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 SERVER_INFO = {"name": "provenance", "title": "Provenance", "version": "0.1.0"}
 INSTRUCTIONS = (
     "Provenance answers questions about US public companies from their SEC filings, and about "

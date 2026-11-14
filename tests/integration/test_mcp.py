@@ -32,7 +32,7 @@ def test_initialize_and_list_tools(client):
         rpc(client, "initialize", {"protocolVersion": "1999-01-01"}).json()["result"][
             "protocolVersion"
         ]
-        == "2025-06-18"
+        == "2025-11-25"
     )
     note = client.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"})
     assert note.status_code == 202 and note.content == b""
