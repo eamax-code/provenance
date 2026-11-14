@@ -33,6 +33,8 @@ PAGES = (
     "changelog/index.html",
     "not-found.html",
     "error.html",
+    "account/index.html",
+    "account/verify/index.html",
 )
 
 
@@ -49,8 +51,9 @@ CANONICAL = {
     "developers/index.html": "/developers/",
     "docs/index.html": "/docs/",
     "changelog/index.html": "/changelog/",
+    "account/index.html": "/account/",
 }
-NOINDEX = ("not-found.html", "error.html")
+NOINDEX = ("not-found.html", "error.html", "account/verify/index.html")
 OG_IMAGE = "/img/og.png"
 
 

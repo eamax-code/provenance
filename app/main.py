@@ -18,6 +18,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from app.api import (
+    routes_account,
     routes_chat,
     routes_companies,
     routes_developer,
@@ -190,6 +191,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_search.router)
     app.include_router(routes_site.router)
     app.include_router(routes_mcp.router)
+    app.include_router(routes_account.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")
     def healthz():
@@ -229,7 +231,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             for method in methods.values():
                 if path.startswith("/v1/"):
                     if path in ("/v1/stats", "/v1/developer/key-requests") or path.startswith(
-                        "/v1/public/"
+                        ("/v1/public/", "/v1/account")
                     ):
                         method["security"] = []
                     elif path == "/v1/developer/api-keys" and method.get("summary", "").startswith(

@@ -42,6 +42,7 @@
 - GET /v1/public/companies/{cik}  (public; profile, latest 10 filings, annual facts for 5 metrics, freshness; showcase only)
 - GET /v1/public/listings/events  (public; recent new listings, delistings, suspensions on covered CA/EU/UK venues)
 - POST /v1/developer/key-requests {"email","use_case","plan"}  (public, rate limited; operator approves)
+- Accounts (browser, session cookie): /account/ to sign in by emailed one-time link, then create, name and revoke keys, see usage, pick the chat and Explorer theme. API: POST /v1/account/sign-in {email} ; POST /v1/account/verify {token} ; GET/PATCH /v1/account ; POST /v1/account/keys ; DELETE /v1/account/keys/{id} ; POST /v1/account/sign-out[-everywhere]
 
 ## International listings (Canada / Europe / UK; key required)
 - GET /v1/markets/  venues covered (MIC, country, region, counts)

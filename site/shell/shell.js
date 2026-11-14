@@ -36,20 +36,33 @@
     document.dispatchEvent(new CustomEvent('shell:theme', { detail: { theme: t } }));
     return t;
   }
-  /* A list of radio choices; onPick(theme) runs after the theme is applied. */
-  function picker(host, onPick) {
+  /* The saved choice, for a page that does not wear it (the account page stays dark). */
+  function stored() { try { var t = localStorage.getItem(STORE); return valid(t) ? t : 'dark'; } catch (e) { return 'dark'; } }
+  function remember(t) {
+    try { localStorage.setItem(STORE, t); } catch (e) { /* storage blocked */ }
+    document.dispatchEvent(new CustomEvent('shell:theme', { detail: { theme: t } }));
+  }
+  /* A list of radio choices; onPick(theme) runs after the theme is applied. With
+     opts.keepPage the choice is only saved, for chat and the Explorer, and this page stays dark. */
+  function picker(host, onPick, opts) {
+    opts = opts || {};
+    var chosen = opts.keepPage ? (opts.value || stored()) : current();
     var fs = document.createElement('fieldset');
     fs.className = 'theme-pick';
     var lg = document.createElement('legend'); lg.textContent = 'Theme'; fs.appendChild(lg);
     var name = 'theme-' + Math.random().toString(36).slice(2, 8);
     THEMES.forEach(function (t) {
       var lab = document.createElement('label'), inp = document.createElement('input'), sw = document.createElement('span'), txt = document.createElement('span');
-      inp.type = 'radio'; inp.name = name; inp.value = t.id; inp.checked = current() === t.id;
+      inp.type = 'radio'; inp.name = name; inp.value = t.id; inp.checked = chosen === t.id;
       sw.className = 'sw'; sw.setAttribute('aria-hidden', 'true');
       t.sw.forEach(function (c) { var i = document.createElement('i'); i.style.background = c; sw.appendChild(i); });
       txt.textContent = t.name;
       var sm = document.createElement('small'); sm.textContent = t.note; txt.appendChild(sm);
-      inp.addEventListener('change', function () { if (inp.checked) { apply(t.id); if (onPick) onPick(t.id); } });
+      inp.addEventListener('change', function () {
+        if (!inp.checked) return;
+        if (opts.keepPage) remember(t.id); else apply(t.id);
+        if (onPick) onPick(t.id);
+      });
       lab.appendChild(inp); lab.appendChild(sw); lab.appendChild(txt); fs.appendChild(lab);
     });
     document.addEventListener('shell:theme', function (e) {
@@ -70,7 +83,7 @@
   }
   function saveTheme(key, t) { return profile(key, { ui_theme: t }); }
   if (doc.hasAttribute('data-theme')) loadFonts(current());
-  window.Shell = { THEMES: THEMES, theme: current, setTheme: apply, picker: picker, syncTheme: syncTheme, saveTheme: saveTheme };
+  window.Shell = { THEMES: THEMES, theme: current, stored: stored, setTheme: apply, picker: picker, syncTheme: syncTheme, saveTheme: saveTheme };
 
   /* ---------- header ---------- */
   function roll(el) {

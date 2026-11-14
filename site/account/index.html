@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141719">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
+<title>Your Provenance Account</title>
+<meta name="description" content="Sign in to Provenance with your email to create API keys, see your usage and choose your chat and Explorer theme.">
+<!-- shell:meta -->
+<link rel="canonical" href="/account/">
+<meta property="og:url" content="/account/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Provenance">
+<meta property="og:title" content="Your Provenance Account">
+<meta property="og:description" content="Sign in to Provenance with your email to create API keys, see your usage and choose your chat and Explorer theme.">
+<meta property="og:image" content="/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Provenance: every figure cites its SEC filing.">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /shell:meta -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- shell:head -->
+<link rel="stylesheet" href="/shell/shell.css">
+<script src="/shell/shell.js"></script>
+<!-- /shell:head -->
+<link rel="stylesheet" href="/app/app.css">
+<link rel="stylesheet" href="/public.css">
+<link rel="stylesheet" href="/docs.css">
+<link rel="stylesheet" href="/account/account.css">
+</head>
+<body>
+<!-- shell:header -->
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-bar">
+  <div class="site-wrap">
+    <a class="site-wordmark" href="/"><i aria-hidden="true"></i>Provenance</a>
+    <button class="site-menu-btn" id="site-menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav class="site-nav" id="site-nav" aria-label="Primary">
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Platform</button>
+        <p class="site-group-name" aria-hidden="true">Platform</p>
+        <ul class="site-menu" id="site-nav-platform">
+          <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
+          <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-data">Data</button>
+        <p class="site-group-name" aria-hidden="true">Data</p>
+        <ul class="site-menu" id="site-nav-data">
+          <li><a href="/companies/"><b>Companies</b><span>Showcase companies, no key needed</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>New and removed listings in Canada, the UK and the EU</span></a></li>
+          <li><a href="/status/"><b>Status</b><span>What is loaded and how fresh it is</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-coverage">Coverage</button>
+        <p class="site-group-name" aria-hidden="true">Coverage</p>
+        <ul class="site-menu" id="site-nav-coverage">
+          <li><a href="/#markets"><b>Markets</b><span>What is available today, by market</span></a></li>
+          <li><a href="/#roadmap"><b>Roadmap</b><span>India, the UK and Europe next</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
+        <p class="site-group-name" aria-hidden="true">Developers</p>
+        <ul class="site-menu" id="site-nav-dev">
+          <li><a href="/developers/"><b>Quickstart and guides</b><span>Your first cited figure in ten minutes</span></a></li>
+          <li><a href="/docs"><b>API reference</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="/changelog/"><b>Changelog</b><span>What changed and how versions work</span></a></li>
+        </ul>
+      </div>
+      <a class="site-link" href="/#pricing">Pricing</a>
+      <a class="site-button site-cta" href="/account/">Get API key</a>
+    </nav>
+    <a class="site-button" href="/account/">Get API key</a>
+  </div>
+</header>
+<!-- /shell:header -->
+<main class="app" id="main">
+  <div class="pub-head">
+    <p class="eyebrow">Account</p>
+    <h1 id="acct-title">Your API keys, usage and settings</h1>
+    <p class="muted" id="acct-lead">Sign in with your email to create keys, see this month's usage and choose how chat and the Explorer look. New here? The same link creates your account.</p>
+  </div>
+  <p class="state" id="acct-state">Checking whether you are signed in…</p>
+
+  <section class="panel acct-gate" id="acct-signin" hidden aria-labelledby="signin-h">
+    <h2 id="signin-h">Sign in or create an account</h2>
+    <form id="signin-form" class="acct-form" novalidate>
+      <label for="signin-email">Email</label>
+      <div class="row">
+        <input id="signin-email" name="email" type="email" autocomplete="email" required placeholder="you@company.com" maxlength="254">
+        <button class="btn primary" type="submit" id="signin-btn">Email me a link</button>
+      </div>
+      <p class="small muted">We send a link that works once, for 15 minutes. No password to remember. Keys issued to this email before are already on your account.</p>
+      <p class="acct-msg" id="signin-msg" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <div class="acct" id="acct" hidden>
+    <section class="panel acct-summary" aria-labelledby="summary-h">
+      <div class="acct-who">
+        <h2 id="summary-h">Signed in as <span id="acct-email"></span></h2>
+        <p class="muted small" id="acct-since"></p>
+      </div>
+      <div class="grid">
+        <div class="kv"><span class="k">Plan</span><span class="v" id="acct-plan"></span></div>
+        <div class="kv"><span class="k">Requests this month</span><span class="v" id="acct-used"></span><div class="meter" aria-hidden="true"><div class="meter-fill" id="acct-meter"></div></div></div>
+        <div class="kv"><span class="k">Active keys</span><span class="v" id="acct-count"></span></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="keys-h">
+      <div class="acct-row-head">
+        <h2 id="keys-h">API keys</h2>
+      </div>
+      <form id="key-form" class="row">
+        <label class="sr-only" for="key-label">Name for the new key</label>
+        <input id="key-label" maxlength="60" placeholder="Name, e.g. production or notebook" autocomplete="off">
+        <button class="btn primary" type="submit" id="key-btn">Create key</button>
+      </form>
+      <div class="secret-box" id="key-new" hidden>
+        <strong>Your new key. Copy it now; it is shown only once.</strong>
+        <code class="secret" id="key-secret"></code>
+        <div class="row"><button class="btn small" type="button" id="key-copy">Copy key</button><a class="btn small" href="/developers/#quickstart">Make your first request</a></div>
+      </div>
+      <p class="acct-msg" id="key-msg" role="status" aria-live="polite"></p>
+      <div class="table-wrap"><table class="doc-table" id="keys-table">
+        <thead><tr><th scope="col">Key</th><th scope="col">Name</th><th scope="col">Plan</th><th scope="col">Created</th><th scope="col">Last used</th><th scope="col">This month</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+
+    <section class="panel" aria-labelledby="theme-h">
+      <h2 id="theme-h">Chat and Explorer theme</h2>
+      <p class="muted small">The site stays dark. This is how chat and the Explorer look for you, on every device you sign in on.</p>
+      <div id="acct-theme"></div>
+      <p class="acct-msg" id="theme-msg" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="session-h">
+      <h2 id="session-h">Sign out</h2>
+      <div class="row">
+        <button class="btn" type="button" id="signout">Sign out</button>
+        <button class="btn danger" type="button" id="signout-all">Sign out of every device</button>
+      </div>
+    </section>
+  </div>
+  <p class="page-note">Provenance is independent and not affiliated with or endorsed by the SEC, ESMA, the FCA or GLEIF. Keys are stored only as hashes; we cannot show a key again.</p>
+</main>
+<!-- shell:footer -->
+<footer class="site-foot">
+  <div class="site-board">
+    <div class="site-tile statement">
+      <p>Public company intelligence. Built for humans and AI.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA or GLEIF. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
+    </div>
+    <nav class="site-tile links" aria-label="Site">
+      <div class="cols">
+        <ul>
+          <li><a href="/developers/">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
+        </ul>
+        <ul>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/docs">API reference</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+        </ul>
+      </div>
+    </nav>
+    <figure class="site-tile photo"><img src="/img/catalogue-card.jpg" width="900" height="675" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
+    <div class="site-tile live" id="live-facts" data-source="/v1/stats">
+      <dl>
+        <div><dt>Companies</dt><dd data-stat="companies">20,540</dd></div>
+        <div><dt>Filings</dt><dd data-stat="filings">8,734,078</dd></div>
+        <div><dt>Normalized facts</dt><dd data-stat="facts">5,580,088</dd></div>
+      </dl>
+      <p class="note" id="live-note">Live from /v1/stats, refreshed every 30 seconds.</p>
+      <p class="note" id="status-empty" hidden>No companies ingested yet. Request any CIK through the API to start.</p>
+      <p class="note" id="status-error" hidden>Live stats are unavailable right now; the figures above may be out of date.</p>
+    </div>
+    <div class="site-tile mark" aria-hidden="true"><span>Provenance</span></div>
+    <a class="site-tile go" href="/account/"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
+  </div>
+  <p class="site-credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons.</p>
+</footer>
+<!-- /shell:footer -->
+<script src="/account/account.js"></script>
+</body>
+</html>

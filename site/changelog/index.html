@@ -75,9 +75,9 @@
         </ul>
       </div>
       <a class="site-link" href="/#pricing">Pricing</a>
-      <a class="site-button site-cta" href="/#contact">Get API key</a>
+      <a class="site-button site-cta" href="/account/">Get API key</a>
     </nav>
-    <a class="site-button" href="/#contact">Get API key</a>
+    <a class="site-button" href="/account/">Get API key</a>
   </div>
 </header>
 <!-- /shell:header -->
@@ -118,7 +118,7 @@
       <section id="log" aria-labelledby="log-h">
         <h2 id="log-h">Changes</h2>
         <ol class="log">
-        <li><time datetime="2026-11-15">2026-11-15</time><div><ul><li><span class="tag new">New</span>Developer docs, a quickstart and an API reference in the site's own layout.</li><li><span class="tag new">New</span><code>period_fiscal_year</code> and <code>period_label</code> on facts: the fiscal year the period belongs to. <code>fiscal_year</code> stays the SEC label of the filing, which for a comparative is the later year.</li><li><span class="tag new">New</span>The MCP server at <code>/mcp</code>: tools for AI agents over the same API and limits.</li><li><span class="tag new">New</span>Security headers on every response; chat allows 200 questions a day per key.</li><li><span class="tag new">New</span>A 404 page in the shared layout; unknown API paths still return the JSON error.</li></ul></div></li>
+        <li><time datetime="2026-11-15">2026-11-15</time><div><ul><li><span class="tag new">New</span>Developer docs, a quickstart and an API reference in the site's own layout.</li><li><span class="tag new">New</span><code>period_fiscal_year</code> and <code>period_label</code> on facts: the fiscal year the period belongs to. <code>fiscal_year</code> stays the SEC label of the filing, which for a comparative is the later year.</li><li><span class="tag new">New</span>Accounts: sign in with a one-time email link, then create, name and revoke keys and see usage at <code>/account/</code>. Keys issued to your email before are already there.</li><li><span class="tag new">New</span>The MCP server at <code>/mcp</code>: tools for AI agents over the same API and limits.</li><li><span class="tag new">New</span>Security headers on every response; chat allows 200 questions a day per key.</li><li><span class="tag new">New</span>A 404 page in the shared layout; unknown API paths still return the JSON error.</li></ul></div></li>
         <li><time datetime="2026-11-11">2026-11-11</time><div><ul><li><span class="tag new">New</span><code>GET</code> and <code>PATCH /v1/developer/profile</code>: the theme a key's owner picked for chat and the Explorer.</li></ul></div></li>
         <li><time datetime="2026-11-09">2026-11-09</time><div><ul><li><span class="tag new">New</span><code>GET /v1/public/companies/{cik}/overview</code>: one page with everything known about a showcase company.</li><li><span class="tag new">New</span>Company metadata on <code>GET /v1/companies/{cik}</code>: filer category, addresses, phone, tickers and exchanges.</li><li><span class="tag change">Change</span>Trailing-twelve-month values are no longer returned as annual figures.</li></ul></div></li>
         <li><time datetime="2026-11-06">2026-11-06</time><div><ul><li><span class="tag new">New</span>Officer changes from 8-K item 5.02 on the event feed, as <code>sec.officer_change</code>, with point-in-time context.</li><li><span class="tag new">New</span><code>daily</code> requests and errors in <code>GET /v1/developer/usage</code>.</li><li><span class="tag new">New</span>Listing watches: <code>POST /v1/listing-watches</code> for new listings, delistings and suspensions in a market.</li></ul></div></li>
@@ -162,7 +162,7 @@
       <p class="note" id="status-error" hidden>Live stats are unavailable right now; the figures above may be out of date.</p>
     </div>
     <div class="site-tile mark" aria-hidden="true"><span>Provenance</span></div>
-    <a class="site-tile go" href="/#contact"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
+    <a class="site-tile go" href="/account/"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
   </div>
   <p class="site-credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons.</p>
 </footer>

@@ -757,6 +757,48 @@ class CompanyAlias(Base):
 Index("ix_company_aliases_lower", func.lower(CompanyAlias.alias))
 
 
+class Account(Base):
+    """A person who signed in with their email (GH #15). Their API keys are the keys issued to
+    that email, including keys an operator issued before accounts existed."""
+
+    __tablename__ = "accounts"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)  # lower case
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    last_sign_in_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    ui_theme: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class SignInToken(Base):
+    """A one-time sign-in link. Only its hash is stored; it lasts minutes and works once."""
+
+    __tablename__ = "sign_in_tokens"
+    __table_args__ = (Index("ix_sign_in_tokens_email_created", "email", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+
+
+class AccountSession(Base):
+    """A signed-in browser. The cookie holds a random token; only its hash is stored."""
+
+    __tablename__ = "account_sessions"
+    __table_args__ = (Index("ix_account_sessions_account", "account_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    account_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("accounts.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    last_seen_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+
+
 # Search structures that exist only on PostgreSQL. The migrations f1b7c3a9d2e5 and b9d4e2f7a6c1
 # create them on real databases; these hooks give a schema built from the models (a PostgreSQL test
 # database) the same ones. SQLite skips them and the lookups fall back to scans.

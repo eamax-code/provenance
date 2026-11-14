@@ -105,6 +105,12 @@ class Settings(BaseSettings):
     chat_rate_limit_per_minute: int = 10
     # Questions a day per key (or per address for the demo key): every answer can run a model.
     chat_requests_per_day: int = 200
+    # Accounts (GH #15): one-time sign-in links by email, then a session cookie.
+    sign_in_link_minutes: int = 15
+    account_session_days: int = 30
+    sign_in_per_email_per_hour: int = 5
+    sign_in_per_ip_per_hour: int = 20
+    account_max_active_keys: int = 5
     # Read 8-K item 5.02 text from EDGAR when a chat question needs it (needs SEC_USER_AGENT).
     officer_extraction_enabled: bool = True
     # Read a company's latest S-1/F-1 prospectus from EDGAR when a chat question needs it.
@@ -132,7 +138,8 @@ class Settings(BaseSettings):
     webhook_allow_private_destinations: bool = False
 
     # Email (optional)
-    email_provider: Literal["none", "smtp"] = "none"
+    # "console" logs messages instead of sending them: development only, never in production.
+    email_provider: Literal["none", "smtp", "console"] = "none"
     email_from: str = ""
     smtp_host: str = ""
     smtp_port: int = 587

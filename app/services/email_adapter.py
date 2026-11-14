@@ -3,15 +3,28 @@
 from __future__ import annotations
 
 import json
+import logging
 import smtplib
 from email.message import EmailMessage
 
 from app.core.config import Settings
 
 DISCLAIMER = "Data from SEC EDGAR. This service is independent and not affiliated with the SEC."
+logger = logging.getLogger("app.email")
+
+
+def can_send(settings: Settings) -> bool:
+    """SMTP when configured; the console in development only."""
+    if settings.email_configured:
+        return True
+    return settings.email_provider == "console" and not settings.is_production
 
 
 def _send(settings: Settings, msg: EmailMessage) -> None:
+    if settings.email_provider == "console" and not settings.is_production:
+        # development: the message goes to the log, so a sign-in link can be followed locally
+        logger.warning("email to %s: %s\n%s", msg["To"], msg["Subject"], msg.get_content())
+        return
     msg["From"] = settings.email_from
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
         if settings.smtp_use_tls:
@@ -61,6 +74,19 @@ def send_api_key_email(settings: Settings, to_address: str, raw_key: str, plan: 
         f"Your {settings.app_name} API key ({plan} plan). "
         "It is shown only once; store it securely.\n\n"
         f"{raw_key}\n\nSend it as the X-API-Key header. Docs: /docs  OpenAPI: /openapi.json\n\n"
+        f"{DISCLAIMER}\n"
+    )
+    _send(settings, msg)
+
+
+def send_sign_in_email(settings: Settings, to_address: str, link: str, minutes: int) -> None:
+    msg = EmailMessage()
+    msg["Subject"] = f"Sign in to {settings.app_name}"
+    msg["To"] = to_address
+    msg.set_content(
+        f"Open this link to sign in to {settings.app_name}. It works once, for {minutes} "
+        f"minutes.\n\n{link}\n\n"
+        "If you did not ask to sign in, ignore this email; nothing happens without the link.\n\n"
         f"{DISCLAIMER}\n"
     )
     _send(settings, msg)
