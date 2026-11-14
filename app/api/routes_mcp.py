@@ -328,10 +328,21 @@ async def handle(request: Request, msg: Any) -> dict[str, Any] | None:
     return _rpc_error(rid, -32601, f"Method not found: {method}")
 
 
+MAX_BODY = 256 * 1024  # a JSON-RPC message is small; refuse anything larger before reading it
+
+
 @router.post("/mcp")
 async def mcp(request: Request):
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_BODY:
+        return JSONResponse(_rpc_error(None, -32600, "Request too large"), status_code=413)
+    body = b""
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > MAX_BODY:
+            return JSONResponse(_rpc_error(None, -32600, "Request too large"), status_code=413)
     try:
-        payload = json.loads(await request.body() or b"null")
+        payload = json.loads(body or b"null")
     except ValueError:
         return JSONResponse(_rpc_error(None, -32700, "Parse error"), status_code=400)
     if isinstance(payload, list):

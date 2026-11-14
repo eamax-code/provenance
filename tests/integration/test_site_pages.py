@@ -67,6 +67,9 @@ def test_browsers_get_the_404_page_and_the_api_keeps_json(client):
     for path, headers in (("/v1/no-such", HTML), ("/no-such-page/", {}), ("/v1/no-such", {})):
         r = client.get(path, headers=headers)
         assert r.status_code == 404 and r.json()["error"]["code"] == "not_found", (path, headers)
+    r = client.get("/companies/abc", headers=HTML)  # not a CIK: never someone else's page
+    assert r.status_code == 404 and "This page is not here" in r.text
+    assert client.get("/companies/0000320193", headers=HTML).status_code == 200
     r = client.get("/v1/companies/0000000001", headers={**HTML, "X-API-Key": "demo"})
     assert r.headers["content-type"].startswith("application/json")
 

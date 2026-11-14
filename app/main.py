@@ -256,6 +256,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         def public_company_page(request: Request, cik: str, layout: str | None = None):
             # Shareable URL; the page script reads the CIK from the path and calls the API.
             # Snapshot is the page; ?layout= picks Report or Dossier and is remembered.
+            if not (cik.isdigit() and len(cik) <= 10):
+                raise StarletteHTTPException(status_code=404)  # browsers get the 404 page
             chosen = layout if layout in COMPANY_LAYOUTS else None
             remembered = request.cookies.get(COMPANY_LAYOUT_COOKIE)
             name = chosen or (remembered if remembered in COMPANY_LAYOUTS else COMPANY_LAYOUTS[0])

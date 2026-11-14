@@ -113,3 +113,9 @@ def test_mcp_is_documented(client):
     assert "/mcp" in client.get("/llms.txt").text
     html = client.get("/developers/").text
     assert "claude mcp add --transport http provenance" in html and 'id="mcp"' in html
+
+
+def test_oversized_requests_are_refused(client):
+    big = b'{"jsonrpc": "2.0", "id": 1, "method": "ping", "pad": "' + b"x" * 300_000 + b'"}'
+    r = client.post("/mcp", content=big, headers={"Content-Type": "application/json"})
+    assert r.status_code == 413 and r.json()["error"]["code"] == -32600
