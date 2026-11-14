@@ -101,6 +101,7 @@
         <li><a href="#webhooks">Watches and webhooks</a></li>
         <li><a href="#listings">Listings</a></li>
         <li><a href="#agents">AI agents</a></li>
+        <li><a href="#mcp">MCP server</a></li>
         <li><a href="#errors">Errors</a></li>
         <li><a href="#limits">Limits and plans</a></li>
       </ul>
@@ -247,6 +248,33 @@ curl -s "{{BASE}}/v1/markets/instruments?q=Exosens&amp;region=europe" -H "X-API-
       <section id="agents" aria-labelledby="agents-h">
         <h2 id="agents-h">AI agents</h2>
         <p>Agents read <a href="/llms.txt">llms.txt</a>, a plain-text summary of every endpoint, and <a href="/openapi.json">openapi.json</a>. Tell your model to cite <code>source_url</code> for every figure it states. The <a href="/chat/">Financial Chat</a> is built this way: each answer links the filings it used.</p>
+      </section>
+
+      <section id="mcp" aria-labelledby="mcp-h">
+        <h2 id="mcp-h">MCP server</h2>
+        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed and see new listings. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
+        <div class="code" data-tabs>
+          <div class="code-tabs" role="tablist" aria-label="Client">
+            <button type="button" role="tab" aria-selected="true">Claude Code</button>
+            <button type="button" role="tab" aria-selected="false">Claude Desktop</button>
+            <button type="button" role="tab" aria-selected="false">Any client</button>
+          </div>
+<pre role="tabpanel"><code>claude mcp add --transport http provenance {{BASE}}/mcp --header "X-API-Key: $PROVENANCE_API_KEY"</code></pre>
+<pre role="tabpanel" hidden><code><span class="c">// claude_desktop_config.json</span>
+{
+  "mcpServers": {
+    "provenance": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "{{BASE}}/mcp", "--header", "X-API-Key:${PROVENANCE_API_KEY}"],
+      "env": { "PROVENANCE_API_KEY": "your key" }
+    }
+  }
+}</code></pre>
+<pre role="tabpanel" hidden><code>URL        {{BASE}}/mcp
+Transport  Streamable HTTP (POST, JSON responses)
+Auth       X-API-Key: YOUR_KEY   or   Authorization: Bearer YOUR_KEY</code></pre>
+        </div>
+        <p>Then ask, for example: "What was Microsoft's operating income in each of the last three fiscal years, and which filings report it?"</p>
       </section>
 
       <section id="errors" aria-labelledby="errors-h">

@@ -26,6 +26,7 @@ from app.api import (
     routes_key_requests,
     routes_listing_watches,
     routes_markets,
+    routes_mcp,
     routes_notifications,
     routes_public,
     routes_screen,
@@ -188,6 +189,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_screen.router)
     app.include_router(routes_search.router)
     app.include_router(routes_site.router)
+    app.include_router(routes_mcp.router)
 
     @app.get("/healthz", tags=["operations"], summary="Process liveness")
     def healthz():

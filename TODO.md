@@ -12,14 +12,14 @@ is being built now.
 
 | # | Item | Ticket | Status |
 | --- | --- | --- | --- |
-| P1 | SEC data refreshed from the latest nightly archives (new filings and new companies), marts rebuilt | ops | in progress |
+| P1 | SEC data refreshed from the latest nightly archives (new filings and new companies), marts rebuilt | ops | done 2026-11-15: 21,586 companies, +120,057 filings, +50,168 facts, 0 failures |
 | P2 | Every page in the shared layout: developer docs, API reference, changelog, 404 and error pages | GH #11, #20, #21 | done 2026-11-15 |
 | P3 | Developer docs: quickstart in curl/Python/JS, guides, error codes, limits, changelog, versioning policy | GH #20 | in progress |
 | P4 | SEO: sitemap.xml, robots.txt, canonical links, Open Graph image and tags on every page | GH #21 | done (set `site/shell/site.json` origin and `PUBLIC_BASE_URL` once the domain is chosen) |
 | P5 | Accessibility: skip link, landmarks, focus order, labels, automated check on every page | GH #21 | done: 14 pages x 2 widths, all four themes, no findings |
 | P6 | Performance: cache headers for static files, home page weight budget | GH #21 | done: gzip, cache headers, photos 970 KB to 290 KB, 40 KB home budget test |
 | P7 | Security: headers and CSP, CORS, pip-audit in CI, /poc/ off in production, chat abuse limits, prompt-injection review | GH #18 | done: [docs/security.md](docs/security.md); new secrets before launch are yours |
-| P8 | MCP server over the API: tools for search, overview, figures with as_of, filings, events, listings | GH #22 | todo |
+| P8 | MCP server over the API: tools for search, overview, figures with as_of, filings, events, listings | GH #22 | done: `POST /mcp`, 8 tools, install lines on /developers/#mcp |
 | P9 | Accounts: sign-up and sign-in by email link, profile with keys, usage and theme, claim an issued key | GH #15 | todo (email delivery waits on 06) |
 | P10 | Draft Terms, Privacy, Acceptable use and Data sources pages, marked draft until legal review | GH #17 | todo (final wording: you, after 05) |
 | P11 | Pilot launch plan: who it is for, the offer, success measures, launch-day checklist, outreach copy | 03 | todo |

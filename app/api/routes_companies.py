@@ -27,6 +27,7 @@ from app.schemas.companies import (
     FreshnessOut,
 )
 from app.services import freshness as freshness_service
+from app.services import periods
 from app.services.company_lookup import search_companies
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS, derive_quarters
 from app.services.ingestion import ingest_company
@@ -300,7 +301,7 @@ def facts(
     _key=Depends(require_reader),
 ):
     cik = _parse_cik_param(cik)
-    _require_company(db, cik)
+    company = _require_company(db, cik)
     if metric is not None and metric not in SUPPORTED_METRICS:
         raise APIError(
             422, "invalid_parameter", f"metric must be one of: {', '.join(SUPPORTED_METRICS)}."
@@ -371,6 +372,10 @@ def facts(
     )
     total = len(selected)
     page = selected[offset : offset + limit]
+    for f in page:  # the period's own fiscal year, whatever filing reported it
+        f.period_fiscal_year = periods.fiscal_year(f.period_end, company.fiscal_year_end)
+        if f.period_class in ("annual", "quarterly"):
+            f.period_label = periods.label(f.period_end, f.period_class, company.fiscal_year_end)
     has_more = offset + limit < total
     return FactList(
         data=page,

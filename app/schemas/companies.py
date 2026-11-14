@@ -131,8 +131,20 @@ class FactOut(ORMModel):
     period_class: str = Field(
         description="annual | quarterly | ytd | other (derived from duration)"
     )
-    fiscal_year: int | None
+    fiscal_year: int | None = Field(
+        description="SEC fy label of the filing that reported the value. A 10-K repeats last "
+        "year's figure as a comparative under its own fy, so use period_fiscal_year for the "
+        "year the period belongs to"
+    )
     fiscal_period: str | None = Field(description="SEC fp label of the filing; not a duration")
+    period_fiscal_year: int | None = Field(
+        default=None,
+        description="The fiscal year the period itself belongs to, from period_end and the "
+        "company's fiscal year end",
+    )
+    period_label: str | None = Field(
+        default=None, description='The period as "FY2025" or "Q1 FY2026"; null for other periods'
+    )
     form_type: str | None
     filed_date: date | None
     accession_number: str | None

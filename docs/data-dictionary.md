@@ -78,7 +78,8 @@ from later filings are additional rows, never overwrites.
 | `period_start`, `period_end` | Duration bounds; `period_start` is `null` for instants |
 | `period_type` | `duration` or `instant` |
 | `period_class` | `annual` (350-380 days, from an annual report or another non-quarterly form), `ttm` (350-380 days in a 10-Q: trailing twelve months to a quarter end, since mapping 1.2.0), `quarterly` (80-100 days), `ytd` (160-290 days), `other`. For instants: by form (`10-K`=annual, `10-Q`=quarterly). Derived from the reported dates, **not** from the SEC `fp` label. |
-| `fiscal_year`, `fiscal_period` | SEC `fy`/`fp` of the *filing* that reported the value (a 6-month YTD value carries `fp=Q2`) |
+| `fiscal_year`, `fiscal_period` | SEC `fy`/`fp` of the *filing* that reported the value (a 6-month YTD value carries `fp=Q2`; a 10-K's comparative for last year carries this year's `fy`) |
+| `period_fiscal_year`, `period_label` | The fiscal year the period itself belongs to, and "FY2025" or "Q1 FY2026", from `period_end` and the company's fiscal year end (`app/services/periods.py`); `period_label` is null for ytd and other periods |
 | `form_type`, `filed_date`, `accession_number` | Filing that reported the observation |
 | `source_tag`, `source_taxonomy` | XBRL concept and taxonomy (`us-gaap`) |
 | `source_url` | Filing index URL of the reporting filing |

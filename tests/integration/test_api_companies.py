@@ -344,3 +344,18 @@ def test_former_names_find_the_company(client, auth, db, ingested_aapl):
     store_aliases(db, "0000320193", "Apple Inc.", [])
     db.commit()
     assert client.get("/v1/companies/search?q=apple computer", headers=auth).json()["data"] == []
+
+
+def test_facts_name_the_periods_own_fiscal_year(client, auth, ingested_aapl):
+    # A 10-K reports last year's figure again as a comparative, under its own SEC fy label.
+    body = client.get("/v1/companies/320193/facts?metric=revenue", headers=auth).json()
+    for f in body["data"]:
+        end = f["period_end"]
+        # Apple's year ends in late September, so a year ending 2024-09-28 is fiscal 2024
+        assert f["period_fiscal_year"] == int(end[:4]), f
+        assert f["period_label"] == f"FY{end[:4]}"
+    q = client.get("/v1/companies/320193/facts?metric=revenue&period=quarterly", headers=auth)
+    labels = [f["period_label"] for f in q.json()["data"]]
+    assert labels and all(lbl.startswith("Q") and " FY" in lbl for lbl in labels)
+    spec = client.get("/openapi.json").json()["components"]["schemas"]["FactOut"]["properties"]
+    assert "period_fiscal_year" in spec and "comparative" in spec["fiscal_year"]["description"]

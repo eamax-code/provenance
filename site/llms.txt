@@ -10,6 +10,11 @@
 - Errors: {"error": {"code": str, "message": str, "request_id": str}}. 429 carries Retry-After.
 - Timestamps ISO 8601 UTC with Z. Dates YYYY-MM-DD. Missing data is null, never 0.
 
+## MCP server (for AI agents)
+- POST /mcp  Model Context Protocol, Streamable HTTP transport, JSON responses. Send your key as X-API-Key or Authorization: Bearer; without one the demo key and its limits apply.
+- Tools: search_companies, company_overview, get_figures (as_of), list_filings, rank_companies, search_filings, recent_events, listing_events. Each result keeps source_url and accession_number; cite them.
+- Claude Code: claude mcp add --transport http provenance https://THIS-HOST/mcp --header "X-API-Key: YOUR_KEY"
+
 ## Endpoints
 - GET /v1/companies?exchange=&sic=&state=&ingested=true|false&sort={name|cik|last_processed}&limit<=200&offset=
 - GET /v1/companies/search?q={ticker|cik|name}&limit=1..50  match_type is cik, ticker, name_exact (ignoring Inc., Corp. and the like), name_prefix, name_contains, former_name (with matched_name: "facebook" finds Meta Platforms) or name_fuzzy
@@ -51,6 +56,7 @@
 - Every fact has source_url (SEC filing index), source_tag (XBRL concept), accession_number,
   mapping_version, quality_status in {ok, partial, ambiguous_mapping, invalid_source_value, derived}.
 - period_class is computed from period dates: annual, quarterly, ytd, other. A ytd value is not a quarter.
+- fiscal_year/fiscal_period are the SEC labels of the filing (a 10-K's comparative for last year carries this year's fy). period_fiscal_year and period_label ("FY2025", "Q1 FY2026") name the period itself: use those.
 - derived=true values are computed by subtraction of two reported year-to-date values; cite them as derived.
 - Default facts view returns one observation per period (latest filed); include_all_observations=true shows restatements.
 - accepted_at is the SEC acceptance timestamp when available; source_published_at is always null.
