@@ -168,7 +168,12 @@ def list_companies(
     )
 
 
-@router.get("/search", response_model=CompanyList, responses=_ERRORS)
+@router.get(
+    "/search",
+    response_model=CompanyList,
+    responses=_ERRORS,
+    summary="Find companies by ticker, CIK, name or former name",
+)
 def search(
     q: str = Query(min_length=1, max_length=100, description="Ticker, CIK, or company name"),
     limit: int = Query(10, ge=1, le=50),
@@ -186,6 +191,7 @@ def search(
     "/{cik}",
     response_model=CompanyProfile,
     responses={**_ERRORS, 202: {"model": CompanyProfile, "description": "Ingestion in progress"}},
+    summary="One company: identity, tickers, addresses and filer details",
 )
 def profile(
     request: Request,
@@ -238,7 +244,12 @@ def profile(
     return out
 
 
-@router.get("/{cik}/filings", response_model=FilingList, responses=_ERRORS)
+@router.get(
+    "/{cik}/filings",
+    response_model=FilingList,
+    responses=_ERRORS,
+    summary="A company's SEC filings, newest first, with links",
+)
 def filings(
     cik: str = Path(max_length=13),
     limit: int = Query(20, ge=1, le=100),
@@ -274,7 +285,12 @@ def filings(
     )
 
 
-@router.get("/{cik}/facts", response_model=FactList, responses=_ERRORS)
+@router.get(
+    "/{cik}/facts",
+    response_model=FactList,
+    responses=_ERRORS,
+    summary="Reported financial figures, each with its filing; as_of for point in time",
+)
 def facts(
     cik: str = Path(max_length=13),
     metric: str | None = Query(None, description=f"One of {', '.join(SUPPORTED_METRICS)}"),
@@ -392,7 +408,12 @@ def facts(
     )
 
 
-@router.get("/{cik}/freshness", response_model=FreshnessOut, responses=_ERRORS)
+@router.get(
+    "/{cik}/freshness",
+    response_model=FreshnessOut,
+    responses=_ERRORS,
+    summary="How fresh a company's data is: last fetch, latest filing, status",
+)
 def freshness(
     cik: str = Path(max_length=13),
     db: Session = Depends(db_session),

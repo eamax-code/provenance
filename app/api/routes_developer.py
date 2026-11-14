@@ -125,7 +125,13 @@ def update_profile(
     return _profile(row)
 
 
-@router.get("/usage", response_model=UsageOut, response_model_by_alias=True, responses=_ERRORS)
+@router.get(
+    "/usage",
+    response_model=UsageOut,
+    response_model_by_alias=True,
+    responses=_ERRORS,
+    summary="Your requests by route and by day, against your plan",
+)
 def usage(
     from_: datetime | None = Query(None, alias="from"),
     to: datetime | None = Query(None),

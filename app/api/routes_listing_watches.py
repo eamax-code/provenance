@@ -55,7 +55,13 @@ def _scope(db: Session, scope_type: str, value: str) -> str:
     return value
 
 
-@router.post("", response_model=ListingWatchCreated, status_code=201, responses=_ERRORS)
+@router.post(
+    "",
+    response_model=ListingWatchCreated,
+    status_code=201,
+    responses=_ERRORS,
+    summary="Watch a venue, country or region for new listings and delistings",
+)
 def create_listing_watch(
     body: ListingWatchCreate,
     db: Session = Depends(db_session),
@@ -118,7 +124,7 @@ def _own(db: Session, watch_id: UUID, key: ApiKey) -> ListingWatch:
     return watch
 
 
-@router.get("", response_model=ListingWatchList, responses=_ERRORS)
+@router.get("", response_model=ListingWatchList, responses=_ERRORS, summary="Your listing watches")
 def list_listing_watches(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -144,7 +150,12 @@ def list_listing_watches(
     )
 
 
-@router.delete("/{watch_id}", response_model=ListingWatchOut, responses=_ERRORS)
+@router.delete(
+    "/{watch_id}",
+    response_model=ListingWatchOut,
+    responses=_ERRORS,
+    summary="Stop a listing watch",
+)
 def deactivate_listing_watch(
     watch_id: UUID, db: Session = Depends(db_session), key: ApiKey = Depends(require_api_key)
 ):
@@ -166,7 +177,12 @@ def deactivate_listing_watch(
     return ListingWatchOut.model_validate(watch)
 
 
-@router.get("/{watch_id}/deliveries", response_model=ListingDeliveryList, responses=_ERRORS)
+@router.get(
+    "/{watch_id}/deliveries",
+    response_model=ListingDeliveryList,
+    responses=_ERRORS,
+    summary="Delivery attempts for a listing watch",
+)
 def list_listing_deliveries(
     watch_id: UUID,
     limit: int = Query(50, ge=1, le=100),

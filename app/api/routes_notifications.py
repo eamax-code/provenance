@@ -57,7 +57,13 @@ def validated_destination(destination_type: str, destination: str, settings: Set
     return destination
 
 
-@router.post("/watches", response_model=WatchCreated, status_code=201, responses=_ERRORS)
+@router.post(
+    "/watches",
+    response_model=WatchCreated,
+    status_code=201,
+    responses=_ERRORS,
+    summary="Watch a company: its new filings go to your webhook or email",
+)
 def create_watch(
     body: WatchCreate,
     request: Request,
@@ -132,7 +138,7 @@ def create_watch(
     return out
 
 
-@router.get("/watches", response_model=WatchList, responses=_ERRORS)
+@router.get("/watches", response_model=WatchList, responses=_ERRORS, summary="Your watches")
 def list_watches(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -158,7 +164,9 @@ def list_watches(
     )
 
 
-@router.delete("/watches/{watch_id}", response_model=WatchOut, responses=_ERRORS)
+@router.delete(
+    "/watches/{watch_id}", response_model=WatchOut, responses=_ERRORS, summary="Stop a watch"
+)
 def deactivate_watch(
     watch_id: UUID,
     db: Session = Depends(db_session),
@@ -186,7 +194,12 @@ def deactivate_watch(
     return WatchOut.model_validate(watch)
 
 
-@router.get("/watches/{watch_id}/deliveries", response_model=DeliveryList, responses=_ERRORS)
+@router.get(
+    "/watches/{watch_id}/deliveries",
+    response_model=DeliveryList,
+    responses=_ERRORS,
+    summary="Delivery attempts for a watch, with status codes",
+)
 def list_deliveries(
     watch_id: UUID,
     limit: int = Query(50, ge=1, le=100),

@@ -39,7 +39,12 @@ NOTES = [
 ]
 
 
-@router.get("/", response_model=MarketList, responses=_ERRORS, summary="Venues covered")
+@router.get(
+    "/",
+    response_model=MarketList,
+    responses=_ERRORS,
+    summary="Venues covered in Canada, the UK and the EU, with counts",
+)
 def markets(db: Session = Depends(db_session), _key=Depends(require_reader)):
     rows = db.scalars(select(Market).order_by(Market.region, Market.country, Market.mic)).all()
     counts = {
@@ -68,7 +73,12 @@ def markets(db: Session = Depends(db_session), _key=Depends(require_reader)):
     return MarketList(data=out, notes=NOTES)
 
 
-@router.get("/instruments", response_model=InstrumentList, responses=_ERRORS)
+@router.get(
+    "/instruments",
+    response_model=InstrumentList,
+    responses=_ERRORS,
+    summary="Listed instruments by venue, country, region, status or name",
+)
 def instruments(
     mic: str | None = Query(None, min_length=4, max_length=4),
     country: str | None = Query(None, min_length=2, max_length=2),
@@ -126,7 +136,12 @@ def instruments(
     )
 
 
-@router.get("/instruments/{isin}", response_model=InstrumentDetail, responses=_ERRORS)
+@router.get(
+    "/instruments/{isin}",
+    response_model=InstrumentDetail,
+    responses=_ERRORS,
+    summary="One instrument's listings across venues and its issuer",
+)
 def instrument(
     isin: str = Path(min_length=12, max_length=12),
     db: Session = Depends(db_session),
@@ -156,7 +171,12 @@ def instrument(
     )
 
 
-@router.get("/events", response_model=ListingEventList, responses=_ERRORS)
+@router.get(
+    "/events",
+    response_model=ListingEventList,
+    responses=_ERRORS,
+    summary="New listings, delistings, suspensions and changes",
+)
 def events(
     type: str | None = Query(None, alias="type", description=", ".join(EVENT_TYPES)),
     mic: str | None = Query(None, min_length=4, max_length=4),
@@ -208,7 +228,12 @@ def events(
     )
 
 
-@router.get("/issuers/{lei}", response_model=IssuerDetail, responses=_ERRORS)
+@router.get(
+    "/issuers/{lei}",
+    response_model=IssuerDetail,
+    responses=_ERRORS,
+    summary="An issuer by LEI, with its listed instruments",
+)
 def issuer(
     lei: str = Path(min_length=20, max_length=20),
     db: Session = Depends(db_session),
