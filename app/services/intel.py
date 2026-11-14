@@ -160,9 +160,11 @@ def _names_it(hit, phrase: str) -> bool:
     "active" is not Active Network Inc.); tickers and exact names always count."""
     if hit.match_type == "former_name":
         # "Facebook" names Meta Platforms; "book" or a common word inside an old name does not.
+        # One capitalised word that only starts an old name ("France" in "France Telecom") is
+        # too weak; the start of an old name must be at least two words ("Philip Morris").
         core = core_name(hit.former_name or "")
         return core == phrase.lower() or (
-            phrase[:1].isupper() and core.startswith(phrase.lower() + " ")
+            phrase[:1].isupper() and " " in phrase.strip() and core.startswith(phrase.lower() + " ")
         )
     if hit.match_type not in ("name_prefix", "name_exact"):
         return True

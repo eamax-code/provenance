@@ -561,3 +561,24 @@ def test_a_former_name_resolves_but_never_beats_a_current_name(db, ingested_aapl
     db.commit()
     assert intel.resolve_company(db, "What did apple computer earn?").cik == "0000320193"
     assert intel.resolve_company(db, "Is the computer business growing?") is None
+
+
+def test_an_answer_that_cites_nothing_is_withheld(app, client, auth, items_aapl):
+    # The model answering from general knowledge, with no citation of the filings.
+    app.state.llm_factory = lambda: FakeLLM("The capital of France is Paris.")
+    body = client.post("/v1/chat", json={"message": "Apple: what is the capital of France?"},
+                       headers=auth).json()  # fmt: skip
+    assert "Paris" not in body["answer"] and "do not answer that" in body["answer"]
+    assert body["checks"]["withheld"] == "The capital of France is Paris."
+    assert body["checks"]["citations_used"] == []
+
+
+def test_one_word_that_only_starts_a_former_name_picks_no_company(client, db, ingested_aapl):
+    from app.services import intel
+    from app.services.ingestion import store_aliases
+
+    store_aliases(db, "0000320193", "Apple Inc.", [("FRANCE TELECOM", None, None)])
+    db.commit()
+    assert intel.resolve_company(db, "What is the capital of France?") is None
+    hit = intel.resolve_company(db, "France Telecom revenue")
+    assert hit is not None and hit.cik == "0000320193"  # the whole old name still works
