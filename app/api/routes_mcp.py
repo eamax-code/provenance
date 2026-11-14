@@ -272,7 +272,8 @@ async def call_tool(request: Request, name: str, args: dict[str, Any]) -> dict[s
     }
     transport = httpx.ASGITransport(app=request.app, client=(client_ip(request), 0))
     async with httpx.AsyncClient(transport=transport, base_url="http://mcp.internal") as http:
-        r = await http.get(path, params=params, headers={"X-API-Key": _caller_key(request)})
+        headers = {"X-API-Key": _caller_key(request), "X-Provenance-Channel": "mcp"}
+        r = await http.get(path, params=params, headers=headers)
     try:
         body = r.json()
     except ValueError:

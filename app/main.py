@@ -48,6 +48,7 @@ COMPANY_LAYOUTS = ("snapshot", "report", "dossier")
 COMPANY_LAYOUT_COOKIE = "company_layout"
 
 logger = logging.getLogger("app.http")
+MCP_CHANNEL_HEADER = "x-provenance-channel"
 
 # Static files are not fingerprinted, so they are cached for an hour and then revalidated with
 # their ETag; pages are always revalidated so a deploy shows at once (GH #21).
@@ -102,6 +103,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 response.headers["Cache-Control"] = policy
         route = request.scope.get("route")
         route_template = getattr(route, "path", request.url.path)
+        if request.headers.get(MCP_CHANNEL_HEADER) == "mcp":
+            route_template += " (mcp)"  # calls an agent made through the MCP server (GH #22)
         api_key_id = getattr(request.state, "api_key_id", None)
         if api_key_id is not None:
             try:
