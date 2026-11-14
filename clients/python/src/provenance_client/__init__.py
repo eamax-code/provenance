@@ -1,6 +1,5 @@
 """Python client for the Provenance API."""
 
-from provenance_client.client import Client, ProvenanceError, to_dataframe
+from provenance_client.client import Client, ProvenanceError, __version__, to_dataframe
 
-__all__ = ["Client", "ProvenanceError", "to_dataframe"]
-__version__ = "0.1.0"
+__all__ = ["Client", "ProvenanceError", "__version__", "to_dataframe"]

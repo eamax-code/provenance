@@ -5,8 +5,12 @@ point-in-time queries, Canada/EU/UK listing events, and the live event feed. Dep
 only; `pandas` is optional.
 
 ```bash
-pip install "provenance-client[pandas] @ git+https://github.com/eamax-code/provenance#subdirectory=clients/python"
+pip install "provenance-client[pandas]"   # once published to PyPI
+pip install "provenance-client[pandas] @ git+https://github.com/eamax-code/provenance#subdirectory=clients/python"   # until then
 ```
+
+The client's version matches the API version it was released with; see `CHANGELOG.md`.
+Releases are published by pushing a `client-v<version>` tag.
 
 ```python
 from provenance_client import Client, to_dataframe

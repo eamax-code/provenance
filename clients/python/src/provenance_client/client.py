@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 
+__version__ = "0.1.0"  # kept equal to the API version (tests/unit/test_client_release.py)
 DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 _RETRY_STATUSES = {429, 500, 502, 503, 504}
 
@@ -90,7 +91,11 @@ class Client:
 
     @property
     def _headers(self) -> dict[str, str]:
-        return {"X-API-Key": self.api_key, "Accept": "application/json"}
+        return {
+            "X-API-Key": self.api_key,
+            "Accept": "application/json",
+            "User-Agent": f"provenance-client/{__version__} python-httpx/{httpx.__version__}",
+        }
 
     def get(self, path: str, **params: Any) -> dict:
         """GET a path under the API, retrying 429/5xx with Retry-After or backoff."""
