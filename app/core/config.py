@@ -87,6 +87,10 @@ class Settings(BaseSettings):
     # Local language model (Ollama API) for the company-intelligence chat and extraction.
     # Off by default; the chat still returns the deterministic brief without it.
     llm_enabled: bool = False
+    # "ollama" (a model on our own host) or "openai" (any OpenAI-compatible chat completions API,
+    # e.g. a hosted model; set LLM_BASE_URL to its /v1 root and LLM_API_KEY). GH #13.
+    llm_provider: Literal["ollama", "openai"] = "ollama"
+    llm_api_key: str = ""
     llm_base_url: str = "http://127.0.0.1:11434"
     llm_model: str = "qwen3:4b-instruct"
     llm_timeout_seconds: float = 90.0
@@ -190,6 +194,10 @@ class Settings(BaseSettings):
             problems.append("SQLite is not supported in production; use PostgreSQL")
         if self.is_production and self.webhook_allow_private_destinations:
             problems.append("WEBHOOK_ALLOW_PRIVATE_DESTINATIONS must be false in production")
+        if self.llm_enabled and self.llm_provider == "openai" and not self.llm_api_key:
+            problems.append("LLM_PROVIDER=openai needs LLM_API_KEY")
+        if self.is_production and self.email_provider == "console":
+            problems.append("EMAIL_PROVIDER=console is for development; use smtp in production")
         return problems
 
 

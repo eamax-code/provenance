@@ -1,4 +1,6 @@
-"""Local language model client (Ollama HTTP API). Nothing leaves the machine it runs on.
+"""Language model client. By default a local model over the Ollama HTTP API, so nothing leaves
+the machine it runs on; LLM_PROVIDER=openai talks to any OpenAI-compatible chat completions API
+instead (a hosted model, GH #13), with the same prompts and the same checks on every answer.
 
 Default model: Qwen3 4B Instruct 2507 (Apache-2.0, non-thinking), small enough for a laptop
 or a modest CPU/GPU host.
@@ -74,6 +76,8 @@ class LocalLLM:
         }
         if schema is not None:
             body["format"] = schema
+        if self.settings.llm_provider == "openai":
+            return self._openai(body, schema, timeout)
         started = time.monotonic()
         limit = httpx.Timeout(timeout, connect=3.0) if timeout else httpx.USE_CLIENT_DEFAULT
         try:
@@ -92,4 +96,39 @@ class LocalLLM:
             duration_ms=int((time.monotonic() - started) * 1000),
             output_tokens=data.get("eval_count"),
             thinking=message.get("thinking") or "",
+        )
+
+    def _openai(self, body: dict, schema: dict | None, timeout: float | None) -> LLMReply:
+        """The same request to an OpenAI-compatible /chat/completions endpoint."""
+        payload: dict = {
+            "model": body["model"],
+            "messages": body["messages"],
+            "temperature": body["options"]["temperature"],
+            "max_tokens": body["options"]["num_predict"],
+        }
+        if schema is not None:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": "answer", "schema": schema},
+            }
+        headers = {"Authorization": f"Bearer {self.settings.llm_api_key}"}
+        started = time.monotonic()
+        limit = httpx.Timeout(timeout, connect=5.0) if timeout else httpx.USE_CLIENT_DEFAULT
+        url = self.settings.llm_base_url.rstrip("/") + "/chat/completions"
+        try:
+            r = self.http.post(url, json=payload, headers=headers, timeout=limit)
+        except httpx.HTTPError as exc:
+            raise LLMUnavailable("The language model service could not be reached.") from exc
+        if r.status_code != 200:
+            raise LLMUnavailable(f"The language model service returned HTTP {r.status_code}.")
+        data = r.json()
+        choice = (data.get("choices") or [{}])[0]
+        message = choice.get("message") or {}
+        usage = data.get("usage") or {}
+        return LLMReply(
+            text=strip_reasoning(message.get("content") or ""),
+            model=data.get("model", payload["model"]),
+            duration_ms=int((time.monotonic() - started) * 1000),
+            output_tokens=usage.get("completion_tokens"),
+            thinking=message.get("reasoning_content") or message.get("reasoning") or "",
         )
