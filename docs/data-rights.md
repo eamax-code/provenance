@@ -28,6 +28,8 @@ Added 2026-10-22 (ADR 0006). Identity and listing lifecycle only; no financial s
 | GLEIF, `https://api.gleif.org/` | "The data available through the Access Service are provided under the CC0 licence"; no suggestion of GLEIF endorsement | Issuer legal identity by LEI |
 | TSX / TSXV, `https://www.tsx.com/json/company-directory/` | Licence "to view and print the material … for your non-commercial or personal use only"; "you may not use, distribute, sell, modify … information, data … without TMX's prior written permission" | Adapter shipped **disabled**; enable only with written permission from TMX |
 | CSE, `https://thecse.com/api/webapi/listed-companies/` | "You may not … copy, reproduce, republish … distribute … for any purpose other than personal, non-commercial use, without prior written consent from the CSE" | Adapter shipped **disabled**; enable only with written consent |
+| GDELT DOC 2.0, `https://api.gdeltproject.org/api/v2/doc/doc` | GDELT data is free for academic, commercial and governmental use, with attribution to the GDELT Project | Headlines (title, publisher, date, link) for chat forecasts in production (`NEWS_PROVIDER=gdelt`); never served through the API |
+| Google News RSS | Personal, non-commercial use | Development only; `/readyz` reports it as a problem in production |
 | SEDAR+, Cboe Canada, LSE, Euronext, SIX, Nasdaq Nordic | Automated access and/or redistribution prohibited without licence | Not used |
 
 Attribution shown on listing endpoints and pages: "Listing data from ESMA FIRDS, FCA FIRDS and

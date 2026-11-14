@@ -115,7 +115,7 @@
       </section>
       <section id="news" aria-labelledby="news-h">
         <h2 id="news-h">News headlines in chat forecasts</h2>
-        <p>Forecast answers in chat may read recent headlines from Google News RSS to inform an estimate, and cite them. Its terms allow personal, non-commercial use, so this feature will move to another source before paid plans open (GH #14). Headlines are never stored as data or served through the API.</p>
+        <p>Forecast answers in chat may read recent headlines to inform an estimate, and cite each one. In production they come from the <a href="https://www.gdeltproject.org/">GDELT Project</a>'s open news index, which may be used commercially with attribution. Development copies may use Google News RSS, which is for personal, non-commercial use and is refused in production. Only the headline, publisher, date and link are read, never the article. Headlines are not stored as data or served through the API, and a headline is never treated as a fact.</p>
       </section>
       <section id="not" aria-labelledby="not-h">
         <h2 id="not-h">What is not here</h2>

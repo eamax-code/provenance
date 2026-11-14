@@ -2,8 +2,9 @@
 
 Only the headline, publisher, date and link are used, never article text, and each headline is
 cited. Headlines are untrusted data: they are shown to the model as data and never followed as
-instructions. The default provider is Google News RSS, whose terms allow personal,
-non-commercial use; a commercial deployment swaps in a licensed provider with `search()`.
+instructions. Google News RSS (the development default) allows personal, non-commercial use
+only; production uses the GDELT Project's open index (NEWS_PROVIDER=gdelt), which is free for
+commercial use with attribution. Any other provider plugs in with `search()`.
 """
 
 from __future__ import annotations
@@ -118,6 +119,72 @@ class GoogleNewsRSS:
         if r.status_code != 200:
             raise NewsUnavailable(f"The news feed returned HTTP {r.status_code}.")
         return parse_rss(r.text, limit)
+
+
+class GdeltDoc:
+    """The GDELT DOC 2.0 article index. It matches full text, so more articles are asked for and
+    only those whose headline carries the query's quoted name or phrase are kept."""
+
+    BASE = "https://api.gdeltproject.org/api/v2/doc/doc"
+    FETCH = 50
+
+    def __init__(self, settings: Settings, http: httpx.Client | None = None) -> None:
+        self.http = http or httpx.Client(timeout=settings.news_timeout_seconds)
+
+    def search(self, query: str, limit: int) -> list[Headline]:
+        params = {
+            "query": f"{query} sourcelang:english",
+            "mode": "artlist",
+            "format": "json",
+            "maxrecords": str(self.FETCH),
+            "timespan": "30d",
+            "sort": "datedesc",
+        }
+        try:
+            r = self.http.get(self.BASE, params=params)
+        except httpx.HTTPError as exc:
+            raise NewsUnavailable("The news index could not be reached.") from exc
+        if r.status_code != 200:
+            raise NewsUnavailable(f"The news index returned HTTP {r.status_code}.")
+        try:
+            articles = r.json().get("articles") or []
+        except ValueError as exc:  # GDELT answers errors in plain text
+            raise NewsUnavailable("The news index could not be read.") from exc
+        return parse_gdelt(articles, query, limit)
+
+
+def _gdelt_title(text: str) -> str:
+    """GDELT spaces out punctuation ("$1 . 57 million", "boom , but"); put it back."""
+    text = re.sub(r"(\d) \. (\d)", r"\1.\2", text)
+    text = re.sub(r" ([,.:;!?%])", r"\1", text)
+    text = re.sub(r"\$ (\d)", r"$\1", text)
+    return _clean(text)
+
+
+def parse_gdelt(articles: list, query: str, limit: int) -> list[Headline]:
+    wanted = [w.lower() for w in re.findall(r'"([^"]+)"', query)]
+    out, seen = [], set()
+    for a in articles:
+        if not isinstance(a, dict):
+            continue
+        title = _gdelt_title(str(a.get("title") or ""))
+        url = str(a.get("url") or "").strip()
+        if not title or not url.startswith("https://") or title.lower() in seen:
+            continue
+        if wanted and not any(w in title.lower() for w in wanted):
+            continue
+        day = str(a.get("seendate") or "")[:8]
+        published = f"{day[:4]}-{day[4:6]}-{day[6:8]}" if day.isdigit() else ""
+        seen.add(title.lower())
+        out.append(Headline(title=title, source=_clean(str(a.get("domain") or ""), 80),
+                            published=published, url=url))  # fmt: skip
+        if len(out) >= limit:
+            break
+    return out
+
+
+def provider_for(settings: Settings) -> NewsProvider:
+    return GdeltDoc(settings) if settings.news_provider == "gdelt" else GoogleNewsRSS(settings)
 
 
 def company_query(legal_name: str) -> str:

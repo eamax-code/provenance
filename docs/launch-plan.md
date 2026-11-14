@@ -78,10 +78,14 @@ In the order they unblock things:
 2. **Email provider (06).** Sign-in links depend on it. Until then, sign-in points visitors to
    the key request form.
 3. **Where the model runs (GH #13).** Chat already answers figures, trends, rankings and tables
-   from data without a model; the model adds written answers, summaries and forecasts. Options:
-   a hosted API with a budget cap, or no model at launch.
-4. **News for forecasts (GH #14).** Google News RSS is personal-use only; switch to GDELT, a
-   licensed feed, or turn forecasts' news off for the pilot.
+   from data without a model; the model adds written answers, summaries and forecasts. Any
+   OpenAI-compatible hosted API is now a settings change (`LLM_PROVIDER=openai`, `LLM_BASE_URL`,
+   `LLM_API_KEY`, `LLM_MODEL`); the other options are a GPU host for the local model, or no model
+   at launch.
+4. **News for forecasts (GH #14).** Done in code: `NEWS_PROVIDER=gdelt` (the GDELT Project's
+   open index, commercial use allowed with attribution) is set in the deploy files, and
+   production refuses Google News RSS. Your call: keep GDELT (noisier, some low-quality
+   publishers), buy a licensed feed, or set `NEWS_ENABLED=false` so forecasts use filings only.
 5. **Legal review and final name (05)** before paid plans; the draft legal pages are up at
    `/legal/` with bracketed notes for counsel.
 6. **Billing (GH #16)** can wait until the first design partner wants to pay.

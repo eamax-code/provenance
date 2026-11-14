@@ -175,7 +175,7 @@ def test_draft_legal_pages_are_linked_from_every_footer(client):
         "terms": "not investment",
         "privacy": "prv_session",
         "acceptable-use": "rate limits",
-        "data-sources": "GH #14",
+        "data-sources": "GDELT Project",
     }
     for slug, needle in needles.items():
         r = client.get(f"/legal/{slug}/")

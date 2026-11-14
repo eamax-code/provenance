@@ -24,6 +24,8 @@ services:
         value: "320193,789019,1652044,1018724,1045810,1326801,1318605,1065280,1067983,19617,1403161,104169"
       - key: PUBLIC_BASE_URL
         sync: false
+      - key: NEWS_PROVIDER
+        value: gdelt
   # Daily international-listings job as a native cron (so the worker does not also run it).
   - type: cron
     name: provenance-markets-daily

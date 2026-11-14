@@ -103,6 +103,9 @@ class Settings(BaseSettings):
     llm_reasoning_tokens: int = 2500
     # Headlines for forecasts (Google News RSS; personal, non-commercial use only).
     news_enabled: bool = True
+    # "google_rss" is personal, non-commercial use only (development); "gdelt" is the GDELT
+    # Project's open index, free for commercial use with attribution (production). GH #14.
+    news_provider: Literal["google_rss", "gdelt"] = "google_rss"
     news_cache_dir: str = ".news_cache"
     news_cache_hours: float = 6.0
     news_timeout_seconds: float = 10.0
@@ -196,6 +199,8 @@ class Settings(BaseSettings):
             problems.append("WEBHOOK_ALLOW_PRIVATE_DESTINATIONS must be false in production")
         if self.llm_enabled and self.llm_provider == "openai" and not self.llm_api_key:
             problems.append("LLM_PROVIDER=openai needs LLM_API_KEY")
+        if self.is_production and self.news_enabled and self.news_provider == "google_rss":
+            problems.append("NEWS_PROVIDER=google_rss is non-commercial; use gdelt in production")
         if self.is_production and self.email_provider == "console":
             problems.append("EMAIL_PROVIDER=console is for development; use smtp in production")
         return problems

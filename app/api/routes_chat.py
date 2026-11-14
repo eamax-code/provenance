@@ -254,7 +254,7 @@ def _read_leadership_filings(request, db, settings, company, as_of) -> None:
 
 def get_news(request: Request, settings: Settings) -> news.NewsProvider:
     factory = getattr(request.app.state, "news_factory", None)
-    return factory() if factory else news.GoogleNewsRSS(settings)
+    return factory() if factory else news.provider_for(settings)
 
 
 def _forecast_evidence(request, db, settings, brief, metric):
