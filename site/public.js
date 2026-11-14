@@ -57,19 +57,19 @@
       if (!res.ok) throw new Error(res.status);
       var d = res.body; grid.innerHTML = '';
       var kv = function (k, v) { grid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
-      kv('US filings health', d.service.health); kv('version', d.service.version);
-      kv('companies', fmtInt(d.companies.ingested) + ' ingested / ' + fmtInt(d.companies.known) + ' known'); kv('filings', fmtInt(d.filings.total) + ' (' + fmtInt(d.filings.with_acceptance_timestamp) + ' with SEC acceptance time)');
-      kv('facts', fmtInt(d.facts.total)); kv('facts by quality', Object.keys(d.facts.by_quality).sort().map(function (k) { return k + ' ' + fmtInt(d.facts.by_quality[k]); }).join(' · ') || '—');
-      kv('last successful SEC fetch', fmtTs(d.freshness.last_successful_fetch_at)); kv('poll interval', d.freshness.poll_interval_seconds + ' s');
-      kv('last ingestion run', (d.ingestion.last_run_status || 'none') + ' · ' + fmtTs(d.ingestion.last_run_finished_at)); kv('notifications', fmtInt(d.notifications.delivered_total) + ' delivered · ' + fmtInt(d.notifications.pending_deliveries) + ' pending · ' + fmtInt(d.notifications.failed_total) + ' failed');
+      kv('US filings health', d.service.health); kv('Version', d.service.version);
+      kv('Companies', fmtInt(d.companies.ingested) + ' ingested / ' + fmtInt(d.companies.known) + ' known'); kv('Filings', fmtInt(d.filings.total) + ' (' + fmtInt(d.filings.with_acceptance_timestamp) + ' with SEC acceptance time)');
+      kv('Facts', fmtInt(d.facts.total)); kv('Facts by quality', Object.keys(d.facts.by_quality).sort().map(function (k) { return k.replace(/_/g, ' ') + ' ' + fmtInt(d.facts.by_quality[k]); }).join(' · ') || '—');
+      kv('Last successful SEC fetch', fmtTs(d.freshness.last_successful_fetch_at)); kv('Poll interval', d.freshness.poll_interval_seconds + ' s');
+      kv('Last ingestion run', (d.ingestion.last_run_status || 'none') + (d.ingestion.last_run_finished_at ? ' · ' + fmtTs(d.ingestion.last_run_finished_at) : '')); kv('Notifications', fmtInt(d.notifications.delivered_total) + ' delivered · ' + fmtInt(d.notifications.pending_deliveries) + ' pending · ' + fmtInt(d.notifications.failed_total) + ' failed');
       var q = d.quality_snapshot, qgrid = $('quality-kv'); qgrid.innerHTML = '';
       if (!q) { setState('quality-state', 'No quality snapshot yet; one is written at the end of each ingestion run.'); }
       else {
         setState('quality-state', '');
         var qkv = function (k, v) { qgrid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
-        qkv('taken at', fmtTs(q.taken_at)); qkv('stale companies', fmtInt(q.companies.stale)); qkv('duplicate filings', fmtInt(q.filings.duplicates));
-        qkv('facts with full provenance', q.facts.with_provenance_pct == null ? 'null (no facts)' : q.facts.with_provenance_pct + '%'); qkv('ambiguous mappings', fmtInt(q.facts.by_quality.ambiguous_mapping)); qkv('invalid source values', fmtInt(q.facts.by_quality.invalid_source_value));
-        qkv('oldest pending delivery', q.notifications.oldest_pending_age_seconds == null ? 'none' : q.notifications.oldest_pending_age_seconds + ' s'); qkv('universe', fmtInt(q.universe.active) + ' active · ' + fmtInt(q.universe.due) + ' due · ' + fmtInt(q.universe.disabled) + ' disabled');
+        qkv('Taken at', fmtTs(q.taken_at)); qkv('Stale companies', fmtInt(q.companies.stale)); qkv('Duplicate filings', fmtInt(q.filings.duplicates));
+        qkv('Facts with full provenance', q.facts.with_provenance_pct == null ? 'none (no facts)' : q.facts.with_provenance_pct + '%'); qkv('Ambiguous mappings', fmtInt(q.facts.by_quality.ambiguous_mapping)); qkv('Invalid source values', fmtInt(q.facts.by_quality.invalid_source_value));
+        qkv('Oldest pending delivery', q.notifications.oldest_pending_age_seconds == null ? 'none' : q.notifications.oldest_pending_age_seconds + ' s'); qkv('Universe', fmtInt(q.universe.active) + ' active · ' + fmtInt(q.universe.due) + ' due · ' + fmtInt(q.universe.disabled) + ' disabled');
       }
       var g = $('status-generated'); if (g) g.textContent = 'generated ' + fmtTs(d.generated_at) + ' · cached ' + d.cache_ttl_seconds + ' s';
       var L = d.listings || {}, lgrid = $('listings-kv');
@@ -77,9 +77,9 @@
         lgrid.innerHTML = '';
         var lkv = function (k, v) { lgrid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
         var evs = L.events_by_type || {};
-        lkv('venues covered', fmtInt(L.venues)); lkv('instruments tracked', fmtInt(L.instruments));
-        lkv('events by type', Object.keys(evs).sort().map(function (k) { return k + ' ' + fmtInt(evs[k]); }).join(' · ') || 'none yet');
-        lkv('latest event detected', fmtTs(L.latest_event_detected_at));
+        lkv('Venues covered', fmtInt(L.venues)); lkv('Instruments tracked', fmtInt(L.instruments));
+        lkv('Events by type', Object.keys(evs).sort().map(function (k) { return k.replace(/_/g, ' ') + ' ' + fmtInt(evs[k]); }).join(' · ') || 'none yet');
+        lkv('Latest event detected', fmtTs(L.latest_event_detected_at));
         setState('listings-status-state', (L.instruments || 0) > 0 ? '' : 'No international listings ingested yet. Run scripts/ingest_markets.py --all.');
       }
       var usEmpty = d.service.health === 'empty';

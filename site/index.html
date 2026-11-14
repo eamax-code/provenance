@@ -478,7 +478,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       <p class="intro">Explore public companies, access structured financial intelligence, and ask questions across company filings. Every number comes with its source.</p>
       <div class="actions">
         <a class="button" href="/companies/">Explore companies</a>
-        <a class="button quiet" href="#contact">Get API access</a>
+        <a class="button quiet" href="/account/">Get a free API key</a>
       </div>
       <ul class="proof" aria-label="At a glance">
         <li>US public companies</li>
@@ -838,8 +838,8 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       <h2 id="build-title" class="h2-long"><span>Financial intelligence</span> <span>you can verify.</span></h2>
       <p>One API with structured data and traceable sources, ready for your apps and your AI agents.</p>
       <div class="actions">
-        <a class="button" href="#contact">Get API key</a>
-        <a class="button light" href="/docs">Read documentation</a>
+        <a class="button" href="/account/">Get API key</a>
+        <a class="button light" href="/developers/">Read documentation</a>
       </div>
     </div>
     <div class="code">
@@ -928,7 +928,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
   <div class="coupon" data-reveal>
     <div class="left">
       <h2 id="contact-title">Ask for a pilot key</h2>
-      <p>Pilot keys are issued by hand while we measure real latency and data quality. Your key is sent once to this address, and we send no marketing email.</p>
+      <p>Free keys are self-serve on <a href="/account/">your account page</a>. For Builder or Team during the pilot, tell us what you are building: those keys are issued by hand while we measure real latency and data quality. We send no marketing email.</p>
     </div>
     <form id="key-request-form" action="/v1/developer/key-requests" method="post" novalidate>
       <label class="vh" for="kr-email">Work email</label>
@@ -1234,7 +1234,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 
   /* pricing: one stage that shows the selected plan */
   var PLANS = {
-    free: { monthly: 0, annual: 0, for: 'For trying the schema, building a prototype or running an agent demo.', extra: ['OpenAPI, llms.txt and sample code'], action: 'Request a free key' },
+    free: { monthly: 0, annual: 0, for: 'For trying the schema, building a prototype or running an agent demo.', extra: ['OpenAPI, llms.txt, the MCP server and the Python client'], action: 'Get a free key' },
     builder: { monthly: 49, annual: 41, for: 'For indie fintech, research tooling and one production AI app.', extra: ['Email support within two business days'], action: 'Start Builder' },
     team: { monthly: 199, annual: 166, for: 'For analytics products and data teams watching a defined list of companies.', extra: ['Priority support, usage reports and a measured freshness report for your watch list'], action: 'Start Team' },
     enterprise: { custom: true, for: 'For dedicated polling lists, custom quotas, invoicing and a data-rights review.', extra: ['Dedicated ingestion schedule for your companies', 'Contract terms and security questionnaire', 'Joint legal review before bulk redistribution'], action: 'Talk to us' }
@@ -1266,6 +1266,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       $('plan-for').textContent = p.for;
       $('plan-limits').innerHTML = limitsList(name).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
       $('plan-action').textContent = p.action;
+      $('plan-action').href = name === 'free' ? '/account/' : '#contact';  // paid plans are arranged by hand in the pilot
     };
     if (animate === 'billing') glide($('plan-price').parentNode, yearly ? 1 : -1, paint);
     else if (animate) glide(st, dir, paint);
