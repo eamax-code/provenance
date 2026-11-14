@@ -72,7 +72,8 @@ def require_api_key(
         raise APIError(
             429,
             "quota_exceeded",
-            "Monthly request quota exceeded for this plan.",
+            "Monthly request quota exceeded for this plan. It resets at the start of the next UTC "
+            "month; plans with more requests are listed at /#pricing.",
             headers={"Retry-After": str(int((next_month - now).total_seconds()))},
         )
     key.last_used_at = datetime.now(UTC)
