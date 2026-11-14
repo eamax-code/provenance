@@ -234,3 +234,26 @@ def test_retention_removes_old_sign_in_links_and_ended_sessions(db, settings):
     assert counts["sign_in_tokens"] == 1 and counts["account_sessions"] == 2
     assert {t.token_hash for t in db.query(SignInToken)} == {"fresh"}
     assert {s.token_hash for s in db.query(AccountSession)} == {"s-live"}
+
+
+def test_latency_counts_new_arrivals_only_and_measures_acceptance_to_detection(
+    db, settings, sec_client
+):
+    from app.db.models import Filing
+
+    ingest_company(db, sec_client, "320193")
+    now = datetime.now(UTC)
+    filings = db.scalars(select(Filing).order_by(Filing.accession_number)).all()
+    new, old = filings[:2], filings[2:]
+    for i, f in enumerate(new):  # filed 10 and 20 minutes before we saw them
+        f.accepted_at = now - timedelta(hours=1)
+        f.first_detected_at = f.accepted_at + timedelta(minutes=10 * (i + 1))
+        f.processed_at = f.first_detected_at + timedelta(seconds=5)
+    for f in old:  # a bulk reload: seen long ago, processed again just now
+        f.first_detected_at = now - timedelta(days=30)
+        f.processed_at = now - timedelta(minutes=1)
+    db.commit()
+    snap = quality.take_snapshot(db, settings, now=now)
+    assert snap.processed_24h == 2 and snap.detect_to_process_p95_s == 5
+    assert snap.accept_to_detect_p50_s == 600 and snap.accept_to_detect_p95_s == 1200
+    assert quality.snapshot_to_dict(snap)["latency"]["accept_to_detect_p50_seconds"] == 600

@@ -145,6 +145,7 @@ def take_snapshot(
     )
     latency = detect_to_process(db, day_ago)
     snap.detect_to_process_p50_s, snap.detect_to_process_p95_s, snap.processed_24h = latency
+    snap.accept_to_detect_p50_s, snap.accept_to_detect_p95_s = accept_to_detect(db, day_ago)
     db.add(snap)
     db.flush()
     return snap
@@ -160,11 +161,16 @@ def percentile(sorted_values: list[float], q: float) -> float:
 
 
 def detect_to_process(db: Session, since: datetime) -> tuple[int | None, int | None, int]:
-    """Median and 95th percentile seconds from first detection to processing, for filings
-    processed since then, and their count."""
+    """Median and 95th percentile seconds from first detection to processing, for filings first
+    detected since then, and their count. Older filings processed again (a bulk reload) are not
+    new arrivals and would make the wait look like days."""
     rows = db.execute(
         select(Filing.first_detected_at, Filing.processed_at)
-        .where(Filing.processed_at >= since, Filing.processed_at.is_not(None))
+        .where(
+            Filing.first_detected_at >= since,
+            Filing.processed_at >= since,
+            Filing.processed_at.is_not(None),
+        )
         .limit(LATENCY_SAMPLE)
     ).all()
     waits = sorted(
@@ -173,6 +179,27 @@ def detect_to_process(db: Session, since: datetime) -> tuple[int | None, int | N
     if not waits:
         return None, None, 0
     return round(percentile(waits, 0.5)), round(percentile(waits, 0.95)), len(waits)
+
+
+def accept_to_detect(db: Session, since: datetime) -> tuple[int | None, int | None]:
+    """Median and 95th percentile seconds from SEC acceptance to first detection, for filings
+    first detected since then. Filings from a backfill (accepted long before) are excluded by
+    only counting acceptances within the same window plus a day."""
+    rows = db.execute(
+        select(Filing.accepted_at, Filing.first_detected_at)
+        .where(
+            Filing.first_detected_at >= since,
+            Filing.accepted_at.is_not(None),
+            Filing.accepted_at >= since - timedelta(days=1),
+        )
+        .limit(LATENCY_SAMPLE)
+    ).all()
+    waits = sorted(
+        max(0.0, (_utc(seen) - _utc(acc)).total_seconds()) for acc, seen in rows if acc and seen
+    )
+    if not waits:
+        return None, None
+    return round(percentile(waits, 0.5)), round(percentile(waits, 0.95))
 
 
 def _utc(value: datetime) -> datetime:
@@ -220,6 +247,8 @@ def snapshot_to_dict(snap: DataQualitySnapshot) -> dict:
             "filings_processed_24h": snap.processed_24h,
             "detect_to_process_p50_seconds": snap.detect_to_process_p50_s,
             "detect_to_process_p95_seconds": snap.detect_to_process_p95_s,
+            "accept_to_detect_p50_seconds": snap.accept_to_detect_p50_s,
+            "accept_to_detect_p95_seconds": snap.accept_to_detect_p95_s,
         },
         "universe": {
             "active": snap.universe_active,

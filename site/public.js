@@ -67,6 +67,10 @@
       else {
         setState('quality-state', '');
         var qkv = function (k, v) { qgrid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
+        var dur = function (sec) { if (sec == null) return '—'; if (sec < 90) return sec + ' s'; if (sec < 5400) return Math.round(sec / 60) + ' min'; if (sec < 172800) return (sec / 3600).toFixed(1) + ' h'; return Math.round(sec / 86400) + ' days'; };
+        var lat = q.latency || {};
+        qkv('SEC acceptance to here, last 24 h', lat.accept_to_detect_p50_seconds == null ? 'no new filings measured' : dur(lat.accept_to_detect_p50_seconds) + ' median · ' + dur(lat.accept_to_detect_p95_seconds) + ' for 95%');
+        qkv('New filings, last 24 h', fmtInt(lat.filings_processed_24h || 0));
         qkv('Taken at', fmtTs(q.taken_at)); qkv('Stale companies', fmtInt(q.companies.stale)); qkv('Duplicate filings', fmtInt(q.filings.duplicates));
         qkv('Facts with full provenance', q.facts.with_provenance_pct == null ? 'none (no facts)' : q.facts.with_provenance_pct + '%'); qkv('Ambiguous mappings', fmtInt(q.facts.by_quality.ambiguous_mapping)); qkv('Invalid source values', fmtInt(q.facts.by_quality.invalid_source_value));
         qkv('Oldest pending delivery', q.notifications.oldest_pending_age_seconds == null ? 'none' : q.notifications.oldest_pending_age_seconds + ' s'); qkv('Universe', fmtInt(q.universe.active) + ' active · ' + fmtInt(q.universe.due) + ' due · ' + fmtInt(q.universe.disabled) + ' disabled');
