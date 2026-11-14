@@ -16,7 +16,7 @@ with the SEC contact address in the User-Agent.
 | Companies | 21,586 known and ingested (1,011 new from the ticker file); 0 with fetch errors; 0 failed |
 | New since 2026-11-03 | 120,057 filings and 50,168 facts |
 | Totals | 8,854,164 filings (all with an SEC acceptance time) and 5,630,256 facts |
-| Time | Archive ingest 32 min; marts 18 min; new companies about 15 min |
+| Time | Archive ingest 32 min; marts 18 min (the new companies ran separately, not timed) |
 | Facts by quality | ok 95.42%, ambiguous_mapping 3.99%, partial 0.59%, invalid_source_value 0 |
 | Duplicate filings | 0 |
 | Facts with full provenance | 100% |
