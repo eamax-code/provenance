@@ -197,6 +197,10 @@
     load(); setInterval(load, 30000);
   }
 
-  function start() { header(); stats(); }
+  /* Samples marked data-origin show this deployment's address instead of {{BASE}}. */
+  function origins() {
+    document.querySelectorAll('[data-origin]').forEach(function (el) { el.textContent = el.textContent.split('{{BASE}}').join(location.origin); });
+  }
+  function start() { header(); stats(); origins(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

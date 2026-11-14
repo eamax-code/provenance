@@ -489,7 +489,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     <div class="ways">
       <p>One platform. Three ways to work with financial data.</p>
       <ul class="entries">
-        <li><a class="entry" href="/docs"><b>Data API</b><span class="go">Explore API</span><span class="line">Structured company and financial data for developers, applications and AI agents.</span></a></li>
+        <li><a class="entry" href="/developers/"><b>Data API</b><span class="go">Explore API</span><span class="line">Structured company and financial data for developers, applications and AI agents.</span></a></li>
         <li><a class="entry" href="/chat/"><b>Financial Chat</b><span class="go">Try Chat</span><span class="line">Ask questions about companies, financial performance and filings.</span></a></li>
         <li><a class="entry" href="/app/"><b>Company Explorer</b><span class="go">Open Explorer</span><span class="line">Search a company and read its figures and filings.</span></a></li>
       </ul>
@@ -797,11 +797,11 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       <p>A plan, not current coverage. Only the first step exists today, and the order may change.</p>
     </div>
     <ol aria-label="Roadmap phases" data-reveal style="--i:1">
-      <li><b>Now, at launch</b><span>US public companies: SEC filings, financials, the chat, the explorer and the APIs.</span></li>
+      <li><b>Now, at launch</b><span>US public companies: SEC filings, financials, the chat, the explorer, the APIs and an MCP server for AI agents.</span></li>
       <li><b>Next</b><span>Deeper financial statements and historical comparisons.</span></li>
       <li><b>Then</b><span>Indian public companies, with NSE and BSE filings.</span></li>
       <li><b>After that</b><span>UK and European company filings.</span></li>
-      <li><b>Later</b><span>Global coverage and infrastructure for AI agents.</span></li>
+      <li><b>Later</b><span>Global coverage, ownership and company guidance, all cited.</span></li>
     </ol>
   </div>
 </section>
@@ -826,8 +826,8 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     </article>
     <article data-reveal style="--i:3">
       <h3>AI agents</h3>
-      <p>Give a model source-grounded figures: a tool definition, llms.txt, and answers that carry their citations.</p>
-      <a class="more" href="/llms.txt" target="_blank" rel="noopener">Read llms.txt</a>
+      <p>Connect Claude or any MCP client in one line. Every figure your agent states comes with the filing that reports it.</p>
+      <a class="more" href="/developers/#mcp">Connect over MCP</a>
     </article>
   </div>
 </section>
@@ -843,20 +843,11 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       </div>
     </div>
     <div class="code">
-      <p>Or hand it to your agent as a tool.</p>
-      <div class="call"><button class="copybtn" type="button" data-copy="tooldef">Copy</button><pre class="ui-code" id="tooldef"><code>{
-  "name": "get_company_facts",
-  "description": "Normalized SEC financial facts with filing links. Returns null for missing data.",
-  "input_schema": {
-    "type": "object",
-    "properties": {
-      "cik": {"type": "string", "description": "SEC CIK, any zero padding"},
-      "metric": {"enum": ["revenue","operating_income","net_income","total_assets","operating_cash_flow"]},
-      "period": {"enum": ["annual","quarterly","all"], "default": "annual"}
-    },
-    "required": ["cik", "metric"]
-  }
-}</code></pre></div>
+      <p>Or hand it to your agent in one line.</p>
+      <div class="call"><button class="copybtn" type="button" data-copy="tooldef">Copy</button><pre class="ui-code" id="tooldef"><code data-origin>claude mcp add --transport http provenance \
+  {{BASE}}/mcp \
+  --header "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
+      <p>Then ask: "What was Microsoft's operating income in each of the last three years, and which filings report it?"</p>
     </div>
   </div>
 </section>
