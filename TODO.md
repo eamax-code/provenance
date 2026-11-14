@@ -1,8 +1,30 @@
 # TODO
 
-Pending work as of 2026-11-11. GitHub Issues (GH #) and older tickets in `.scratch/backlog/issues/`; tracker
+Pending work as of 2026-11-15. GitHub Issues (GH #) and older tickets in `.scratch/backlog/issues/`; tracker
 conventions in `docs/agents/issue-tracker.md`. Labels: **ready-for-human** needs an owner
 decision or account; **ready-for-agent** can be built now; **needs-triage** is an idea.
+
+## Pilot launch: working list (started 2026-11-15)
+Goal: a pilot that strangers can use without us in the room. That means every page in one layout, docs a
+developer can follow alone, sign-up without an operator, a security pass, an agent-ready MCP server,
+draft legal pages, and fresh SEC data. Items marked "you" need an owner decision; everything else
+is being built now.
+
+| # | Item | Ticket | Status |
+| --- | --- | --- | --- |
+| P1 | SEC data refreshed from the latest nightly archives (new filings and new companies), marts rebuilt | ops | in progress |
+| P2 | Every page in the shared layout: developer docs, API reference, changelog, 404 and error pages | GH #11, #20, #21 | in progress |
+| P3 | Developer docs: quickstart in curl/Python/JS, guides, error codes, limits, changelog, versioning policy | GH #20 | in progress |
+| P4 | SEO: sitemap.xml, robots.txt, canonical links, Open Graph image and tags on every page | GH #21 | todo |
+| P5 | Accessibility: skip link, landmarks, focus order, labels, automated check on every page | GH #21 | todo |
+| P6 | Performance: cache headers for static files, home page weight budget | GH #21 | todo |
+| P7 | Security: headers and CSP, CORS, pip-audit in CI, /poc/ off in production, chat abuse limits, prompt-injection review | GH #18 | todo |
+| P8 | MCP server over the API: tools for search, overview, figures with as_of, filings, events, listings | GH #22 | todo |
+| P9 | Accounts: sign-up and sign-in by email link, profile with keys, usage and theme, claim an issued key | GH #15 | todo (email delivery waits on 06) |
+| P10 | Draft Terms, Privacy, Acceptable use and Data sources pages, marked draft until legal review | GH #17 | todo (final wording: you, after 05) |
+| P11 | Pilot launch plan: who it is for, the offer, success measures, launch-day checklist, outreach copy | 03 | todo |
+| P12 | Deployment check without a host: image builds, readiness checks, env example, runbook current | GH #19 | todo (host: you, 02) |
+| P13 | Tests: unit tests for all new code, full suite on SQLite and Postgres, every page in a browser at desktop and phone width | all | ongoing |
 
 ## Release 1.0
 Checklist: [GH #31](https://github.com/eamax-code/provenance/issues/31). Milestone "Release 1.0" on GitHub.

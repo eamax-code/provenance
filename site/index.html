@@ -406,6 +406,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 <body>
 
 <!-- shell:header -->
+<a class="skip-link" href="#main">Skip to content</a>
 <header class="site-bar">
   <div class="site-wrap">
     <a class="site-wordmark" href="/"><i aria-hidden="true"></i>Provenance</a>
@@ -415,7 +416,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
         <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Platform</button>
         <p class="site-group-name" aria-hidden="true">Platform</p>
         <ul class="site-menu" id="site-nav-platform">
-          <li><a href="/docs"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
           <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
           <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
         </ul>
@@ -441,8 +442,10 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
         <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
         <p class="site-group-name" aria-hidden="true">Developers</p>
         <ul class="site-menu" id="site-nav-dev">
-          <li><a href="/docs"><b>API docs</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/developers/"><b>Quickstart and guides</b><span>Your first cited figure in ten minutes</span></a></li>
+          <li><a href="/docs"><b>API reference</b><span>Endpoints, parameters and errors</span></a></li>
           <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="/changelog/"><b>Changelog</b><span>What changed and how versions work</span></a></li>
         </ul>
       </div>
       <a class="site-link" href="/#pricing">Pricing</a>
@@ -453,7 +456,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 </header>
 <!-- /shell:header -->
 
-<main id="top">
+<main id="main">
 
 <section class="hero wrap" aria-labelledby="hero-title">
   <h1 id="hero-title"><span>Every company has a story.</span> <span>Find it in the data.</span></h1>
@@ -940,10 +943,10 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     <nav class="site-tile links" aria-label="Site">
       <div class="cols">
         <ul>
-          <li><a href="/docs">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
+          <li><a href="/developers/">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
         </ul>
         <ul>
-          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/docs">API reference</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
         </ul>
       </div>
     </nav>

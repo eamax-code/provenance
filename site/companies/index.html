@@ -18,6 +18,7 @@
 </head>
 <body>
 <!-- shell:header -->
+<a class="skip-link" href="#main">Skip to content</a>
 <header class="site-bar">
   <div class="site-wrap">
     <a class="site-wordmark" href="/"><i aria-hidden="true"></i>Provenance</a>
@@ -27,7 +28,7 @@
         <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Platform</button>
         <p class="site-group-name" aria-hidden="true">Platform</p>
         <ul class="site-menu" id="site-nav-platform">
-          <li><a href="/docs"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
           <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
           <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
         </ul>
@@ -53,8 +54,10 @@
         <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
         <p class="site-group-name" aria-hidden="true">Developers</p>
         <ul class="site-menu" id="site-nav-dev">
-          <li><a href="/docs"><b>API docs</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/developers/"><b>Quickstart and guides</b><span>Your first cited figure in ten minutes</span></a></li>
+          <li><a href="/docs"><b>API reference</b><span>Endpoints, parameters and errors</span></a></li>
           <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="/changelog/"><b>Changelog</b><span>What changed and how versions work</span></a></li>
         </ul>
       </div>
       <a class="site-link" href="/#pricing">Pricing</a>
@@ -64,7 +67,7 @@
   </div>
 </header>
 <!-- /shell:header -->
-<div class="app">
+<main class="app" id="main">
   <div class="pub-head">
     <p class="eyebrow">Public showcase · live from /v1/public/companies</p>
     <h1>Companies in this deployment</h1>
@@ -75,7 +78,7 @@
   <div class="cards" id="dir-grid" aria-live="polite"></div>
   <div class="cta-bar"><strong>Need every company, quarterly data, exports or filing alerts?</strong><a class="btn primary small" href="/#contact">Get full access</a><a class="btn small" href="/app/">Open the Explorer</a></div>
   <p class="page-note">Data from SEC EDGAR. Provenance is independent and not affiliated with or endorsed by the SEC. Missing values mean the SEC endpoint did not expose a mappable fact, not that the issuer has none. Not investment advice. Review the underlying filing before relying on a value. <a href="/docs">API docs</a> · <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></p>
-</div>
+</main>
 <!-- shell:footer -->
 <footer class="site-foot">
   <div class="site-board">
@@ -86,10 +89,10 @@
     <nav class="site-tile links" aria-label="Site">
       <div class="cols">
         <ul>
-          <li><a href="/docs">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
+          <li><a href="/developers/">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
         </ul>
         <ul>
-          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/docs">API reference</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
         </ul>
       </div>
     </nav>

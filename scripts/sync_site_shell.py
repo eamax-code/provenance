@@ -26,6 +26,11 @@ PAGES = (
     "playground/index.html",
     "app/index.html",
     "chat/index.html",
+    "developers/index.html",
+    "docs/index.html",
+    "changelog/index.html",
+    "not-found.html",
+    "error.html",
 )
 
 

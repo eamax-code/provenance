@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141719">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
+<title>Provenance Developer Docs</title>
+<meta name="description" content="Make your first Provenance request in ten minutes: get a key, call the API in curl, Python or JavaScript, and cite the SEC filing behind every value. Guides for point-in-time queries, the event feed, webhooks, listings, errors and limits.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- shell:head -->
+<link rel="stylesheet" href="/shell/shell.css">
+<script src="/shell/shell.js"></script>
+<!-- /shell:head -->
+<link rel="stylesheet" href="/app/app.css">
+<link rel="stylesheet" href="/public.css">
+<link rel="stylesheet" href="/docs.css">
+</head>
+<body>
+<!-- shell:header -->
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-bar">
+  <div class="site-wrap">
+    <a class="site-wordmark" href="/"><i aria-hidden="true"></i>Provenance</a>
+    <button class="site-menu-btn" id="site-menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav class="site-nav" id="site-nav" aria-label="Primary">
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Platform</button>
+        <p class="site-group-name" aria-hidden="true">Platform</p>
+        <ul class="site-menu" id="site-nav-platform">
+          <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
+          <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-data">Data</button>
+        <p class="site-group-name" aria-hidden="true">Data</p>
+        <ul class="site-menu" id="site-nav-data">
+          <li><a href="/companies/"><b>Companies</b><span>Showcase companies, no key needed</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>New and removed listings in Canada, the UK and the EU</span></a></li>
+          <li><a href="/status/"><b>Status</b><span>What is loaded and how fresh it is</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-coverage">Coverage</button>
+        <p class="site-group-name" aria-hidden="true">Coverage</p>
+        <ul class="site-menu" id="site-nav-coverage">
+          <li><a href="/#markets"><b>Markets</b><span>What is available today, by market</span></a></li>
+          <li><a href="/#roadmap"><b>Roadmap</b><span>India, the UK and Europe next</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
+        <p class="site-group-name" aria-hidden="true">Developers</p>
+        <ul class="site-menu" id="site-nav-dev">
+          <li><a href="/developers/"><b>Quickstart and guides</b><span>Your first cited figure in ten minutes</span></a></li>
+          <li><a href="/docs"><b>API reference</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="/changelog/"><b>Changelog</b><span>What changed and how versions work</span></a></li>
+        </ul>
+      </div>
+      <a class="site-link" href="/#pricing">Pricing</a>
+      <a class="site-button site-cta" href="/#contact">Get API key</a>
+    </nav>
+    <a class="site-button" href="/#contact">Get API key</a>
+  </div>
+</header>
+<!-- /shell:header -->
+<main class="app" id="main">
+  <div class="pub-head">
+    <p class="eyebrow">Developers</p>
+    <h1>Your first cited figure in ten minutes</h1>
+    <p class="muted">Every value Provenance returns carries the SEC filing it came from. Start with the demo key, no sign-up, then follow a guide for the part you need.</p>
+  </div>
+  <div class="doc">
+    <nav class="doc-toc" aria-label="On this page">
+      <p>Start</p>
+      <ul>
+        <li><a href="#quickstart">Quickstart</a></li>
+        <li><a href="#citation">Read the citation</a></li>
+      </ul>
+      <p>Guides</p>
+      <ul>
+        <li><a href="#as-of">Point in time</a></li>
+        <li><a href="#events">Event feed</a></li>
+        <li><a href="#webhooks">Watches and webhooks</a></li>
+        <li><a href="#listings">Listings</a></li>
+        <li><a href="#agents">AI agents</a></li>
+        <li><a href="#errors">Errors</a></li>
+        <li><a href="#limits">Limits and plans</a></li>
+      </ul>
+      <p>Reference</p>
+      <ul>
+        <li><a href="/docs">API reference</a></li>
+        <li><a href="/changelog/">Changelog and versioning</a></li>
+        <li><a href="/playground/">Playground</a></li>
+      </ul>
+    </nav>
+    <div class="doc-body">
+      <section id="quickstart" aria-labelledby="quickstart-h">
+        <h2 id="quickstart-h">Quickstart</h2>
+        <ol class="steps">
+          <li>
+            <h3>Get a key</h3>
+            <p>Use <code>demo</code> to try the API now: read-only endpoints, the showcase companies, ten rows a page and 20 requests a minute. For every company, exports and alerts, <a href="/#contact">request a key</a>. It is shown to you once; keep it in an environment variable, not in code.</p>
+          </li>
+          <li>
+            <h3>Make a request</h3>
+            <p>Send the key in the <code>X-API-Key</code> header. This asks for Apple's annual revenue.</p>
+            <div class="code" data-tabs>
+              <div class="code-tabs" role="tablist" aria-label="Language">
+                <button type="button" role="tab" aria-selected="true">curl</button>
+                <button type="button" role="tab" aria-selected="false">Python</button>
+                <button type="button" role="tab" aria-selected="false">JavaScript</button>
+              </div>
+<pre role="tabpanel"><code>curl -s "{{BASE}}/v1/companies/320193/facts?metric=revenue&amp;period=annual&amp;limit=3" \
+  -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre>
+<pre role="tabpanel" hidden><code>pip install "provenance-client @ git+https://github.com/eamax-code/provenance#subdirectory=clients/python"
+
+from provenance_client import Client
+
+client = Client(api_key="demo", base_url="{{BASE}}")
+for fact in client.facts("320193", metric="revenue", period="annual")[:3]:
+    print(fact["period_end"], fact["value"], fact["source_url"])</code></pre>
+<pre role="tabpanel" hidden><code>const res = await fetch(
+  "{{BASE}}/v1/companies/320193/facts?metric=revenue&amp;period=annual&amp;limit=3",
+  { headers: { "X-API-Key": process.env.PROVENANCE_API_KEY ?? "demo" } },
+);
+if (!res.ok) throw new Error((await res.json()).error.message);
+const { data } = await res.json();
+data.forEach((f) =&gt; console.log(f.period_end, f.value, f.source_url));</code></pre>
+            </div>
+          </li>
+          <li>
+            <h3>Cite what you show</h3>
+            <p>Each row has a <code>source_url</code> to the filing on sec.gov and its <code>accession_number</code>. Link the figure to that page wherever you display it. The next section explains the rest of the row.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section id="citation" aria-labelledby="citation-h">
+        <h2 id="citation-h">Read the citation</h2>
+        <p>One row of the response above, as the API returns it today:</p>
+        <div class="code"><pre><code>{
+  "cik": "0000320193",
+  "metric": "revenue",
+  "value": 416161000000,
+  "unit": "USD",
+  "period_start": "2024-09-29",
+  "period_end": "2025-09-27",
+  "period_class": "annual",
+  "fiscal_year": 2025,
+  "form_type": "10-K",
+  "filed_date": "2025-10-31",
+  "accession_number": "0000320193-25-000079",
+  "source_tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+  "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html",
+  "mapping_version": "1.1.0",
+  "quality_status": "ok",
+  "derived": false
+}</code></pre></div>
+        <ul>
+          <li><code>source_url</code> and <code>accession_number</code> identify the filing. <code>source_tag</code> is the XBRL concept the company used; <code>mapping_version</code> is the rule set that mapped it to <code>revenue</code>.</li>
+          <li><code>quality_status</code> is <code>ok</code>, <code>partial</code>, <code>ambiguous_mapping</code>, <code>invalid_source_value</code> or <code>derived</code>. Show anything other than <code>ok</code> with a note.</li>
+          <li><code>derived: true</code> means the value was computed, for example a fourth quarter as the year minus nine months. Say so when you show it.</li>
+          <li><code>period_class</code> comes from the period's dates, not the company's label, so a year-to-date value is never mistaken for a quarter.</li>
+          <li>A value the SEC data does not contain is <code>null</code>, never 0.</li>
+        </ul>
+      </section>
+
+      <section id="as-of" aria-labelledby="as-of-h">
+        <h2 id="as-of-h">Point in time with <code>as_of</code></h2>
+        <p>Backtests need what was known on a date, not what is known now. Add <code>as_of=YYYY-MM-DD</code> to facts, the screen or search and you get only observations filed by that date. A restatement filed later is invisible.</p>
+        <div class="code"><pre><code><span class="c"># revenue as it stood on 15 January 2024</span>
+curl -s "{{BASE}}/v1/companies/320193/facts?metric=revenue&amp;as_of=2024-01-15" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># the largest companies by total assets, as known on 31 March 2025</span>
+curl -s "{{BASE}}/v1/facts/screen?metric=total_assets&amp;year=2024&amp;as_of=2025-03-31" -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
+        <p>To see every observation of a period, including restatements and alternative tags, add <code>include_all_observations=true</code>.</p>
+      </section>
+
+      <section id="events" aria-labelledby="events-h">
+        <h2 id="events-h">The event feed</h2>
+        <p><code>GET /v1/events</code> is one ordered feed of new SEC filings, officer changes read from 8-K item 5.02, and listing events. Store <code>next_cursor</code> and pass it back as <code>after</code>; you will never miss or repeat an event.</p>
+        <div class="code"><pre><code><span class="c"># catch up from a time, then page with the cursor</span>
+curl -s "{{BASE}}/v1/events?since=2026-11-01T00:00:00Z&amp;types=filing&amp;form_type=8-K" -H "X-API-Key: $PROVENANCE_API_KEY"
+curl -s "{{BASE}}/v1/events?after=NEXT_CURSOR" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># live, as Server-Sent Events; reconnect with Last-Event-ID</span>
+curl -N "{{BASE}}/v1/events/stream?types=filing,leadership" -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
+        <p>Filters: <code>types</code> (filing, leadership, listing), <code>cik</code>, <code>form_type</code>, <code>items</code> (8-K items such as <code>5.02</code>), <code>mic</code> and <code>event_type</code>. The stream needs your own key; the demo key is not accepted.</p>
+      </section>
+
+      <section id="webhooks" aria-labelledby="webhooks-h">
+        <h2 id="webhooks-h">Watches and webhooks</h2>
+        <p>A watch sends each new filing of a company, or each listing event in a market, to your webhook or email. Creating a webhook watch returns a <code>webhook_secret</code> once; use it to check that a delivery came from Provenance.</p>
+        <div class="code"><pre><code>curl -s -X POST "{{BASE}}/v1/watches" -H "X-API-Key: $PROVENANCE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"cik": "320193", "destination_type": "webhook", "destination": "https://example.com/hooks/sec"}'</code></pre></div>
+        <p>Each delivery is a JSON POST with <code>X-Event-Type</code> (<code>sec.filing.detected</code> or <code>listing.&lt;event&gt;</code>), <code>X-Event-Id</code>, <code>Idempotency-Key</code>, <code>X-Signature-Timestamp</code> and <code>X-Signature</code>. The signature is HMAC-SHA256 of <code>timestamp.body</code> with your secret, sent as <code>v1=&lt;hex&gt;</code>. Reject a timestamp more than five minutes old, and treat a repeated <code>X-Event-Id</code> as already handled.</p>
+        <div class="code" data-tabs>
+          <div class="code-tabs" role="tablist" aria-label="Language">
+            <button type="button" role="tab" aria-selected="true">Python</button>
+            <button type="button" role="tab" aria-selected="false">JavaScript</button>
+          </div>
+<pre role="tabpanel"><code>import hashlib, hmac, time
+
+def verified(secret: str, timestamp: str, signature: str, body: bytes) -&gt; bool:
+    if abs(time.time() - int(timestamp)) &gt; 300:
+        return False
+    mac = hmac.new(secret.encode(), timestamp.encode() + b"." + body, hashlib.sha256)
+    return hmac.compare_digest(signature, "v1=" + mac.hexdigest())</code></pre>
+<pre role="tabpanel" hidden><code>import { createHmac, timingSafeEqual } from "node:crypto";
+
+export function verified(secret, timestamp, signature, rawBody) {
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) &gt; 300) return false;
+  const mac = "v1=" + createHmac("sha256", secret).update(`${timestamp}.`).update(rawBody).digest("hex");
+  return mac.length === signature.length &amp;&amp; timingSafeEqual(Buffer.from(mac), Buffer.from(signature));
+}</code></pre>
+        </div>
+        <p>A failed delivery is retried with growing delays, up to six attempts. <code>GET /v1/watches/{id}/deliveries</code> shows each attempt and its status code. Destinations on private networks are refused.</p>
+      </section>
+
+      <section id="listings" aria-labelledby="listings-h">
+        <h2 id="listings-h">Listings in Canada, the UK and the EU</h2>
+        <p>New listings, delistings and suspensions on covered venues, from the ESMA and FCA instrument registers, with issuers identified through GLEIF. A <code>new_listing</code> means an instrument first traded on a venue; it is not an IPO determination. <code>issuer_requested: true</code> marks a likely primary listing.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/markets/events?type=new_listing&amp;region=uk" -H "X-API-Key: $PROVENANCE_API_KEY"
+curl -s "{{BASE}}/v1/markets/instruments?q=Exosens&amp;region=europe" -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
+        <p>The last two weeks of events are public, without a key, at <a href="/listings/">Listings</a>.</p>
+      </section>
+
+      <section id="agents" aria-labelledby="agents-h">
+        <h2 id="agents-h">AI agents</h2>
+        <p>Agents read <a href="/llms.txt">llms.txt</a>, a plain-text summary of every endpoint, and <a href="/openapi.json">openapi.json</a>. Tell your model to cite <code>source_url</code> for every figure it states. The <a href="/chat/">Financial Chat</a> is built this way: each answer links the filings it used.</p>
+      </section>
+
+      <section id="errors" aria-labelledby="errors-h">
+        <h2 id="errors-h">Errors</h2>
+        <p>Every error has the same shape, and the <code>code</code> is stable, so branch on it rather than on the message. Quote <code>request_id</code> when you ask for help.</p>
+        <div class="code"><pre><code>{"error": {"code": "company_not_found", "message": "No company with CIK 0000000001", "request_id": "req_3f2a9c0d1b7e4a55"}}</code></pre></div>
+        <div class="table-wrap"><table class="doc-table">
+          <thead><tr><th scope="col">Status</th><th scope="col">Code</th><th scope="col">What to do</th></tr></thead>
+          <tbody>
+            <tr><td>401</td><td><code>missing_api_key</code>, <code>invalid_api_key</code></td><td>Send a valid key in <code>X-API-Key</code>.</td></tr>
+            <tr><td>403</td><td><code>demo_scope</code>, <code>demo_limit</code>, <code>semantic_needs_key</code>, <code>sessions_need_key</code></td><td>The demo key cannot do this. Use your own key.</td></tr>
+            <tr><td>404</td><td><code>company_not_found</code>, <code>watch_not_found</code>, <code>instrument_not_found</code>, <code>issuer_not_found</code></td><td>Check the identifier. A CIK can be given with or without leading zeros.</td></tr>
+            <tr><td>202</td><td>(not an error)</td><td>The company is being loaded. Retry after the <code>Retry-After</code> seconds.</td></tr>
+            <tr><td>413</td><td><code>export_limit_exceeded</code></td><td>Ask for fewer rows, or page through the results.</td></tr>
+            <tr><td>422</td><td><code>invalid_parameter</code>, <code>invalid_cursor</code>, <code>invalid_destination</code>, <code>watch_limit_reached</code></td><td>Fix the request; the message names the parameter.</td></tr>
+            <tr><td>429</td><td><code>rate_limited</code>, <code>quota_exceeded</code>, <code>stream_limit</code></td><td>Wait for <code>Retry-After</code> seconds, then retry.</td></tr>
+            <tr><td>5xx</td><td><code>internal_error</code>, <code>service_unavailable</code></td><td>Retry with backoff. The Python client does this for you.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="limits" aria-labelledby="limits-h">
+        <h2 id="limits-h">Limits and plans</h2>
+        <p>Responses carry <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Remaining</code>. Lists are paginated with <code>limit</code> and <code>offset</code>; <code>meta.has_more</code> says whether there is another page. Exports return at most the plan's row limit and say so in <code>X-Export-Truncated</code>. <code>GET /v1/developer/usage</code> shows your requests by route and by day.</p>
+        <div class="table-wrap"><table class="doc-table" id="plans-table">
+          <thead><tr><th scope="col">Plan</th><th scope="col">Requests a minute</th><th scope="col">Requests a month</th><th scope="col">Watches</th></tr></thead>
+          <tbody><tr><td>demo</td><td>20</td><td>300 a day</td><td>none</td></tr></tbody>
+        </table></div>
+        <p class="page-note" id="plans-note">Plans are read live from <code>/v1/public/plans</code>.</p>
+      </section>
+
+      <section aria-labelledby="next-h">
+        <h2 id="next-h">Next</h2>
+        <div class="doc-cards">
+          <a href="/docs"><b>API reference</b><span>Every endpoint, parameter and response</span></a>
+          <a href="/playground/"><b>Playground</b><span>Run calls in the browser with the demo key</span></a>
+          <a href="/changelog/"><b>Changelog</b><span>What changed, and how versions are kept</span></a>
+        </div>
+      </section>
+    </div>
+  </div>
+  <p class="page-note">Data from SEC EDGAR, ESMA, the FCA and GLEIF. Provenance is independent and not affiliated with or endorsed by the SEC or any of these bodies. Not investment advice. Review the underlying filing before relying on a value.</p>
+</main>
+<!-- shell:footer -->
+<footer class="site-foot">
+  <div class="site-board">
+    <div class="site-tile statement">
+      <p>Public company intelligence. Built for humans and AI.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA or GLEIF. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
+    </div>
+    <nav class="site-tile links" aria-label="Site">
+      <div class="cols">
+        <ul>
+          <li><a href="/developers/">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
+        </ul>
+        <ul>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/docs">API reference</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+        </ul>
+      </div>
+    </nav>
+    <figure class="site-tile photo"><img src="/img/catalogue-card.jpg" width="1600" height="1200" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
+    <div class="site-tile live" id="live-facts" data-source="/v1/stats">
+      <dl>
+        <div><dt>Companies</dt><dd data-stat="companies">20,540</dd></div>
+        <div><dt>Filings</dt><dd data-stat="filings">8,734,078</dd></div>
+        <div><dt>Normalized facts</dt><dd data-stat="facts">5,580,088</dd></div>
+      </dl>
+      <p class="note" id="live-note">Live from /v1/stats, refreshed every 30 seconds.</p>
+      <p class="note" id="status-empty" hidden>No companies ingested yet. Request any CIK through the API to start.</p>
+      <p class="note" id="status-error" hidden>Live stats are unavailable right now; the figures above may be out of date.</p>
+    </div>
+    <div class="site-tile mark" aria-hidden="true"><span>Provenance</span></div>
+    <a class="site-tile go" href="/#contact"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
+  </div>
+  <p class="site-credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons.</p>
+</footer>
+<!-- /shell:footer -->
+<script src="/docs.js"></script>
+</body>
+</html>

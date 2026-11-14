@@ -118,13 +118,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title=settings.app_name,
         version=settings.app_version,
         description=DESCRIPTION,
-        docs_url="/docs",
+        docs_url=None,  # the reference is site/docs/, in the site's own layout
         redoc_url=None,
         openapi_url="/openapi.json",
     )
     app.state.settings = settings
     app.add_middleware(RequestContextMiddleware)
-    install_error_handlers(app)
+    site_dir = Path(__file__).resolve().parent.parent / "site"
+    install_error_handlers(app, site_dir if site_dir.is_dir() else None)
 
     app.include_router(routes_companies.router)
     app.include_router(routes_notifications.router)
@@ -193,7 +194,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.openapi = custom_openapi  # type: ignore[method-assign]
 
     # Static marketing site (index.html, llms.txt). Mounted last so API routes win.
-    site_dir = Path(__file__).resolve().parent.parent / "site"
     if site_dir.is_dir():
         layout_dir = site_dir / "companies" / "page"
 

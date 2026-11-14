@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger("app.errors")
@@ -54,7 +55,32 @@ _STATUS_CODES = {
 }
 
 
-def install_error_handlers(app: FastAPI) -> None:
+# Paths that always answer in the JSON envelope, even to a browser.
+API_PREFIXES = ("/v1/", "/openapi.json", "/healthz", "/readyz", "/mcp")
+
+
+def _wants_page(request: Request) -> bool:
+    """A browser asking for a page (not the API) gets the site's 404 and error pages."""
+    path = request.url.path
+    if path.startswith(API_PREFIXES) or request.method not in ("GET", "HEAD"):
+        return False
+    return "text/html" in request.headers.get("accept", "")
+
+
+def install_error_handlers(app: FastAPI, pages: Path | None = None) -> None:
+    """``pages`` is the static site; its not-found.html and error.html are served to browsers."""
+
+    def _page(request: Request, status: int) -> FileResponse | None:
+        if pages is None or not _wants_page(request):
+            return None
+        page = pages / ("not-found.html" if status == 404 else "error.html")
+        if not page.is_file():
+            return None
+        rid = getattr(request.state, "request_id", None)
+        headers = {"X-Request-ID": rid} if rid else {}
+        headers["Cache-Control"] = "no-store"
+        return FileResponse(page, status_code=status, media_type="text/html", headers=headers)
+
     @app.exception_handler(APIError)
     async def _api_error(request: Request, exc: APIError):
         return _envelope(request, exc.status_code, exc.code, exc.message, exc.headers)
@@ -69,6 +95,8 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == 404 and (page := _page(request, 404)):
+            return page
         code = _STATUS_CODES.get(exc.status_code, "error")
         detail = exc.detail if isinstance(exc.detail, str) else code.replace("_", " ")
         return _envelope(request, exc.status_code, code, detail, exc.headers)
@@ -76,4 +104,6 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception):
         logger.exception("unhandled error", extra={"extra_fields": {"path": request.url.path}})
+        if page := _page(request, 500):
+            return page
         return _envelope(request, 500, "internal_error", "An internal error occurred.")

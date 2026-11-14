@@ -92,11 +92,12 @@
     var groups = Array.prototype.slice.call(nav.querySelectorAll('.site-group'));
     var desktop = window.matchMedia('(min-width: 981px)');
     /* the page you are on: its link, and the group that holds it */
-    var here = location.pathname.replace(/^\/companies\/\d+.*$/, '/companies/');
+    var bare = function (x) { return x.replace(/\/$/, ''); };
+    var here = bare(location.pathname.replace(/^\/companies\/\d+.*$/, '/companies/'));
     document.querySelectorAll('.site-bar a[href]').forEach(function (a) {
       var p = a.getAttribute('href');
       if (p.charAt(0) !== '/' || p.indexOf('#') >= 0 || p === '/') return;
-      if (p === here) { a.setAttribute('aria-current', 'page'); var g = a.closest('.site-group'); if (g) g.classList.add('here'); }
+      if (bare(p) === here) { a.setAttribute('aria-current', 'page'); var g = a.closest('.site-group'); if (g) g.classList.add('here'); }
     });
     if (!reduce) document.querySelectorAll('.site-link, .site-bar .site-wrap > .site-button').forEach(roll);
     var syncPill = function () {};

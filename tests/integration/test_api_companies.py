@@ -283,7 +283,7 @@ def test_freshness_stale_status(client, auth, ingested_aapl, db):
 def test_explorer_app_is_served(client):
     r = client.get("/app/")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
-    assert 'id="app"' in r.text and "/app/app.js" in r.text and "not affiliated" in r.text
+    assert '<main id="main" class="app">' in r.text and "/app/app.js" in r.text and "not affiliated" in r.text
     js = client.get("/app/app.js")
     assert js.status_code == 200 and "/v1/companies/search" in js.text and "X-API-Key" in js.text
     assert "localStorage" in js.text

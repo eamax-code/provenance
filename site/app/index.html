@@ -21,6 +21,7 @@
 </head>
 <body>
 <!-- shell:header -->
+<a class="skip-link" href="#main">Skip to content</a>
 <header class="site-bar">
   <div class="site-wrap">
     <a class="site-wordmark" href="/"><i aria-hidden="true"></i>Provenance</a>
@@ -30,7 +31,7 @@
         <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Platform</button>
         <p class="site-group-name" aria-hidden="true">Platform</p>
         <ul class="site-menu" id="site-nav-platform">
-          <li><a href="/docs"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
           <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
           <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
         </ul>
@@ -56,8 +57,10 @@
         <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
         <p class="site-group-name" aria-hidden="true">Developers</p>
         <ul class="site-menu" id="site-nav-dev">
-          <li><a href="/docs"><b>API docs</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/developers/"><b>Quickstart and guides</b><span>Your first cited figure in ten minutes</span></a></li>
+          <li><a href="/docs"><b>API reference</b><span>Endpoints, parameters and errors</span></a></li>
           <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="/changelog/"><b>Changelog</b><span>What changed and how versions work</span></a></li>
         </ul>
       </div>
       <a class="site-link" href="/#pricing">Pricing</a>
@@ -67,7 +70,7 @@
   </div>
 </header>
 <!-- /shell:header -->
-<div id="app" class="app">
+<main id="main" class="app">
   <div class="toolbar">
     <p class="toolbar-title">Explorer</p>
     <nav class="views" aria-label="Views">
@@ -106,7 +109,7 @@
     <ul class="results" id="gate-cards" aria-live="polite"><li class="muted">Loading the showcase companies…</li></ul>
   </section>
 
-  <main id="explore" class="view" hidden>
+  <section id="explore" class="view" hidden>
     <section class="panel">
       <form id="search-form" class="row">
         <label for="q" class="sr-only">Search</label>
@@ -160,9 +163,9 @@
         <ul class="notes" id="fresh-notes"></ul>
       </section>
     </section>
-  </main>
+  </section>
 
-  <main id="listings" class="view" hidden>
+  <section id="listings" class="view" hidden>
     <section class="panel">
       <h2>Canada, Europe and UK listings</h2>
       <p class="muted">Shares admitted to the venues covered here, from the ESMA and FCA FIRDS registers, with issuer identity from GLEIF. Search by ISIN, LEI or part of the issuer name.</p>
@@ -178,9 +181,9 @@
       <h2>Recent new listings</h2>
       <div id="l-recent"></div>
     </section>
-  </main>
+  </section>
 
-  <main id="console" class="view" hidden>
+  <section id="console" class="view" hidden>
     <section class="panel"><div class="row" style="justify-content:space-between"><h2>Usage and plan</h2><label class="small">Window <select id="con-window"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select></label></div><div id="con-usage"></div></section>
     <section class="panel"><h2>API keys</h2><div id="con-keys"></div></section>
     <section class="panel">
@@ -217,11 +220,11 @@
     <section class="panel" aria-live="polite">
       <div id="con-deliveries" hidden></div>
     </section>
-  </main>
+  </section>
 
   <p class="page-note">Data from SEC EDGAR. Provenance is independent and not affiliated with the SEC. Values marked <code>derived</code> are computed by this service. Not investment advice. <a href="/docs">API docs</a> · <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></p>
   <div id="toast" class="toast" role="status" aria-live="assertive" hidden></div>
-</div>
+</main>
 <!-- shell:footer -->
 <footer class="site-foot">
   <div class="site-board">
@@ -232,10 +235,10 @@
     <nav class="site-tile links" aria-label="Site">
       <div class="cols">
         <ul>
-          <li><a href="/docs">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
+          <li><a href="/developers/">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
         </ul>
         <ul>
-          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/docs">API reference</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
         </ul>
       </div>
     </nav>

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141719">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%232b2f33'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%23e83c34'/%3E%3C/svg%3E">
+<title>Provenance Changelog</title>
+<meta name="description" content="What changed in the Provenance API, and how versions, deprecations and mapping rules are managed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- shell:head -->
+<link rel="stylesheet" href="/shell/shell.css">
+<script src="/shell/shell.js"></script>
+<!-- /shell:head -->
+<link rel="stylesheet" href="/app/app.css">
+<link rel="stylesheet" href="/public.css">
+<link rel="stylesheet" href="/docs.css">
+</head>
+<body>
+<!-- shell:header -->
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-bar">
+  <div class="site-wrap">
+    <a class="site-wordmark" href="/"><i aria-hidden="true"></i>Provenance</a>
+    <button class="site-menu-btn" id="site-menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav class="site-nav" id="site-nav" aria-label="Primary">
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Platform</button>
+        <p class="site-group-name" aria-hidden="true">Platform</p>
+        <ul class="site-menu" id="site-nav-platform">
+          <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
+          <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-data">Data</button>
+        <p class="site-group-name" aria-hidden="true">Data</p>
+        <ul class="site-menu" id="site-nav-data">
+          <li><a href="/companies/"><b>Companies</b><span>Showcase companies, no key needed</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>New and removed listings in Canada, the UK and the EU</span></a></li>
+          <li><a href="/status/"><b>Status</b><span>What is loaded and how fresh it is</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-coverage">Coverage</button>
+        <p class="site-group-name" aria-hidden="true">Coverage</p>
+        <ul class="site-menu" id="site-nav-coverage">
+          <li><a href="/#markets"><b>Markets</b><span>What is available today, by market</span></a></li>
+          <li><a href="/#roadmap"><b>Roadmap</b><span>India, the UK and Europe next</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
+        <p class="site-group-name" aria-hidden="true">Developers</p>
+        <ul class="site-menu" id="site-nav-dev">
+          <li><a href="/developers/"><b>Quickstart and guides</b><span>Your first cited figure in ten minutes</span></a></li>
+          <li><a href="/docs"><b>API reference</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="/changelog/"><b>Changelog</b><span>What changed and how versions work</span></a></li>
+        </ul>
+      </div>
+      <a class="site-link" href="/#pricing">Pricing</a>
+      <a class="site-button site-cta" href="/#contact">Get API key</a>
+    </nav>
+    <a class="site-button" href="/#contact">Get API key</a>
+  </div>
+</header>
+<!-- /shell:header -->
+<main class="app" id="main">
+  <div class="pub-head">
+    <p class="eyebrow">Developers</p>
+    <h1>Changelog</h1>
+    <p class="muted">What changed in the API, newest first, and the rules for how it changes. The API is at version 0.1, before Release 1.0.</p>
+  </div>
+  <div class="doc">
+    <nav class="doc-toc" aria-label="On this page">
+      <ul>
+        <li><a href="#policy">Versioning and deprecation</a></li>
+        <li><a href="#mapping">Mapping versions</a></li>
+        <li><a href="#log">Changes</a></li>
+      </ul>
+      <p>Developers</p>
+      <ul>
+        <li><a href="/developers/">Quickstart and guides</a></li>
+        <li><a href="/docs">API reference</a></li>
+      </ul>
+    </nav>
+    <div class="doc-body">
+      <section id="policy" aria-labelledby="policy-h">
+        <h2 id="policy-h">Versioning and deprecation</h2>
+        <ul>
+          <li>The version is in the path: <code>/v1</code>. Within <code>/v1</code>, changes are additive: new endpoints, new optional parameters, new fields in a response and new values in a list of types. Write clients that ignore fields they do not know.</li>
+          <li>A change that could break a working client (removing or renaming a field, changing a type or a default, tightening a limit) goes into a new path version. The old version keeps working for at least 12 months after the new one is released.</li>
+          <li>A deprecated endpoint or parameter is listed here first, and its responses carry a <code>Deprecation</code> header and a <code>Sunset</code> date at least six months ahead.</li>
+          <li>Error <code>code</code> values are stable. Messages may be reworded at any time.</li>
+          <li>Until Release 1.0, a breaking change can still happen. Each one is listed below with a <span class="tag change">Change</span> tag, with notice to key holders by email.</li>
+        </ul>
+      </section>
+      <section id="mapping" aria-labelledby="mapping-h">
+        <h2 id="mapping-h">Mapping versions</h2>
+        <p>Every fact carries <code>mapping_version</code>, the rule set that turned a company's XBRL concept into a metric such as <code>revenue</code>. A patch version fixes a mistake for some companies, a minor version adds tags or metrics, and a major version changes what a metric means. The version of each fact is kept, so a stored value can always be traced to the rules that produced it.</p>
+      </section>
+      <section id="log" aria-labelledby="log-h">
+        <h2 id="log-h">Changes</h2>
+        <ol class="log">
+        <li><time datetime="2026-11-15">2026-11-15</time><div><ul><li><span class="tag new">New</span>Developer docs, a quickstart and an API reference in the site's own layout.</li><li><span class="tag new">New</span>A 404 page in the shared layout; unknown API paths still return the JSON error.</li></ul></div></li>
+        <li><time datetime="2026-11-11">2026-11-11</time><div><ul><li><span class="tag new">New</span><code>GET</code> and <code>PATCH /v1/developer/profile</code>: the theme a key's owner picked for chat and the Explorer.</li></ul></div></li>
+        <li><time datetime="2026-11-09">2026-11-09</time><div><ul><li><span class="tag new">New</span><code>GET /v1/public/companies/{cik}/overview</code>: one page with everything known about a showcase company.</li><li><span class="tag new">New</span>Company metadata on <code>GET /v1/companies/{cik}</code>: filer category, addresses, phone, tickers and exchanges.</li><li><span class="tag change">Change</span>Trailing-twelve-month values are no longer returned as annual figures.</li></ul></div></li>
+        <li><time datetime="2026-11-06">2026-11-06</time><div><ul><li><span class="tag new">New</span>Officer changes from 8-K item 5.02 on the event feed, as <code>sec.officer_change</code>, with point-in-time context.</li><li><span class="tag new">New</span><code>daily</code> requests and errors in <code>GET /v1/developer/usage</code>.</li><li><span class="tag new">New</span>Listing watches: <code>POST /v1/listing-watches</code> for new listings, delistings and suspensions in a market.</li></ul></div></li>
+        <li><time datetime="2026-11-05">2026-11-05</time><div><ul><li><span class="tag new">New</span><code>GET /v1/search</code>: companies and passages from filing sections, by keyword or by meaning.</li><li><span class="tag new">New</span><code>GET /v1/companies/{cik}/profile</code> and <code>GET /v1/exports/company-years</code>.</li><li><span class="tag new">New</span>Companies are found by their former names, and by a typo when nothing else matches.</li><li><span class="tag fix">Fix</span>Annual figures cite the annual report, not a proxy statement that repeats them.</li></ul></div></li>
+        <li><time datetime="2026-11-03">2026-11-03</time><div><ul><li><span class="tag new">New</span><code>as_of</code> on facts and the screen: only what had been filed by that date.</li><li><span class="tag new">New</span><code>GET /v1/events</code> and <code>/v1/events/stream</code>: one ordered, resumable feed.</li><li><span class="tag new">New</span>The Python client, with point-in-time facts and the event feed.</li><li><span class="tag change">Change</span>Mapping 1.1.0: tag conflicts are judged within one filing, so a later restatement no longer changes earlier observations.</li></ul></div></li>
+        <li><time datetime="2026-10-30">2026-10-30</time><div><ul><li><span class="tag new">New</span>Every SEC company with XBRL financials, from the SEC's nightly archives.</li><li><span class="tag new">New</span><code>GET /v1/companies</code> and <code>GET /v1/facts/screen</code>.</li><li><span class="tag new">New</span>The public <code>demo</code> key and the Playground.</li></ul></div></li>
+        <li><time datetime="2026-10-22">2026-10-22</time><div><ul><li><span class="tag new">New</span>International listings: <code>/v1/markets</code> for Canada, the UK and the EU.</li></ul></div></li>
+        <li><time datetime="2026-10-18">2026-10-18</time><div><ul><li><span class="tag new">New</span>First release: companies, filings, normalized facts, freshness, watches with signed webhooks, exports and usage.</li></ul></div></li>
+        </ol>
+      </section>
+    </div>
+  </div>
+  <p class="page-note">Provenance is independent and not affiliated with or endorsed by the SEC, ESMA, the FCA or GLEIF.</p>
+</main>
+<!-- shell:footer -->
+<footer class="site-foot">
+  <div class="site-board">
+    <div class="site-tile statement">
+      <p>Public company intelligence. Built for humans and AI.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA or GLEIF. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
+    </div>
+    <nav class="site-tile links" aria-label="Site">
+      <div class="cols">
+        <ul>
+          <li><a href="/developers/">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
+        </ul>
+        <ul>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/docs">API reference</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+        </ul>
+      </div>
+    </nav>
+    <figure class="site-tile photo"><img src="/img/catalogue-card.jpg" width="1600" height="1200" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
+    <div class="site-tile live" id="live-facts" data-source="/v1/stats">
+      <dl>
+        <div><dt>Companies</dt><dd data-stat="companies">20,540</dd></div>
+        <div><dt>Filings</dt><dd data-stat="filings">8,734,078</dd></div>
+        <div><dt>Normalized facts</dt><dd data-stat="facts">5,580,088</dd></div>
+      </dl>
+      <p class="note" id="live-note">Live from /v1/stats, refreshed every 30 seconds.</p>
+      <p class="note" id="status-empty" hidden>No companies ingested yet. Request any CIK through the API to start.</p>
+      <p class="note" id="status-error" hidden>Live stats are unavailable right now; the figures above may be out of date.</p>
+    </div>
+    <div class="site-tile mark" aria-hidden="true"><span>Provenance</span></div>
+    <a class="site-tile go" href="/#contact"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
+  </div>
+  <p class="site-credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons.</p>
+</footer>
+<!-- /shell:footer -->
+<script src="/docs.js"></script>
+</body>
+</html>

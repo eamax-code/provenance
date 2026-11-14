@@ -79,6 +79,11 @@
 html { background: var(--bg); scroll-padding-top: calc(var(--bar-h) + 16px); }
 ::selection { background: var(--accent-hi); color: var(--accent-ink); }
 
+/* Skip link: hidden until focused, then the first thing on the page. */
+.skip-link { position: absolute; left: var(--m); top: -100px; z-index: 50; padding: 10px 16px; border-radius: 4px; background: var(--accent); color: var(--accent-ink); font: 600 var(--step-small) var(--face); text-decoration: none; }
+.skip-link:focus { top: 12px; }
+main:focus { outline: none; }
+
 /* ---------- header: wordmark, grouped menus, pricing, one action ---------- */
 .site-bar { position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: 1px solid var(--line-soft); font-family: var(--face); letter-spacing: -0.01em; }
 .site-bar .site-wrap { display: flex; align-items: center; gap: 20px; height: var(--bar-h); padding-inline: var(--m); max-width: 1600px; margin-inline: auto; }
