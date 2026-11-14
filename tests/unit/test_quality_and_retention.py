@@ -185,7 +185,8 @@ def test_retention_purges_only_beyond_window(db, settings, sec_client):
         )
     db.commit()
     counts = retention.purge(db, settings, now=now)
-    assert counts == {"api_usage": 2, "notification_deliveries": 2, "rate_limit_counters": 0}
+    assert counts == {"api_usage": 2, "notification_deliveries": 2, "rate_limit_counters": 0,
+                      "sign_in_tokens": 0, "account_sessions": 0}  # fmt: skip
     assert db.scalar(select(func.count(ApiUsage.id))) == 1
     remaining = {d.status for d in db.scalars(select(NotificationDelivery))}
     assert remaining == {"pending", "delivered"}  # pending is never purged
@@ -193,6 +194,8 @@ def test_retention_purges_only_beyond_window(db, settings, sec_client):
         "api_usage": 0,
         "notification_deliveries": 0,
         "rate_limit_counters": 0,
+        "sign_in_tokens": 0,
+        "account_sessions": 0,
     }
 
 
@@ -202,3 +205,32 @@ def test_quality_report_renders(db, settings, sec_client):
     db.commit()
     text = quality.render_report(db, limit=5)
     assert "facts" in text.lower() and "ambiguous" in text.lower() and "0000320193" not in text
+
+
+def test_retention_removes_old_sign_in_links_and_ended_sessions(db, settings):
+    from datetime import UTC, datetime, timedelta
+
+    from app.db.models import Account, AccountSession, SignInToken
+    from app.services import retention
+
+    now = datetime(2026, 11, 15, tzinfo=UTC)
+    acct = Account(email="a@example.com", created_at=now)
+    db.add(acct)
+    db.flush()
+    db.add_all([
+        SignInToken(email="a@example.com", token_hash="old", created_at=now - timedelta(days=3),
+                    expires_at=now - timedelta(days=3)),
+        SignInToken(email="a@example.com", token_hash="fresh", created_at=now,
+                    expires_at=now + timedelta(minutes=15)),
+        AccountSession(account_id=acct.id, token_hash="s-old", created_at=now - timedelta(days=40),
+                       expires_at=now - timedelta(days=10)),
+        AccountSession(account_id=acct.id, token_hash="s-out", created_at=now - timedelta(days=9),
+                       expires_at=now + timedelta(days=20), revoked_at=now - timedelta(days=8)),
+        AccountSession(account_id=acct.id, token_hash="s-live", created_at=now,
+                       expires_at=now + timedelta(days=30)),
+    ])  # fmt: skip
+    db.commit()
+    counts = retention.purge(db, settings, now=now)
+    assert counts["sign_in_tokens"] == 1 and counts["account_sessions"] == 2
+    assert {t.token_hash for t in db.query(SignInToken)} == {"fresh"}
+    assert {s.token_hash for s in db.query(AccountSession)} == {"s-live"}

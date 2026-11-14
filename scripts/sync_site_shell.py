@@ -35,6 +35,10 @@ PAGES = (
     "error.html",
     "account/index.html",
     "account/verify/index.html",
+    "legal/terms/index.html",
+    "legal/privacy/index.html",
+    "legal/acceptable-use/index.html",
+    "legal/data-sources/index.html",
 )
 
 
@@ -52,6 +56,10 @@ CANONICAL = {
     "docs/index.html": "/docs/",
     "changelog/index.html": "/changelog/",
     "account/index.html": "/account/",
+    "legal/terms/index.html": "/legal/terms/",
+    "legal/privacy/index.html": "/legal/privacy/",
+    "legal/acceptable-use/index.html": "/legal/acceptable-use/",
+    "legal/data-sources/index.html": "/legal/data-sources/",
 }
 NOINDEX = ("not-found.html", "error.html", "account/verify/index.html")
 OG_IMAGE = "/img/og.png"

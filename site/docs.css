@@ -7,7 +7,7 @@
 .doc-toc ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .doc-toc a { display: block; padding: 5px 10px; border-left: 2px solid var(--line); color: var(--ink); }
 .doc-toc a:hover { text-decoration: none; border-left-color: var(--soft); }
-.doc-toc a[aria-current="true"] { border-left-color: var(--accent-hi); color: var(--accent-text); }
+.doc-toc a[aria-current="true"], .doc-toc a[aria-current="page"] { border-left-color: var(--accent-hi); color: var(--accent-text); }
 @media (max-width: 980px) { .doc-toc { position: static; max-height: none; } .doc-toc ul { display: flex; flex-wrap: wrap; gap: 6px; } .doc-toc a { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; } }
 .doc-body { display: grid; gap: clamp(40px, 5vw, 72px); min-width: 0; max-width: 920px; }
 .doc-body section { display: grid; gap: 14px; min-width: 0; scroll-margin-top: calc(var(--bar-h) + 16px); }

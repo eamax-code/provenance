@@ -25,6 +25,10 @@ SITEMAP_PAGES = (
     "/playground/",
     "/status/",
     "/changelog/",
+    "/legal/terms/",
+    "/legal/privacy/",
+    "/legal/acceptable-use/",
+    "/legal/data-sources/",
 )
 # Never indexed: the API itself, the MCP endpoint and the prototypes.
 DISALLOW = ("/v1/", "/poc/", "/mcp")

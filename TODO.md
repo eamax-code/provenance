@@ -21,7 +21,7 @@ is being built now.
 | P7 | Security: headers and CSP, CORS, pip-audit in CI, /poc/ off in production, chat abuse limits, prompt-injection review | GH #18 | done: [docs/security.md](docs/security.md); new secrets before launch are yours |
 | P8 | MCP server over the API: tools for search, overview, figures with as_of, filings, events, listings | GH #22 | done: `POST /mcp`, 8 tools, install lines on /developers/#mcp |
 | P9 | Accounts: sign-up and sign-in by email link, profile with keys, usage and theme, claim an issued key | GH #15 | done: /account/; sending real email waits on 06 (until then sign-in answers 503 and points to the key request) |
-| P10 | Draft Terms, Privacy, Acceptable use and Data sources pages, marked draft until legal review | GH #17 | todo (final wording: you, after 05) |
+| P10 | Draft Terms, Privacy, Acceptable use and Data sources pages, marked draft until legal review | GH #17 | drafts done at /legal/; bracketed owner notes (liability cap, law, providers) and final wording: you, after 05 |
 | P11 | Pilot launch plan: who it is for, the offer, success measures, launch-day checklist, outreach copy | 03 | todo |
 | P12 | Deployment check without a host: image builds, readiness checks, env example, runbook current | GH #19 | todo (host: you, 02) |
 | P13 | Tests: unit tests for all new code, full suite on SQLite and Postgres, every page in a browser at desktop and phone width | all | ongoing |

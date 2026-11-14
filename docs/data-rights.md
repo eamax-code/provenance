@@ -75,6 +75,8 @@ header and a `source_url` column.
 
 - `api_usage`: retain 90 days (`USAGE_RETENTION_DAYS`), then purge.
 - `notification_deliveries`: retain 90 days after final status (`DELIVERY_RETENTION_DAYS`).
+- `sign_in_tokens`: deleted a day after they expire (links last 15 minutes and work once).
+- `account_sessions`: deleted a week after they expire or are signed out.
 - Exports are streamed and never stored server side.
 - SEC response cache (`.sec_cache`) holds only public SEC payloads and may be deleted at any time.
 - Purge jobs are not yet automated; see docs/operations.md.

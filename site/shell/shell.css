@@ -131,6 +131,8 @@ main:focus { outline: none; }
 }
 
 /* ---------- footer: a board of tiles ---------- */
+.site-legal { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 12px var(--m) 0; font-size: var(--step-small); }
+.site-legal a { color: var(--soft); text-decoration: none; } .site-legal a:hover { color: var(--ink); text-decoration: underline; }
 .site-foot { font-family: var(--face); color: var(--ink); font-size: var(--step-body); line-height: 1.5; letter-spacing: -0.01em; margin-top: clamp(56px, 7vw, 120px); }
 .site-foot p, .site-foot ul, .site-foot dl, .site-foot dd, .site-foot figure { margin: 0; }
 .site-foot a { color: inherit; }

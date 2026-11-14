@@ -168,3 +168,17 @@ def test_cache_policy_unit():
     assert cache_policy("/IMG/X.JPG", "image/jpeg").startswith("public")
     assert cache_policy("/status/", "text/html; charset=utf-8") == "no-cache"
     assert cache_policy("/llms.txt", "text/plain") is None
+
+
+def test_draft_legal_pages_are_linked_from_every_footer(client):
+    for slug, needle in {"terms": "not investment", "privacy": "prv_session",
+                         "acceptable-use": "rate limits", "data-sources": "GH #14"}.items():  # fmt: skip
+        r = client.get(f"/legal/{slug}/")
+        assert r.status_code == 200 and "pending legal review" in r.text, slug
+        assert needle in r.text.lower() or needle in r.text, (slug, needle)
+        canonical = f'<link rel="canonical" href="{sync_site_shell.origin()}/legal/{slug}/">'
+        assert canonical in r.text, slug
+    footer = (SITE / "shell" / "footer.html").read_text()
+    for slug in ("terms", "privacy", "acceptable-use", "data-sources"):
+        assert f'href="/legal/{slug}/"' in footer
+    assert "/legal/privacy/" in client.get("/sitemap.xml").text
