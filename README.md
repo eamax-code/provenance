@@ -38,6 +38,10 @@ file.
 | Company-intelligence chat: cited brief from SEC data (annual metrics with growth, recent filings, 8-K item 5.02 leadership changes), phrased by a local language model (Ollama, Qwen3 4B Instruct) and checked against the data | `POST /v1/chat`, page `/chat/` |
 | 8-K item codes on filings (e.g. 5.02 officer changes) | `items` on `/filings` and on the event feed |
 | Python client: companies, point-in-time facts, screen, listings, event feed (polling and SSE), DataFrames | `clients/python` |
+| MCP server for AI agents: eight read-only tools over the same API, keys and limits; results keep filing links | `POST /mcp` |
+| Accounts: sign in by one-time email link, create, name and revoke keys, see usage, pick the chat and Explorer theme | page `/account/`, `/v1/account/...` |
+| Developer docs: quickstart in curl, Python and JavaScript, guides, an API reference rendered from OpenAPI, changelog and versioning policy | `/developers/`, `/docs`, `/changelog/` |
+| Draft legal pages (pending review): terms, privacy, acceptable use, data sources | `/legal/` |
 | Health | `GET /healthz`, `GET /readyz` |
 | Marketing site POC with pilot pricing, `llms.txt` for agents | `GET /`, `GET /llms.txt` (static files in `site/`) |
 | Universe: seed CIKs, budgeted resumable bulk ingestion with backoff | `scripts/bulk_ingest.py`, poller refreshes due members |
@@ -290,6 +294,9 @@ the same image with `python scripts/poll_sec.py`.
 - `docs/data-rights.md`: sources, attribution, exclusions, limitations notice, open legal questions.
 - `docs/operations.md`: run book.
 - `docs/implementation-checklist.md`: what was built, in priority order.
+- `docs/security.md`: the security review before the pilot and what to do before launch.
+- `docs/launch-plan.md`: who the pilot is for, the offer, success measures and the launch checklist.
+- `docs/future-scope.md`: sources and sub-products flagged for later.
 
 ## International listings
 
@@ -315,11 +322,10 @@ an instrument first trading on a venue; the API never calls it an IPO.
 - Email notifications are implemented behind an SMTP adapter but disabled unless
   `EMAIL_PROVIDER=smtp` is configured; creating an email watch returns a clear error otherwise.
   They have not been exercised against a real SMTP server.
-- Rate limiting is in-process; multiple API replicas multiply the effective limit. Per-IP limits rely on uvicorn's `--proxy-headers --forwarded-allow-ips` (set in the Dockerfile and deploy manifests); without them every visitor behind a proxy shares one bucket.
+- Rate limits are shared by replicas through PostgreSQL (`RATE_LIMIT_STORE=auto`); with SQLite they are per process. Per-IP limits rely on uvicorn's `--proxy-headers --forwarded-allow-ips` (set in the Dockerfile and deploy manifests); without them every visitor behind a proxy shares one bucket.
 - SEC request metrics are per-run totals (requests, retries, errors, 304s, duration), not per endpoint or per status code.
 - SSRF protection validates at creation and re-resolves DNS immediately before each delivery,
   but the HTTP client still connects by hostname, leaving a small rebinding window.
-- Company search uses `LIKE` with a bounded scan; no trigram index yet.
 - Coverage is limited to companies that have been ingested; nothing is "complete".
 - Listings: FIRDS first-trade dates are per instrument and venue, so secondary-venue admissions
   look like new listings; issuer names are instrument names until GLEIF enrichment runs (bounded
@@ -346,5 +352,8 @@ an instrument first trading on a venue; the API never calls it an IPO.
 - **SQLite is supported for tests and local experiments**; production requires PostgreSQL.
 - **Backfill does not fan out notifications**: filings discovered during a company's first
   ingestion do not create events; only filings detected afterwards do.
-- **`pip-audit`** was dropped from the dev extras after repeated PyPI timeouts during setup;
-  run it separately (`uvx pip-audit`) before deploying.
+- **`pip-audit`** runs in CI as its own step rather than from the dev extras.
+- **`/docs` is the site's own API reference**, rendered from `/openapi.json`, instead of Swagger
+  UI, so every page shares one layout (ADR 0010).
+- **The MCP server and accounts** were listed out of scope for the seven-day MVP (AGENTS.md §2);
+  the owner added them for the pilot release (GH #15, #22).
