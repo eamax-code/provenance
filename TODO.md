@@ -5,6 +5,9 @@ conventions in `docs/agents/issue-tracker.md`. Labels: **ready-for-human** needs
 decision or account; **ready-for-agent** can be built now; **needs-triage** is an idea.
 
 ## Pilot launch: working list (started 2026-11-15)
+Status 2026-11-15 06:20 IST: everything an agent can build is done. What is left needs you; see "Decisions that block launch" in [docs/launch-plan.md](docs/launch-plan.md).
+Also built beyond the list: `LLM_PROVIDER=openai` (GH #13 is now a settings choice), `NEWS_PROVIDER=gdelt` for production (GH #14), `scripts/pilot_metrics.py`, `examples/point_in_time.py`, acceptance-to-availability on the status page, and the measured local refresh in docs/pilot-report.md.
+
 Goal: a pilot that strangers can use without us in the room. That means every page in one layout, docs a
 developer can follow alone, sign-up without an operator, a security pass, an agent-ready MCP server,
 draft legal pages, and fresh SEC data. Items marked "you" need an owner decision; everything else
@@ -24,7 +27,7 @@ is being built now.
 | P10 | Draft Terms, Privacy, Acceptable use and Data sources pages, marked draft until legal review | GH #17 | drafts done at /legal/; bracketed owner notes (liability cap, law, providers) and final wording: you, after 05 |
 | P11 | Pilot launch plan: who it is for, the offer, success measures, launch-day checklist, outreach copy | 03 | done: [docs/launch-plan.md](docs/launch-plan.md); interviews and outreach: you |
 | P12 | Deployment check without a host: image builds, readiness checks, env example, runbook current | GH #19 | done: image built and run in production mode; `.dockerignore`; settings table in docs/deployment.md (host: you, 02) |
-| P13 | Tests: unit tests for all new code, full suite on SQLite and Postgres, every page in a browser at desktop and phone width | all | ongoing |
+| P13 | Tests: unit tests for all new code, full suite on SQLite and Postgres, every page in a browser at desktop and phone width | all | done 2026-11-15: 477 SQLite, 481 PostgreSQL, 477 with the clock two years ahead; migrations up/down; 20 pages pass accessibility and CSP checks; GitHub CI green |
 
 ## Release 1.0
 Checklist: [GH #31](https://github.com/eamax-code/provenance/issues/31). Milestone "Release 1.0" on GitHub.
