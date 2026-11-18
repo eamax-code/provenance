@@ -175,12 +175,13 @@
       <section class="tabpane" id="pane-connections" hidden>
         <div class="controls g-controls">
           <fieldset class="g-layers"><legend class="sr-only">Layers</legend>
-            <label class="check"><input type="checkbox" id="g-insiders" checked> Insiders</label>
-            <label class="check"><input type="checkbox" id="g-interlocks" checked> Board interlocks</label>
-            <label class="check"><input type="checkbox" id="g-holders" checked> 5% holders</label>
-            <label class="check"><input type="checkbox" id="g-subsidiaries" checked> Subsidiaries</label>
+            <label class="g-chip c-insiders"><input type="checkbox" id="g-insiders" checked><span class="g-swatch" aria-hidden="true"></span>Insiders<span class="g-count" data-count="insiders"></span></label>
+            <label class="g-chip c-interlocks"><input type="checkbox" id="g-interlocks" checked><span class="g-swatch" aria-hidden="true"></span>Board interlocks<span class="g-count" data-count="interlocks"></span></label>
+            <label class="g-chip c-holders"><input type="checkbox" id="g-holders" checked><span class="g-swatch" aria-hidden="true"></span>5% holders<span class="g-count" data-count="holders"></span></label>
+            <label class="g-chip c-subsidiaries"><input type="checkbox" id="g-subsidiaries" checked><span class="g-swatch" aria-hidden="true"></span>Subsidiaries<span class="g-count" data-count="subsidiaries"></span></label>
           </fieldset>
           <label class="check"><input type="checkbox" id="g-former"> Include former</label>
+          <span class="g-find" id="g-find-wrap"><input type="search" id="g-find" placeholder="Find a name" aria-label="Find a name in the graph" autocomplete="off"><span class="g-find-n small muted" id="g-find-n" aria-live="polite"></span></span>
           <label>As of <input type="date" id="g-asof"></label>
           <div class="seg" role="group" aria-label="Show connections as">
             <button type="button" class="seg-btn" data-gview="graph" aria-pressed="true">Graph</button>
@@ -190,16 +191,19 @@
         <p class="g-summary" id="g-summary" role="status" aria-live="polite"></p>
         <div class="g-stage" id="g-stage">
           <div class="g-canvas">
-            <svg id="g-svg" viewBox="-640 -400 1280 800" role="img" aria-labelledby="g-svg-title"><title id="g-svg-title">Connections graph</title></svg>
+            <div class="g-plot">
+            <svg id="g-svg" viewBox="-640 -400 1280 800" role="group" aria-labelledby="g-svg-title"><title id="g-svg-title">Connections graph</title></svg>
             <div class="g-zoom" role="group" aria-label="Zoom">
               <button type="button" class="btn small" id="g-zin" aria-label="Zoom in">+</button>
               <button type="button" class="btn small" id="g-zout" aria-label="Zoom out">&minus;</button>
               <button type="button" class="btn small" id="g-zreset">Fit</button>
             </div>
+            <div class="g-tip" id="g-tip" hidden></div>
+            <div class="g-wheel" id="g-wheel" hidden>Hold Ctrl or ⌘ and scroll to zoom</div>
+            </div>
             <ul class="g-legend" id="g-legend" aria-label="Legend"></ul>
           </div>
           <aside class="g-detail" id="g-detail" aria-live="polite" aria-label="Selected connection">
-            <p class="muted small">Select a person, company or subsidiary to see the role, the dates and the filing it comes from. The Lists view has the same data as tables.</p>
           </aside>
         </div>
         <div class="g-lists" id="g-lists" hidden></div>
