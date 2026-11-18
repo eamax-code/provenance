@@ -144,6 +144,7 @@
       <nav class="tabs" aria-label="Company sections">
         <button type="button" class="tab" data-tab="facts" aria-pressed="true">Facts</button>
         <button type="button" class="tab" data-tab="filings" aria-pressed="false">Filings</button>
+        <button type="button" class="tab" data-tab="connections" aria-pressed="false">Connections</button>
         <button type="button" class="tab" data-tab="freshness" aria-pressed="false">Freshness</button>
       </nav>
 
@@ -169,6 +170,40 @@
         </div>
         <div class="table-wrap"><table id="filings-table"><thead><tr><th>Filed</th><th>Form</th><th>Accession</th><th>Accepted (SEC)</th><th>Quality</th><th>Source</th></tr></thead><tbody></tbody></table></div>
         <div class="row"><button type="button" class="btn small" id="fl-more" hidden>Load more</button></div>
+      </section>
+
+      <section class="tabpane" id="pane-connections" hidden>
+        <div class="controls g-controls">
+          <fieldset class="g-layers"><legend class="sr-only">Layers</legend>
+            <label class="check"><input type="checkbox" id="g-insiders" checked> Insiders</label>
+            <label class="check"><input type="checkbox" id="g-interlocks" checked> Board interlocks</label>
+            <label class="check"><input type="checkbox" id="g-holders" checked> 5% holders</label>
+            <label class="check"><input type="checkbox" id="g-subsidiaries" checked> Subsidiaries</label>
+          </fieldset>
+          <label class="check"><input type="checkbox" id="g-former"> Include former</label>
+          <label>As of <input type="date" id="g-asof"></label>
+          <div class="seg" role="group" aria-label="Show connections as">
+            <button type="button" class="seg-btn" data-gview="graph" aria-pressed="true">Graph</button>
+            <button type="button" class="seg-btn" data-gview="list" aria-pressed="false">Lists</button>
+          </div>
+        </div>
+        <p class="g-summary" id="g-summary" role="status" aria-live="polite"></p>
+        <div class="g-stage" id="g-stage">
+          <div class="g-canvas">
+            <svg id="g-svg" viewBox="-640 -400 1280 800" role="img" aria-labelledby="g-svg-title"><title id="g-svg-title">Connections graph</title></svg>
+            <div class="g-zoom" role="group" aria-label="Zoom">
+              <button type="button" class="btn small" id="g-zin" aria-label="Zoom in">+</button>
+              <button type="button" class="btn small" id="g-zout" aria-label="Zoom out">&minus;</button>
+              <button type="button" class="btn small" id="g-zreset">Fit</button>
+            </div>
+            <ul class="g-legend" id="g-legend" aria-label="Legend"></ul>
+          </div>
+          <aside class="g-detail" id="g-detail" aria-live="polite" aria-label="Selected connection">
+            <p class="muted small">Select a person, company or subsidiary to see the role, the dates and the filing it comes from. The Lists view has the same data as tables.</p>
+          </aside>
+        </div>
+        <div class="g-lists" id="g-lists" hidden></div>
+        <ul class="notes g-notes" id="g-notes"></ul>
       </section>
 
       <section class="tabpane" id="pane-freshness" hidden>
@@ -276,5 +311,6 @@
 <script src="/app/console.js"></script>
 <script src="/app/listings.js"></script>
 <script src="/app/app.js"></script>
+<script src="/app/graph.js"></script>
 </body>
 </html>

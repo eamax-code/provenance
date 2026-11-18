@@ -97,6 +97,7 @@
       <p>Guides</p>
       <ul>
         <li><a href="#as-of">Point in time</a></li>
+        <li><a href="#connections">Connections</a></li>
         <li><a href="#events">Event feed</a></li>
         <li><a href="#webhooks">Watches and webhooks</a></li>
         <li><a href="#listings">Listings</a></li>
@@ -196,6 +197,20 @@ curl -s "{{BASE}}/v1/facts/screen?metric=total_assets&amp;year=2024&amp;as_of=20
         <p>Why it matters: on the data loaded on 15 November 2026, a 2023 revenue screen has 4,895 companies, but only 3,563 had filed by 31 March 2024, and 288 have restated since. A backtest on today's data would have traded on 1,332 figures nobody had yet. <a href="https://github.com/eamax-code/provenance/blob/main/examples/point_in_time.py">examples/point_in_time.py</a> runs this comparison for any metric and date.</p>
       </section>
 
+      <section id="connections" aria-labelledby="connections-h">
+        <h2 id="connections-h">Insiders, holders and subsidiaries</h2>
+        <p>One call returns a company's connections as nodes and edges: its directors, officers and 10% owners (Forms 3, 4 and 5), the other companies those people report on, its holders above 5% (Schedules 13D and 13G) and its subsidiaries (10-K exhibit 21). Every edge carries the filing it comes from, and <code>as_of</code> rebuilds the picture from the filings made by a date.</p>
+        <div class="code"><pre><code><span class="c"># the whole graph, or some layers: insiders, interlocks, holders, subsidiaries</span>
+curl -s "{{BASE}}/v1/companies/320193/graph?include=insiders,holders" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># the same data as lists</span>
+curl -s "{{BASE}}/v1/companies/320193/insiders" -H "X-API-Key: $PROVENANCE_API_KEY"
+curl -s "{{BASE}}/v1/companies/320193/insider-transactions?code=P,S&amp;since=2026-01-01" -H "X-API-Key: $PROVENANCE_API_KEY"
+curl -s "{{BASE}}/v1/companies/320193/subsidiaries" -H "X-API-Key: $PROVENANCE_API_KEY"
+curl -s "{{BASE}}/v1/companies/320193/holders" -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
+        <p>Subsidiaries come with the names that are new or gone since the previous year's exhibit. With your own key, a company's exhibit 21, 13D/G filings and newest Forms 4 are read from EDGAR when they are more than a week old; the response says <code>refreshing: true</code> while that runs. The demo key reads what is stored. The <a href="/app/">Explorer</a> draws the graph in its Connections tab.</p>
+      </section>
+
       <section id="events" aria-labelledby="events-h">
         <h2 id="events-h">The event feed</h2>
         <p><code>GET /v1/events</code> is one ordered feed of new SEC filings, officer changes read from 8-K item 5.02, and listing events. Store <code>next_cursor</code> and pass it back as <code>after</code>; you will never miss or repeat an event.</p>
@@ -253,7 +268,7 @@ curl -s "{{BASE}}/v1/markets/instruments?q=Exosens&amp;region=europe" -H "X-API-
 
       <section id="mcp" aria-labelledby="mcp-h">
         <h2 id="mcp-h">MCP server</h2>
-        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed and see new listings. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
+        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed, see new listings, and map a company's insiders, 5% holders and subsidiaries with their trades. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
         <div class="code" data-tabs>
           <div class="code-tabs" role="tablist" aria-label="Client">
             <button type="button" role="tab" aria-selected="true">Claude Code</button>

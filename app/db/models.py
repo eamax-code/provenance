@@ -860,3 +860,146 @@ event.listen(
     ).execute_if(dialect="postgresql"),
 )
 event.listen(FilingSection.__table__, "before_drop", _drop_chunks)
+
+
+# ---- connections graph: insiders, subsidiaries, beneficial owners (GH #24, ADR 0011) ------
+
+
+class InsiderFiling(Base):
+    """One reporting owner on one Form 3, 4 or 5, from the SEC's insider transaction data sets
+    or, for filings newer than the latest data set, from the filing's own XML. Owner names and
+    roles are kept; owner street addresses are never stored."""
+
+    __tablename__ = "insider_filings"
+    __table_args__ = (
+        UniqueConstraint("accession_number", "owner_cik", name="uq_insider_filings_acc_owner"),
+        Index("ix_insider_filings_issuer_date", "issuer_cik", "filing_date"),
+        Index("ix_insider_filings_owner_date", "owner_cik", "filing_date"),
+    )
+
+    id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    issuer_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    owner_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    owner_name: Mapped[str] = mapped_column(Text, nullable=False)  # as filed, "COOK TIMOTHY D"
+    is_director: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_officer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_ten_percent_owner: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_other: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    officer_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    other_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    period_of_report: Mapped[date | None] = mapped_column(Date, nullable=True)
+    plan_10b5_1: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)  # "dataset:2025q3" or "filing"
+
+
+class InsiderTransaction(Base):
+    """A transaction or holding row of a Form 3, 4 or 5 (table I non-derivative, table II
+    derivative). Rows belong to the filing; a joint filing's rows are shared by its owners."""
+
+    __tablename__ = "insider_transactions"
+    __table_args__ = (
+        UniqueConstraint(
+            "accession_number",
+            "row_kind",
+            "is_derivative",
+            "row_key",
+            name="uq_insider_transactions_row",
+        ),  # fmt: skip
+        Index("ix_insider_transactions_issuer_date", "issuer_cik", "trans_date"),
+    )
+
+    id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    issuer_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    row_kind: Mapped[str] = mapped_column(Text, nullable=False)  # transaction, holding
+    is_derivative: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    row_key: Mapped[str] = mapped_column(Text, nullable=False)
+    security_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    trans_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    trans_code: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    shares: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
+    price: Mapped[Decimal | None] = mapped_column(Numeric(24, 6), nullable=True)
+    acquired_disposed: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    shares_after: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
+    direct_indirect: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    nature_of_ownership: Mapped[str | None] = mapped_column(Text, nullable=True)
+    underlying_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    underlying_shares: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
+    exercise_price: Mapped[Decimal | None] = mapped_column(Numeric(24, 6), nullable=True)
+
+
+class InsiderDataset(Base):
+    """A quarterly insider transaction data set loaded from the SEC."""
+
+    __tablename__ = "insider_datasets"
+
+    quarter: Mapped[str] = mapped_column(String(6), primary_key=True)  # "2025q3"
+    sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    filings: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rows: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    loaded_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class Subsidiary(Base):
+    """A subsidiary listed in a 10-K exhibit 21 (or a 20-F exhibit 8), one row per line."""
+
+    __tablename__ = "subsidiaries"
+    __table_args__ = (
+        UniqueConstraint("cik", "accession_number", "position", name="uq_subsidiaries_row"),
+        Index("ix_subsidiaries_cik_date", "cik", "filing_date"),
+    )
+
+    id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    exhibit: Mapped[str] = mapped_column(Text, nullable=False)  # "EX-21.1"
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    jurisdiction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)  # the exhibit document
+
+
+class BeneficialOwner(Base):
+    """A reporting person on a Schedule 13D or 13G about a company, with the stake it reports."""
+
+    __tablename__ = "beneficial_owners"
+    __table_args__ = (
+        UniqueConstraint(
+            "subject_cik", "accession_number", "position", name="uq_beneficial_owners_row"
+        ),
+        Index("ix_beneficial_owners_subject_date", "subject_cik", "filing_date"),
+        Index("ix_beneficial_owners_filer", "filer_cik"),
+    )
+
+    id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)
+    subject_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    filer_cik: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    holder_name: Mapped[str] = mapped_column(Text, nullable=False)
+    holder_cik: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    holder_type: Mapped[str | None] = mapped_column(Text, nullable=True)  # IA, CO, IN, ...
+    shares: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
+    percent: Mapped[Decimal | None] = mapped_column(Numeric(9, 4), nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)  # the filing
+
+
+class GraphSourceState(Base):
+    """When a company's exhibit 21, 13D/G filings or recent insider filings were last read."""
+
+    __tablename__ = "graph_source_state"
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)  # subsidiaries, holders, insiders
+    checked_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    status: Mapped[str] = mapped_column(Text, nullable=False)  # ok, none, failed
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)

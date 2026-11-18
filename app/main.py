@@ -24,6 +24,7 @@ from app.api import (
     routes_developer,
     routes_events,
     routes_exports,
+    routes_graph,
     routes_key_requests,
     routes_listing_watches,
     routes_markets,
@@ -180,6 +181,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_error_handlers(app, site_dir if site_dir.is_dir() else None)
 
     app.include_router(routes_companies.router)
+    app.include_router(routes_graph.router)
     app.include_router(routes_notifications.router)
     app.include_router(routes_listing_watches.router)
     app.include_router(routes_developer.router)

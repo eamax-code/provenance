@@ -3,6 +3,7 @@
 (() => {
   const GROUPS = [
     ["companies", "Companies", "Identity, filings, facts and freshness for one company."],
+    ["connections", "Connections", "Insiders, their other companies, 5% holders and subsidiaries, each with its filing."],
     ["facts", "Facts across companies", "Rank companies by a metric, optionally as of a date."],
     ["search", "Search", "Companies and passages from filing sections."],
     ["events", "Event feed", "New filings, officer changes and listing events, in order."],

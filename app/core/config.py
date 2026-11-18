@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     markets_gleif_refresh_days: int = 30
     # Daily scheduler: the poller runs all enabled sources once per UTC day after this hour
     # (ESMA and FCA publish deltas by 09:00 CET/UTC). Set false where a platform cron runs it.
+    # Connections graph (ADR 0011): new insider data sets and showcase sources, once a day
+    connections_daily_enabled: bool = True
     markets_daily_enabled: bool = True
     markets_daily_hour_utc: int = 10
     # Public demo key ("demo"): read-only endpoints, showcase companies, small pages, per-IP limits

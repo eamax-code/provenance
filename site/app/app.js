@@ -43,6 +43,9 @@
     });
   }
 
+  /* Shared with the connections graph (graph.js), which opens companies in this Explorer. */
+  window.ProvenanceExplorer = { api: function (p, o) { return api(p, o); }, open: function (cik) { openCompany(cik); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} }, toast: function (m, k) { toast(m, k); } };
+
   /* ---- session ---- */
   function setKey(key) {
     state.key = key; storage(false, key);
@@ -115,7 +118,7 @@
     b.addEventListener('click', function () {
       state.tab = b.getAttribute('data-tab');
       document.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-pressed', String(t === b)); });
-      ['facts', 'filings', 'freshness'].forEach(function (p) { $('pane-' + p).hidden = p !== state.tab; });
+      ['facts', 'filings', 'connections', 'freshness'].forEach(function (p) { $('pane-' + p).hidden = p !== state.tab; });
       loadTab();
     });
   });
@@ -171,7 +174,8 @@
   }
   function loadTab() {
     if (!state.company || state.company.ingestion_status !== 'complete') return;
-    if (state.tab === 'facts') loadFacts(); else if (state.tab === 'filings') { state.filingsOffset = 0; loadFilings(false); } else loadFreshness();
+    if (state.tab === 'facts') loadFacts(); else if (state.tab === 'filings') { state.filingsOffset = 0; loadFilings(false); }
+    else if (state.tab === 'connections') { if (window.ProvenanceGraph) window.ProvenanceGraph.load(state.company); } else loadFreshness();
   }
 
   /* ---- facts ---- */

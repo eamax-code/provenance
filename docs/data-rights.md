@@ -11,11 +11,16 @@ has been completed yet.
 | XBRL company facts | `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json` |
 | Ticker/exchange association | `https://www.sec.gov/files/company_tickers_exchange.json` |
 | Human-readable filing index (linked as `source_url`) | `https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{accession}-index.html` |
+| Insider transaction data sets (Forms 3, 4, 5, quarterly) | `https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets/` (listed on the SEC's data set page) |
+| Form 4 XML, Schedule 13D/G XML, exhibit 21 (connections graph, ADR 0011) | documents inside each filing under `https://www.sec.gov/Archives/edgar/data/` |
 
 Access follows the SEC fair-access guidance: a descriptive `User-Agent` with a monitored
 contact address, at most 4 requests/second by default, conditional requests (ETag /
 Last-Modified), exponential backoff honoring `Retry-After`, and no attempt to bypass throttling.
 Confirm the current guidance at https://www.sec.gov/os/accessing-edgar-data before deploying.
+
+Insider names, roles and transactions are public in EDGAR. The reporting owner's street address
+is in the same filings and is never stored (ADR 0011).
 
 ## International listing sources (Canada, Europe, UK)
 

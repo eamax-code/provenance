@@ -141,6 +141,48 @@ years before the change (`before_change`, with the filings it used), the same ov
 tenure when their appointment was recorded (`tenure`), and two-digit SIC peer medians (`peers`,
 five or more companies).
 
+## Connections graph (ADR 0011)
+
+### insider_filings
+
+One reporting owner on one Form 3, 4 or 5: `accession_number`, `issuer_cik`, `owner_cik`,
+`owner_name` (as filed, usually last name first), `is_director`, `is_officer`,
+`is_ten_percent_owner`, `is_other`, `officer_title`, `other_text`, `form_type`, `filing_date`,
+`period_of_report`, `plan_10b5_1` (the filer ticked the Rule 10b5-1 box), `source`
+(`dataset:2025q3` for the SEC's quarterly data set, `filing` when read from the filing's XML).
+No addresses.
+
+### insider_transactions
+
+Table I (non-derivative) and table II (derivative) rows of a filing: `row_kind` (transaction or
+holding), `security_title`, `trans_date`, `trans_code` (P purchase, S sale, A award, M exercise,
+F tax withholding, G gift...), `shares`, `price`, `acquired_disposed` (A or D), `shares_after`,
+`direct_indirect` (D or I), `nature_of_ownership`, `underlying_title`, `underlying_shares`,
+`exercise_price`. Rows belong to the filing; a joint filing's rows count for each owner.
+
+### insider_datasets
+
+One loaded quarter: `quarter`, `sha256` of the zip, `filings`, `rows`, `last_filing_date` (the
+newest filing it covers; later Forms are read one by one).
+
+### subsidiaries
+
+One line of an exhibit 21 (exhibit 8 of a 20-F): `cik`, `accession_number`, `form_type`,
+`filing_date`, `exhibit` (e.g. EX-21.1), `position`, `name`, `jurisdiction` (as written),
+`source_url` (the exhibit document). The latest two lists per company are kept.
+
+### beneficial_owners
+
+One reporting person on a structured Schedule 13D or 13G: `subject_cik`, `accession_number`,
+`form_type`, `filing_date`, `event_date`, `filer_cik`, `position`, `holder_name`, `holder_cik`,
+`holder_type` (IA investment adviser, IN individual, CO corporation...), `shares`, `percent`
+(of the class, as reported), `source_url` (the filing).
+
+### graph_source_state
+
+When a company's `subsidiaries`, `holders` or recent `insiders` were last read from EDGAR, with
+`status` (ok, none, failed). The API rereads sources older than seven days for keyed callers.
+
 ## mart_company, mart_filing_activity (quick answers)
 
 Precomputed by `app/services/marts.py` (`scripts/build_marts.py`; a company's row is refreshed

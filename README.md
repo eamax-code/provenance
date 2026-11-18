@@ -38,7 +38,8 @@ file.
 | Company-intelligence chat: cited brief from SEC data (annual metrics with growth, recent filings, 8-K item 5.02 leadership changes), phrased by a local language model (Ollama, Qwen3 4B Instruct) and checked against the data | `POST /v1/chat`, page `/chat/` |
 | 8-K item codes on filings (e.g. 5.02 officer changes) | `items` on `/filings` and on the event feed |
 | Python client: companies, point-in-time facts, screen, listings, event feed (polling and SSE), DataFrames | `clients/python` |
-| MCP server for AI agents: eight read-only tools over the same API, keys and limits; results keep filing links | `POST /mcp` |
+| Connections: insiders (Forms 3/4/5) with trades and holdings, the other companies they serve, 5% holders (13D/G), subsidiaries (exhibit 21) with year-on-year changes; a graph in the Explorer; every edge cites its filing; `as_of` | `GET /v1/companies/{cik}/graph`, `/insiders`, `/insider-transactions`, `/holders`, `/subsidiaries` |
+| MCP server for AI agents: ten read-only tools over the same API, keys and limits; results keep filing links | `POST /mcp` |
 | Accounts: sign in by one-time email link, create, name and revoke keys, see usage, pick the chat and Explorer theme | page `/account/`, `/v1/account/...` |
 | Developer docs: quickstart in curl, Python and JavaScript, guides, an API reference rendered from OpenAPI, changelog and versioning policy | `/developers/`, `/docs`, `/changelog/` |
 | Draft legal pages (pending review): terms, privacy, acceptable use, data sources | `/legal/` |

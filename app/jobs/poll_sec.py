@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import Company, CompanyWatch, utcnow
+from app.jobs import connections as connections_job
 from app.jobs import markets as markets_job
 from app.services import alerts, quality, retention, universe
 from app.services.events import publish_pending
@@ -146,7 +147,7 @@ def maybe_purge(db: Session, settings: Settings, last_day, now=None):
 
 
 def run_forever(session_maker, settings: Settings, include_all_companies: bool = False) -> None:
-    purged_on = None
+    purged_on = connections_on = None
     while True:
         db = session_maker()
         try:
@@ -155,6 +156,9 @@ def run_forever(session_maker, settings: Settings, include_all_companies: bool =
                 if acquired:
                     markets_job.maybe_run(db, settings)
                     purged_on = maybe_purge(db, settings, purged_on)
+                    connections_on = connections_job.maybe_run(
+                        db, settings, connections_on, utcnow().date()
+                    )
         except Exception:  # noqa: BLE001
             logger.exception("poll iteration crashed")
         finally:

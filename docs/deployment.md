@@ -45,6 +45,16 @@ nginx) in front of port 8000 and set `.env` from `.env.example` with real secret
 - Either way the run is recorded under `ingestion_runs.source = markets:daily`, so a second
   trigger on the same day is a no-op.
 
+## Connections graph data (ADR 0011)
+
+- Once after the first deploy: `python scripts/ingest_connections.py --insider-quarters 20`
+  (about 8 MB per quarter, ten minutes for five years), then
+  `python scripts/ingest_connections.py --showcase`.
+- After that the poller keeps it current (`CONNECTIONS_DAILY_ENABLED=true`, default): once a
+  UTC day it checks the SEC's data set page, loads a new quarter when one appears and rereads the
+  showcase companies' exhibit 21, 13D/G filings and newest Forms 4. Keyed API callers trigger the
+  same read for any other company, at most once a week per company.
+
 ## Before the first deploy (checked locally on 2026-11-15)
 
 The production image was built from this repository and run with `APP_ENV=production` against

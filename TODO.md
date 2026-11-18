@@ -28,6 +28,7 @@ is being built now.
 | P11 | Pilot launch plan: who it is for, the offer, success measures, launch-day checklist, outreach copy | 03 | done: [docs/launch-plan.md](docs/launch-plan.md); interviews and outreach: you |
 | P12 | Deployment check without a host: image builds, readiness checks, env example, runbook current | GH #19 | done: image built and run in production mode; `.dockerignore`; settings table in docs/deployment.md (host: you, 02) |
 | P13 | Tests: unit tests for all new code, full suite on SQLite and Postgres, every page in a browser at desktop and phone width | all | done 2026-11-15: 477 SQLite, 481 PostgreSQL, 477 with the clock two years ahead; migrations up/down; 20 pages pass accessibility and CSP checks; GitHub CI green |
+| P14 | Connections graph in the Explorer: insiders (Forms 3/4/5), board interlocks, 5% holders (13D/G), subsidiaries (exhibit 21); API, MCP tools, daily upkeep; deep dive on what to add | you, 2026-11-18 | done: ADR 0011, [docs/connections.md](docs/connections.md); 20 quarters of insider data loaded (2.7M rows); exhibits and 13D/G read for the 12 showcase companies |
 
 ## Release 1.0
 Checklist: [GH #31](https://github.com/eamax-code/provenance/issues/31). Milestone "Release 1.0" on GitHub.
@@ -64,7 +65,7 @@ Milestone "After release": the gaps with Bloomberg and FactSet that free, redist
 
 | # | Item | Status |
 | --- | --- | --- |
-| GH #24 | [Ownership: insider trades, 13F, 13D/G, fund holdings](https://github.com/eamax-code/provenance/issues/24) | ready-for-agent |
+| GH #24 | [Ownership: insider trades, 13F, 13D/G, fund holdings](https://github.com/eamax-code/provenance/issues/24) | in progress: insiders, transactions, 13D/G and the connections graph done 2026-11-18 (ADR 0011); 13F and N-PORT next, see [docs/connections.md](docs/connections.md) |
 | GH #25 | [About 100 standardised line items and segments](https://github.com/eamax-code/provenance/issues/25) | ready-for-agent |
 | GH #26 | [Company guidance from earnings releases](https://github.com/eamax-code/provenance/issues/26) | ready-for-agent |
 | GH #27 | [Company financials outside the US](https://github.com/eamax-code/provenance/issues/27) | needs you: licence per source |

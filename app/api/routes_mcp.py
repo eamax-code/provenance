@@ -82,6 +82,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik", "metric"],
         },
     },
+    "company_connections": {
+        "title": "Insiders, subsidiaries and 5% holders",
+        "description": "A company's connections: directors, officers and 10% owners (Forms 3, 4, "
+        "5) and the other companies they report on, holders above 5% (Schedules 13D/G) and "
+        "subsidiaries (exhibit 21). Each edge carries the filing it comes from; as_of uses only "
+        "filings made by that date.",
+        "path": "/v1/companies/{cik}/graph",
+        "params": {"include": "include", "as_of": "as_of", "former": "former"},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "include": {
+                    "type": "string",
+                    "description": "Comma-separated: insiders, interlocks, subsidiaries, holders",
+                },
+                "as_of": _DATE,
+                "former": {
+                    "type": "boolean",
+                    "description": "Include former insiders and holders now below 5%",
+                },
+            },
+            "required": ["cik"],
+        },
+    },
+    "insider_transactions": {
+        "title": "Insider purchases and sales",
+        "description": "Transactions reported on Forms 3, 4 and 5, newest first: who, role, "
+        "code (P purchase, S sale, A award, M exercise, F tax withholding...), shares, price "
+        "and holdings after, each with its filing.",
+        "path": "/v1/companies/{cik}/insider-transactions",
+        "params": {"code": "code", "since": "since", "as_of": "as_of", "limit": "limit"},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "code": {"type": "string", "description": "Comma-separated codes, e.g. P,S"},
+                "since": _DATE,
+                "as_of": _DATE,
+                "limit": _LIMIT,
+            },
+            "required": ["cik"],
+        },
+    },
     "list_filings": {
         "title": "Recent filings",
         "description": "A company's SEC filings, newest first, with links to each filing.",
