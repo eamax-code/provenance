@@ -126,6 +126,30 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik"],
         },
     },
+    "companies_going_public": {
+        "title": "Companies going public",
+        "description": "First-time registrants going public, newest activity first, with the "
+        "stage reached (confidential DRS, filed S-1/F-1 or Form 10, amended, effective, listing "
+        "8-A/CERT, priced 424B4, withdrawn) and the filing behind each milestone. EDGAR is read "
+        "every hour.",
+        "path": "/v1/ipos",
+        "params": {"days": "days", "since": "since", "stage": "stage", "kind": "kind",
+                   "limit": "limit"},  # fmt: skip
+        "schema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "description": "Activity in the last N days (90)"},
+                "since": _DATE,
+                "stage": {
+                    "type": "string",
+                    "description": "confidential, filed, amended, effective, listing, priced "
+                    "or withdrawn",
+                },
+                "kind": {"type": "string", "description": "ipo or spin_off"},
+                "limit": _LIMIT,
+            },
+        },
+    },
     "list_filings": {
         "title": "Recent filings",
         "description": "A company's SEC filings, newest first, with links to each filing.",

@@ -1,5 +1,5 @@
-"""Retention purges for request logs, finished deliveries, used sign-in links and ended sessions
-(see docs/data-rights.md and the privacy page)."""
+"""Retention purges for request logs, finished deliveries, used sign-in links, ended sessions
+(see docs/data-rights.md and the privacy page) and the filings tracker's handled rows."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from app.core.rate_limits import KEEP_SECONDS
 from app.db.models import (
     AccountSession,
     ApiUsage,
+    EdgarFeedEntry,
     NotificationDelivery,
     RateLimitCounter,
     SignInToken,
@@ -21,6 +22,8 @@ from app.db.models import (
 # A sign-in link is kept a day past its expiry; an ended session a week, for support questions.
 SIGN_IN_KEEP = timedelta(days=1)
 SESSION_KEEP = timedelta(days=7)
+# The tracker's rows matter until handled; a year of them answers "what did EDGAR list when".
+FEED_KEEP = timedelta(days=365)
 
 
 def purge(db: Session, settings: Settings, now: datetime | None = None) -> dict[str, int]:
@@ -50,6 +53,12 @@ def purge(db: Session, settings: Settings, now: datetime | None = None) -> dict[
             )
         )
     ).rowcount
+    feed_deleted = db.execute(
+        delete(EdgarFeedEntry).where(
+            EdgarFeedEntry.status.in_(["refreshed", "discovered", "ignored"]),
+            EdgarFeedEntry.seen_at < now - FEED_KEEP,
+        )
+    ).rowcount
     db.commit()
     return {
         "api_usage": int(usage_deleted),
@@ -57,4 +66,5 @@ def purge(db: Session, settings: Settings, now: datetime | None = None) -> dict[
         "rate_limit_counters": int(counters_deleted),
         "sign_in_tokens": int(links_deleted),
         "account_sessions": int(sessions_deleted),
+        "edgar_feed": int(feed_deleted),
     }

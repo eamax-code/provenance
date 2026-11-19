@@ -12,7 +12,7 @@
 
 ## MCP server (for AI agents)
 - POST /mcp  Model Context Protocol, Streamable HTTP transport, JSON responses. Send your key as X-API-Key or Authorization: Bearer; without one the demo key and its limits apply.
-- Tools: search_companies, company_overview, get_figures (as_of), list_filings, rank_companies, search_filings, recent_events, listing_events. Each result keeps source_url and accession_number; cite them.
+- Tools: search_companies, company_overview, get_figures (as_of), list_filings, rank_companies, search_filings, recent_events, listing_events, company_connections, insider_transactions, companies_going_public. Each result keeps source_url and accession_number; cite them.
 - Claude Code: claude mcp add --transport http provenance https://THIS-HOST/mcp --header "X-API-Key: YOUR_KEY"
 
 ## Endpoints
@@ -25,6 +25,7 @@
 - GET /v1/companies/{cik}/freshness
 - GET /v1/companies/{cik}/graph?include=insiders,interlocks,holders,subsidiaries&former=false&as_of=YYYY-MM-DD  connections as nodes and edges; each edge has evidence (form, accession, filing date, EDGAR URL). Insiders from Forms 3/4/5, interlocks = other companies the same insiders file at, holders above 5% from structured Schedules 13D/G, subsidiaries from 10-K exhibit 21 (with names new or gone since the year before). refreshing=true while EDGAR sources are read for a keyed caller
 - GET /v1/companies/{cik}/insiders?former=false&as_of=  directors, officers, 10% owners: role, since, last filed, shares held, open-market buys and sells over 12 months, other companies
+- GET /v1/ipos?days=90&since=&stage=&kind=ipo|spin_off&limit=1..200&offset=  companies going public, newest activity first: stage confidential (DRS), filed (S-1, F-1, Form 10), amended, effective, listing (8-A, exchange certification), priced (424B4) or withdrawn (RW), each milestone with its filing. Only first-time registrants; EDGAR is read every hour
 - GET /v1/companies/{cik}/insider-transactions?code=P,S&since=&as_of=&owner_cik=&limit=1..100&offset=  transaction codes: P purchase, S sale, A award, M option exercise, F tax withholding, G gift
 - GET /v1/companies/{cik}/subsidiaries?as_of=   and   GET /v1/companies/{cik}/holders?below=false&as_of=
 - GET /v1/facts/screen?metric=&year=YYYY&period={annual|quarterly}&quarter={1-4}&unit=USD&order={desc|asc}&as_of=YYYY-MM-DD  one row per company, latest period ending in that calendar year (or calendar quarter, with period=quarterly)

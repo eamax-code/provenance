@@ -186,7 +186,7 @@ def test_retention_purges_only_beyond_window(db, settings, sec_client):
     db.commit()
     counts = retention.purge(db, settings, now=now)
     assert counts == {"api_usage": 2, "notification_deliveries": 2, "rate_limit_counters": 0,
-                      "sign_in_tokens": 0, "account_sessions": 0}  # fmt: skip
+                      "sign_in_tokens": 0, "account_sessions": 0, "edgar_feed": 0}  # fmt: skip
     assert db.scalar(select(func.count(ApiUsage.id))) == 1
     remaining = {d.status for d in db.scalars(select(NotificationDelivery))}
     assert remaining == {"pending", "delivered"}  # pending is never purged
@@ -196,6 +196,7 @@ def test_retention_purges_only_beyond_window(db, settings, sec_client):
         "rate_limit_counters": 0,
         "sign_in_tokens": 0,
         "account_sessions": 0,
+        "edgar_feed": 0,
     }
 
 

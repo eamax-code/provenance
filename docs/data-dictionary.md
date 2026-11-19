@@ -183,6 +183,22 @@ One reporting person on a structured Schedule 13D or 13G: `subject_cik`, `access
 When a company's `subsidiaries`, `holders` or recent `insiders` were last read from EDGAR, with
 `status` (ok, none, failed). The API rereads sources older than seven days for keyed callers.
 
+## edgar_feed, job_state (filings tracker, ADR 0012)
+
+### edgar_feed
+
+Every filing EDGAR listed, one row per filing per company it names: `accession_number`, `cik`,
+`company_name` and `form_type` as EDGAR lists them, `role` (filer, subject, issuer, or listed for
+daily-index rows), `filing_date`, `accepted_at` (feed rows only), `source` (search, latest,
+daily-index), `seen_at`. `status` says what the tracker did: refreshed (a covered company),
+discovered (added to coverage), ignored, failed (retried up to three times), or new (waiting for
+the next run); `detail` holds the error of a failed row.
+
+### job_state
+
+A scheduled job's progress marker by `name`, such as `filings_tracker.daily_index`: the last
+daily index read.
+
 ## mart_company, mart_filing_activity (quick answers)
 
 Precomputed by `app/services/marts.py` (`scripts/build_marts.py`; a company's row is refreshed

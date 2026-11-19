@@ -55,6 +55,15 @@ nginx) in front of port 8000 and set `.env` from `.env.example` with real secret
   showcase companies' exhibit 21, 13D/G filings and newest Forms 4. Keyed API callers trigger the
   same read for any other company, at most once a week per company.
 
+## Filings tracker (ADR 0012)
+
+- The poller reads EDGAR's new filings every hour (`FILINGS_TRACKER_ENABLED=true`,
+  `FILINGS_TRACKER_INTERVAL_SECONDS=3600`): it refreshes covered companies that filed and adds
+  companies going public. After a deploy or any downtime, catch up once with
+  `python scripts/track_filings.py --days 7`; `--status` shows what it has seen and done.
+- Where the poller does not run (a platform cron only), schedule
+  `0 * * * * cd /app && python scripts/track_filings.py` instead.
+
 ## Before the first deploy (checked locally on 2026-11-15)
 
 The production image was built from this repository and run with `APP_ENV=production` against

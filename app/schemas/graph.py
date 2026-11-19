@@ -161,3 +161,25 @@ class HolderList(BaseModel):
     as_of: date | None
     note: str
     refreshing: bool = False
+
+
+class IpoOut(BaseModel):
+    cik: str
+    name: str
+    ticker: str | None = Field(None, description="Set once the SEC lists one for the company")
+    exchange: str | None = None
+    kind: str = Field(description="ipo (S-1, F-1 or DRS) or spin_off (Form 10)")
+    stage: str = Field(
+        description="confidential, filed, amended, effective, listing, priced or withdrawn"
+    )
+    blank_check: bool = Field(description="A blank-check company (SPAC), SIC 6770")
+    last_activity: date
+    milestones: dict[str, FilingRef] = Field(
+        description="The filing behind each milestone reached: the first of each, the latest "
+        "amendment"
+    )
+
+
+class IpoList(BaseModel):
+    data: list[IpoOut]
+    meta: PageMeta

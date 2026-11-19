@@ -39,7 +39,8 @@ file.
 | 8-K item codes on filings (e.g. 5.02 officer changes) | `items` on `/filings` and on the event feed |
 | Python client: companies, point-in-time facts, screen, listings, event feed (polling and SSE), DataFrames | `clients/python` |
 | Connections: insiders (Forms 3/4/5) with trades and holdings, the other companies they serve, 5% holders (13D/G), subsidiaries (exhibit 21) with year-on-year changes; a graph in the Explorer; every edge cites its filing; `as_of` | `GET /v1/companies/{cik}/graph`, `/insiders`, `/insider-transactions`, `/holders`, `/subsidiaries` |
-| MCP server for AI agents: ten read-only tools over the same API, keys and limits; results keep filing links | `POST /mcp` |
+| Companies going public, stage by stage (confidential, filed, amended, effective, listing, priced, withdrawn), each milestone linked to its filing; EDGAR read every hour, new filers added to coverage | `GET /v1/ipos` |
+| MCP server for AI agents: eleven read-only tools over the same API, keys and limits; results keep filing links | `POST /mcp` |
 | Accounts: sign in by one-time email link, create, name and revoke keys, see usage, pick the chat and Explorer theme | page `/account/`, `/v1/account/...` |
 | Developer docs: quickstart in curl, Python and JavaScript, guides, an API reference rendered from OpenAPI, changelog and versioning policy | `/developers/`, `/docs`, `/changelog/` |
 | Draft legal pages (pending review): terms, privacy, acceptable use, data sources | `/legal/` |

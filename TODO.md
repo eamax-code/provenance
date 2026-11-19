@@ -29,6 +29,7 @@ is being built now.
 | P12 | Deployment check without a host: image builds, readiness checks, env example, runbook current | GH #19 | done: image built and run in production mode; `.dockerignore`; settings table in docs/deployment.md (host: you, 02) |
 | P13 | Tests: unit tests for all new code, full suite on SQLite and Postgres, every page in a browser at desktop and phone width | all | done 2026-11-15: 477 SQLite, 481 PostgreSQL, 477 with the clock two years ahead; migrations up/down; 20 pages pass accessibility and CSP checks; GitHub CI green |
 | P14 | Connections graph in the Explorer: insiders (Forms 3/4/5), board interlocks, 5% holders (13D/G), subsidiaries (exhibit 21); API, MCP tools, daily upkeep; deep dive on what to add | you, 2026-11-18 | done: ADR 0011, [docs/connections.md](docs/connections.md); 20 quarters of insider data loaded (2.7M rows); exhibits and 13D/G read for the 12 showcase companies |
+| P15 | Anthropic went public (424B4, 2026-11-19) and the local copy stopped at 11-12: read EDGAR every hour, refresh covered companies, add companies going public, show IPO stages | you, 2026-11-19 | done: ADR 0012, `GET /v1/ipos`, MCP `companies_going_public`; poller runs it hourly, `scripts/track_filings.py` for catch-up; local hourly run via launchd |
 
 ## Release 1.0
 Checklist: [GH #31](https://github.com/eamax-code/provenance/issues/31). Milestone "Release 1.0" on GitHub.

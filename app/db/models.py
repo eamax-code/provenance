@@ -1003,3 +1003,44 @@ class GraphSourceState(Base):
     checked_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     status: Mapped[str] = mapped_column(Text, nullable=False)  # ok, none, failed
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+# ---- filings tracker: every filing EDGAR disseminates, read hourly (ADR 0012) --------------
+
+
+class EdgarFeedEntry(Base):
+    """One filing as EDGAR lists it, per company it names (a Form 4 names its issuer)."""
+
+    __tablename__ = "edgar_feed"
+    __table_args__ = (
+        UniqueConstraint("accession_number", "cik", name="uq_edgar_feed_accession_cik"),
+        Index("ix_edgar_feed_status", "status"),
+        Index("ix_edgar_feed_cik", "cik"),
+        Index("ix_edgar_feed_form_date", "form_type", "filing_date"),
+    )
+
+    id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    company_name: Mapped[str] = mapped_column(Text, nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)  # filer, subject, issuer, listed
+    filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)  # latest | daily-index
+    seen_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    # new -> refreshed (a covered company) | discovered (added to coverage) | ignored | failed
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="new")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    handled_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class JobState(Base):
+    """A scheduled job's progress marker, such as the last daily index read."""
+
+    __tablename__ = "job_state"
+
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)

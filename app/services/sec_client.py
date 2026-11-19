@@ -237,6 +237,13 @@ class SecClient:
         if self._own_http:
             self.http.close()
 
+    def with_retries(self, retries: int) -> SecClient:
+        """The same connection, pacing and cache, giving up after `retries` retries."""
+        return SecClient(
+            self.settings.model_copy(update={"sec_max_retries": retries}),
+            http=self.http, sleep=self._sleep, cache_dir=self._cache_dir,
+        )  # fmt: skip
+
     # -- cache -------------------------------------------------------------------------
     def _cache_path(self, url: str) -> Path:
         name = hashlib.sha256(url.encode("utf-8")).hexdigest()

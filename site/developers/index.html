@@ -97,6 +97,7 @@
       <p>Guides</p>
       <ul>
         <li><a href="#as-of">Point in time</a></li>
+        <li><a href="#ipos">Going public</a></li>
         <li><a href="#connections">Connections</a></li>
         <li><a href="#events">Event feed</a></li>
         <li><a href="#webhooks">Watches and webhooks</a></li>
@@ -197,6 +198,16 @@ curl -s "{{BASE}}/v1/facts/screen?metric=total_assets&amp;year=2024&amp;as_of=20
         <p>Why it matters: on the data loaded on 15 November 2026, a 2023 revenue screen has 4,895 companies, but only 3,563 had filed by 31 March 2024, and 288 have restated since. A backtest on today's data would have traded on 1,332 figures nobody had yet. <a href="https://github.com/eamax-code/provenance/blob/main/examples/point_in_time.py">examples/point_in_time.py</a> runs this comparison for any metric and date.</p>
       </section>
 
+      <section id="ipos" aria-labelledby="ipos-h">
+        <h2 id="ipos-h">Companies going public</h2>
+        <p>Provenance reads every new EDGAR filing each hour. Companies that register to go public are added on their first filing, and <code>/v1/ipos</code> shows how far each one has got: confidential draft (DRS), filed (S-1, F-1, or Form 10 for a spin-off), amended, effective, listing (8-A and the exchange's certification), priced (424B4) or withdrawn. Each step links its filing.</p>
+        <div class="code"><pre><code><span class="c"># priced in the last 30 days</span>
+curl -s "{{BASE}}/v1/ipos?days=30&amp;stage=priced" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># everything moving this quarter, spin-offs only</span>
+curl -s "{{BASE}}/v1/ipos?since=2026-10-01&amp;kind=spin_off" -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
+        <p>Only first-time registrants are listed: a company that filed annual or quarterly reports before registering is raising money, not going public. Priced means the final prospectus is filed, not that trading has started; the ticker appears once the SEC lists one. New filings of these companies reach the <a href="#events">event feed</a> and your watches like any other.</p>
+      </section>
       <section id="connections" aria-labelledby="connections-h">
         <h2 id="connections-h">Insiders, holders and subsidiaries</h2>
         <p>One call returns a company's connections as nodes and edges: its directors, officers and 10% owners (Forms 3, 4 and 5), the other companies those people report on, its holders above 5% (Schedules 13D and 13G) and its subsidiaries (10-K exhibit 21). Every edge carries the filing it comes from, and <code>as_of</code> rebuilds the picture from the filings made by a date.</p>
@@ -268,7 +279,7 @@ curl -s "{{BASE}}/v1/markets/instruments?q=Exosens&amp;region=europe" -H "X-API-
 
       <section id="mcp" aria-labelledby="mcp-h">
         <h2 id="mcp-h">MCP server</h2>
-        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed, see new listings, and map a company's insiders, 5% holders and subsidiaries with their trades. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
+        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed, see new listings, follow companies going public, and map a company's insiders, 5% holders and subsidiaries with their trades. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
         <div class="code" data-tabs>
           <div class="code-tabs" role="tablist" aria-label="Client">
             <button type="button" role="tab" aria-selected="true">Claude Code</button>

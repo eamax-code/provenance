@@ -72,6 +72,12 @@ class Settings(BaseSettings):
     # (ESMA and FCA publish deltas by 09:00 CET/UTC). Set false where a platform cron runs it.
     # Connections graph (ADR 0011): new insider data sets and showcase sources, once a day
     connections_daily_enabled: bool = True
+    # Filings tracker (ADR 0012): EDGAR's latest filings every hour, the daily index once a day;
+    # refreshes covered companies and adds companies going public
+    filings_tracker_enabled: bool = True
+    filings_tracker_interval_seconds: int = 3600
+    filings_tracker_feed_pages: int = 25  # 100 filings a page; the feed keeps about 2,000
+    filings_tracker_max_companies: int = 1500  # refreshed or added per run; the rest wait
     markets_daily_enabled: bool = True
     markets_daily_hour_utc: int = 10
     # Public demo key ("demo"): read-only endpoints, showcase companies, small pages, per-IP limits
