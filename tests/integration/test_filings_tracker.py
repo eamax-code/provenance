@@ -192,6 +192,11 @@ def test_going_public_stages_come_from_the_filings(db, client, auth):
     _company(db, "0002000003", "Pulled Co")
     _filing(db, "0002000003", "S-1", ago(50), 1)
     _filing(db, "0002000003", "RW", ago(5), 2)
+    _company(db, "0002000005", "Last Year Co")  # priced a year ago, now a follow-on
+    _filing(db, "0002000005", "S-1", ago(420), 1)
+    _filing(db, "0002000005", "424B4", ago(380), 2)
+    _filing(db, "0002000005", "S-1", ago(20), 3)
+    _filing(db, "0002000005", "424B4", ago(3), 4)
     _company(db, "0002000004", "Spin Co")
     _filing(db, "0002000004", "10-12B", ago(30), 1)
     db.commit()

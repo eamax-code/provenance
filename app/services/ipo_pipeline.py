@@ -13,7 +13,8 @@ milestones, each one a filing:
   withdrawn     RW         registration withdrawn
 
 The stage is the furthest milestone reached; a withdrawal after the last other milestone wins.
-Each milestone links its filing.
+The IPO ends at its first 424B4: later registrations (follow-on offerings, post-effective
+amendments) are not going public and are not counted. Each milestone links its filing.
 """
 
 from __future__ import annotations
@@ -97,6 +98,8 @@ def _track(filings: list[Filing]) -> dict | None:
     for f in filings:
         if f.filing_date < first_reg.filing_date:
             continue
+        if "priced" in milestones:
+            break  # the IPO is done; later filings are follow-ons
         for name, forms in MILESTONE_FORMS.items():
             if f.form_type in forms:
                 # the first filing of each milestone, but the latest amendment
