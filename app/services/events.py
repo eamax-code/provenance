@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.core.timeutil import iso_z
 from app.db.models import Company, Filing, ListingEvent, OfficerChange, utcnow
+from app.services import filing_events
 from app.services.form8k import split_items
 from app.services.notifications import EVENT_TYPE as FILING_EVENT_TYPE
 
@@ -72,7 +73,8 @@ class EventFilters:
     form_types: list[str] = field(default_factory=list)
     items: list[str] = field(default_factory=list)  # 8-K item codes, e.g. 5.02
     mics: list[str] = field(default_factory=list)
-    event_types: list[str] = field(default_factory=list)
+    event_types: list[str] = field(default_factory=list)  # listing event types
+    filing_types: list[str] = field(default_factory=list)  # sec.restatement, ... (D-05)
 
 
 @dataclass
@@ -133,6 +135,8 @@ def fetch_page(
             stmt = stmt.where(Filing.form_type.in_(filters.form_types))
         if filters.items:
             stmt = stmt.where(or_(*(Filing.items.like(f"%{code}%") for code in filters.items)))
+        if filters.filing_types:
+            stmt = stmt.where(filing_events.condition(filters.filing_types))
         for filing, name, ticker in db.execute(stmt):
             pos = Cursor(filing.stream_at, "filing", filing.id)
             candidates.append((pos, _filing_event(pos, filing, name, ticker)))
@@ -186,6 +190,7 @@ def fetch_page(
 
 
 def _filing_event(pos: Cursor, f: Filing, name: str, ticker: str | None) -> dict:
+    types = filing_events.types_for(f.form_type, f.items)
     return {
         "id": pos.encode(),
         "type": FILING_EVENT_TYPE,
@@ -201,6 +206,8 @@ def _filing_event(pos: Cursor, f: Filing, name: str, ticker: str | None) -> dict
             "report_date": f.report_date.isoformat() if f.report_date else None,
             "accepted_at": iso_z(f.accepted_at),
             "items": split_items(f.items),
+            "event_types": types,
+            "event_labels": {t: filing_events.FILING_EVENT_TYPES[t].label for t in types},
             "source_url": f.source_url,
         },
     }

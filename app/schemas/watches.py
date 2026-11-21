@@ -13,6 +13,12 @@ class WatchCreate(BaseModel):
     cik: str = Field(min_length=1, max_length=13)
     destination_type: Literal["webhook", "email"]
     destination: str = Field(min_length=3, max_length=2048)
+    event_types: list[str] | None = Field(
+        default=None,
+        max_length=20,
+        description="Only filings that carry one of these event types, e.g. "
+        '["sec.restatement", "sec.bankruptcy"]; omit for every new filing',
+    )
 
 
 class WatchOut(ORMModel):
@@ -24,6 +30,12 @@ class WatchOut(ORMModel):
     created_at: datetime
     deactivated_at: datetime | None
     last_delivered_at: datetime | None
+    event_types: list[str] | None = None
+
+    @field_validator("event_types", mode="before")
+    @classmethod
+    def _split_types(cls, v):
+        return [t for t in v.split(",") if t] if isinstance(v, str) else v
 
 
 class WatchCreated(WatchOut):

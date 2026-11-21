@@ -32,6 +32,8 @@ from app.db.models import (
     NotificationDelivery,
     utcnow,
 )
+from app.services import filing_events
+from app.services.form8k import split_items
 
 logger = logging.getLogger("app.notifications")
 
@@ -51,6 +53,11 @@ def create_deliveries_for_filing(db: Session, filing: Filing, now: datetime | No
     watches = db.scalars(
         select(CompanyWatch).where(CompanyWatch.cik == filing.cik, CompanyWatch.is_active.is_(True))
     ).all()
+    if not watches:
+        return 0
+    types = set(filing_events.types_for(filing.form_type, filing.items))
+    # A watch with event types only fires for filings that carry one of them (D-05).
+    watches = [w for w in watches if not w.event_types or types & set(w.event_types.split(","))]
     if not watches:
         return 0
     event_ids = [make_event_id(w.id, filing.cik, filing.accession_number) for w in watches]
@@ -174,6 +181,9 @@ def build_event_payload(
             "form_type": filing.form_type,
             "filing_date": filing.filing_date.isoformat() if filing.filing_date else None,
             "accepted_at": iso_z(filing.accepted_at),
+            "items": split_items(filing.items),
+            "event_types": (types := filing_events.types_for(filing.form_type, filing.items)),
+            "event_labels": {t: filing_events.FILING_EVENT_TYPES[t].label for t in types},
             "source_url": filing.source_url,
         },
     }

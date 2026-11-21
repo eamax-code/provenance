@@ -220,10 +220,16 @@ TOOLS: dict[str, dict[str, Any]] = {
     "recent_events": {
         "title": "Event feed",
         "description": "New SEC filings, officer changes from 8-K item 5.02 and listing events, "
-        "in order. Pass next_cursor back as after to continue.",
+        "in order. event_type narrows to what a filing means: sec.restatement (8-K 4.02), "
+        "sec.auditor_change (4.01), sec.bankruptcy (1.03), sec.material_agreement (1.01), "
+        "sec.acquisition_completed (2.01), sec.change_in_control (5.01), sec.results (2.02), "
+        "sec.shareholder_vote (5.07), sec.late_filing (NT 10-K/Q), sec.deregistration "
+        "(Form 15), sec.delisting (Form 25), sec.tender_offer (SC TO-T), sec.merger_proxy "
+        "(DEFM14A), sec.officer_change. Pass next_cursor back as after to continue.",
         "path": "/v1/events",
         "params": {
             "types": "types",
+            "event_type": "event_type",
             "cik": "cik",
             "form_type": "form_type",
             "since": "since",
@@ -237,6 +243,10 @@ TOOLS: dict[str, dict[str, Any]] = {
                     "type": "string",
                     "description": "filing, leadership, listing (comma-separated)",
                 },  # fmt: skip
+                "event_type": {
+                    "type": "string",
+                    "description": "Comma-separated, e.g. sec.restatement,sec.bankruptcy",
+                },
                 "cik": _CIK,
                 "form_type": {"type": "string"},
                 "since": {

@@ -317,6 +317,33 @@ A delivery is one event for one watch: `watch_id` and `filing_id` for a filing, 
 `listing.<type>` and the instrument, venue, country, region and event details; never the
 register file URL.
 
+
+### Filing event types (launch plan D-05)
+
+`app/services/filing_events.py`. Every new filing on the feed and in webhooks carries
+`event_types` (and `event_labels`): what it means, from its form type and the 8-K items the
+filer declared. Nothing is read from the text and nothing is inferred.
+
+| Type | From |
+| --- | --- |
+| `sec.restatement` | 8-K item 4.02 (non-reliance on earlier financial statements) |
+| `sec.auditor_change` | 8-K item 4.01 |
+| `sec.bankruptcy` | 8-K item 1.03 |
+| `sec.material_agreement` | 8-K item 1.01 |
+| `sec.acquisition_completed` | 8-K item 2.01 |
+| `sec.change_in_control` | 8-K item 5.01 |
+| `sec.results` | 8-K item 2.02 |
+| `sec.shareholder_vote` | 8-K item 5.07 |
+| `sec.late_filing` | NT 10-K, NT 10-Q, NT 20-F (and amendments) |
+| `sec.deregistration` | Form 15 (15-12B, 15-12G, 15-15D, 15F-*) |
+| `sec.delisting` | Form 25 and 25-NSE (filed by the exchange under the issuer's CIK) |
+| `sec.tender_offer` | SC TO-T (third-party tender offer) |
+| `sec.merger_proxy` | DEFM14A, DEFM14C |
+
+`company_watches.event_types` (comma-separated, null = every new filing) limits a watch to
+filings carrying one of them. `GET /v1/events?event_type=sec.restatement,...` filters the feed;
+`sec.officer_change` selects officer changes. Backfill never notifies (ADR 0004).
+
 ## International listings (ADR 0006)
 
 ### markets

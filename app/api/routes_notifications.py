@@ -22,6 +22,7 @@ from app.schemas.watches import (
     WatchList,
     WatchOut,
 )
+from app.services import filing_events
 from app.services.sec_client import normalize_cik
 from app.services.usage import active_watches_used, watched_companies_used
 
@@ -84,6 +85,15 @@ def create_watch(
             "Request GET /v1/companies/{cik} first.",
         )
     destination = validated_destination(body.destination_type, body.destination, settings)
+    types = sorted(set(body.event_types or []))
+    unknown = [t for t in types if t not in filing_events.FILING_EVENT_TYPES]
+    if unknown:
+        raise APIError(
+            422,
+            "invalid_parameter",
+            f"Unknown event type: {', '.join(unknown)}. Watches accept "
+            f"{', '.join(filing_events.FILING_EVENT_TYPES)}.",
+        )
 
     limits = plan_limits(key.plan, settings)
     already_watched = db.scalar(
@@ -114,6 +124,7 @@ def create_watch(
         cik=cik,
         destination_type=body.destination_type,
         destination=destination,
+        event_types=",".join(types) or None,
         is_active=True,
         created_at=now,
     )

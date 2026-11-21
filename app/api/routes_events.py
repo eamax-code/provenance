@@ -22,6 +22,7 @@ from app.db.models import ApiKey, utcnow
 from app.db.session import session_factory
 from app.schemas.common import ErrorEnvelope
 from app.services import events as feed
+from app.services import filing_events
 from app.services.sec_client import normalize_cik
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
@@ -34,9 +35,11 @@ _ERRORS = {
 }
 
 NOTES = [
-    "Events are new SEC filings (type sec.filing.detected) and international listing events "
-    "(type listing.<event_type>). Backfill never appears: a company's first ingestion, older "
-    "history pages and filings older than the notification age are excluded.",
+    "Events are new SEC filings (type sec.filing.detected; data.event_types says what a filing "
+    "means, e.g. sec.restatement from 8-K item 4.02), officer changes (sec.officer_change) and "
+    "international listing events (type listing.<event_type>). Backfill never appears: a "
+    "company's first ingestion, older history pages and filings older than the notification "
+    "age are excluded.",
     "Order is the time the event entered this feed (stream_at), then kind and id. Pass "
     "next_cursor as `after` to continue; the cursor is opaque.",
     "Events appear a few seconds after ingestion commits, so the feed never skips a row that "
@@ -94,8 +97,21 @@ def _filters(
     if any(not re.fullmatch(r"\d{1,2}\.\d{2}", code) for code in item_codes):
         raise APIError(422, "invalid_parameter", "items must be 8-K item codes such as 5.02.")
     mics = _split(mic, upper=True)
-    event_types = _split(event_type)
-    filing_filters = bool(ciks or forms or item_codes)
+    requested = _split(event_type)
+    sec_types = [t for t in requested if t.startswith("sec.")]
+    event_types = [t for t in requested if not t.startswith("sec.")]
+    known = set(filing_events.FILING_EVENT_TYPES) | {feed.OFFICER_CHANGE_EVENT_TYPE}
+    unknown = [t for t in sec_types if t not in known]
+    if unknown:
+        raise APIError(422, "invalid_parameter", f"Unknown event type: {', '.join(unknown)}.")
+    filing_types = [t for t in sec_types if t in filing_events.FILING_EVENT_TYPES]
+    if sec_types and event_types:
+        raise APIError(
+            422,
+            "invalid_parameter",
+            "SEC event types and listing event types cannot be combined; use two requests.",
+        )
+    filing_filters = bool(ciks or forms or item_codes or sec_types)
     listing_filters = bool(mics or event_types)
     if filing_filters and listing_filters:
         raise APIError(
@@ -104,6 +120,11 @@ def _filters(
             "Company filters (cik, form_type, items) and listing filters (mic, event_type) "
             "cannot be combined; use two requests.",
         )
+    if sec_types:
+        wanted = {"filing"} if filing_types else set()
+        if feed.OFFICER_CHANGE_EVENT_TYPE in sec_types:
+            wanted.add("leadership")
+        kinds &= wanted
     if forms or item_codes:
         kinds &= {"filing"}
     elif ciks:
@@ -119,6 +140,7 @@ def _filters(
         items=item_codes,
         mics=mics,
         event_types=event_types,
+        filing_types=filing_types,
     )
 
 
@@ -149,7 +171,11 @@ _FILTER_DOCS = {
     "form_type": "Filings of these form types only, e.g. 8-K,10-Q",
     "items": "8-K filings with any of these items, e.g. 5.02,2.02",
     "mic": "Listing events on these venues only, e.g. XLON,XETA",
-    "event_type": "Listing event types, e.g. new_listing,delisting",
+    "event_type": "Event types, comma-separated: what a filing means (sec.restatement, "
+    "sec.auditor_change, sec.bankruptcy, sec.material_agreement, sec.acquisition_completed, "
+    "sec.change_in_control, sec.results, sec.shareholder_vote, sec.late_filing, "
+    "sec.deregistration, sec.delisting, sec.tender_offer, sec.merger_proxy), "
+    "sec.officer_change, or listing event types such as new_listing,delisting",
 }
 
 

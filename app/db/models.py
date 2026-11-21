@@ -226,6 +226,8 @@ class CompanyWatch(Base):
     destination_type: Mapped[str] = mapped_column(Text, nullable=False)  # webhook | email
     destination: Mapped[str] = mapped_column(Text, nullable=False)
     secret_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Comma-separated filing event types (D-05); null means every new filing.
+    event_types: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     deactivated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
