@@ -213,8 +213,10 @@ def test_facts_filters_and_validation(client, auth, ingested_aapl):
     r = client.get(
         "/v1/companies/320193/facts?period=annual&from=2024-01-01&to=2024-12-31", headers=auth
     )
-    assert {d["period_end"] for d in r.json()["data"]} == {"2024-09-28"}
-    assert {d["metric"] for d in r.json()["data"]} == {
+    # cover-page facts (D-02) are dated at the cover date, after the fiscal year end
+    statements = [d for d in r.json()["data"] if d["metric"] != "shares_outstanding"]
+    assert {d["period_end"] for d in statements} == {"2024-09-28"}
+    assert {d["metric"] for d in statements} == {
         "revenue",
         "operating_income",
         "net_income",

@@ -29,14 +29,15 @@ MAPPING_VERSION = "1.3.0"
 #        fallback tags (banks, utilities, REITs); each metric's unit kind is checked.
 
 
-def _m(label, statement, period_type, unit, candidates, fallbacks=()):
+def _m(label, statement, period_type, unit, candidates, fallbacks=(), taxonomy="us-gaap"):
     return {
         "label": label,
-        "statement": statement,
+        "statement": statement,  # income | balance | cash_flow | cover
         "period_type": period_type,
         "unit": unit,  # currency | per_share | shares
         "candidates": list(candidates),
         "fallbacks": list(fallbacks),
+        "taxonomy": taxonomy,
     }
 
 
@@ -235,6 +236,25 @@ CONCEPT_MAP: dict[str, dict[str, Any]] = {
         ["ShareBasedCompensation"],
         ["AllocatedShareBasedCompensationExpense"],
     ),
+    # Cover page of the 10-K/10-Q (dei taxonomy, launch plan D-02). Shares outstanding are dated
+    # at the cover date, after the period end; multi-class companies report them per class with
+    # dimensions, which the SEC's company facts leave out, so those companies have none.
+    "shares_outstanding": _m(
+        "Shares outstanding (cover page)",
+        "cover",
+        "instant",
+        "shares",
+        ["EntityCommonStockSharesOutstanding"],
+        taxonomy="dei",
+    ),
+    "public_float": _m(
+        "Public float (cover page)",
+        "cover",
+        "instant",
+        "currency",
+        ["EntityPublicFloat"],
+        taxonomy="dei",
+    ),
 }
 
 SUPPORTED_METRICS = tuple(CONCEPT_MAP.keys())
@@ -427,7 +447,7 @@ def normalize_company_facts(
     for metric, spec in CONCEPT_MAP.items():
         expected_ptype = spec["period_type"]
         candidate_facts: list[tuple[int, NormalizedFact]] = []
-        for taxonomy in TAXONOMIES:
+        for taxonomy in (spec["taxonomy"],) if spec["taxonomy"] != "us-gaap" else TAXONOMIES:
             tax = facts_root.get(taxonomy)
             if not isinstance(tax, dict):
                 continue

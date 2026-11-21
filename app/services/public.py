@@ -24,6 +24,7 @@ from app.schemas.public import (
     ShowcaseCompany,
     ShowcaseList,
 )
+from app.services import cover as cover_service
 from app.services.fact_normalizer import MAPPING_VERSION
 from app.services.fact_normalizer import METRIC_LABELS as _ALL_LABELS
 from app.services.freshness import company_freshness
@@ -315,6 +316,7 @@ def company_bundle(db: Session, settings: Settings, cik: str) -> PublicCompanyBu
             company=CompanyOut.model_validate(company),
             filings=[FilingOut.model_validate(f) for f in filings],
             metrics=series,
+            cover=cover_service.cover(db, company),
             freshness=fresh,
             mapping_version=MAPPING_VERSION,
             notes=[

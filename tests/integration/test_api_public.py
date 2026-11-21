@@ -105,6 +105,10 @@ def test_company_bundle(client, ingested_aapl, fake_sec):
     )
     assert rev[0]["source_tag"] and rev[0]["source_url"].startswith("https://www.sec.gov/")
     assert metrics["total_assets"]["facts"][0]["period_type"] == "instant"
+    # cover page (D-02): the latest cover figure with its filing
+    so = b["cover"]["shares_outstanding"]
+    assert so["unit"] == "shares" and so["value"] > 0 and so["form_type"] in ("10-K", "10-Q")
+    assert so["source_url"].startswith("https://www.sec.gov/") and "fiscal_year_end" in b["cover"]
     assert (
         b["freshness"]["status"] == "ok"
         and b["freshness"]["latest_filing"]["publication_to_detection_seconds"] is None

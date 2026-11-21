@@ -44,7 +44,7 @@ def test_mapping_preserves_source_fields(facts_aapl):
     assert f.mapping_version == MAPPING_VERSION and f.quality_status == "ok" and f.derived is False
 
 
-def test_all_five_metrics_present(facts_aapl):
+def test_the_fixture_metrics_are_present(facts_aapl):
     facts = normalize_company_facts(facts_aapl, "0000320193")
     assert {f.metric for f in facts} == {
         "revenue",
@@ -52,6 +52,7 @@ def test_all_five_metrics_present(facts_aapl):
         "net_income",
         "total_assets",
         "operating_cash_flow",
+        "shares_outstanding",  # the fixture's dei cover fact (D-02)
     }
 
 
@@ -245,11 +246,18 @@ def _payload(tags):
 
 
 def test_thirty_metrics_each_with_label_unit_and_statement():
-    assert len(SUPPORTED_METRICS) == 30 and MAPPING_VERSION == "1.3.0"
+    # thirty statement metrics plus two cover-page facts (D-02)
+    assert len(SUPPORTED_METRICS) == 32 and MAPPING_VERSION == "1.3.0"
+    statements = [spec["statement"] for spec in CONCEPT_MAP.values()]
+    assert statements.count("cover") == 2
     for metric, spec in CONCEPT_MAP.items():
-        assert METRIC_LABELS[metric] and spec["statement"] in ("income", "balance", "cash_flow")
+        assert METRIC_LABELS[metric] and spec["statement"] in (
+            "income", "balance", "cash_flow", "cover"
+        )  # fmt: skip
         assert spec["unit"] in ("currency", "per_share", "shares")
-        assert spec["period_type"] == ("instant" if spec["statement"] == "balance" else "duration")
+        instant = spec["statement"] in ("balance", "cover")
+        assert spec["period_type"] == ("instant" if instant else "duration")
+        assert spec["taxonomy"] == ("dei" if spec["statement"] == "cover" else "us-gaap")
         tags = spec["candidates"] + spec["fallbacks"]
         assert len(tags) == len(set(tags)), metric
     assert default_unit("eps_diluted") == "USD/shares" and default_unit("revenue") == "USD"
@@ -319,3 +327,22 @@ def test_bank_interest_expense_uses_the_2024_operating_tag_when_alone():
     )  # fmt: skip
     f = _by(facts, "interest_expense")[0]
     assert f.quality_status == "ok" and f.source_tag == "InterestExpenseOperating"
+
+
+def test_cover_page_facts_come_from_dei():
+    facts = normalize_company_facts(
+        {"facts": {"dei": {
+            "EntityCommonStockSharesOutstanding": {"units": {"shares": [
+                {"end": "2026-10-23", "val": 14532182000, "accn": "0000320193-26-000026",
+                 "fy": 2026, "fp": "FY", "form": "10-K", "filed": "2026-11-03"}]}},
+            "EntityPublicFloat": {"units": {"USD": [
+                {"end": "2026-03-27", "val": 3647099000000, "accn": "0000320193-26-000026",
+                 "fy": 2026, "fp": "FY", "form": "10-K", "filed": "2026-11-03"}]}},
+        }, "us-gaap": {"EntityPublicFloat": {"units": {"USD": [{"end": "2026-03-27", "val": 1}]}}}}},
+        "320193",
+    )  # fmt: skip
+    so = _by(facts, "shares_outstanding")[0]
+    assert so.value == Decimal("14532182000") and so.source_taxonomy == "dei"
+    assert so.quality_status == "ok" and so.period_class == "annual"
+    (pf,) = _by(facts, "public_float")  # the us-gaap tag of the same name is not read
+    assert pf.unit == "USD" and pf.source_taxonomy == "dei"

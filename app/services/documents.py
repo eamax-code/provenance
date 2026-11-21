@@ -24,6 +24,7 @@ from app.db.models import (
     MartCompany,
     OfficerChange,
 )
+from app.services import cover as cover_service
 from app.services import periods
 from app.services.form8k import ITEM_TITLES, split_items
 
@@ -116,6 +117,23 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
         if 1 <= month <= 12:
             facts.append(f"fiscal year ends in {MONTHS[month - 1]}")
     lines = [head, "", "; ".join(facts) + "."]
+    cov = cover_service.cover(db, company, today)
+    cover_bits = []
+    if cov["filer_category"]:
+        cover_bits.append(f"SEC filer category: {cov['filer_category']}")
+    for key, label in (
+        ("shares_outstanding", "shares outstanding"),
+        ("public_float", "public float"),
+    ):
+        c = cov[key]
+        if c:
+            value = _money(c["value"]) if key == "public_float" else f"{c['value']:,.0f}"
+            source = f"{c['form_type']} filed {c['filed_date']}"
+            cover_bits.append(
+                f"{label} {value} as of {c['as_of_date']} ({_link(source, c['source_url'])})"
+            )
+    if cover_bits:
+        lines.append("Cover page: " + "; ".join(cover_bits) + ".")
     if mart and mart.first_filing_date:
         lines.append(
             f"Filings loaded here run from {mart.first_filing_date} to "

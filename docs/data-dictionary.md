@@ -89,7 +89,7 @@ from later filings are additional rows, never overwrites.
 | `observation_key` | SHA-256 over metric, taxonomy, tag, unit, period, accession, derived flag; unique |
 | `first_detected_at`, `processed_at` | Provenance timestamps |
 
-### Concept mapping 1.3.0 (thirty metrics)
+### Concept mapping 1.3.0 (thirty metrics and two cover-page facts)
 
 Generated from `CONCEPT_MAP` in `app/services/fact_normalizer.py`. 1.0.0 to 1.2.0 had the first
 five metrics; 1.3.0 (2026-11-22, launch plan D-01) added the rest, industry fallback tags and the
@@ -127,6 +127,8 @@ unit check.
 | `dividends_paid` | Cash flow | `PaymentsOfDividends` | `PaymentsOfDividendsCommonStock` | USD (as reported) | duration |
 | `share_repurchases` | Cash flow | `PaymentsForRepurchaseOfCommonStock` | none | USD (as reported) | duration |
 | `sbc` | Cash flow | `ShareBasedCompensation` | `AllocatedShareBasedCompensationExpense` | USD (as reported) | duration |
+| `shares_outstanding` | Cover page (dei) | `EntityCommonStockSharesOutstanding` | none | shares | instant |
+| `public_float` | Cover page (dei) | `EntityPublicFloat` | none | USD (as reported) | instant |
 
 Not substituted, on purpose: net income attributable to the parent or to common shareholders,
 cash including restricted cash, general and administrative alone for SG&A, short-term borrowings

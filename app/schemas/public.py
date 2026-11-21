@@ -91,6 +91,12 @@ class PublicCompanyBundle(BaseModel):
     company: CompanyOut
     filings: list[FilingOut]
     metrics: list[PublicMetricSeries]
+    cover: dict | None = Field(
+        default=None,
+        description="Cover page: shares_outstanding and public_float (value, unit, as_of_date, "
+        "form_type, filed_date, accession_number, source_url, or null), filer_category, "
+        "fiscal_year_end (MMDD)",
+    )
     freshness: FreshnessOut
     mapping_version: str
     notes: list[str]
