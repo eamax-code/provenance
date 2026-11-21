@@ -3,16 +3,6 @@
 (function () {
   'use strict';
   var doc = document.documentElement;
-  /* Web fonts load without holding up the first paint: the page's font stylesheet arrives as
-     media="print" (not render-blocking) and turns on once loaded; text shows in the fallback first. */
-  var fonts = function () {
-    document.querySelectorAll('link[data-font]:not([data-font-on])').forEach(function (l) {
-      l.setAttribute('data-font-on', '');
-      var on = function () { l.media = 'all'; };
-      if (l.sheet) on(); else l.addEventListener('load', on);
-    });
-  };
-  fonts(); document.addEventListener('DOMContentLoaded', fonts);
   doc.classList.add('js');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var canHover = window.matchMedia('(hover: hover)').matches;
@@ -25,23 +15,12 @@
     { id: 'ledger', name: 'Ledger', note: 'Warm paper, serif headings', sw: ['#f4efe6', '#fffcf6', '#1f6b4f'] },
     { id: 'terminal', name: 'Terminal', note: 'Dense, amber, fixed-width figures', sw: ['#0d1117', '#161d26', '#e8990f'] }
   ];
-  var FONTS = {
-    ledger: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Newsreader:opsz,wght@6..72,600&display=swap',
-    terminal: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap'
-  };
   var STORE = 'prv-theme';
   var valid = function (t) { return THEMES.some(function (x) { return x.id === t; }); };
-  function loadFonts(t) {
-    if (!FONTS[t] || document.querySelector('link[data-theme-font="' + t + '"]')) return;
-    var l = document.createElement('link');
-    l.rel = 'stylesheet'; l.href = FONTS[t]; l.setAttribute('data-theme-font', t);
-    document.head.appendChild(l);
-  }
   function current() { return doc.getAttribute('data-theme') || 'dark'; }
   function apply(t) {
     if (!valid(t)) t = 'dark';
     if (t === 'dark') doc.removeAttribute('data-theme'); else doc.setAttribute('data-theme', t);
-    loadFonts(t);
     try { localStorage.setItem(STORE, t); } catch (e) { /* storage blocked */ }
     document.dispatchEvent(new CustomEvent('shell:theme', { detail: { theme: t } }));
     return t;
@@ -92,7 +71,6 @@
     return profile(key).then(function (p) { if (p && p.ui_theme && p.ui_theme !== current()) apply(p.ui_theme); return p; });
   }
   function saveTheme(key, t) { return profile(key, { ui_theme: t }); }
-  if (doc.hasAttribute('data-theme')) loadFonts(current());
   window.Shell = { THEMES: THEMES, theme: current, stored: stored, setTheme: apply, picker: picker, syncTheme: syncTheme, saveTheme: saveTheme };
 
   /* ---------- header ---------- */
