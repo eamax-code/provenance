@@ -34,7 +34,10 @@ def pc(client, api_key):
 
 def test_point_in_time_facts_through_client(pc, restated_aapl):
     def fy23(rows):
-        return next(r for r in rows if r["period_end"] == "2023-09-30" and r["source_tag"] == TAG)
+        return next(
+            r for r in rows
+            if r["period_end"] == "2023-09-30" and r["source_tag"] in (TAG, "Revenues")
+        )
 
     assert fy23(pc.facts("320193", "revenue", as_of=date(2024, 1, 15)))["value"] == ORIGINAL
     assert fy23(pc.facts(320193, "revenue"))["value"] == RESTATED

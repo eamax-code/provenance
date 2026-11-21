@@ -29,8 +29,21 @@ MAPPING_VERSION = "1.3.0"
 #        fallback tags (banks, utilities, REITs); each metric's unit kind is checked.
 
 
-def _m(label, statement, period_type, unit, candidates, fallbacks=(), taxonomy="us-gaap"):
+def _m(
+    label,
+    statement,
+    period_type,
+    unit,
+    candidates,
+    fallbacks=(),
+    taxonomy="us-gaap",
+    components=None,
+):
     return {
+        # Total-first metrics: candidates after the first may be components of it (contract
+        # revenue within total revenues), so a smaller value is not a conflict; a larger one
+        # is, except from the tags listed (revenue including assessed taxes may exceed it).
+        "components": components,
         "label": label,
         "statement": statement,  # income | balance | cash_flow | cover
         "period_type": period_type,
@@ -54,13 +67,14 @@ CONCEPT_MAP: dict[str, dict[str, Any]] = {
         "duration",
         "currency",
         [
-            "RevenueFromContractWithCustomerExcludingAssessedTax",
             "Revenues",
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
             "SalesRevenueNet",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
         ],
         # banks report total net revenue; utilities report regulated plus unregulated revenue
         ["RevenuesNetOfInterestExpense", "RegulatedAndUnregulatedOperatingRevenue"],
+        components={"may_exceed": ["RevenueFromContractWithCustomerIncludingAssessedTax"]},
     ),
     "cost_of_revenue": _m(
         "Cost of revenue",
@@ -513,7 +527,7 @@ def normalize_company_facts(
                     )
                     if nf is not None:
                         candidate_facts.append((precedence, nf))
-        _apply_precedence(candidate_facts, primary)
+        _apply_precedence(candidate_facts, primary, spec.get("components"))
         results.extend(nf for _, nf in candidate_facts)
     return results
 
@@ -617,7 +631,9 @@ def _filing_key(nf: NormalizedFact) -> str:
 
 
 def _apply_precedence(
-    candidates: list[tuple[int, NormalizedFact]], primary_count: int | None = None
+    candidates: list[tuple[int, NormalizedFact]],
+    primary_count: int | None = None,
+    components: dict | None = None,
 ) -> None:
     """Mark non-preferred and conflicting candidate tags as ambiguous_mapping (in place).
 
@@ -637,20 +653,41 @@ def _apply_precedence(
         tags_present = {nf.source_tag for _, nf in group}
         if len(tags_present) <= 1:
             continue
-        best_prec = min(prec for prec, _ in group)
+        # Precedence is judged within one filing too (1.3.0): a company that moved from one tag
+        # to another keeps each filing's figure, rather than an older filing's tag winning.
+        best_in_filing: dict[str, int] = {}
+        for prec, nf in group:
+            k = _filing_key(nf)
+            best_in_filing[k] = min(prec, best_in_filing.get(k, prec))
         # Conflicts are judged within one filing: the tags one filing reports for the period.
         values_by_filing: dict[str, set] = {}
         for _, nf in group:
             if nf.value is not None:
                 values_by_filing.setdefault(_filing_key(nf), set()).add(nf.value)
-        conflicting = {k for k, values in values_by_filing.items() if len(values) > 1}
+        if components is None:
+            conflicting = {k for k, values in values_by_filing.items() if len(values) > 1}
+        else:
+            # total first: only an alternate larger than the preferred total disagrees with it
+            may_exceed = set(components.get("may_exceed", []))
+            conflicting = set()
+            by_filing: dict[str, list[tuple[int, NormalizedFact]]] = {}
+            for prec, nf in group:
+                if nf.value is not None:
+                    by_filing.setdefault(_filing_key(nf), []).append((prec, nf))
+            for k, items in by_filing.items():
+                top = min(prec for prec, _ in items)
+                total = next(nf.value for prec, nf in items if prec == top)
+                if any(nf.value > total for prec, nf in items
+                       if prec != top and nf.source_tag not in may_exceed):  # fmt: skip
+                    conflicting.add(k)
         for prec, nf in group:
             if nf.quality_status == "invalid_source_value":
                 continue
-            if prec != best_prec:
+            if prec != best_in_filing[_filing_key(nf)]:
                 nf.quality_status = "ambiguous_mapping"
                 nf.notes.append(
-                    "alternate candidate tag; a higher-precedence tag covers this period"
+                    "alternate candidate tag; a higher-precedence tag in the same filing covers "
+                    "this period"
                 )
             elif _filing_key(nf) in conflicting:
                 nf.quality_status = "ambiguous_mapping"

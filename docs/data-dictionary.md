@@ -151,6 +151,15 @@ also report a USD convenience translation for the latest year, stored as its own
 company page's statements use the unit with the most fiscal years. Some 20-F filers (ASML) file
 in US GAAP and are read as such.
 
+**Precedence and conflicts are judged within one filing.** A filing's figure is the alternate
+only when the same filing also reports a higher-precedence tag for the period, so a company that
+moved tags (Revenues before 2018, contract revenue after) keeps every filing's figure.
+**Revenue is total-first:** `Revenues` comes before contract revenue, and a smaller contract
+revenue figure in the same filing is a component of the total, not a conflict (Berkshire
+Hathaway: $371.4B total, $247.2B from contracts; insurance premiums are not contract revenue).
+A larger alternate still flags the pair, except revenue including assessed taxes. This took
+in-filing revenue conflicts from 57,872 periods at 2,075 companies to 6,359 at 630.
+
 **Fallbacks** are used only for a (unit, period) no candidate tag covers. Where a candidate
 covers it, the fallback observation is stored as `ambiguous_mapping` with the note "industry
 fallback tag", and it is never compared with the candidates for conflicts.

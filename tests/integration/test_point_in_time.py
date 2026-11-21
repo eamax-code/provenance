@@ -8,7 +8,9 @@ from tests.conftest import REVENUE_TAG as TAG
 
 
 def _fy(data, end):
-    return [d for d in data if d["period_end"] == end and d["source_tag"] == TAG]
+    # one row per period: before the restatement the 2023 10-K's total Revenues, after it the
+    # 2024 10-K's contract revenue (precedence is judged within each filing, mapping 1.3.0)
+    return [d for d in data if d["period_end"] == end and d["source_tag"] in (TAG, "Revenues")]
 
 
 def test_as_of_returns_value_known_before_restatement(client, auth, restated_aapl):

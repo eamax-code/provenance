@@ -101,20 +101,48 @@ def test_unparseable_value_marked_invalid(facts_aapl):
 
 
 def test_competing_tags_precedence_and_conflict(facts_aapl, facts_msft):
-    # AAPL: both tags agree for FY2023 -> preferred ok, alternate ambiguous
+    # AAPL: both tags agree for FY2023 -> total Revenues preferred ok, contract revenue alternate
     facts = normalize_company_facts(facts_aapl, "0000320193")
     fy23 = _by(facts, "revenue", period_start=date(2022, 9, 25), period_end=date(2023, 9, 30))
-    pref = [
-        f for f in fy23 if f.source_tag == "RevenueFromContractWithCustomerExcludingAssessedTax"
-    ]
-    alt = [f for f in fy23 if f.source_tag == "Revenues"]
-    assert (
-        all(f.quality_status == "ok" for f in pref) and alt[0].quality_status == "ambiguous_mapping"
-    )
-    # MSFT: tags disagree -> both ambiguous
+    pref = [f for f in fy23 if f.source_tag == "Revenues"]
+    alt = {f.accession_number: f.quality_status for f in fy23
+           if f.source_tag == "RevenueFromContractWithCustomerExcludingAssessedTax"}  # fmt: skip
+    assert pref and all(f.quality_status == "ok" for f in pref)
+    # alternate only where the same filing also reports total Revenues for the period; the 2024
+    # 10-K reports FY2023 under contract revenue alone, so that figure stands
+    assert alt == {"0000320193-23-000106": "ambiguous_mapping", "0000320193-24-000123": "ok"}
+    # MSFT: contract revenue larger than total Revenues in one filing -> both ambiguous
     facts = normalize_company_facts(facts_msft, "0000789019")
     rev = _by(facts, "revenue")
     assert len(rev) == 2 and all(f.quality_status == "ambiguous_mapping" for f in rev)
+
+
+def test_contract_revenue_below_total_revenues_is_a_component_not_a_conflict():
+    """Berkshire Hathaway: Revenues $371.4B includes insurance premiums; contract revenue
+    $247.2B is part of it. 1.3.0 keeps the total and no longer flags the pair."""
+
+    def obs(val):
+        return {
+            "start": "2025-01-01",
+            "end": "2025-12-31",
+            "val": val,
+            "fy": 2025,
+            "fp": "FY",
+            "accn": "0000950170-26-000001",
+            "form": "10-K",
+            "filed": "2026-02-28",
+        }
+
+    payload = {"facts": {"us-gaap": {
+        "Revenues": {"units": {"USD": [obs(371444000000)]}},
+        "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [
+            obs(247244000000)]}},
+        "RevenueFromContractWithCustomerIncludingAssessedTax": {"units": {"USD": [
+            obs(400000000000)]}},  # may exceed (assessed taxes)
+    }}}  # fmt: skip
+    rev = {f.source_tag: f for f in normalize_company_facts(payload, "1067983")}
+    assert rev["Revenues"].quality_status == "ok"
+    assert rev["Revenues"].value == Decimal("371444000000")
 
 
 def test_restatements_are_retained_as_separate_observations(facts_aapl):
@@ -188,17 +216,19 @@ def test_later_restatement_does_not_change_earlier_filing_quality(facts_aapl):
     tag = "RevenueFromContractWithCustomerExcludingAssessedTax"
     for obs in payload["facts"]["us-gaap"][tag]["units"]["USD"]:
         if obs["end"] == "2023-09-30" and obs["accn"] == "0000320193-24-000123":
-            obs["val"] = 383_000_000_000  # the 2024 10-K restates only the preferred tag
+            obs["val"] = 383_000_000_000  # the 2024 10-K restates FY2023
     facts = normalize_company_facts(payload, "0000320193")
     fy23 = {
         f.accession_number: f.quality_status
-        for f in _by(facts, "revenue", period_end=date(2023, 9, 30), source_tag=tag)
+        for f in _by(facts, "revenue", period_end=date(2023, 9, 30))
+        if f.quality_status == "ok"
     }
+    # each filing keeps its own figure: Revenues in the 2023 10-K, the restatement in 2024's
     assert fy23 == {"0000320193-23-000106": "ok", "0000320193-24-000123": "ok"}
 
-    # Tags that disagree inside one filing are still flagged.
-    for obs in payload["facts"]["us-gaap"]["Revenues"]["units"]["USD"]:
-        obs["val"] = 1
+    # An alternate larger than the total inside one filing is still flagged.
+    for obs in payload["facts"]["us-gaap"][tag]["units"]["USD"]:
+        obs["val"] = 10**15
     facts = normalize_company_facts(payload, "0000320193")
     original = _by(
         facts, "revenue", period_end=date(2023, 9, 30), accession_number="0000320193-23-000106"
