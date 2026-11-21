@@ -12,10 +12,13 @@
   function sstore(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } }
   function sload(k) { try { return JSON.parse(sessionStorage.getItem(k) || 'null'); } catch (e) { return null; } }
 
+  // ISO dates in answers, cards and tooltips read as "26 Sep 2026" (the site's display format)
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function human(s) { return typeof s === 'string' ? s.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, function (m, y, mo, d) { return +d + ' ' + MON[+mo - 1] + ' ' + y; }) : s; }
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
+    if (text != null) n.textContent = human(String(text));
     return n;
   }
   function svg(path) {
@@ -46,8 +49,9 @@
     text.split(/(\[\d{1,3}\])/).forEach(function (part) {
       var m = /^\[(\d{1,3})\]$/.exec(part);
       if (m && byN[m[1]]) {
-        var a = link(byN[m[1]].url, m[1], 'cx-cite'); a.title = byN[m[1]].label; parent.appendChild(a);
-      } else if (part) parent.appendChild(document.createTextNode(part));
+        var a = link(byN[m[1]].url, '[' + m[1] + ']', 'cx-cite'); a.title = human(byN[m[1]].label) + ' (opens on sec.gov)';
+        a.setAttribute('aria-label', 'Source ' + m[1] + ': ' + human(byN[m[1]].label)); parent.appendChild(a);
+      } else if (part) parent.appendChild(document.createTextNode(human(part)));
     });
   }
   function renderText(text, citations) {
@@ -133,7 +137,9 @@
     var lines = (reply.answer || '').split('\n');
     target.appendChild(renderText(lines[0], reply.citations));
     var box = el('div', 'cx-changes'), k = 0;
+    var unread = [];
     reply.brief.leadership_filings.forEach(function (f) {
+      if (!(f.changes && f.changes.length) && f.reading !== 'ok') { unread.push(f); return; }
       if (f.changes && f.changes.length) {
         f.changes.forEach(function (c) { box.appendChild(changeCard(f, c, byN, (k++) * 0.06)); });
       } else {
@@ -151,6 +157,12 @@
       }
     });
     target.appendChild(box);
+    if (unread.length) {
+      var also = el('p', 'cx-note');
+      also.appendChild(document.createTextNode('Also filed, not read yet: '));
+      unread.forEach(function (f, i) { if (i) also.appendChild(document.createTextNode('; ')); inline('8-K item 5.02, ' + f.filing_date + ' [' + f.citation + ']', byN, also); });
+      target.appendChild(also);
+    }
     var foot = lines.filter(function (l) { return l && !/^\s*•/.test(l); }).slice(1).join(' ');
     if (foot) target.appendChild(el('p', 'cx-note', foot));
   }
@@ -637,7 +649,7 @@
   function newChat() {
     transition(function () {
       thread.textContent = ''; state.sessionId = null; state.cik = null; state.context = null; state.history = []; setHash();
-      body.dataset.state = 'home'; $('cx-company-chip').hidden = true; $('cx-title').textContent = 'Company intelligence';
+      body.dataset.state = 'home'; $('cx-company-chip').hidden = true; $('cx-title').textContent = '';
       drawer(false); markCurrent(); sstore('cx_demo', []);
     });
     closeSideOnMobile(); input.focus();

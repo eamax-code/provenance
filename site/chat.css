@@ -100,8 +100,9 @@
 .cx-body p{margin:0 0 10px}
 .cx-body ul{margin:4px 0 12px;padding-left:20px}
 .cx-body li{margin:4px 0}
-.cx-cite{display:inline-grid;place-items:center;min-width:20px;height:18px;padding:0 5px;margin:0 1px;border-radius:6px;background:var(--mist-3);color:var(--slate-deep);font:600 11px var(--font-mono);text-decoration:none;vertical-align:1px;transition:background .2s,color .2s}
-.cx-cite:hover{background:var(--red-deep);color:var(--accent-ink)}
+.cx-cite{display:inline-block;margin:0 1px 0 2px;padding:0 1px;border-radius:3px;color:var(--accent-text);font:600 .72em var(--font-body);text-decoration:none;vertical-align:super;line-height:1;transition:background .2s,color .2s}
+.cx-cite:hover{text-decoration:underline}
+.cx-cite:focus-visible{outline:2px solid var(--accent-hi);outline-offset:1px}
 .cx-status{color:var(--muted);display:flex;align-items:center;gap:10px;padding-top:5px}
 .cx-dots{display:inline-flex;gap:4px}
 .cx-dots i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:cx-bounce 1.2s infinite ease-in-out}
@@ -125,14 +126,14 @@
 .cx-change:hover{border-color:var(--mist-2);transform:translateY(-1px)}
 .cx-change-head{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:center}
 .cx-initials{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--mist-3);color:var(--slate);font:600 15px var(--font-display);letter-spacing:.02em}
-.cx-change.out .cx-initials{background:var(--bad-soft);color:var(--bad)}
+.cx-change.out .cx-initials{background:var(--mist-3);color:var(--fg)}
 .cx-change.in .cx-initials{background:var(--good-soft);color:var(--good)}
 .cx-change.pay .cx-initials{background:var(--neutral-soft);color:var(--slate-deep)}
 .cx-change-who{margin:0;font:700 17px/1.25 var(--font-display);color:var(--fg)}
 .cx-change-role{margin:2px 0 0;color:var(--muted);font-size:13px;line-height:1.35}
 .cx-change-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0 0}
 .cx-tag{font:600 11.5px var(--font-body);border-radius:999px;padding:3px 10px;background:var(--mist-3);color:var(--slate-deep)}
-.cx-tag.in{background:var(--good-soft);color:var(--good)}.cx-tag.out{background:var(--bad-soft);color:var(--bad)}.cx-tag.pay{background:var(--neutral-soft);color:var(--slate-deep)}
+.cx-tag.in{background:var(--good-soft);color:var(--good)}.cx-tag.out{background:var(--mist-3);color:var(--fg)}.cx-tag.pay{background:var(--neutral-soft);color:var(--slate-deep)}
 .cx-tag.plain{background:none;border:1px solid var(--line);color:var(--muted);font-weight:500}
 .cx-tag.warn{background:var(--warn-soft);color:var(--warn)}
 .cx-change-facts{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 14px;margin:12px 0 0;padding:12px 0 0;border-top:1px dashed var(--line);font-size:14px}
@@ -154,8 +155,8 @@
 .cx-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}
 .cx-tile{border-radius:14px;background:var(--bg);padding:11px 13px;min-width:0;animation:cx-pop .45s var(--ease) both}
 .cx-tile:first-child{background:var(--field);color:var(--field-ink);--muted:color-mix(in srgb,var(--field-ink) 75%,transparent)}
-.cx-tile:first-child .cx-cite{background:color-mix(in srgb,var(--field-ink) 20%,transparent);color:var(--field-ink)}
-.cx-tile-label{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-tile:first-child .cx-cite{color:var(--field-ink)}
+.cx-tile-label{font-size:12.5px;color:var(--muted)}
 .cx-tile-value{font:600 18px/1.25 var(--font-display);margin-top:2px}
 .cx-tile-sub{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .cx-delta{font:600 12px var(--font-body);border-radius:999px;padding:1px 7px}
@@ -252,3 +253,8 @@
 .cx-modal .cx-h{margin:4px 0 0}
 .cx-modal[open]{display:grid;gap:14px}
 .cx-modal .theme-pick input{width:auto;margin:0;padding:0}
+
+/* the wordmark in the top bar, for phones where the sidebar is closed */
+.cx-brandmark{display:none;align-items:center;gap:8px;color:inherit;font:800 16px var(--font-body);letter-spacing:-.02em;text-decoration:none}
+.cx-brandmark i{width:8px;height:8px;border-radius:50%;background:var(--red)}
+@media (max-width:860px){body[data-state="home"] .cx-brandmark{display:inline-flex}}
