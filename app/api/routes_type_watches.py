@@ -25,7 +25,7 @@ from app.core.security import derive_watch_secret, hash_secret
 from app.db.models import ApiKey, AuditEvent, TypeWatch, utcnow
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.watches import TypeWatchCreate, TypeWatchCreated, TypeWatchList, TypeWatchOut
-from app.services import filing_events, insider_activity
+from app.services import dated_events, filing_events, insider_activity
 from app.services.sec_client import normalize_cik
 from app.services.usage import active_watches_used, watched_companies_used
 
@@ -69,7 +69,11 @@ def create_type_watch(
             "company watches (POST /v1/watches) work on every plan.",
         )
     types = sorted(set(body.event_types))
-    accepted = list(filing_events.FILING_EVENT_TYPES) + list(insider_activity.TYPES)
+    accepted = (
+        list(filing_events.FILING_EVENT_TYPES)
+        + list(insider_activity.TYPES)
+        + list(dated_events.LABELS)
+    )
     unknown = [t for t in types if t not in accepted]
     if unknown:
         raise APIError(

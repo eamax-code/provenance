@@ -185,6 +185,25 @@ def event_rows(
             "form_label": form_label("8-K"),
             "filing_url": c.source_url, "_accn": c.accession_number,
         }))  # fmt: skip
+    from app.db.models import DatedEvent
+    from app.services.dated_events import as_dict as dated_dict
+
+    dated = (
+        select(DatedEvent, Company.legal_name, Company.ticker)
+        .join(Company, Company.cik == DatedEvent.cik)
+        .where(DatedEvent.event_date >= since, DatedEvent.event_date <= (until or date.today()))
+    )
+    if cik:
+        dated = dated.where(DatedEvent.cik == cik)
+    for e, name, ticker in db.execute(dated.limit(50)).all():
+        d = dated_dict(e)
+        found.append((e.event_date, filing_events.OFFICER_CHANGE_RANK, {
+            "type": d["type"], "label": d["label"], "short_label": d["short_label"],
+            "cik": e.cik, "company_name": name, "ticker": ticker,
+            "date": e.event_date.isoformat(), "form_type": "424B4",
+            "form_label": form_label("424B4"), "filing_url": e.source_url,
+            "_accn": f"{e.event_type}:{e.accession_number}",
+        }))  # fmt: skip
     # newest first; on one day the more consequential first; one row per filing
     found.sort(key=lambda r: (-r[0].toordinal(), r[1]))
     rows, seen = [], set()

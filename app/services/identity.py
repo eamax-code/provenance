@@ -149,7 +149,8 @@ def for_company(db: Session, cik: str) -> dict | None:
     ):
         m = venues.get(r.mic)
         listings.append({
-            "isin": r.isin, "mic": r.mic, "venue": m.name if m else None,
+            "isin": public_isin(r.isin), "mic": r.mic, "venue": m.name if m else None,
+            "symbol": r.symbol,
             "country": m.country if m else None, "status": r.status,
             "first_trade_date": r.first_trade_date.isoformat() if r.first_trade_date else None,
             "currency": r.currency,
@@ -164,6 +165,15 @@ def for_company(db: Session, cik: str) -> dict | None:
         "listings": listings,
         "isins": sorted({x["isin"] for x in listings if x["isin"]}),
     }
+
+
+# A US or Canadian ISIN wraps the 9-character CUSIP/CINS, which CGS licenses: never shown on
+# these surfaces (the listing keeps its venue and symbol).
+CUSIP_PREFIXES = ("US", "CA")
+
+
+def public_isin(isin: str | None) -> str | None:
+    return None if not isin or isin[:2].upper() in CUSIP_PREFIXES else isin
 
 
 def cik_for_lei(db: Session, lei: str) -> str | None:

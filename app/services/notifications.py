@@ -27,6 +27,7 @@ from app.core.timeutil import iso_z
 from app.db.models import (
     Company,
     CompanyWatch,
+    DatedEvent,
     Filing,
     InsiderActivity,
     ListingEvent,
@@ -136,6 +137,29 @@ def create_insider_deliveries(db: Session, rows: list[InsiderActivity], now=None
                 type_watch_id=watch.id, insider_activity_id=r.id, event_id=event_id,
                 status="pending", attempt_count=0, created_at=now,
                 next_attempt_at=next_hour(now) if watch.delivery_mode == "hourly" else now,
+            ))  # fmt: skip
+            created += 1
+    db.flush()
+    return created
+
+
+def create_dated_deliveries(db: Session, rows: list[DatedEvent], now=None) -> int:
+    """Type-watch deliveries for dated events reached today (sec.lockup_expiry). Idempotent."""
+    now = now or utcnow()
+    watches = db.scalars(select(TypeWatch).where(TypeWatch.is_active.is_(True))).all()
+    created = 0
+    for r in [r for r in rows if r.stream_status == "pending"]:
+        company = db.scalar(select(Company).where(Company.cik == r.cik))
+        for watch in watches:
+            if not type_watch_matches(watch, {r.event_type}, company):
+                continue
+            event_id = make_event_id(watch.id, r.cik, f"{r.event_type}:{r.accession_number}")
+            if db.scalar(select(NotificationDelivery.id).where(
+                    NotificationDelivery.event_id == event_id)):  # fmt: skip
+                continue
+            db.add(NotificationDelivery(
+                type_watch_id=watch.id, dated_event_id=r.id, event_id=event_id,
+                status="pending", attempt_count=0, created_at=now, next_attempt_at=now,
             ))  # fmt: skip
             created += 1
     db.flush()
@@ -445,6 +469,17 @@ def _deliver_batch(db, settings, sender, group, now, counts) -> None:
 
 def _target(db: Session, delivery: NotificationDelivery, now: datetime):
     """(watch, payload, why it cannot be sent) for a filing, type or listing delivery."""
+    if delivery.dated_event_id is not None:
+        from app.services.dated_events import as_dict
+
+        watch = db.get(TypeWatch, delivery.type_watch_id)
+        row = db.get(DatedEvent, delivery.dated_event_id)
+        if watch is None or row is None:
+            return None, None, "watch or dated event missing"
+        payload = {"event_id": delivery.event_id, "event_type": row.event_type,
+                   "created_at": iso_z(now), "data": {**as_dict(row),
+                   "type_watch_id": str(watch.id)}}  # fmt: skip
+        return watch, payload, None
     if delivery.insider_activity_id is not None:
         watch = db.get(TypeWatch, delivery.type_watch_id)
         row = db.get(InsiderActivity, delivery.insider_activity_id)

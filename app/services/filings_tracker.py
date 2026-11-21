@@ -44,7 +44,15 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import Company, EdgarFeedEntry, Filing, JobState, utcnow
-from app.services import insider_activity, insiders, ipo_terms, marts, notifications, universe
+from app.services import (
+    dated_events,
+    insider_activity,
+    insiders,
+    ipo_terms,
+    marts,
+    notifications,
+    universe,
+)
 from app.services.events import publish_pending
 from app.services.ingestion import IngestionError, ingest_company
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
@@ -440,6 +448,12 @@ def run_once(
     if daily:
         summary["daily_index"] = read_daily_indexes(db, client)
     summary.update(handle(db, settings, client, settings.filings_tracker_max_companies, run))
+    # dates reached today, such as IPO lock-ups ending (F-02)
+    due = dated_events.emit_due(db)
+    notifications.create_dated_deliveries(db, due)
+    db.commit()
+    publish_pending(db)
+    summary["dated_events"] = len(due)
     log_event(
         logger, logging.INFO, "filings tracker",
         **{k: v for k, v in summary.items() if k != "discovered_names"},

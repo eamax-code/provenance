@@ -327,6 +327,28 @@ class LeiOverride(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class DatedEvent(Base):
+    """An event that happens on a date rather than in a filing, such as an IPO lock-up ending
+    (launch plan F-02): derived from a filing, emitted on the day."""
+
+    __tablename__ = "dated_events"
+    __table_args__ = (
+        UniqueConstraint("event_type", "cik", "accession_number", name="uq_dated_events"),
+        Index("ix_dated_events_date", "event_date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    event_type: Mapped[str] = mapped_column(Text, nullable=False)
+    event_date: Mapped[date] = mapped_column(Date, nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)  # the source filing
+    detail: Mapped[str] = mapped_column(Text, nullable=False)  # JSON
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    stream_status: Mapped[str] = mapped_column(Text, nullable=False, default="skipped")
+    stream_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class TypeWatch(Base):
     """A key holder's subscription to filing event types across companies (launch plan T-01):
     "any restatement", optionally narrowed to a universe. High-volume types without a universe
@@ -377,6 +399,9 @@ class NotificationDelivery(Base):
     )
     insider_activity_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("insider_activity.id"), nullable=True
+    )
+    dated_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("dated_events.id"), nullable=True
     )
     event_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")

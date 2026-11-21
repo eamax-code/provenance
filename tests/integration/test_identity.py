@@ -59,7 +59,9 @@ def test_matching_rules_and_listings(db, client, auth):
                       "unmatched": 1}  # fmt: skip
     apple = identity.for_company(db, "0000320193")
     assert apple["lei"] == "HWUPKR0MPOU8FGXBT394" and apple["confidence"] == "high"
-    assert apple["match_method"] == "name_jurisdiction" and apple["isins"] == ["US0378331005"]
+    # a US ISIN wraps the licensed CUSIP: the listing shows its venue, never the ISIN
+    assert apple["match_method"] == "name_jurisdiction" and apple["isins"] == []
+    assert apple["listings"][0]["isin"] is None
     assert apple["listings"][0]["venue"] == "Xetra"
     assert identity.for_company(db, "0000000001")["confidence"] == "medium"
     assert identity.for_company(db, "0000000002") is None  # ambiguous stays unmatched

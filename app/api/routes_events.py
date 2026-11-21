@@ -21,8 +21,8 @@ from app.core.errors import APIError
 from app.db.models import ApiKey, utcnow
 from app.db.session import session_factory
 from app.schemas.common import ErrorEnvelope
+from app.services import dated_events, filing_events, insider_activity
 from app.services import events as feed
-from app.services import filing_events, insider_activity
 from app.services.sec_client import normalize_cik
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
@@ -88,7 +88,7 @@ def _filters(
         raise APIError(
             422,
             "invalid_parameter",
-            "types must be among filing, insider, leadership and listing.",
+            "types must be among calendar, filing, insider, leadership and listing.",
         )
     try:
         ciks = [normalize_cik(c) for c in _split(cik)]
@@ -106,12 +106,14 @@ def _filters(
         set(filing_events.FILING_EVENT_TYPES)
         | {feed.OFFICER_CHANGE_EVENT_TYPE}
         | set(insider_activity.TYPES)
+        | set(dated_events.LABELS)
     )
     unknown = [t for t in sec_types if t not in known]
     if unknown:
         raise APIError(422, "invalid_parameter", f"Unknown event type: {', '.join(unknown)}.")
     filing_types = [t for t in sec_types if t in filing_events.FILING_EVENT_TYPES]
     insider_types = [t for t in sec_types if t in insider_activity.TYPES]
+    calendar_types = [t for t in sec_types if t in dated_events.LABELS]
     if sec_types and event_types:
         raise APIError(
             422,
@@ -133,11 +135,13 @@ def _filters(
             wanted.add("leadership")
         if insider_types:
             wanted.add("insider")
+        if calendar_types:
+            wanted.add("calendar")
         kinds &= wanted
     if forms or item_codes:
         kinds &= {"filing"}
     elif ciks:
-        kinds &= {"filing", "insider", "leadership"}
+        kinds &= {"calendar", "filing", "insider", "leadership"}
     if listing_filters:
         kinds &= {"listing"}
     if not kinds:
@@ -151,6 +155,7 @@ def _filters(
         event_types=event_types,
         filing_types=filing_types,
         insider_types=insider_types,
+        calendar_types=calendar_types,
     )
 
 

@@ -307,6 +307,14 @@ unmatched. Rebuilt by `scripts/match_identifiers.py` and the daily listings job.
 `/v1/markets/issuers/{lei}`. Coverage follows the listings data: shares on the 38 covered venues,
 so most links are foreign private issuers that also file with the SEC.
 
+## dated_events (sec.lockup_expiry)
+
+Events on a date rather than in a filing (`app/services/dated_events.py`): today an IPO's
+lock-up ending, derived from its final prospectus (`ipo_terms.lockup_expiry`). The hourly filings
+tracker creates them when the date arrives; one reached today or yesterday is published to the
+feed (kind `calendar`) and type watches, an older one found the first time is backfill
+(`stream_status=skipped`). Shown in the event lists and the company overview.
+
 ## edgar_feed, job_state (filings tracker, ADR 0012)
 
 ### edgar_feed
