@@ -247,7 +247,7 @@
     var gL = sv('g', { class: 'g-lanes', 'aria-hidden': 'true' }), gE = sv('g', { class: 'g-edges' }), gN = sv('g', { class: 'g-nodes' });
     L.lanes.forEach(function (l) {
       var t = sv('text', { x: l.x + l.side * 2, y: l.y - 38, 'text-anchor': l.side < 0 ? 'end' : 'start', class: 'g-lane' });
-      t.textContent = l.text.toUpperCase();
+      t.textContent = l.text;
       var c = sv('tspan', { class: 'g-lane-n', dx: '8' }); c.textContent = String(l.n); t.appendChild(c); gL.appendChild(t); l.el = t;
     });
     var recs = [];
@@ -364,8 +364,16 @@
   function deselect() { S.selected = null; $('g-svg').querySelectorAll('.g-sel').forEach(function (g) { g.classList.remove('g-sel'); }); clearDetail(); rest(); }
   function clearDetail() {
     var box = $('g-detail'); box.innerHTML = '';
-    box.appendChild(el('p', { class: 'eyebrow', text: 'How to read it' }));
-    box.appendChild(el('ul', { class: 'g-help' }, [
+    // nothing selected: the panel folds to a "How to read it" note (open on the first visit) and the graph widens
+    var stage = box.closest('.g-stage'); if (stage) stage.classList.add('is-idle');
+    var seen = false; try { seen = localStorage.getItem('prv-graph-help') === 'seen'; } catch (e) {}
+    var how = el('details', { class: 'g-howto' });
+    if (!seen) how.setAttribute('open', '');
+    // only a reader's own click marks it seen (opening it here fires a toggle event too)
+    how.querySelector ? setTimeout(function () { how.addEventListener('toggle', function () { try { localStorage.setItem('prv-graph-help', 'seen'); } catch (e) {} }); }, 0) : null;
+    how.appendChild(el('summary', { text: 'How to read it' }));
+    box.appendChild(how);
+    how.appendChild(el('ul', { class: 'g-help' }, [
       el('li', { text: 'Hover a name to preview it and light up its links.' }),
       el('li', { text: 'Click for the role, the dates and the filing behind each line.' }),
       el('li', { text: 'Double-click to zoom into its connections; Fit returns.' }),
@@ -442,6 +450,7 @@
     return b;
   }
   function detail(it, L) {
+    var stage0 = $('g-detail').closest('.g-stage'); if (stage0) stage0.classList.remove('is-idle');
     var box = $('g-detail'); box.innerHTML = '';
     box.classList.remove('g-pop'); void box.offsetWidth; box.classList.add('g-pop');
     var close = el('button', { type: 'button', class: 'g-close', 'aria-label': 'Clear the selection', text: '×' });
