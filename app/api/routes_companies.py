@@ -27,9 +27,14 @@ from app.schemas.companies import (
     FreshnessOut,
 )
 from app.services import freshness as freshness_service
-from app.services import periods
+from app.services import periods, ratios
 from app.services.company_lookup import search_companies
-from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS, derive_quarters
+from app.services.fact_normalizer import (
+    MAPPING_VERSION,
+    SUPPORTED_METRICS,
+    currency_from_unit,
+    derive_quarters,
+)
 from app.services.ingestion import ingest_company
 from app.services.point_in_time import as_of_note, known_by
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
@@ -293,7 +298,11 @@ def filings(
 )
 def facts(
     cik: str = Path(max_length=13),
-    metric: str | None = Query(None, description=f"One of {', '.join(SUPPORTED_METRICS)}"),
+    metric: str | None = Query(
+        None,
+        description=f"One of {', '.join(SUPPORTED_METRICS)}, or a derived figure: "
+        f"{', '.join(ratios.DERIVED_METRICS)}",
+    ),
     period: str = Query("annual", pattern="^(annual|quarterly|all)$"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0, le=10_000),
@@ -318,12 +327,18 @@ def facts(
 ):
     cik = _parse_cik_param(cik)
     company = _require_company(db, cik)
-    if metric is not None and metric not in SUPPORTED_METRICS:
+    ratio = ratios.RATIOS.get(metric or "")
+    if metric is not None and metric not in SUPPORTED_METRICS and ratio is None:
         raise APIError(
-            422, "invalid_parameter", f"metric must be one of: {', '.join(SUPPORTED_METRICS)}."
+            422,
+            "invalid_parameter",
+            f"metric must be one of: {', '.join(SUPPORTED_METRICS)}, or a derived figure: "
+            f"{', '.join(ratios.DERIVED_METRICS)}.",
         )
     stmt = select(FinancialFact).where(FinancialFact.cik == cik, FinancialFact.derived.is_(False))
-    if metric:
+    if ratio is not None:
+        stmt = stmt.where(FinancialFact.metric.in_([ratio.numerator, ratio.denominator]))
+    elif metric:
         stmt = stmt.where(FinancialFact.metric == metric)
     if from_:
         stmt = stmt.where(FinancialFact.period_end >= from_)
@@ -336,6 +351,8 @@ def facts(
     if as_of:
         stmt = known_by(stmt, as_of)
     rows = db.scalars(stmt).all()
+    if ratio is not None:
+        return _derived_page(cik, company, metric, ratio, rows, limit, offset, as_of)
 
     notes = [
         "Values are as reported by the issuer to the SEC; period_class is derived from the "
@@ -481,6 +498,50 @@ def _row_to_normalized(r: FinancialFact):
         quality_status=r.quality_status,
         derived=r.derived,
     )
+
+
+def _derived_page(cik, company, metric, ratio, rows, limit, offset, as_of) -> FactList:
+    """A derived figure (D-03) per period from the latest preferred observations of its inputs."""
+    base = _select_latest([r for r in rows if r.quality_status in ("ok", "partial")])
+    nums = [f for f in base if f.metric == ratio.numerator]
+    dens = [f for f in base if f.metric == ratio.denominator]
+    out = []
+    for item in ratios.derive(ratio, nums, dens):
+        n, d = item["numerator"], item["denominator"]
+        out.append(
+            FactOut(
+                cik=cik, metric=metric, value=item["value"], unit=item["unit"],
+                currency=None if item["unit"] in ("%", "x") else currency_from_unit(item["unit"]),
+                period_start=n.period_start, period_end=n.period_end, period_type=n.period_type,
+                period_class=n.period_class, fiscal_year=n.fiscal_year,
+                fiscal_period=n.fiscal_period, form_type=n.form_type, filed_date=n.filed_date,
+                accession_number=n.accession_number, source_tag=ratio.formula,
+                source_taxonomy="derived", source_url=n.source_url,
+                mapping_version=MAPPING_VERSION, quality_status="derived", derived=True,
+                derivation={"method": ratio.kind, "formula": ratio.formula,
+                            "inputs": [ratios.ref(n), ratios.ref(d)]},
+                revision_count=1, is_latest_revision=True, processed_at=n.processed_at,
+            )
+        )  # fmt: skip
+    out.sort(key=lambda f: f.period_end, reverse=True)
+    for f in out:
+        f.period_fiscal_year = periods.fiscal_year(f.period_end, company.fiscal_year_end)
+        if f.period_class in ("annual", "quarterly"):
+            f.period_label = periods.label(f.period_end, f.period_class, company.fiscal_year_end)
+    page = out[offset : offset + limit]
+    has_more = offset + limit < len(out)
+    notes = [
+        f"{ratio.label} is derived by this service ({ratio.formula}) from two reported "
+        "figures of the same period; each row lists its inputs and their filings.",
+    ]
+    if as_of:
+        notes.append(as_of_note(as_of))
+    return FactList(
+        data=page,
+        meta=PageMeta(limit=limit, offset=offset, has_more=has_more,
+                      next_offset=offset + limit if has_more else None, total_matched=len(out)),
+        mapping_version=MAPPING_VERSION, as_of=as_of, notes=notes,
+    )  # fmt: skip
 
 
 def _derived_out(cik: str, d, source_rows: list[FinancialFact]) -> FactOut:

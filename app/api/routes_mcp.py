@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse, Response
 
 from app.api.dependencies import DEMO_KEY, client_ip
 from app.services.fact_normalizer import SUPPORTED_METRICS
+from app.services.ratios import DERIVED_METRICS
 
 router = APIRouter(include_in_schema=False)
 
@@ -33,7 +34,12 @@ INSTRUCTIONS = (
 MAX_TEXT = 60_000  # characters per tool result, so one call cannot flood the agent's context
 
 _CIK = {"type": "string", "description": "SEC CIK, with or without leading zeros, e.g. 320193"}
-_METRIC = {"type": "string", "enum": list(SUPPORTED_METRICS)}
+_METRIC = {
+    "type": "string",
+    "enum": list(SUPPORTED_METRICS) + list(DERIVED_METRICS),
+    "description": "A reported figure, or a derived one (margins, returns, free cash flow, "
+    "ratios) that lists its two inputs",
+}
 _LIMIT = {"type": "integer", "minimum": 1, "maximum": 50, "default": 10}
 _DATE = {"type": "string", "description": "YYYY-MM-DD"}
 

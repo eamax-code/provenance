@@ -155,6 +155,16 @@ in US GAAP and are read as such.
 covers it, the fallback observation is stored as `ambiguous_mapping` with the note "industry
 fallback tag", and it is never compared with the candidates for conflicts.
 
+**Derived figures (D-03)**, computed at query time from two reported figures and never stored
+(`app/services/ratios.py`): `gross_margin`, `operating_margin`, `net_margin`,
+`return_on_assets`, `return_on_equity` (percent); `debt_to_equity`, `current_ratio` (multiple);
+`free_cash_flow` (operating cash flow minus capital expenditure, in the inputs' currency);
+`book_value_per_share` (equity over the cover page's shares outstanding in the same annual
+report). Inputs are paired by period class and period end (per share: by filing); figures in two
+currencies are never combined; a divisor that is not positive gives no value. Every row has
+`derived=true`, `quality_status=derived` and `derivation.inputs` with both filings. Accepted by
+`/facts?metric=`, `/v1/facts/screen` and MCP.
+
 **Unit check:** each metric has one unit kind (currency, per share, shares). An observation in
 another kind (EPS tagged in `USD`) is `ambiguous_mapping`. `currency` is also set for per-share
 units (`USD/shares` gives `USD`). The screen's default `unit` is the metric's own.

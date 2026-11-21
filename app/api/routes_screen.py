@@ -6,7 +6,7 @@ import time
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Integer, cast, extract, func, select
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.core.errors import APIError
 from app.db.models import Company, FinancialFact, MartFinancial
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.public import LatestRevenueCard
+from app.services import ratios
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS, default_unit
 from app.services.intel import ANNUAL_FORMS
 from app.services.point_in_time import as_of_note, known_by
@@ -29,6 +30,10 @@ class ScreenRow(LatestRevenueCard):
     exchange: str | None
     metric: str
     mapping_version: str
+    derived: bool = False
+    derivation: dict | None = Field(
+        default=None, description="Derived figures only: formula and the two inputs"
+    )
 
 
 class ScreenResult(BaseModel):
@@ -271,15 +276,35 @@ def screen(
     db: Session = Depends(db_session),
     _key=Depends(require_reader),
 ):
-    if metric not in SUPPORTED_METRICS:
+    ratio = ratios.RATIOS.get(metric)
+    if metric not in SUPPORTED_METRICS and ratio is None:
         raise APIError(
-            422, "invalid_parameter", f"metric must be one of: {', '.join(SUPPORTED_METRICS)}."
+            422,
+            "invalid_parameter",
+            f"metric must be one of: {', '.join(SUPPORTED_METRICS)}, or a derived figure: "
+            f"{', '.join(ratios.DERIVED_METRICS)}.",
         )
-    unit = unit or default_unit(metric)
+    unit = unit or (default_unit(metric) if ratio is None else default_unit(ratio.numerator))
     if quarter is not None and period != "quarterly":
         raise APIError(422, "invalid_parameter", "quarter needs period=quarterly.")
     first_month, last_month = (1, 12) if quarter is None else (3 * quarter - 2, 3 * quarter)
     start, stop = date(year, first_month, 1), _month_after(year, last_month)
+    if ratio is not None:
+        return _screen_derived(
+            db,
+            metric,
+            ratio,
+            year,
+            period,
+            quarter,
+            unit,
+            order,
+            limit,
+            offset,
+            start,
+            stop,
+            as_of,
+        )
     if as_of is None and _marts_ready(db):
         return _screen_from_mart(
             db, metric, year, period, quarter, unit, order, limit, offset, start, stop
@@ -331,6 +356,66 @@ def screen(
             )
         )
     return _result(metric, year, period, quarter, unit, as_of, out, limit, offset, len(ranked))
+
+
+def _best(rows: list[FinancialFact]) -> dict[str, FinancialFact]:
+    best: dict[str, FinancialFact] = {}
+    for f in rows:
+        cur = best.get(f.cik)
+        if cur is None or _rank(f) > _rank(cur):
+            best[f.cik] = f
+    return best
+
+
+def _screen_derived(
+    db, metric, ratio, year, period, quarter, unit, order, limit, offset, start, stop, as_of
+):
+    """A derived figure (D-03) across companies: each company's latest period in the window,
+    paired with the denominator of the same period (or, per share, of the same filing)."""
+    num_stmt = _usable(ratio.numerator, period, unit).where(
+        FinancialFact.period_end >= start, FinancialFact.period_end < stop
+    )
+    den_unit = default_unit(ratio.denominator)
+    den_stmt = _usable(ratio.denominator, period, den_unit if ratio.kind == "per_share" else unit)
+    if ratio.kind != "per_share":  # cover-page shares are dated after the period end
+        den_stmt = den_stmt.where(
+            FinancialFact.period_end >= start, FinancialFact.period_end < stop
+        )
+    if as_of:
+        num_stmt, den_stmt = known_by(num_stmt, as_of), known_by(den_stmt, as_of)
+    best = _best(db.scalars(num_stmt).all())
+    if not best:
+        return _result(metric, year, period, quarter, ratios.unit_of(ratio, unit), as_of, [],
+                       limit, offset, 0)  # fmt: skip
+    dens = db.scalars(den_stmt.where(FinancialFact.cik.in_(list(best)))).all()
+    paired = []
+    for cik, n in best.items():
+        mine = [d for d in dens if d.cik == cik]
+        for item in ratios.derive(ratio, [n], sorted(mine, key=_rank, reverse=True)):
+            paired.append((n, item))
+    paired.sort(key=lambda p: (p[1]["value"], p[0].cik), reverse=(order == "desc"))
+    page = paired[offset : offset + limit]
+    companies = {c.cik: c for c in db.scalars(
+        select(Company).where(Company.cik.in_([n.cik for n, _ in page]))
+    )} if page else {}  # fmt: skip
+    out = []
+    for n, item in page:
+        c = companies.get(n.cik)
+        out.append(ScreenRow(
+            cik=n.cik, legal_name=c.legal_name if c else "", ticker=c.ticker if c else None,
+            exchange=c.exchange if c else None, metric=metric, value=item["value"],
+            unit=item["unit"], currency=None,
+            period_start=n.period_start.isoformat() if n.period_start else None,
+            period_end=n.period_end.isoformat(), fiscal_year=n.fiscal_year,
+            form_type=n.form_type, filed_date=n.filed_date.isoformat() if n.filed_date else None,
+            accession_number=n.accession_number, source_tag=ratio.formula,
+            source_url=n.source_url, quality_status="derived",
+            mapping_version=MAPPING_VERSION, derived=True,
+            derivation={"method": ratio.kind, "formula": ratio.formula,
+                        "inputs": [ratios.ref(item["numerator"]), ratios.ref(item["denominator"])]},
+        ))  # fmt: skip
+    return _result(metric, year, period, quarter, ratios.unit_of(ratio, unit), as_of, out, limit,
+                   offset, len(paired))  # fmt: skip
 
 
 def _result(metric, year, period, quarter, unit, as_of, out, limit, offset, total) -> ScreenResult:

@@ -113,8 +113,8 @@ def build(db: Session, company: Company, as_of: date | None = None, years: int =
     ratio_rows = []
     for name, r in ratios.RATIOS.items():
         num, den = cells.get(r.numerator, {}), cells.get(r.denominator, {})
-        if units.get(r.numerator) != units.get(r.denominator):
-            continue  # never divide figures in two currencies
+        if not num or not den or not ratios.compatible(r, units[r.numerator], units[r.denominator]):
+            continue  # inputs missing here (cover facts), or two currencies
         row_cells = []
         for lab in labels:
             n, d = num.get(lab), den.get(lab)
@@ -127,8 +127,10 @@ def build(db: Session, company: Company, as_of: date | None = None, years: int =
                            for f in (n, d)],
             })  # fmt: skip
         if any(row_cells):
+            unit = ratios.unit_of(r, units[r.numerator])
             ratio_rows.append({
-                "metric": name, "label": r.label, "unit": r.unit, "currency": None,
+                "metric": name, "label": r.label, "unit": unit,
+                "currency": currency_from_unit(unit) if r.kind == "difference" else None,
                 "derived": True, "formula": r.formula, "inputs": [r.numerator, r.denominator],
                 "cells": row_cells,
             })  # fmt: skip
