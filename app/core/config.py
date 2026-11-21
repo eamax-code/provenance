@@ -122,6 +122,9 @@ class Settings(BaseSettings):
     chat_rate_limit_per_minute: int = 10
     # Questions a day per key (or per address for the demo key): every answer can run a model.
     chat_requests_per_day: int = 200
+    # Public statistics are served from a stored snapshot (P-01), refreshed in the background
+    # by the web process every N seconds (0: only the poller refreshes it).
+    stats_refresh_seconds: int = 45
     # Accounts (GH #15): one-time sign-in links by email, then a session cookie.
     sign_in_link_minutes: int = 15
     account_session_days: int = 30

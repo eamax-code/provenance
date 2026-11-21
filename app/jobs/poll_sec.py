@@ -23,6 +23,7 @@ from app.jobs import connections as connections_job
 from app.jobs import filings_tracker as tracker_job
 from app.jobs import markets as markets_job
 from app.services import alerts, quality, retention, universe
+from app.services import stats as stats_service
 from app.services.events import publish_pending
 from app.services.ingestion import finish_run, start_run
 from app.services.notifications import deliver_pending
@@ -161,6 +162,7 @@ def run_forever(session_maker, settings: Settings, include_all_companies: bool =
                         db, settings, connections_on, utcnow().date()
                     )
                     tracked_at = tracker_job.maybe_run(db, settings, tracked_at, utcnow())
+                    stats_service.refresh_snapshot(db, settings)  # the public stats (P-01)
         except Exception:  # noqa: BLE001
             logger.exception("poll iteration crashed")
         finally:

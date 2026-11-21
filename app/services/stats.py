@@ -180,12 +180,72 @@ def compute_stats(db: Session, settings: Settings, now: datetime | None = None) 
     }
 
 
+SNAPSHOT = "snapshot:stats"
+MEMORY_SECONDS = 5  # a request reads the stored snapshot at most this often per process
+
+
+def store_snapshot(db: Session, name: str, data: dict) -> None:
+    import json
+
+    from app.db.models import JobState, utcnow
+
+    row = db.get(JobState, name)
+    body = json.dumps(data, default=str)
+    if row is None:
+        db.add(JobState(name=name, value=body, updated_at=utcnow()))
+    else:
+        row.value, row.updated_at = body, utcnow()
+    db.commit()
+
+
+def read_snapshot(db: Session, name: str) -> dict | None:
+    import json
+
+    from app.db.models import JobState
+
+    row = db.get(JobState, name)
+    return json.loads(row.value) if row is not None else None
+
+
+def refresh_snapshot(db: Session, settings: Settings) -> dict:
+    """Compute the statistics and store them; the background refresher calls this (P-01)."""
+    data = compute_stats(db, settings)
+    store_snapshot(db, SNAPSHOT, data)
+    reset_cache()
+    return data
+
+
 def cached_stats(db: Session, settings: Settings) -> dict:
+    """The stored snapshot, whatever its age (its generated_at says when): a request never runs
+    the aggregate queries, except once on a cold start before any snapshot exists."""
     global _cached
     with _lock:
-        if _cached and time.monotonic() - _cached[0] < CACHE_TTL_SECONDS:
+        if _cached and time.monotonic() - _cached[0] < MEMORY_SECONDS:
             return _cached[1]
-    data = compute_stats(db, settings)
+    data = read_snapshot(db, SNAPSHOT)
+    if data is None:
+        data = refresh_snapshot(db, settings)
     with _lock:
         _cached = (time.monotonic(), data)
     return data
+
+
+def start_refresher(session_maker, settings: Settings) -> None:
+    """Refresh the stored statistics every stats_refresh_seconds in a daemon thread."""
+    import logging
+
+    if settings.stats_refresh_seconds <= 0:
+        return
+
+    def loop():
+        while True:
+            time.sleep(settings.stats_refresh_seconds)
+            db = session_maker()
+            try:
+                refresh_snapshot(db, settings)
+            except Exception:  # noqa: BLE001 - the next round tries again
+                logging.getLogger("app.stats").exception("stats refresh failed")
+            finally:
+                db.close()
+
+    threading.Thread(target=loop, name="stats-refresher", daemon=True).start()

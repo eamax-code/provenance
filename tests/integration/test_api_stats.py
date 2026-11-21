@@ -35,17 +35,16 @@ def test_stats_empty_state(client):
     assert body["ingestion"]["last_run_status"] is None
 
 
-def test_stats_is_cached_for_ttl(client, db, sec_client):
+def test_stats_is_served_from_the_snapshot_until_it_is_refreshed(client, db, sec_client, settings):
     from app.services.ingestion import ingest_company
 
     stats_service.reset_cache()
-    first = client.get("/v1/stats").json()
-    assert first["filings"]["total"] == 0
+    first = client.get("/v1/stats").json()["companies"]["ingested"]
     ingest_company(db, sec_client, "320193")
-    second = client.get("/v1/stats").json()
-    assert second["filings"]["total"] == 0 and second["generated_at"] == first["generated_at"]
     stats_service.reset_cache()
-    assert client.get("/v1/stats").json()["filings"]["total"] == 6
+    assert client.get("/v1/stats").json()["companies"]["ingested"] == first  # stored snapshot
+    stats_service.refresh_snapshot(db, settings)  # the background refresher
+    assert client.get("/v1/stats").json()["companies"]["ingested"] == first + 1
 
 
 def test_stats_rate_limited_per_ip(client, monkeypatch):
@@ -96,7 +95,7 @@ def test_stats_health_branches_and_cache_header(client, db, ingested_aapl, setti
     c = db.scalar(select(Company).where(Company.cik == "0000320193"))
     c.last_successful_fetch_at = datetime.now(UTC) - timedelta(days=3)
     db.commit()
-    stats_service.reset_cache()
+    stats_service.refresh_snapshot(db, settings)
     assert client.get("/v1/stats").json()["service"]["health"] == "stale"
     c.last_successful_fetch_at = datetime.now(UTC)
     db.add(
@@ -109,6 +108,35 @@ def test_stats_health_branches_and_cache_header(client, db, ingested_aapl, setti
         )
     )
     db.commit()
-    stats_service.reset_cache()
+    stats_service.refresh_snapshot(db, settings)
     assert client.get("/v1/stats").json()["service"]["health"] == "degraded"
     stats_service.reset_cache()
+
+
+def test_stats_are_served_from_the_stored_snapshot_without_aggregates(client, db, settings):
+    """P-01: a request reads the stored snapshot; it never runs the aggregate queries."""
+    from sqlalchemy import event
+
+    from app.db.session import get_engine
+    from app.services import stats
+
+    stats.refresh_snapshot(db, settings)
+    stats.reset_cache()
+    seen: list[str] = []
+
+    def record(conn, cursor, statement, *args):
+        seen.append(statement.lower())
+
+    engine = get_engine()
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        r = client.get("/v1/stats")
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+    assert r.status_code == 200 and r.json()["generated_at"]
+    aggregates = [s for s in seen if "count(" in s or "max(" in s or "min(" in s]
+    assert aggregates == [], aggregates[:2]
+    # a stale snapshot is still served, with the time it was made
+    old = r.json()["generated_at"]
+    stats.reset_cache()
+    assert client.get("/v1/stats").json()["generated_at"] == old

@@ -157,6 +157,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/openapi.json",
     )
     app.state.settings = settings
+    if settings.app_env != "test":  # public statistics refresh in the background (P-01)
+        from app.services.stats import start_refresher
+
+        start_refresher(session_factory(), settings)
     site_dir = Path(__file__).resolve().parent.parent / "site"
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # never compresses event streams
