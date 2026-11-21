@@ -334,7 +334,11 @@ def public_listing_events(db: Session, limit: int = 30) -> dict:
             select(ListingEvent)
             .join(Market, Market.mic == ListingEvent.mic)
             .where(ListingEvent.event_type.in_(["new_listing", "ipo", "delisting", "suspended"]))
-            .order_by(ListingEvent.detected_at.desc(), ListingEvent.listing_key)
+            .order_by(
+                ListingEvent.event_date.desc().nulls_last(),
+                ListingEvent.detected_at.desc(),  # a tiebreaker only, never returned
+                ListingEvent.listing_key,
+            )
             .limit(limit)
         ).all()
         venues = {

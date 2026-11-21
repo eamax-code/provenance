@@ -291,7 +291,6 @@ def build_listing_payload(
             "issuer_name": event.issuer_name,
             "details": details,
             "source": event.source,
-            "detected_at": iso_z(event.detected_at),
         },
     }
 

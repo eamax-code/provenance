@@ -183,8 +183,8 @@ def events(
     mic: str | None = Query(None, min_length=4, max_length=4),
     region: str | None = Query(None, pattern="^(canada|europe|uk)$"),
     isin: str | None = Query(None, min_length=12, max_length=12, description="One instrument"),
-    since: date | None = Query(None, description="event_date >= since"),
-    detected_since: date | None = Query(None, description="detected_at >= date"),
+    since: date | None = Query(None, description="Events dated on or after this date"),
+    until: date | None = Query(None, description="Events dated on or before this date"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0, le=100_000),
     db: Session = Depends(db_session),
@@ -203,15 +203,15 @@ def events(
         stmt = stmt.where(ListingEvent.isin == isin.upper())
     if since:
         stmt = stmt.where(ListingEvent.event_date >= since)
-    if detected_since:
-        from datetime import UTC, datetime
-
-        stmt = stmt.where(
-            ListingEvent.detected_at
-            >= datetime.combine(detected_since, datetime.min.time(), tzinfo=UTC)
-        )
+    if until:
+        stmt = stmt.where(ListingEvent.event_date <= until)
     stmt = (
-        stmt.order_by(ListingEvent.detected_at.desc(), ListingEvent.listing_key)
+        # the event's own date first; when we saw it only breaks ties, and is never returned
+        stmt.order_by(
+            ListingEvent.event_date.desc().nulls_last(),
+            ListingEvent.detected_at.desc(),
+            ListingEvent.listing_key,
+        )
         .offset(offset)
         .limit(limit + 1)
     )

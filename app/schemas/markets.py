@@ -88,7 +88,6 @@ class ListingEventOut(ORMModel):
     event_date: date | None
     source: str
     details: dict | None = None
-    detected_at: datetime
     quality_status: str
 
     @field_validator("details", mode="before")

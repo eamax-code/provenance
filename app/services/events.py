@@ -327,7 +327,6 @@ def _listing_event(pos: Cursor, e: ListingEvent) -> dict:
             "issuer_name": e.issuer_name,
             "event_type": e.event_type,
             "event_date": e.event_date.isoformat() if e.event_date else None,
-            "detected_at": iso_z(e.detected_at),
             "source": e.source,
             "details": details,
             "quality_status": e.quality_status,

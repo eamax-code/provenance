@@ -29,6 +29,7 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | S-01 | Summary text formatting at the source | done 2026-11-22: dates as "26 Sep 2026", forms as plain names from one map (`app/services/form_names.py`: "an insider trade report (Form 4)"), leadership sentence says what happened; `form_label` on overview filings and events |
 | F-03 | Insider activity events | done 2026-11-22: cluster buying, first buy in 2+ years, large sale outside a 10b5-1 plan; feed kind `insider`, type watches, MCP, `/v1/public/insider-activity`, company overview; backfill never notifies |
 | C-01 | Chat: IPO terms intent | done 2026-11-22: "What were Anthropic's IPO terms?" / "Who underwrote X?" answered from the stored terms without a model, every sentence cited, the card carries each sentence; S-01 in chat: readable dates, plain form names, counts in words, unread 5.02 filings last |
+| P0 | No detection timestamps in responses | done 2026-11-22: `detected_at` removed from listing events (keyed, public, feed, webhooks); `detected_since` replaced by `until` on the event's own date; a test fails if any response model or the OpenAPI schema carries `*detected_at*`, `first_detected*` or `source_updated*` |
 | I-09, F-01 | Production smoke script, Sheets function | queued |
 | Owner | O-01 to O-09 (host, domain, email, merchant of record, model, news, legal, pricing) | waiting on you; G-02, I-01, I-03 wait on them |
 
