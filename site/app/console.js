@@ -223,7 +223,7 @@
       box.setAttribute('data-filled', '1');
       eventTypes().then(function (list) {
         list.forEach(function (e) {
-          var lab = el('label', { class: 'check' }, [el('input', { type: 'checkbox', name: 'tw-ev', value: e.type }), ' ' + (e.label || e.type) + (e.delivery === 'hourly_batch' ? ' (hourly unless filtered)' : '')]);
+          var lab = el('label', { class: 'check', title: (e.label || e.type) + (e.delivery === 'hourly_batch' ? '. Without a filter it arrives as one hourly batch.' : '') }, [el('input', { type: 'checkbox', name: 'tw-ev', value: e.type }), ' ' + (e.short_label || e.label || e.type) + (e.delivery === 'hourly_batch' ? ' ·  hourly' : '')]);
           box.appendChild(lab);
           if (!allowed) lab.querySelector('input').disabled = true;
         });
