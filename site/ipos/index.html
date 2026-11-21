@@ -22,6 +22,35 @@
 <!-- /shell:meta -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" data-font>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "Dataset",
+ "name": "US companies going public, from SEC EDGAR",
+ "description": "US IPO registrations by stage, from confidential draft to final prospectus, with price range, final price, shares, gross proceeds, underwriters and lock-up dates read from each prospectus; every value carries the sentence it came from and links to its filing on sec.gov.",
+ "creator": {
+  "@type": "Organization",
+  "name": "Provenance"
+ },
+ "isBasedOn": "https://www.sec.gov/edgar/search/",
+ "variableMeasured": [
+  "Stage",
+  "Price range",
+  "Final price",
+  "Shares offered",
+  "Gross proceeds",
+  "Underwriting discount",
+  "Underwriters",
+  "Lock-up expiry"
+ ],
+ "isAccessibleForFree": true,
+ "distribution": {
+  "@type": "DataDownload",
+  "encodingFormat": "application/json",
+  "contentUrl": "/v1/public/ipos/pipeline"
+ }
+}
+</script>
 <!-- shell:head -->
 <link rel="stylesheet" href="/shell/shell.css">
 <script src="/shell/shell.js"></script>

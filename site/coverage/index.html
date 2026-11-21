@@ -22,6 +22,32 @@
 <!-- /shell:meta -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" data-font>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "Dataset",
+ "name": "Provenance coverage of SEC filers",
+ "description": "Which US companies, financial metrics, ratios and SEC forms Provenance covers, with the share of values with one clear tag per metric and how fresh the data is, counted from the data itself.",
+ "creator": {
+  "@type": "Organization",
+  "name": "Provenance"
+ },
+ "isBasedOn": "https://www.sec.gov/edgar/search/",
+ "variableMeasured": [
+  "Companies covered",
+  "Metrics by statement",
+  "Quality per metric",
+  "Forms read",
+  "Median time from SEC acceptance"
+ ],
+ "isAccessibleForFree": true,
+ "distribution": {
+  "@type": "DataDownload",
+  "encodingFormat": "application/json",
+  "contentUrl": "/v1/public/coverage"
+ }
+}
+</script>
 <!-- shell:head -->
 <link rel="stylesheet" href="/shell/shell.css">
 <script src="/shell/shell.js"></script>
