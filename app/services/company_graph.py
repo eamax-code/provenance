@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, GraphSourceState
-from app.services import beneficial_owners, insiders, subsidiaries
+from app.services import beneficial_owners, insiders, leadership, subsidiaries
 from app.services.sec_client import filing_index_url, normalize_cik
 
 LAYERS = ("insiders", "interlocks", "subsidiaries", "holders")
@@ -93,6 +93,7 @@ def build(
     owners: list[dict] = []
     if "insiders" in layers or "interlocks" in layers:
         owners = insiders.roles(db, cik, as_of)
+        leadership.apply_to_roles(db, cik, owners, as_of)  # an 8-K departure ends a role (K-02)
         if not former:
             owners = [o for o in owners if o["current"]]
         insiders.activity(db, cik, owners, as_of)
@@ -131,6 +132,8 @@ def build(
                     "type": kind,
                     "label": o["role"],
                     "current": o["current"],
+                    "ended": o.get("ended"),
+                    "leaving_on": o.get("leaving_on"),
                     "since": o["first_filed"],
                     "last": o["last_filed"],
                     "filings": o["filings"],
@@ -141,7 +144,8 @@ def build(
             "count": len(owners),
             "current": sum(1 for o in owners if o["current"]),
             "through": insiders.dataset_coverage(db),
-            "note": "Forms 3, 4 and 5. An insider who has not filed for two years is former.",
+            "note": "Forms 3, 4 and 5. An insider is former after an 8-K item 5.02 departure, or "
+            "after two years without a filing.",
         }
 
     if "interlocks" in layers and owners:

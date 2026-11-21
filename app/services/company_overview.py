@@ -27,7 +27,16 @@ from app.db.models import (
 )
 from app.schemas.companies import CompanyOut
 from app.services import cover as cover_service
-from app.services import documents, identity, ipo_terms, live, periods, statements
+from app.services import (
+    documents,
+    identity,
+    insiders,
+    ipo_terms,
+    leadership,
+    live,
+    periods,
+    statements,
+)
 from app.services.form8k import ITEM_TITLES, split_items
 from app.services.form_names import form_label
 from app.services.intel import display_name
@@ -231,6 +240,13 @@ def _leadership(db: Session, cik: str, today: date) -> dict:
     }  # fmt: skip
 
 
+def _people(db: Session, cik: str, today: date) -> dict:
+    """U-03: leadership by person and the current CEO, CFO and chair (with K-02)."""
+    owners = insiders.roles(db, cik, today)
+    leadership.apply_to_roles(db, cik, owners, today)
+    return leadership.overview(db, cik, owners, today)
+
+
 def _peers(db: Session, company: Company, today: date) -> dict | None:
     """Same 4-digit SIC (3-digit when fewer than 4 peers), companies that filed an annual report
     in the last two years, ranked by closeness to this company's latest annual revenue (U-02)."""
@@ -368,7 +384,7 @@ def build(
         "cover": cover_service.cover(db, company, as_of),
         "filings": _filings(db, cik, as_of),
         "filing_activity": _activity(db, cik, anchor),
-        "leadership": _leadership(db, cik, anchor),
+        "leadership": {**_leadership(db, cik, anchor), **_people(db, cik, anchor)},
         "events": live.event_rows(
             db, anchor - timedelta(days=EVENT_DAYS), EVENTS, until=anchor, cik=cik
         ),
