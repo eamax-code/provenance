@@ -22,7 +22,7 @@ from app.schemas.watches import (
     WatchList,
     WatchOut,
 )
-from app.services import filing_events
+from app.services import filing_events, notifications
 from app.services.sec_client import normalize_cik
 from app.services.usage import active_watches_used, watched_companies_used
 
@@ -203,6 +203,29 @@ def deactivate_watch(
         )
         db.commit()
     return WatchOut.model_validate(watch)
+
+
+@router.post(
+    "/watches/{watch_id}/test",
+    responses=_ERRORS,
+    summary="Send a signed test event to a webhook watch now",
+    description="Delivers one sec.test event, signed like every other, so you can check your "
+    "receiver. Nothing is stored or retried.",
+)
+def test_watch(
+    watch_id: UUID,
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+    key: ApiKey = Depends(require_api_key),
+):
+    watch = db.scalar(
+        select(CompanyWatch).where(CompanyWatch.id == watch_id, CompanyWatch.api_key_id == key.id)
+    )
+    if watch is None:
+        raise APIError(404, "watch_not_found", "No watch with this id belongs to your API key.")
+    if watch.destination_type != "webhook" or not watch.is_active:
+        raise APIError(422, "invalid_parameter", "Only an active webhook watch can be tested.")
+    return notifications.send_test_event(settings, watch)
 
 
 @router.get(

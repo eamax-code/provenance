@@ -93,3 +93,29 @@ def test_watch_limited_to_event_types_fires_only_for_them(
     payload = build_event_payload(d, db.get(Filing, d.filing_id), d.created_at)
     assert payload["data"]["event_types"] == ["sec.restatement"]
     assert payload["data"]["items"] == ["4.02"]
+
+
+def test_a_watch_can_be_sent_a_signed_test_event(client, auth, db, sec_client, monkeypatch):
+    from app.core.security import verify_webhook_signature
+    from app.services import notifications
+
+    ingest_company(db, sec_client, "320193")
+    w = client.post("/v1/watches", json={"cik": "320193", "destination_type": "webhook",
+                                          "destination": "https://hooks.example.com/t"},
+                    headers=auth).json()  # fmt: skip
+    sent = []
+
+    class Resp:
+        status_code = 200
+
+    def fake_send(self, url, body, headers):
+        sent.append((url, body, headers))
+        return Resp()
+
+    monkeypatch.setattr(notifications.WebhookSender, "send", fake_send)
+    r = client.post(f"/v1/watches/{w['id']}/test", headers=auth)
+    assert r.status_code == 200 and r.json()["delivered"] is True
+    url, body, headers = sent[0]
+    assert headers["X-Event-Type"] == "sec.test"
+    assert verify_webhook_signature(w["webhook_secret"], headers["X-Signature-Timestamp"],
+                                    headers["X-Signature"], body)  # fmt: skip

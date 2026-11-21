@@ -116,6 +116,28 @@ def _type_watch_deliveries(db: Session, filing: Filing, now: datetime) -> int:
     return created
 
 
+TEST_EVENT_TYPE = "sec.test"
+
+
+def send_test_event(settings: Settings, watch, sender: WebhookSender | None = None) -> dict:
+    """Send one signed sec.test event to a webhook watch now, so a receiver can check its
+    signature handling. Nothing is stored and nothing is retried."""
+    from types import SimpleNamespace as _NS
+
+    event_id = f"evt_test_{uuid.uuid4().hex[:24]}"
+    payload = {
+        "event_id": event_id,
+        "event_type": TEST_EVENT_TYPE,
+        "created_at": iso_z(utcnow()),
+        "data": {"watch_id": str(watch.id), "note": "A test event; no filing behind it."},
+    }
+    sender = sender or WebhookSender(settings)
+    outcome, status_code, error = _attempt_webhook(settings, sender, watch, _NS(event_id=event_id),
+                                                   payload)  # fmt: skip
+    return {"event_id": event_id, "delivered": outcome == "delivered", "status_code": status_code,
+            "error": error}  # fmt: skip
+
+
 def create_insider_deliveries(db: Session, rows: list[InsiderActivity], now=None) -> int:
     """Type-watch deliveries for newly found insider activity (F-03). Idempotent."""
     now = now or utcnow()
