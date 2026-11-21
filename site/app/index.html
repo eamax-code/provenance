@@ -32,7 +32,7 @@
 <!-- /shell:head -->
 <link rel="stylesheet" href="/app/app.css">
 </head>
-<body>
+<body class="data-page">
 <!-- shell:header -->
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-bar">
@@ -146,7 +146,7 @@
       <section class="tabpane" id="pane-facts">
         <div class="controls">
           <label>Metric <select id="f-metric">
-            <option value="revenue">Revenue</option><option value="operating_income">Operating income</option><option value="net_income">Net income</option><option value="total_assets">Total assets</option><option value="operating_cash_flow">Operating cash flow</option>
+            <optgroup label="Income statement"><option value="revenue">Revenue</option><option value="cost_of_revenue">Cost of revenue</option><option value="gross_profit">Gross profit</option><option value="r_and_d">Research and development</option><option value="sga">Selling, general and administrative</option><option value="operating_income">Operating income</option><option value="interest_expense">Interest expense</option><option value="net_interest_income">Net interest income</option><option value="pretax_income">Income before taxes</option><option value="income_tax">Income tax</option><option value="net_income">Net income</option><option value="eps_basic">EPS, basic</option><option value="eps_diluted">EPS, diluted</option><option value="shares_basic_weighted">Weighted shares, basic</option><option value="shares_diluted_weighted">Weighted shares, diluted</option><option value="d_and_a">Depreciation and amortization</option></optgroup><optgroup label="Balance sheet"><option value="cash_and_equivalents">Cash and equivalents</option><option value="current_assets">Current assets</option><option value="total_assets">Total assets</option><option value="current_liabilities">Current liabilities</option><option value="total_liabilities">Total liabilities</option><option value="long_term_debt">Long-term debt</option><option value="long_term_debt_current">Long-term debt, current part</option><option value="stockholders_equity">Stockholders' equity</option><option value="retained_earnings">Retained earnings</option></optgroup><optgroup label="Cash flow"><option value="operating_cash_flow">Operating cash flow</option><option value="capex">Capital expenditure</option><option value="dividends_paid">Dividends paid</option><option value="share_repurchases">Share repurchases</option><option value="sbc">Stock-based compensation</option></optgroup><optgroup label="Cover page"><option value="shares_outstanding">Shares outstanding</option><option value="public_float">Public float</option></optgroup><optgroup label="Ratios, derived here"><option value="gross_margin">Gross margin</option><option value="operating_margin">Operating margin</option><option value="net_margin">Net margin</option><option value="return_on_assets">Return on assets</option><option value="return_on_equity">Return on equity</option><option value="free_cash_flow">Free cash flow</option><option value="debt_to_equity">Debt to equity</option><option value="current_ratio">Current ratio</option><option value="book_value_per_share">Book value per share</option></optgroup>
           </select></label>
           <label>Period <select id="f-period"><option value="annual">Annual</option><option value="quarterly">Quarterly</option><option value="all">All</option></select></label>
           <label class="check"><input type="checkbox" id="f-derived"> Include derived quarters</label>
@@ -269,7 +269,7 @@
     </section>
   </section>
 
-  <p class="page-note">Data from SEC EDGAR. Provenance is independent and not affiliated with the SEC. Values marked <code>derived</code> are computed by this service. Not investment advice. <a href="/developers/">Developer docs</a> · <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></p>
+  <p class="page-note" id="page-note">Data from SEC EDGAR. Provenance is independent and not affiliated with the SEC. Values marked <code>derived</code> are computed by this service. Not investment advice. <a href="/developers/">Developer docs</a> · <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></p>
   <div id="toast" class="toast" role="status" aria-live="assertive" hidden></div>
 </main>
 <!-- shell:footer -->

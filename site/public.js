@@ -31,7 +31,7 @@
     a.appendChild(el('div', { class: 'ticker', text: (c.ticker || '—') + ' · ' + (c.exchange || '—') + ' · CIK ' + c.cik }));
     a.appendChild(el('div', { class: 'name', text: c.legal_name }));
     a.appendChild(el('div', { class: 'big', text: rev ? fmtNum(rev.value) + ' ' + rev.unit : 'revenue n/a' }));
-    a.appendChild(el('div', { class: 'fine', text: rev ? 'annual revenue FY' + (rev.fiscal_year || '') + ' to ' + rev.period_end + ' · ' + rev.source_tag : 'no unambiguous annual revenue tag' }));
+    a.appendChild(el('div', { class: 'fine', text: rev ? 'annual revenue, ' + (rev.period_label || ('period ended ' + rev.period_end)) + ' · ' + rev.source_tag : 'no unambiguous annual revenue tag' }));
     a.appendChild(el('div', { class: 'fine', text: lf ? 'latest filing ' + lf.form_type + ' ' + (lf.filing_date || '') : 'no filings' }));
     a.appendChild(el('div', { class: 'fine', text: fmtInt(c.filings_count) + ' filings · ' + fmtInt(c.facts_count) + ' facts' }));
     return a;

@@ -221,7 +221,7 @@
     var box = $('pg-cite'), row = body && body.data && body.data[0];
     box.hidden = true; box.innerHTML = '';
     if (!row || typeof row !== 'object' || !ARCHIVE.test(row.source_url || '')) return;
-    var what = [row.fiscal_year && (row.period_class === 'annual' ? 'FY' + row.fiscal_year : row.fiscal_year), row.form_type, row.filed_date && 'filed ' + day(row.filed_date)].filter(Boolean).join(' · ');
+    var what = [row.period_label || (row.period_fiscal_year && (row.period_class === 'annual' ? 'FY' + row.period_fiscal_year : row.period_fiscal_year)), row.form_type, row.filed_date && 'filed ' + day(row.filed_date)].filter(Boolean).join(' · ');
     box.appendChild(document.createTextNode('Every row cites its filing. Row 1 came from ' + (what || 'this filing') + ': '));
     box.appendChild(el('a', { href: row.source_url, rel: 'noopener', target: '_blank', text: 'open it on sec.gov' }));
     if (row.quality_status && row.quality_status !== 'ok') box.appendChild(document.createTextNode(' (quality: ' + row.quality_status + ')'));

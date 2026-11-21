@@ -18,6 +18,18 @@
     if (abs >= 1e9) return (n / 1e9).toFixed(2) + 'B'; if (abs >= 1e6) return (n / 1e6).toFixed(2) + 'M'; if (abs >= 1e3) return (n / 1e3).toFixed(1) + 'K';
     return n.toLocaleString('en-US');
   };
+  /* a value in its own unit: money in B/M, percentages, multiples, per-share dollars, share counts */
+  var fmtUnit = function (v, unit) {
+    if (v == null) return 'not reported';
+    var n = Number(v);
+    if (unit === '%') return n.toFixed(1) + '%';
+    if (unit === 'x') return n.toFixed(2) + '×';
+    if (unit === 'USD/shares') return (n < 0 ? '−$' : '$') + Math.abs(n).toFixed(2);
+    if (unit === 'USD') return (n < 0 ? '−$' : '$') + fmtNum(Math.abs(n));
+    return fmtNum(n) + (unit && unit !== 'shares' ? ' ' + unit : '');
+  };
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var day = function (iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? +m[3] + ' ' + MON[+m[2] - 1] + ' ' + m[1] : (iso || '—'); };
   var fmtTs = function (s) { return s ? s.replace('T', ' ').replace(/\.\d+Z$/, 'Z').replace('Z', ' UTC') : 'null'; };
   var toastTimer;
   function toast(msg, kind) {
@@ -96,10 +108,10 @@
     if (!d || !d.data.length) { list.appendChild(el('li', { class: 'muted', text: 'No showcase companies are loaded yet.' })); return; }
     d.data.forEach(function (c) {
       var rev = c.latest_annual_revenue;
-      var link = el('a', { href: '/companies/' + parseInt(c.cik, 10), text: c.legal_name });
+      var link = el('a', { href: '/companies/' + parseInt(c.cik, 10), text: c.display_name || c.legal_name });
       list.appendChild(el('li', {}, [
         el('span', {}, [link, el('span', { class: 'muted', text: ' · ' + [c.ticker, c.exchange].filter(Boolean).join(' · ') })]),
-        el('span', { class: 'mono', text: rev ? 'revenue ' + fmtNum(rev.value) + ' ' + rev.unit + ', year ended ' + rev.period_end : 'no annual revenue mapped' })
+        el('span', { text: rev ? 'Revenue ' + fmtUnit(rev.value, rev.unit) + ', ' + (rev.period_label || 'year ended ' + day(rev.period_end)) : 'No annual revenue mapped yet' })
       ]));
     });
   }).catch(function () { var list = $('gate-cards'); if (list) { list.innerHTML = ''; list.appendChild(el('li', { class: 'muted', text: 'Showcase companies are unavailable right now.' })); } });
@@ -109,6 +121,13 @@
     state.view = name;
     document.querySelectorAll('.view-btn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-view') === name)); });
     $('explore').hidden = name !== 'explore'; $('console').hidden = name !== 'console'; $('listings').hidden = name !== 'listings';
+    // the note under the view names the source of what it shows
+    var note = $('page-note');
+    if (note) {
+      if (!note._sec) note._sec = Array.prototype.slice.call(note.childNodes);
+      if (!note._listings) note._listings = [document.createTextNode('Listings from the ESMA and FCA FIRDS registers, issuer identity from GLEIF. Provenance is independent and not affiliated with ESMA, the FCA or GLEIF. Not investment advice. '), el('a', { href: '/legal/data-sources/', text: 'Data sources' })];
+      note.replaceChildren.apply(note, name === 'listings' ? note._listings : note._sec);
+    }
     if (name === 'console' && window.ProvenanceConsole) window.ProvenanceConsole.load(api, toast);
     if (name === 'listings' && window.ProvenanceListings) window.ProvenanceListings.load(api, toast);
     try { location.hash = name; } catch (e) {}
@@ -192,12 +211,12 @@
       if (!rows.length) tb.appendChild(el('tr', {}, [el('td', { colspan: '9', class: 'skeleton', text: 'No facts for this metric and period. Missing facts mean the SEC company-facts API did not expose a mappable value, not that the issuer has none.' })]));
       rows.forEach(function (f) {
         tb.appendChild(el('tr', {}, [
-          el('td', { class: 'mono', text: (f.period_start ? f.period_start + ' → ' : '') + f.period_end }),
-          el('td', { text: f.period_class + (f.fiscal_period ? ' (' + f.fiscal_period + ' FY' + f.fiscal_year + ')' : '') }),
-          el('td', { class: 'num', text: fmtNum(f.value), title: f.value == null ? 'null' : String(f.value) }),
+          el('td', { text: (f.period_start ? day(f.period_start) + ' to ' : '') + day(f.period_end) }),
+          el('td', { text: (f.period_label || f.period_class) + (f.calendar_period ? ' · ' + f.calendar_period : ''), title: 'Fiscal period from the dates reported' + (f.fiscal_year ? '; filed in the FY' + f.fiscal_year + ' report' : '') }),
+          el('td', { class: 'num', text: fmtUnit(f.value, f.unit), title: f.value == null ? 'not reported' : String(f.value) }),
           el('td', { text: f.unit }),
           el('td', { text: f.form_type || '—' }),
-          el('td', { class: 'mono', text: f.filed_date || '—' }),
+          el('td', { text: day(f.filed_date) }),
           el('td', { class: 'mono wrap', text: f.source_tag + (f.revision_count > 1 ? ' · ' + f.revision_count + ' obs' : '') }),
           el('td', {}, [el('span', { class: 'badge ' + f.quality_status, text: f.quality_status + (f.derived ? ' (derived)' : '') })]),
           el('td', {}, [el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: f.accession_number || 'source' })])
@@ -220,16 +239,16 @@
     for (var i = 0; i <= ticks; i++) {
       var v = min + span * i / ticks, yy = y(v);
       svg.appendChild(mk('line', { x1: padL, x2: W - padR, y1: yy, y2: yy, class: 'grid' }));
-      var lbl = mk('text', { x: padL - 8, y: yy + 4, 'text-anchor': 'end' }); lbl.textContent = fmtNum(v); svg.appendChild(lbl);
+      var lbl = mk('text', { x: padL - 8, y: yy + 4, 'text-anchor': 'end' }); lbl.textContent = fmtUnit(v, pts[0].unit); svg.appendChild(lbl);
     }
     svg.appendChild(mk('line', { x1: padL, x2: W - padR, y1: y(0), y2: y(0), class: 'axis' }));
     var bw = iw / pts.length;
     pts.forEach(function (p, idx) {
       var v = Number(p.value), x = padL + idx * bw + bw * 0.15, h = Math.abs(y(v) - y(0));
       var rect = mk('rect', { x: x, y: Math.min(y(v), y(0)), width: Math.max(2, bw * 0.7), height: Math.max(1, h), rx: 2, class: 'bar' + (p.derived ? ' derived' : '') + (v < 0 ? ' neg' : '') + (idx === pts.length - 1 ? ' latest' : '') });
-      var title = document.createElementNS(NS, 'title'); title.textContent = p.period_end + ': ' + Number(p.value).toLocaleString('en-US') + ' ' + p.unit + (p.derived ? ' (derived)' : '') + ' · ' + p.quality_status; rect.appendChild(title);
+      var title = document.createElementNS(NS, 'title'); title.textContent = (p.period_label || day(p.period_end)) + ': ' + fmtUnit(p.value, p.unit) + (p.derived ? ' (derived)' : '') + ' · ' + p.quality_status; rect.appendChild(title);
       svg.appendChild(rect);
-      if (pts.length <= 12 || idx % Math.ceil(pts.length / 12) === 0) { var xl = mk('text', { x: x + bw * 0.35, y: H - padB + 16, 'text-anchor': 'middle' }); xl.textContent = p.period_end.slice(0, 7); svg.appendChild(xl); }
+      if (pts.length <= 12 || idx % Math.ceil(pts.length / 12) === 0) { var xl = mk('text', { x: x + bw * 0.35, y: H - padB + 16, 'text-anchor': 'middle' }); xl.textContent = p.period_label || p.period_end.slice(0, 7); svg.appendChild(xl); }
     });
     var cap = mk('text', { x: W - padR, y: H - 6, 'text-anchor': 'end' }); cap.textContent = $('f-metric').value + ' · ' + (pts[0].unit || '') + ' · grey = derived by subtraction, red = latest'; svg.appendChild(cap);
   }
