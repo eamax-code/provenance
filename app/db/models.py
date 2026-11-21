@@ -316,6 +316,22 @@ class CompanyLei(Base):
     matched_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class GleifEntity(Base):
+    """A legal entity from the GLEIF golden copy (CC0) whose exact legal name matches an SEC
+    filer's (launch plan K-01b); only those are kept, not the 3.5 million records."""
+
+    __tablename__ = "gleif_entities"
+    __table_args__ = (Index("ix_gleif_entities_key", "name_key"),)
+
+    lei: Mapped[str] = mapped_column(String(20), primary_key=True)
+    legal_name: Mapped[str] = mapped_column(Text, nullable=False)
+    name_key: Mapped[str] = mapped_column(Text, nullable=False)
+    jurisdiction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entity_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    registration_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    loaded_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class LeiOverride(Base):
     """A hand-checked CIK to LEI link, or (lei null) a confirmed "no LEI": always wins."""
 

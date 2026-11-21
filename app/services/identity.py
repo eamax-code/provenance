@@ -79,8 +79,15 @@ def match_all(db: Session) -> dict:
     for i in issuers:
         by_name.setdefault(normalize(i.legal_name), []).append(i)
         by_strict.setdefault(strict_key(i.legal_name), []).append(i)
+    from app.db.models import GleifEntity
+    from app.services.lei_golden import company_jurisdiction, jurisdictions_agree
+
+    golden: dict[str, list[GleifEntity]] = {}
+    for g in db.scalars(select(GleifEntity).where(GleifEntity.entity_status == "ACTIVE")):
+        golden.setdefault(g.name_key, []).append(g)
     rows: list[CompanyLei] = []
-    counts = {"override": 0, "sec": 0, "name_jurisdiction": 0, "name_unique": 0, "unmatched": 0}
+    counts = {"override": 0, "sec": 0, "name_jurisdiction": 0, "gleif_name_jurisdiction": 0,
+              "name_unique": 0, "gleif_name_unique": 0, "unmatched": 0}  # fmt: skip
     for c in db.scalars(select(Company)):
         o = overrides.get(c.cik)
         if o is not None:
@@ -106,6 +113,19 @@ def match_all(db: Session) -> dict:
         key = normalize(c.legal_name)
         candidates = by_name.get(key, []) if key else []
         exact = [i for i in candidates if _jurisdiction_matches(i, c)]
+        here = company_jurisdiction(c)
+        gold = golden.get(strict_key(c.legal_name), [])
+        gold_exact = [g for g in gold if jurisdictions_agree(here, g.jurisdiction)]
+        if len(exact) != 1 and len(gold_exact) == 1:
+            g = gold_exact[0]
+            rows.append(CompanyLei(
+                cik=c.cik, lei=g.lei, match_method="gleif_name_jurisdiction", confidence="high",
+                evidence=f"GLEIF legal name {g.legal_name!r} and jurisdiction {g.jurisdiction} "
+                f"match the SEC name {c.legal_name!r} and place of incorporation {here}",
+                matched_at=now,
+            ))  # fmt: skip
+            counts["gleif_name_jurisdiction"] += 1
+            continue
         if len(exact) == 1:
             i = exact[0]
             rows.append(CompanyLei(
@@ -126,6 +146,20 @@ def match_all(db: Session) -> dict:
                 matched_at=now,
             ))  # fmt: skip
             counts["name_unique"] += 1
+        elif (
+            len(gold) == 1
+            and (here or "").startswith("US") == (gold[0].jurisdiction or "").startswith("US")
+            and not (here and gold[0].jurisdiction)
+        ):
+            g = gold[0]  # unique name; one side's jurisdiction is unknown, so medium
+            rows.append(CompanyLei(
+                cik=c.cik, lei=g.lei, match_method="gleif_name_unique", confidence="medium",
+                evidence=f"GLEIF legal name {g.legal_name!r} equals the SEC name "
+                f"{c.legal_name!r}, legal form included, and is unique among active entities; "
+                "jurisdiction not confirmed",
+                matched_at=now,
+            ))  # fmt: skip
+            counts["gleif_name_unique"] += 1
         else:
             counts["unmatched"] += 1
     db.execute(delete(CompanyLei))

@@ -56,6 +56,7 @@ def test_matching_rules_and_listings(db, client, auth):
     db.commit()
     counts = identity.match_all(db)
     assert counts == {"override": 1, "sec": 1, "name_jurisdiction": 1, "name_unique": 1,
+                      "gleif_name_jurisdiction": 0, "gleif_name_unique": 0,
                       "unmatched": 1}  # fmt: skip
     apple = identity.for_company(db, "0000320193")
     assert apple["lei"] == "HWUPKR0MPOU8FGXBT394" and apple["confidence"] == "high"
@@ -68,3 +69,38 @@ def test_matching_rules_and_listings(db, client, auth):
     assert identity.cik_for_lei(db, "549300OVERRIDE000001") == "0000000004"
     r = client.get("/v1/markets/issuers/HWUPKR0MPOU8FGXBT394", headers=auth)
     assert r.status_code == 200 and r.json()["sec_cik"] == "0000320193"
+
+
+def test_golden_copy_links_us_and_foreign_filers(db, tmp_path):
+    import zipfile
+
+    from app.services import lei_golden
+
+    _company(db, "0000000031", "Delaware Widgets, Inc.", "DE")
+    _company(db, "0000000032", "Cayman Holdings Ltd", "E9")  # SEC code for the Cayman Islands
+    _company(db, "0000000033", "Same Name Corp", "DE")
+    _company(db, "0000000034", "Unknown Place plc")
+    db.commit()
+    header = ("LEI,Entity.LegalName,Entity.LegalJurisdiction,Entity.EntityStatus,"
+              "Registration.RegistrationStatus\n")  # fmt: skip
+    rows = [
+        "5493000000000000DW01,DELAWARE WIDGETS INC,US-DE,ACTIVE,ISSUED",
+        "5493000000000000KY01,Cayman Holdings Ltd.,KY,ACTIVE,ISSUED",
+        "5493000000000000SN01,Same Name Corp,US-NY,ACTIVE,ISSUED",
+        "5493000000000000SN02,Same Name Corp,US-TX,ACTIVE,ISSUED",
+        "5493000000000000UP01,UNKNOWN PLACE PLC,,ACTIVE,ISSUED",
+        "5493000000000000XX01,Nobody We Know Inc,US-DE,ACTIVE,ISSUED",
+    ]
+    path = tmp_path / "golden.csv.zip"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("golden.csv", header + "\n".join(rows) + "\n")
+    out = lei_golden.load(db, path)
+    assert out == {"records": 6, "kept": 5}  # only names that match a filer are kept
+    counts = identity.match_all(db)
+    assert counts["gleif_name_jurisdiction"] == 2 and counts["gleif_name_unique"] == 1
+    assert identity.for_company(db, "0000000032")["lei"] == "5493000000000000KY01"
+    assert identity.for_company(db, "0000000033") is None  # two of that name, neither in DE
+    assert identity.for_company(db, "0000000034")["confidence"] == "medium"
+    assert lei_golden.jurisdictions_agree("CA", "CA-ON") and not lei_golden.jurisdictions_agree(
+        "US-DE", "US-NY"
+    )
