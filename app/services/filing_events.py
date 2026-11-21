@@ -84,6 +84,11 @@ PRIORITY = tuple(SHORT_LABELS)
 OFFICER_CHANGE_RANK = PRIORITY.index("sec.late_filing") + 1  # officer changes rank here
 
 
+# Types filed by hundreds of companies a day in season. A type watch on any of these without a
+# universe filter is delivered as one batch an hour (T-01).
+HIGH_VOLUME = frozenset({"sec.results", "sec.material_agreement", "sec.shareholder_vote"})
+
+
 def types_for(form_type: str | None, items: str | list[str] | None) -> list[str]:
     """The event types a filing carries, in the order of FILING_EVENT_TYPES."""
     form = (form_type or "").upper()

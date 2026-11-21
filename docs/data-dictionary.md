@@ -346,6 +346,15 @@ filer declared. Nothing is read from the text and nothing is inferred.
 filings carrying one of them. `GET /v1/events?event_type=sec.restatement,...` filters the feed;
 `sec.officer_change` selects officer changes. Backfill never notifies (ADR 0004).
 
+
+### type_watches (launch plan T-01)
+
+Filing event types across companies, Builder plan and up; one counts as one watch. Optional
+universe: `sic_prefix`, `exchange`, `filer_category`, or `ciks` (up to 500). `delivery_mode` is
+`immediate` (one signed webhook per filing) unless the watch has a high-volume type
+(`sec.results`, `sec.material_agreement`, `sec.shareholder_vote`) and no universe; then it is
+`hourly`, and the hour's filings arrive in one webhook of type `sec.filing.batch`.
+`notification_deliveries.type_watch_id` links its deliveries. Backfill never notifies.
 ## International listings (ADR 0006)
 
 ### markets

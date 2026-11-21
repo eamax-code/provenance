@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import ApiUsage, CompanyWatch, ListingWatch, utcnow
+from app.db.models import ApiUsage, CompanyWatch, ListingWatch, TypeWatch, utcnow
 
 
 def record_usage(
@@ -99,6 +99,17 @@ def watched_companies_used(db: Session, api_key_id: uuid.UUID) -> int:
             )
         )
         or 0
+    ) + _type_watches(db, api_key_id)  # a type watch counts as one watch (T-01)
+
+
+def _type_watches(db: Session, api_key_id: uuid.UUID) -> int:
+    return int(
+        db.scalar(
+            select(func.count(TypeWatch.id)).where(
+                TypeWatch.api_key_id == api_key_id, TypeWatch.is_active.is_(True)
+            )
+        )
+        or 0
     )
 
 
@@ -114,7 +125,7 @@ def active_watches_used(db: Session, api_key_id: uuid.UUID) -> int:
             ListingWatch.api_key_id == api_key_id, ListingWatch.is_active.is_(True)
         )
     )
-    return int(companies or 0) + int(listings or 0)
+    return int(companies or 0) + int(listings or 0) + _type_watches(db, api_key_id)
 
 
 MAX_SERIES_DAYS = 366

@@ -256,6 +256,31 @@ class ListingWatch(Base):
     last_delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
 
+class TypeWatch(Base):
+    """A key holder's subscription to filing event types across companies (launch plan T-01):
+    "any restatement", optionally narrowed to a universe. High-volume types without a universe
+    are delivered as one batch an hour so earnings season cannot flood a receiver."""
+
+    __tablename__ = "type_watches"
+    __table_args__ = (Index("ix_type_watches_active", "is_active"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    api_key_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("api_keys.id"), nullable=False)
+    event_types: Mapped[str] = mapped_column(Text, nullable=False)  # comma-separated
+    sic_prefix: Mapped[str | None] = mapped_column(Text, nullable=True)  # "28", "2834"
+    exchange: Mapped[str | None] = mapped_column(Text, nullable=True)  # "Nasdaq", "NYSE"
+    filer_category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ciks: Mapped[str | None] = mapped_column(Text, nullable=True)  # comma-separated, <= 500
+    delivery_mode: Mapped[str] = mapped_column(Text, nullable=False)  # immediate | hourly
+    destination_type: Mapped[str] = mapped_column(Text, nullable=False)  # webhook
+    destination: Mapped[str] = mapped_column(Text, nullable=False)
+    secret_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    deactivated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    last_delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+
+
 class NotificationDelivery(Base):
     """One event to one watch: a filing for a company watch, or a listing event for a listing
     watch. Exactly one of the two pairs of ids is set."""
@@ -275,6 +300,9 @@ class NotificationDelivery(Base):
     )
     listing_event_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("listing_events.id"), nullable=True
+    )
+    type_watch_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("type_watches.id"), nullable=True
     )
     event_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")

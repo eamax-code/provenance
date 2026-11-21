@@ -134,3 +134,52 @@ class ListingDeliveryOut(ORMModel):
 class ListingDeliveryList(BaseModel):
     data: list[ListingDeliveryOut]
     meta: PageMeta
+
+
+class TypeWatchCreate(BaseModel):
+    event_types: list[str] = Field(
+        min_length=1,
+        max_length=20,
+        description='Filing event types, e.g. ["sec.restatement", "sec.auditor_change"]',
+    )
+    sic_prefix: str | None = Field(
+        default=None, pattern=r"^\d{1,4}$", description='Only companies whose SIC starts so: "28"'
+    )
+    exchange: str | None = Field(default=None, max_length=20, description='e.g. "Nasdaq", "NYSE"')
+    filer_category: str | None = Field(
+        default=None, max_length=60, description='e.g. "Large accelerated filer"'
+    )
+    ciks: list[str] | None = Field(default=None, max_length=500, description="At most 500 CIKs")
+    destination: str = Field(min_length=3, max_length=2048, description="HTTPS webhook URL")
+
+
+class TypeWatchOut(ORMModel):
+    id: UUID
+    event_types: list[str]
+    sic_prefix: str | None
+    exchange: str | None
+    filer_category: str | None
+    ciks: list[str] | None
+    delivery_mode: str = Field(
+        description="immediate: one webhook per filing; hourly: the hour's filings in one webhook"
+    )
+    destination: str
+    is_active: bool
+    created_at: datetime
+    deactivated_at: datetime | None
+    last_delivered_at: datetime | None
+
+    @field_validator("event_types", "ciks", mode="before")
+    @classmethod
+    def _split(cls, v):
+        return [t for t in v.split(",") if t] if isinstance(v, str) else v
+
+
+class TypeWatchCreated(TypeWatchOut):
+    webhook_secret: str = Field(description="Shown exactly once.")
+    signature_scheme: str = "HMAC-SHA256 over '<timestamp>.<body>' in X-Signature (v1=hex)"
+
+
+class TypeWatchList(BaseModel):
+    data: list[TypeWatchOut]
+    meta: PageMeta

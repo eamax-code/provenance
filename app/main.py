@@ -36,6 +36,7 @@ from app.api import (
     routes_search,
     routes_site,
     routes_stats,
+    routes_type_watches,
 )
 from app.core import rate_limits
 from app.core.config import Settings, get_settings
@@ -186,6 +187,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_ipos.router)
     app.include_router(routes_notifications.router)
     app.include_router(routes_listing_watches.router)
+    app.include_router(routes_type_watches.router)
     app.include_router(routes_developer.router)
     app.include_router(routes_exports.router)
     app.include_router(routes_stats.router)

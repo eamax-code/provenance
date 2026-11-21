@@ -13,6 +13,7 @@ import random
 import time
 import uuid
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import httpx
 from sqlalchemy import select
@@ -24,12 +25,14 @@ from app.core.security import derive_watch_secret, sign_webhook
 from app.core.ssrf import UnsafeDestination, resolve_and_check
 from app.core.timeutil import iso_z
 from app.db.models import (
+    Company,
     CompanyWatch,
     Filing,
     ListingEvent,
     ListingWatch,
     Market,
     NotificationDelivery,
+    TypeWatch,
     utcnow,
 )
 from app.services import filing_events
@@ -38,6 +41,7 @@ from app.services.form8k import split_items
 logger = logging.getLogger("app.notifications")
 
 EVENT_TYPE = "sec.filing.detected"
+BATCH_EVENT_TYPE = "sec.filing.batch"  # an hourly type watch's filings in one webhook (T-01)
 LISTING_EVENT_PREFIX = "listing."  # listing.new_listing, listing.delisting, ...
 RETRYABLE_STATUSES = {408, 429, 500, 502, 503, 504}
 
@@ -48,8 +52,69 @@ def make_event_id(watch_id: uuid.UUID, cik: str, accession_number: str) -> str:
 
 
 def create_deliveries_for_filing(db: Session, filing: Filing, now: datetime | None = None) -> int:
-    """Create one pending delivery per active watch on the filing's CIK. Idempotent."""
+    """Create one pending delivery per active watch on the filing's CIK, and per type watch the
+    filing matches. Idempotent."""
     now = now or utcnow()
+    return _company_watch_deliveries(db, filing, now) + _type_watch_deliveries(db, filing, now)
+
+
+def type_watch_matches(watch: TypeWatch, types: set[str], company: Company | None) -> bool:
+    if not types & set(watch.event_types.split(",")):
+        return False
+    if watch.ciks:
+        return company is not None and company.cik in watch.ciks.split(",")
+    if company is None:
+        return not (watch.sic_prefix or watch.exchange or watch.filer_category)
+    if watch.sic_prefix and not (company.sic_code or "").startswith(watch.sic_prefix):
+        return False
+    if watch.exchange and (company.exchange or "").lower() != watch.exchange.lower():
+        return False
+    if watch.filer_category and (company.filer_category or "").lower() != (
+        watch.filer_category.lower()
+    ):
+        return False
+    return True
+
+
+def next_hour(now: datetime) -> datetime:
+    return now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+
+
+def _type_watch_deliveries(db: Session, filing: Filing, now: datetime) -> int:
+    types = set(filing_events.types_for(filing.form_type, filing.items))
+    if not types:
+        return 0
+    watches = db.scalars(select(TypeWatch).where(TypeWatch.is_active.is_(True))).all()
+    if not watches:
+        return 0
+    company = db.scalar(select(Company).where(Company.cik == filing.cik))
+    created = 0
+    for watch in watches:
+        if not type_watch_matches(watch, types, company):
+            continue
+        event_id = make_event_id(watch.id, filing.cik, filing.accession_number)
+        if db.scalar(
+            select(NotificationDelivery.id).where(NotificationDelivery.event_id == event_id)
+        ):
+            continue
+        db.add(
+            NotificationDelivery(
+                type_watch_id=watch.id,
+                filing_id=filing.id,
+                event_id=event_id,
+                status="pending",
+                attempt_count=0,
+                # hourly watches collect the hour's filings and send them together
+                next_attempt_at=next_hour(now) if watch.delivery_mode == "hourly" else now,
+                created_at=now,
+            )
+        )
+        created += 1
+    db.flush()
+    return created
+
+
+def _company_watch_deliveries(db: Session, filing: Filing, now: datetime) -> int:
     watches = db.scalars(
         select(CompanyWatch).where(CompanyWatch.cik == filing.cik, CompanyWatch.is_active.is_(True))
     ).all()
@@ -233,7 +298,20 @@ def deliver_pending(
         .limit(limit)
     ).all()
     counts = {"attempted": 0, "delivered": 0, "retrying": 0, "failed": 0}
+    done: set = set()
     for delivery in due:
+        if delivery.id in done:
+            continue
+        group, hourly = [delivery], False
+        if delivery.type_watch_id is not None:
+            tw = db.get(TypeWatch, delivery.type_watch_id)
+            if tw is not None and tw.delivery_mode == "hourly":
+                hourly = True
+                group = [d for d in due if d.type_watch_id == tw.id and d.id not in done]
+        done.update(d.id for d in group)
+        if hourly:
+            _deliver_batch(db, settings, sender, group, now, counts)
+            continue
         watch, payload, missing = _target(db, delivery, now)
         if missing:
             _finalize(delivery, "failed", None, missing, now)
@@ -273,8 +351,62 @@ def deliver_pending(
     return counts
 
 
+def _deliver_batch(db, settings, sender, group, now, counts) -> None:
+    """One signed webhook carrying an hourly type watch's filings; all share the outcome."""
+    watch = db.get(TypeWatch, group[0].type_watch_id)
+    if watch is None or not watch.is_active:
+        for d in group:
+            _finalize(d, "failed", None, "watch deactivated before delivery", now)
+        counts["failed"] += len(group)
+        return
+    events = []
+    for d in group:
+        filing = db.get(Filing, d.filing_id) if d.filing_id else None
+        if filing is not None:
+            events.append(build_event_payload(d, filing, now))
+    digest = hashlib.sha256("|".join(sorted(d.event_id for d in group)).encode()).hexdigest()
+    payload = {
+        "event_id": f"evt_batch_{digest[:26]}",
+        "event_type": BATCH_EVENT_TYPE,
+        "created_at": iso_z(now),
+        "data": {"type_watch_id": str(watch.id), "count": len(events), "events": events},
+    }
+    counts["attempted"] += 1
+    for d in group:
+        d.attempt_count += 1
+    batch = SimpleNamespace(event_id=payload["event_id"])  # the batch's own id in the headers
+    outcome, status_code, error = _attempt_webhook(settings, sender, watch, batch, payload)
+    attempts = group[0].attempt_count
+    for d in group:
+        if outcome == "delivered":
+            _finalize(d, "delivered", status_code, None, now)
+            d.delivered_at = now
+        elif outcome == "retry" and attempts < settings.webhook_max_attempts:
+            d.status, d.last_status_code, d.last_error_redacted = "retrying", status_code, error
+            d.next_attempt_at = now + timedelta(
+                seconds=backoff_seconds(attempts, settings.webhook_retry_base_seconds)
+            )
+        else:
+            _finalize(d, "failed", status_code, error, now)
+    key = {"delivered": "delivered", "retry": "retrying"}.get(outcome, "failed")
+    if key == "retrying" and attempts >= settings.webhook_max_attempts:
+        key = "failed"
+    counts[key] += 1
+    if outcome == "delivered":
+        watch.last_delivered_at = now
+    db.flush()
+
+
 def _target(db: Session, delivery: NotificationDelivery, now: datetime):
-    """(watch, payload, why it cannot be sent) for a filing or a listing delivery."""
+    """(watch, payload, why it cannot be sent) for a filing, type or listing delivery."""
+    if delivery.type_watch_id is not None:
+        watch = db.get(TypeWatch, delivery.type_watch_id)
+        filing = db.get(Filing, delivery.filing_id) if delivery.filing_id else None
+        if watch is None or filing is None:
+            return None, None, "watch or filing missing"
+        payload = build_event_payload(delivery, filing, now)
+        payload["data"]["type_watch_id"] = str(watch.id)
+        return watch, payload, None
     if delivery.listing_watch_id is not None:
         watch = db.get(ListingWatch, delivery.listing_watch_id)
         event = (

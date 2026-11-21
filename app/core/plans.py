@@ -35,6 +35,7 @@ class Plan:
     forecasts: bool
     max_keys: int
     support: str
+    type_watches: bool = False  # watches on event types across companies (T-01)
     featured: bool = False
     public: bool = True  # shown on the pricing page and /v1/public/plans
     features: tuple[str, ...] = ()
@@ -116,10 +117,12 @@ PLANS: dict[str, Plan] = {
         forecasts=True,
         max_keys=5,
         support="Email within two business days",
+        type_watches=True,
         featured=True,
         features=(
             "Commercial use in your product",
             "100 watches, webhooks and live stream",
+            "Alerts on event types across companies",
             "500,000 requests a month",
             "5 keys",
         ),
@@ -144,6 +147,7 @@ PLANS: dict[str, Plan] = {
         forecasts=True,
         max_keys=20,
         support="Priority, one business day",
+        type_watches=True,
         features=(
             "Everything in Builder",
             "1,000 watches, 10 live streams",
@@ -172,6 +176,7 @@ PLANS: dict[str, Plan] = {
         forecasts=True,
         max_keys=100,
         support="SLA",
+        type_watches=True,
         features=(
             "Custom limits and terms",
             "Bulk snapshots after legal review",
@@ -200,6 +205,7 @@ PLANS: dict[str, Plan] = {
         forecasts=True,
         max_keys=100,
         support="-",
+        type_watches=True,
         public=False,
     ),
 }

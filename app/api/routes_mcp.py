@@ -225,7 +225,8 @@ TOOLS: dict[str, dict[str, Any]] = {
         "sec.acquisition_completed (2.01), sec.change_in_control (5.01), sec.results (2.02), "
         "sec.shareholder_vote (5.07), sec.late_filing (NT 10-K/Q), sec.deregistration "
         "(Form 15), sec.delisting (Form 25), sec.tender_offer (SC TO-T), sec.merger_proxy "
-        "(DEFM14A), sec.officer_change. Pass next_cursor back as after to continue.",
+        "(DEFM14A), sec.officer_change. Pass next_cursor back as after to continue. For webhook "
+        "alerts on these types across companies, a Builder key can POST /v1/type-watches.",
         "path": "/v1/events",
         "params": {
             "types": "types",
