@@ -142,6 +142,11 @@ class FactOut(ORMModel):
         description="The fiscal year the period itself belongs to, from period_end and the "
         "company's fiscal year end",
     )
+    calendar_period: str | None = Field(
+        default=None,
+        description='The calendar period, as the SEC frames it: "CY2024", "CY2024Q4", or '
+        '"CY2024Q3I" for a balance at a date; compare companies with different fiscal years by it',
+    )
     period_label: str | None = Field(
         default=None, description='The period as "FY2025" or "Q1 FY2026"; null for other periods'
     )

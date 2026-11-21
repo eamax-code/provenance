@@ -57,3 +57,27 @@ def labels(ends: list[date], period_class: str, fiscal_year_end: str | None = No
     for b in base:
         seen[b] = seen.get(b, 0) + 1
     return [f"{b} ({e:%b})" if seen[b] > 1 else b for b, e in zip(base, ends, strict=True)]
+
+
+def calendar_period(start: date | None, end: date, period_class: str) -> str | None:
+    """The calendar period a figure belongs to, as the SEC frames it: the calendar year or
+    quarter the period overlaps most (its midpoint), "CY2024" or "CY2024Q4"; a balance at a
+    date is the quarter it falls in, "CY2024Q3I". None for year-to-date and other periods."""
+    if start is None:  # an instant
+        return f"CY{end.year}Q{(end.month - 1) // 3 + 1}I"
+    mid = start + (end - start) / 2
+    if period_class in ("annual", "ttm"):
+        return f"CY{mid.year}"
+    if period_class == "quarterly":
+        return f"CY{mid.year}Q{(mid.month - 1) // 3 + 1}"
+    return None
+
+
+def parse_calendar_period(text: str) -> tuple[int, int | None, bool] | None:
+    """("CY2025Q3I") -> (2025, 3, True); None when it is not a calendar period."""
+    import re
+
+    m = re.fullmatch(r"CY(\d{4})(?:Q([1-4]))?(I)?", text.strip().upper())
+    if not m or (m.group(3) and not m.group(2)):
+        return None
+    return int(m.group(1)), int(m.group(2)) if m.group(2) else None, bool(m.group(3))

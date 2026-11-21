@@ -407,6 +407,7 @@ def facts(
     page = selected[offset : offset + limit]
     for f in page:  # the period's own fiscal year, whatever filing reported it
         f.period_fiscal_year = periods.fiscal_year(f.period_end, company.fiscal_year_end)
+        f.calendar_period = periods.calendar_period(f.period_start, f.period_end, f.period_class)
         if f.period_class in ("annual", "quarterly"):
             f.period_label = periods.label(f.period_end, f.period_class, company.fiscal_year_end)
     has_more = offset + limit < total
@@ -526,6 +527,7 @@ def _derived_page(cik, company, metric, ratio, rows, limit, offset, as_of) -> Fa
     out.sort(key=lambda f: f.period_end, reverse=True)
     for f in out:
         f.period_fiscal_year = periods.fiscal_year(f.period_end, company.fiscal_year_end)
+        f.calendar_period = periods.calendar_period(f.period_start, f.period_end, f.period_class)
         if f.period_class in ("annual", "quarterly"):
             f.period_label = periods.label(f.period_end, f.period_class, company.fiscal_year_end)
     page = out[offset : offset + limit]
