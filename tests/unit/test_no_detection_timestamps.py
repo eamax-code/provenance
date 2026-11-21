@@ -12,7 +12,7 @@ from pydantic import BaseModel
 import app.api
 import app.schemas
 
-BANNED = re.compile(r"detected_at|first_detected|source_updated|detected_since")
+BANNED = re.compile(r"detected_at|first_detected|source_updated|detected_since|cusip", re.I)
 
 
 def _models():

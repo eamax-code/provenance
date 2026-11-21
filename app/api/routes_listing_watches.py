@@ -24,7 +24,9 @@ from app.schemas.watches import (
     ListingWatchCreated,
     ListingWatchList,
     ListingWatchOut,
+    WatchPatch,
 )
+from app.services import notifications
 from app.services.markets.records import EVENT_TYPES
 from app.services.usage import active_watches_used
 
@@ -208,3 +210,44 @@ def list_listing_deliveries(
             next_offset=offset + limit if has_more else None,
         ),
     )
+
+
+@router.patch(
+    "/{watch_id}",
+    response_model=ListingWatchOut,
+    responses=_ERRORS,
+    summary="Pause or resume a watch",
+    description='{"is_active": false} pauses: nothing is sent or queued while paused, and it '
+    'still counts toward the plan. {"is_active": true} resumes.',
+)
+def pause_listing_watch(
+    watch_id: UUID,
+    body: WatchPatch,
+    db: Session = Depends(db_session),
+    key: ApiKey = Depends(require_api_key),
+):
+    watch = _own(db, watch_id, key)
+    if not watch.is_active:
+        raise APIError(404, "watch_not_found", "This listing watch was stopped; create a new one.")
+    watch.paused = not body.is_active
+    db.commit()
+    return ListingWatchOut.model_validate(watch)
+
+
+@router.post(
+    "/{watch_id}/test",
+    responses=_ERRORS,
+    summary="Send a signed test event to a listing watch now",
+    description="Delivers one sec.test event, signed like every other. Nothing is stored or "
+    "retried.",
+)
+def test_listing_watch(
+    watch_id: UUID,
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+    key: ApiKey = Depends(require_api_key),
+):
+    watch = _own(db, watch_id, key)
+    if not watch.is_active or watch.destination_type != "webhook":
+        raise APIError(422, "invalid_parameter", "Only an active webhook watch can be tested.")
+    return notifications.send_test_event(settings, watch)

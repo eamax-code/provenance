@@ -229,6 +229,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_public.router)
     app.include_router(routes_markets.router)
     app.include_router(routes_events.router)
+    app.include_router(routes_events.types_router)
     app.include_router(routes_chat.router)
     app.include_router(routes_screen.router)
     app.include_router(routes_search.router)

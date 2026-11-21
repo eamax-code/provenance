@@ -122,3 +122,38 @@ def test_rare_types_deliver_at_once_and_busy_types_batch_hourly(
         "0000320193-26-000302", "0000320193-26-000303"
     }  # fmt: skip
     assert {r.status for r in db.scalars(select(NotificationDelivery))} == {"delivered"}
+
+
+def test_alerts_panel_pause_test_deliveries_and_event_types(
+    client, auth, db, settings, sec_client, fake_sec, submissions_aapl, builder, monkeypatch
+):
+    ingest_company(db, sec_client, "320193")
+    tw = client.post("/v1/type-watches", json={"event_types": ["sec.restatement"],
+                                              "destination": HOOK}, headers=auth).json()  # fmt: skip
+    cw = client.post("/v1/watches", json={"cik": "320193", "destination_type": "webhook",
+                                          "destination": HOOK}, headers=auth).json()  # fmt: skip
+    # pause both: a restatement filed while paused is skipped, never queued for later
+    for path in (f"/v1/type-watches/{tw['id']}", f"/v1/watches/{cw['id']}"):
+        r = client.patch(path, json={"is_active": False}, headers=auth)
+        assert r.status_code == 200 and r.json()["paused"] is True and r.json()["is_active"]
+    _new_filing(fake_sec, submissions_aapl, "0000320193-26-000401", form="8-K", items="4.02")
+    ingest_company(db, sec_client, "320193")
+    assert db.scalars(select(NotificationDelivery)).all() == []
+    # resume: the next one is delivered
+    client.patch(f"/v1/type-watches/{tw['id']}", json={"is_active": True}, headers=auth)
+    _new_filing(fake_sec, submissions_aapl, "0000320193-26-000402", form="8-K", items="4.02")
+    ingest_company(db, sec_client, "320193")
+    rows = client.get(f"/v1/type-watches/{tw['id']}/deliveries", headers=auth).json()["data"]
+    assert len(rows) == 1 and rows[0]["type_watch_id"] == tw["id"]
+    # still counts toward the plan while paused
+    assert client.get("/v1/watches", headers=auth).json()["data"][0]["paused"] is True
+    # a signed test event to the type watch
+    monkeypatch.setattr(notifications.WebhookSender, "send", Sender().send)
+    r = client.post(f"/v1/type-watches/{tw['id']}/test", headers=auth)
+    assert r.status_code == 200 and r.json()["delivered"] is True
+    # the registry behind the picker
+    types = {t["type"]: t for t in client.get("/v1/event-types").json()["data"]}
+    assert types["sec.results"]["delivery"] == "hourly_batch"
+    assert types["sec.restatement"]["delivery"] == "immediate"
+    assert {"sec.insider_cluster_buy", "sec.lockup_expiry", "sec.ipo_priced"} <= set(types)
+    assert all(t["short_label"] and len(t["short_label"]) <= 24 for t in types.values())

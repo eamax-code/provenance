@@ -233,6 +233,8 @@ class CompanyWatch(Base):
     # Comma-separated filing event types (D-05); null means every new filing.
     event_types: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # paused (A-01): still the customer's watch and counted, but nothing is sent or queued
+    paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     deactivated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     last_delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
@@ -255,6 +257,8 @@ class ListingWatch(Base):
     destination: Mapped[str] = mapped_column(Text, nullable=False)
     secret_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # paused (A-01): still the customer's watch and counted, but nothing is sent or queued
+    paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     deactivated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     last_delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
@@ -388,6 +392,8 @@ class TypeWatch(Base):
     destination: Mapped[str] = mapped_column(Text, nullable=False)
     secret_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # paused (A-01): still the customer's watch and counted, but nothing is sent or queued
+    paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
     deactivated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     last_delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)

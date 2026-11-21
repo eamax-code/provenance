@@ -322,3 +322,37 @@ async def stream_events(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+types_router = APIRouter(prefix="/v1", tags=["events"])
+
+
+@types_router.get(
+    "/event-types",
+    summary="Every event type, with its label and how a type watch delivers it (public)",
+    description="The registry the feed, webhooks, type watches and MCP use. delivery says how a "
+    "type watch without a universe sends it: one webhook per event, or one batch an hour.",
+)
+def event_types():
+    return {"data": registry()}
+
+
+def registry() -> list[dict]:
+    out = []
+    for name, t in filing_events.FILING_EVENT_TYPES.items():
+        out.append({"type": name, "label": t.label, "short_label": filing_events.SHORT_LABELS[name],
+                    "source": "filing"})  # fmt: skip
+    out.append({"type": feed.OFFICER_CHANGE_EVENT_TYPE,
+                "label": "Director or officer change read from an 8-K item 5.02",
+                "short_label": "Leadership change", "source": "leadership"})  # fmt: skip
+    for name, (label, short) in insider_activity.TYPES.items():
+        out.append({"type": name, "label": label, "short_label": short, "source": "insider"})
+    for name, (label, short) in dated_events.LABELS.items():
+        out.append({"type": name, "label": label, "short_label": short, "source": "calendar"})
+    for row in out:
+        row["delivery"] = (
+            "hourly_batch" if row["type"] in filing_events.HIGH_VOLUME else "immediate"
+        )
+        row["type_watch"] = row["source"] != "leadership"
+        row["min_plan"] = "builder"  # type watches; company watches take filing types on every plan
+    return out

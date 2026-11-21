@@ -22,10 +22,18 @@ from app.core.config import Settings, plan_limits
 from app.core.errors import APIError
 from app.core.plans import PLANS
 from app.core.security import derive_watch_secret, hash_secret
-from app.db.models import ApiKey, AuditEvent, TypeWatch, utcnow
+from app.db.models import ApiKey, AuditEvent, NotificationDelivery, TypeWatch, utcnow
 from app.schemas.common import ErrorEnvelope, PageMeta
-from app.schemas.watches import TypeWatchCreate, TypeWatchCreated, TypeWatchList, TypeWatchOut
-from app.services import dated_events, filing_events, insider_activity
+from app.schemas.watches import (
+    TypeDeliveryList,
+    TypeDeliveryOut,
+    TypeWatchCreate,
+    TypeWatchCreated,
+    TypeWatchList,
+    TypeWatchOut,
+    WatchPatch,
+)
+from app.services import dated_events, filing_events, insider_activity, notifications
 from app.services.sec_client import normalize_cik
 from app.services.usage import active_watches_used, watched_companies_used
 
@@ -173,3 +181,73 @@ def deactivate_type_watch(
         _audit(db, key, "type_watch.deactivated", watch, now)
         db.commit()
     return TypeWatchOut.model_validate(watch)
+
+
+@router.patch(
+    "/{watch_id}",
+    response_model=TypeWatchOut,
+    responses=_ERRORS,
+    summary="Pause or resume a watch",
+    description='{"is_active": false} pauses: nothing is sent or queued while paused, and it '
+    'still counts toward the plan. {"is_active": true} resumes.',
+)
+def pause_type_watch(
+    watch_id: UUID,
+    body: WatchPatch,
+    db: Session = Depends(db_session),
+    key: ApiKey = Depends(require_api_key),
+):
+    watch = _own(db, watch_id, key)
+    if not watch.is_active:
+        raise APIError(404, "watch_not_found", "This type watch was stopped; create a new one.")
+    watch.paused = not body.is_active
+    db.commit()
+    return TypeWatchOut.model_validate(watch)
+
+
+@router.post(
+    "/{watch_id}/test",
+    responses=_ERRORS,
+    summary="Send a signed test event to a type watch now",
+    description="Delivers one sec.test event, signed like every other. Nothing is stored or "
+    "retried.",
+)
+def test_type_watch(
+    watch_id: UUID,
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+    key: ApiKey = Depends(require_api_key),
+):
+    watch = _own(db, watch_id, key)
+    if not watch.is_active:
+        raise APIError(422, "invalid_parameter", "Only an active watch can be tested.")
+    return notifications.send_test_event(settings, watch)
+
+
+@router.get(
+    "/{watch_id}/deliveries",
+    response_model=TypeDeliveryList,
+    responses=_ERRORS,
+    summary="Delivery attempts for a type watch",
+)
+def list_type_deliveries(
+    watch_id: UUID,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(db_session),
+    key: ApiKey = Depends(require_api_key),
+):
+    watch = _own(db, watch_id, key)
+    rows = db.scalars(
+        select(NotificationDelivery)
+        .where(NotificationDelivery.type_watch_id == watch.id)
+        .order_by(NotificationDelivery.created_at.desc())
+        .offset(offset)
+        .limit(limit + 1)
+    ).all()
+    has_more = len(rows) > limit
+    return TypeDeliveryList(
+        data=[TypeDeliveryOut.model_validate(d) for d in rows[:limit]],
+        meta=PageMeta(limit=limit, offset=offset, has_more=has_more,
+                      next_offset=offset + limit if has_more else None),
+    )  # fmt: skip

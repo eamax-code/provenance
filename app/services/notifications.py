@@ -86,7 +86,9 @@ def _type_watch_deliveries(db: Session, filing: Filing, now: datetime) -> int:
     types = set(filing_events.types_for(filing.form_type, filing.items, filing.event_tags))
     if not types:
         return 0
-    watches = db.scalars(select(TypeWatch).where(TypeWatch.is_active.is_(True))).all()
+    watches = db.scalars(
+        select(TypeWatch).where(TypeWatch.is_active.is_(True), TypeWatch.paused.is_(False))
+    ).all()
     if not watches:
         return 0
     company = db.scalar(select(Company).where(Company.cik == filing.cik))
@@ -144,7 +146,9 @@ def create_insider_deliveries(db: Session, rows: list[InsiderActivity], now=None
     rows = [r for r in rows if r.stream_status == "pending"]
     if not rows:
         return 0
-    watches = db.scalars(select(TypeWatch).where(TypeWatch.is_active.is_(True))).all()
+    watches = db.scalars(
+        select(TypeWatch).where(TypeWatch.is_active.is_(True), TypeWatch.paused.is_(False))
+    ).all()
     created = 0
     for r in rows:
         company = db.scalar(select(Company).where(Company.cik == r.cik))
@@ -168,7 +172,9 @@ def create_insider_deliveries(db: Session, rows: list[InsiderActivity], now=None
 def create_dated_deliveries(db: Session, rows: list[DatedEvent], now=None) -> int:
     """Type-watch deliveries for dated events reached today (sec.lockup_expiry). Idempotent."""
     now = now or utcnow()
-    watches = db.scalars(select(TypeWatch).where(TypeWatch.is_active.is_(True))).all()
+    watches = db.scalars(
+        select(TypeWatch).where(TypeWatch.is_active.is_(True), TypeWatch.paused.is_(False))
+    ).all()
     created = 0
     for r in [r for r in rows if r.stream_status == "pending"]:
         company = db.scalar(select(Company).where(Company.cik == r.cik))
@@ -201,7 +207,11 @@ def build_insider_payload(delivery: NotificationDelivery, row: InsiderActivity, 
 
 def _company_watch_deliveries(db: Session, filing: Filing, now: datetime) -> int:
     watches = db.scalars(
-        select(CompanyWatch).where(CompanyWatch.cik == filing.cik, CompanyWatch.is_active.is_(True))
+        select(CompanyWatch).where(
+            CompanyWatch.cik == filing.cik,
+            CompanyWatch.is_active.is_(True),
+            CompanyWatch.paused.is_(False),
+        )
     ).all()
     if not watches:
         return 0
@@ -261,7 +271,9 @@ def create_deliveries_for_listing_events(
     """One pending delivery per active listing watch whose scope and event types match each
     event. Idempotent: an event reaches a watch at most once."""
     now = now or utcnow()
-    watches = db.scalars(select(ListingWatch).where(ListingWatch.is_active.is_(True))).all()
+    watches = db.scalars(
+        select(ListingWatch).where(ListingWatch.is_active.is_(True), ListingWatch.paused.is_(False))
+    ).all()
     if not watches or not events:
         return 0
     db.flush()  # the events need ids
@@ -407,6 +419,10 @@ def deliver_pending(
             _finalize(delivery, "failed", None, "watch deactivated before delivery", now)
             counts["failed"] += 1
             continue
+        if getattr(watch, "paused", False):  # paused: skipped, never kept for later (A-01)
+            _finalize(delivery, "skipped", None, "watch paused; not delivered", now)
+            counts["failed"] += 1
+            continue
         counts["attempted"] += 1
         delivery.attempt_count += 1
         if watch.destination_type == "webhook":
@@ -440,7 +456,7 @@ def deliver_pending(
 def _deliver_batch(db, settings, sender, group, now, counts) -> None:
     """One signed webhook carrying an hourly type watch's filings; all share the outcome."""
     watch = db.get(TypeWatch, group[0].type_watch_id)
-    if watch is None or not watch.is_active:
+    if watch is None or not watch.is_active or watch.paused:
         for d in group:
             _finalize(d, "failed", None, "watch deactivated before delivery", now)
         counts["failed"] += len(group)

@@ -21,12 +21,20 @@ class WatchCreate(BaseModel):
     )
 
 
+class WatchPatch(BaseModel):
+    is_active: bool = Field(
+        description="false pauses the watch (nothing is sent or queued while paused; it still "
+        "counts toward the plan); true resumes it"
+    )
+
+
 class WatchOut(ORMModel):
     id: UUID
     cik: str
     destination_type: str
     destination: str
     is_active: bool
+    paused: bool = False
     created_at: datetime
     deactivated_at: datetime | None
     last_delivered_at: datetime | None
@@ -95,6 +103,7 @@ class ListingWatchOut(ORMModel):
     destination_type: str
     destination: str
     is_active: bool
+    paused: bool = False
     created_at: datetime
     deactivated_at: datetime | None
     last_delivered_at: datetime | None
@@ -165,6 +174,7 @@ class TypeWatchOut(ORMModel):
     )
     destination: str
     is_active: bool
+    paused: bool = False
     created_at: datetime
     deactivated_at: datetime | None
     last_delivered_at: datetime | None
@@ -182,4 +192,25 @@ class TypeWatchCreated(TypeWatchOut):
 
 class TypeWatchList(BaseModel):
     data: list[TypeWatchOut]
+    meta: PageMeta
+
+
+class TypeDeliveryOut(ORMModel):
+    id: UUID
+    type_watch_id: UUID
+    filing_id: UUID | None
+    insider_activity_id: UUID | None
+    dated_event_id: UUID | None
+    event_id: str
+    status: str
+    attempt_count: int
+    last_status_code: int | None
+    last_error_redacted: str | None
+    next_attempt_at: datetime | None
+    created_at: datetime
+    delivered_at: datetime | None
+
+
+class TypeDeliveryList(BaseModel):
+    data: list[TypeDeliveryOut]
     meta: PageMeta

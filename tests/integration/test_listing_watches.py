@@ -133,3 +133,21 @@ def test_listing_watches_count_toward_the_plan_and_can_be_stopped(client, auth, 
     assert other.status_code == 401
     # A stopped watch's pending deliveries fail rather than send.
     assert _listing(db, "FR001400AJ45", "XPAR", "EXOSENS").deliveries_created == cap
+
+
+def test_listing_watch_pause_and_test_event(client, auth, add_listings, monkeypatch):
+    from app.services import notifications
+
+    add_listings(["AAA"], mic="XPAR")
+    w = client.post("/v1/listing-watches", json={"scope_type": "region", "scope_value": "europe",
+                    "destination_type": "webhook", "destination": HOOK},
+                    headers=auth).json()  # fmt: skip
+    r = client.patch(f"/v1/listing-watches/{w['id']}", json={"is_active": False}, headers=auth)
+    assert r.status_code == 200 and r.json()["paused"] is True
+
+    class Resp:
+        status_code = 200
+
+    monkeypatch.setattr(notifications.WebhookSender, "send", lambda self, u, b, h: Resp())
+    t = client.post(f"/v1/listing-watches/{w['id']}/test", headers=auth)
+    assert t.status_code == 200 and t.json()["delivered"] is True

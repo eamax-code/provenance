@@ -21,6 +21,7 @@ from app.schemas.watches import (
     WatchCreated,
     WatchList,
     WatchOut,
+    WatchPatch,
 )
 from app.services import filing_events, notifications
 from app.services.sec_client import normalize_cik
@@ -202,6 +203,30 @@ def deactivate_watch(
             )
         )
         db.commit()
+    return WatchOut.model_validate(watch)
+
+
+@router.patch(
+    "/watches/{watch_id}",
+    response_model=WatchOut,
+    responses=_ERRORS,
+    summary="Pause or resume a watch",
+    description='{"is_active": false} pauses: nothing is sent or queued while paused, and it '
+    'still counts toward the plan. {"is_active": true} resumes.',
+)
+def pause_watch(
+    watch_id: UUID,
+    body: WatchPatch,
+    db: Session = Depends(db_session),
+    key: ApiKey = Depends(require_api_key),
+):
+    watch = db.scalar(
+        select(CompanyWatch).where(CompanyWatch.id == watch_id, CompanyWatch.api_key_id == key.id)
+    )
+    if watch is None or not watch.is_active:
+        raise APIError(404, "watch_not_found", "No active watch with this id belongs to your key.")
+    watch.paused = not body.is_active
+    db.commit()
     return WatchOut.model_validate(watch)
 
 

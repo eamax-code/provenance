@@ -34,6 +34,7 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | F-03 | Insider activity events | done 2026-11-22: cluster buying, first buy in 2+ years, large sale outside a 10b5-1 plan; feed kind `insider`, type watches, MCP, `/v1/public/insider-activity`, company overview; backfill never notifies |
 | C-01 | Chat: IPO terms intent | done 2026-11-22: "What were Anthropic's IPO terms?" / "Who underwrote X?" answered from the stored terms without a model, every sentence cited, the card carries each sentence; S-01 in chat: readable dates, plain form names, counts in words, unread 5.02 filings last |
 | P0 | No detection timestamps in responses | done 2026-11-22: `detected_at` removed from listing events (keyed, public, feed, webhooks); `detected_since` replaced by `until` on the event's own date; a test fails if any response model or the OpenAPI schema carries `*detected_at*`, `first_detected*` or `source_updated*` |
+| A-01 | Alerts panel API | done 2026-11-22: `GET /v1/type-watches/{id}/deliveries`; `POST /v1/type-watches/{id}/test` and `/v1/listing-watches/{id}/test` (signed sec.test); `PATCH` pause and resume on all three watch kinds (paused: nothing sent or queued, still counted); keyless `GET /v1/event-types` from the one registry (label, short label, immediate or hourly batch, min plan) |
 | I-09, F-01 | Production smoke script, Sheets function | queued |
 | Owner | O-01 to O-09 (host, domain, email, merchant of record, model, news, legal, pricing) | waiting on you; G-02, I-01, I-03 wait on them |
 
