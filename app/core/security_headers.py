@@ -2,8 +2,8 @@
 
 The content security policy allows scripts from this site only, plus the exact inline scripts
 the site's pages carry, by hash. The hashes are read from the pages when the app starts, so an
-injected inline script never runs and a changed page needs no edit here. Fonts come from Google
-Fonts; nothing else is loaded from another origin.
+injected inline script never runs and a changed page needs no edit here. Fonts are self-hosted;
+nothing is loaded from another origin.
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ def content_security_policy(script_hashes: list[str]) -> str:
         "default-src": ["'self'"],
         "script-src": ["'self'", *script_hashes],
         # style attributes in the markup (animation delays, widths) need 'unsafe-inline'
-        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        "font-src": ["'self'", "https://fonts.gstatic.com"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "font-src": ["'self'"],  # fonts are self-hosted: no visitor IP goes to a font CDN
         "img-src": ["'self'", "data:"],
         "connect-src": ["'self'"],
         "object-src": ["'none'"],

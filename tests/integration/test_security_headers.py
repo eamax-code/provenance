@@ -128,3 +128,20 @@ def test_site_scripts_never_parse_api_text_as_markup():
             continue
         hits = len(risky.findall(js.read_text()))
         assert hits <= allowed.get(js.name, 0), (js, hits)
+
+
+def test_no_page_loads_anything_from_google_fonts():
+    """Fonts are self-hosted, so no visitor's address goes to Google (GDPR)."""
+    from pathlib import Path
+
+    site = Path(__file__).resolve().parents[2] / "site"
+    hits = [str(p.relative_to(site)) for p in site.rglob("*")
+            if p.is_file() and p.suffix in (".html", ".css", ".js") and "poc" not in p.parts
+            and ("googleapis" in p.read_text(errors="ignore")
+                 or "gstatic" in p.read_text(errors="ignore"))]  # fmt: skip
+    assert hits == []
+
+
+def test_csp_allows_no_font_cdn(client):
+    csp = client.get("/healthz").headers["Content-Security-Policy"]
+    assert "googleapis" not in csp and "gstatic" not in csp
