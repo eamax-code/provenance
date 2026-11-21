@@ -13,7 +13,7 @@
     (kids || []).forEach(function (c) { if (c != null && c !== false) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return n;
   };
-  var json = function (url) { return fetch(url, { headers: { Accept: 'application/json' } }).then(function (r) { return r.json().then(function (b) { if (!r.ok) throw new Error((b.error && b.error.message) || r.status); return b; }); }); };
+  var json = function (url) { return fetch(url, { headers: { Accept: 'application/json' } }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { if (!r.ok) { var e = new Error((b.error && b.error.message) || ('HTTP ' + r.status)); e.status = r.status; throw e; } return b; }); }); };
   var link = function (text, url) { return ARCHIVE.test(url || '') ? el('a', { href: url, target: '_blank', rel: 'noopener', text: text }) : el('span', { text: text }); };
   var big = function (v) { var a = Math.abs(v); return a >= 1e9 ? (v / 1e9).toFixed(2).replace(/\.?0+$/, '') + 'B' : a >= 1e6 ? (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : v.toLocaleString('en-US'); };
   var usd = function (v, cur) { return v == null ? null : (cur && cur !== 'USD' ? cur + ' ' : '$') + (Math.abs(v) >= 1e6 ? big(v) : v.toFixed(2)); };
@@ -99,9 +99,11 @@
       if (scroll) $('deal').scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     }).catch(function (e) {
       $('deal').classList.remove('is-waiting');
-      $('deal-name').textContent = 'This offering is outside the public window';
-      $('deal-meta').textContent = (e && e.message) || 'Older offerings are in the API with a free key.';
-      $('deal-figures').replaceChildren(el('p', {}, [el('a', { href: '/account/', text: 'Get a free key' }), ' to read every offering, with the same evidence.']));
+      var outside = e && e.status === 403;
+      $('deal-name').textContent = outside ? 'Outside the public window' : 'The deal did not load';
+      $('deal-meta').textContent = outside ? ((e && e.message) || 'Older offerings are in the API with a free key.') : 'Try again in a minute.';
+      $('deal-figures').replaceChildren(outside ? el('p', {}, [el('a', { href: '/account/', text: 'Get a free key' }), ' to read every offering, with the same evidence.']) : el('p', {}, [el('button', { type: 'button', class: 'btn', id: 'deal-retry', text: 'Try again' })]));
+      var retry = document.getElementById('deal-retry'); if (retry) retry.addEventListener('click', function () { choose(cik, false); });
       $('deal-dates').textContent = ''; $('deal-uw').textContent = ''; $('deal-steps').textContent = ''; $('deal-actions').textContent = '';
     });
   }
