@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, Filing, OfficerChange
-from app.services import filing_events, ipo_pipeline
+from app.services import filing_events, ipo_pipeline, ipo_terms
 from app.services.officer_changes import CHANGE_LABELS
 from app.services.public import _now_iso, cached
 
@@ -75,6 +75,9 @@ def public_ipos(db: Session, limit: int = MAX_LIMIT, today: date | None = None) 
                 "form_type": m["form_type"], "blank_check": item["blank_check"],
                 "filing_url": m["source_url"],
             })  # fmt: skip
+        terms = ipo_terms.terms_by_cik(db, [r["cik"] for r in rows])
+        for r in rows:
+            r.update(ipo_terms.flat(terms.get(r["cik"])))
         return {"data": rows, "as_of": _now_iso(), "notes": [IPO_NOTE]}
 
     return cached(f"live_ipos:{limit}:{today}", build)

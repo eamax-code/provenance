@@ -178,6 +178,15 @@ class IpoOut(BaseModel):
         description="The filing behind each milestone reached: the first of each, the latest "
         "amendment"
     )
+    terms: dict | None = Field(
+        default=None,
+        description="Deal terms read from the prospectus (price_low, price_high, price_final, "
+        "currency, shares_offered, shares_primary, shares_secondary, gross_proceeds, "
+        "underwriting_discount_per_share, underwriting_discount_total, exchange, ticker, "
+        "underwriters, lead_underwriters, lockup_days, lockup_days_max, lockup_expiry, "
+        "quiet_period_end, closing_date): each {value, evidence, derived, form_type, "
+        "filing_date, source_url}; derived dates say so",
+    )
 
 
 class IpoList(BaseModel):

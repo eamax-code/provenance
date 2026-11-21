@@ -44,7 +44,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import Company, EdgarFeedEntry, Filing, JobState, utcnow
-from app.services import insiders, marts, universe
+from app.services import insiders, ipo_terms, marts, universe
 from app.services.events import publish_pending
 from app.services.ingestion import IngestionError, ingest_company
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
@@ -87,6 +87,7 @@ LISTING_ONLY = frozenset({"8-A12B", "8-A12G"})
 # Funds and exchange-traded products register listings on 8-A too; these mark them.
 FUND_FORMS = re.compile(r"^(485|497|N-|40-17|24F|S-6|NT N|POS AM \(?N)")
 FUND_NAME = re.compile(r"\b(ETF|ETFs|Fund|Funds|Trust|Portfolio|Series)\b", re.I)
+TERMS_FORMS = frozenset({"424B4", "S-1/A", "F-1/A", "S-1", "F-1"})
 ROLES = {"Filer": "filer", "Subject": "subject", "Issuer": "issuer"}  # not Reporting, Filed by
 
 _ENTRY = re.compile(r"<entry>(.*?)</entry>", re.S)
@@ -393,6 +394,8 @@ def handle(
             )  # fmt: skip
             if forms & INSIDER:
                 out["insider_filings"] += insiders.fill_recent(db, client, cik, limit=20)["fetched"]
+            if forms & TERMS_FORMS:  # deal terms from the prospectus (F-02)
+                out["ipo_terms"] = out.get("ipo_terms", 0) + ipo_terms.read_company(db, cik, client)
             if new:
                 universe.ensure_member(db, cik, source="tracker", now=now)
                 _publish_seen(db, cik, {r.accession_number for r in group}, settings)

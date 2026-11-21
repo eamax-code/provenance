@@ -256,6 +256,23 @@ class ListingWatch(Base):
     last_delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
 
+class IpoTerms(Base):
+    """Deal terms read from one prospectus (launch plan F-02): each value with its evidence."""
+
+    __tablename__ = "ipo_terms"
+    __table_args__ = (Index("ix_ipo_terms_cik", "cik"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False, unique=True)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    terms: Mapped[str] = mapped_column(Text, nullable=False)  # JSON {field: {value, evidence}}
+    extractor_version: Mapped[str] = mapped_column(Text, nullable=False)
+    extracted_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class TypeWatch(Base):
     """A key holder's subscription to filing event types across companies (launch plan T-01):
     "any restatement", optionally narrowed to a universe. High-volume types without a universe

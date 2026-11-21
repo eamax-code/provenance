@@ -1,0 +1,51 @@
+424B4
+ anthropicpbc-424b4.htm
+ 424B4
+ Anthropic, PBC - 424(b)(4) 
+ Filed Pursuant to Rule 424(b)(4) 
+ Registration Nos. 333-299633 and 333-300148 
+ Class A Common Stock | 980,000,000 Shares | Anthropic, PBC
+ This is an initial public offering of shares of Class A common stock of Anthropic, PBC. We are selling 956,351,354 shares of Class A common stock and the selling 
+ stockholders identified in this prospectus are selling an additional 23,648,646 shares of Class A common stock. We will not receive any proceeds from the sale of shares 
+ of our Class A common stock by any of the selling stockholders. 
+ Prior to this offering, there has been no public market for our Class A common stock. The initial public offering price per share is $83.00 . We have been approved to list 
+ our Class A common stock on the Nasdaq Global Select Market under the symbol “ANT.” 
+ We have a novel capital and corporate governance structure. We are incorporated as a public benefit corporation under Delaware law, a structure consistent with our 
+ commitment to artificial intelligence (“AI”) safety and responsibility. As a public benefit corporation, we are required to balance the pecuniary interests of our 
+ stockholders, the best interests of those materially affected by our conduct, and the specific public benefit purpose identified in our amended and restated certificate of 
+ incorporation: the responsible development and maintenance of advanced AI for the long-term benefit of humanity. We created our Long-Term Benefit Trust (the 
+ “LTBT”) to help ensure that Anthropic, PBC is managed in a manner that responsibly balances its goals as a public benefit corporation. The LTBT is intended to operate 
+ as an independent body of financially disinterested trustees with expertise in AI safety, national security, public policy, and social enterprise. Through a special class of 
+ common stock, Class T common stock, the LTBT generally has the authority to elect and remove the Class T directors, who together will constitute a majority of the 
+ authorized members of our board of directors. Our Class T common stock does not otherwise have voting rights with respect to matters submitted to stockholders 
+ generally and has no economic rights. Immediately prior to the completion of this offering, we will also issue a single share of Class F common stock, a special class of 
+ our common stock, to a limited liability company organized by our co-founders (the “Founder LLC”). Dario Amodei, our Chief Executive Officer and a member of our 
+ board of directors, and Daniela Amodei, our President and Chairperson of our board of directors, together with our five other co-founders, will initially be the sole 
+ members of the Founder LLC. Our Class F common stock, which will be held by the Founder LLC, will be entitled to an aggregate number of votes that equals 50.1% of 
+ the total voting power of our outstanding shares of capital stock with respect to matters submitted to stockholders generally, including the election of our directors other 
+ than the Class T directors. Our Class F common stock will not have any economic rights. Immediately prior to the completion of this offering, we will also authorize a 
+ special class of our common stock, Class E common stock, which will be issued to our employees, excluding our co-founders. Our Class E common stock will be entitled 
+ to vote only on certain limited matters and will not have any economic rights. In addition, we have authorized Class A common stock and Class N common stock. The 
+ rights of the holders of Class A common stock and Class N common stock are identical, except with respect to voting and conversion. Each share of Class A common 
+ stock is entitled to one vote and shares of Class N common stock have no voting rights, except as otherwise required by law. The holders of our Class N common stock are 
+ primarily strategic business partners, and shares of Class N common stock will generally convert to Class A common stock upon a sale or transfer to an unaffiliated third 
+ party. Our Class A common stock is not convertible. See the sections titled “Risk Factors—Risks Related to our Governance Structure,” “Our Governance Structure and 
+ Its Goals,” and “Description of Capital Stock” for more information. 
+ We are considered a “controlled company” within the meaning of the Nasdaq Global Select Market corporate governance requirements. See the sections titled “Our 
+ Governance Structure and Its Goals,” “Management,” and “Description of Capital Stock” for additional information. 
+ See the section titled “ Risk Factors ” beginning on page 30 to read about factors you should consider before buying shares of our Class A 
+ common stock. 
+ Neither the Securities and Exchange Commission nor any other regulatory body has approved or disapproved of these securities or 
+ passed upon the accuracy or adequacy of this prospectus. Any representation to the contrary is a criminal offense. 
+ Per share | Total
+ Initial public offering price | $ 83.00 | $ 81,340,000,000
+ Underwriting discount (1) | $ 0.56122 | $ 550,000,000
+ Proceeds, before expenses, to Anthropic, PBC | $ 82.43878 | $ 78,840,438,875
+ Proceeds, before expenses, to selling stockholders | $ 82.43878 | $ 1,949,565,525
+ ____________ 
+ (1) The underwriters will not receive any discount or commission on any shares of our Class A common stock sold pursuant to their option to purchase additional shares of Class A 
+ common stock from us. See the section titled “Underwriting” for a description of the compensation payable to the underwriters . 
+ To the extent that the underwriters sell more than 980,000,000 shares of Class A common stock, the underwriters have the option to purchase up to an 
+ additional 147,000,000 shares of Class A common stock from Anthropic, PBC at the initial public offering price. 
+ The underwriters expect to deliver the shares against payment in New York, New York, on or about November 20, 2026. 
+ 

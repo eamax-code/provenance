@@ -12,7 +12,7 @@ from app.core.errors import APIError
 from app.db.models import utcnow
 from app.schemas.common import PageMeta
 from app.schemas.graph import IpoList, IpoOut
-from app.services import ipo_pipeline
+from app.services import ipo_pipeline, ipo_terms
 
 router = APIRouter(prefix="/v1", tags=["ipos"])
 
@@ -50,8 +50,9 @@ def list_ipos(
         rows = [r for r in rows if r["kind"] == kind]
     page = rows[offset : offset + limit]
     more = offset + limit < len(rows)
+    terms = ipo_terms.terms_by_cik(db, [r["cik"] for r in page])
     return IpoList(
-        data=[IpoOut(**r) for r in page],
+        data=[IpoOut(**r, terms=terms.get(r["cik"])) for r in page],
         meta=PageMeta(limit=limit, offset=offset, has_more=more,
                       next_offset=offset + limit if more else None, total_matched=len(rows)),
     )  # fmt: skip

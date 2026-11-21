@@ -27,7 +27,7 @@ from app.db.models import (
 )
 from app.schemas.companies import CompanyOut
 from app.services import cover as cover_service
-from app.services import documents, live, periods, statements
+from app.services import documents, ipo_terms, live, periods, statements
 from app.services.form8k import ITEM_TITLES, split_items
 from app.services.intel import display_name
 from app.services.officer_changes import change_dict
@@ -370,6 +370,7 @@ def build(
         "events": live.event_rows(
             db, anchor - timedelta(days=EVENT_DAYS), EVENTS, until=anchor, cik=cik
         ),
+        "ipo_terms": ipo_terms.terms_by_cik(db, [cik]).get(cik),
         "risk_factors": risk,
         "peers": _peers(db, company, today),
         "listings": _listings(db, company),

@@ -92,3 +92,29 @@ def test_exchanges_and_form_10s_stay_off_the_strip(client, db):
     events = client.get("/v1/public/events").json()["data"]
     assert [(e["company_name"], e["type"]) for e in events] == [("Delisted Inc", "sec.delisting")]
     assert client.get("/v1/public/ipos").json()["data"] == []  # a Form 10 is not an IPO
+
+
+def test_deal_terms_reach_the_ipo_list_and_the_strip(client, db, auth):
+    import json
+
+    from app.db.models import IpoTerms
+
+    public_service.reset_cache()
+    _company(db, "0002130357", "Anthropic, PBC", "ANT")
+    _filing(db, "0002130357", "0002130357-26-000001", "S-1", 20)
+    _filing(db, "0002130357", "0002130357-26-000003", "424B4", 3)
+    ev = "The initial public offering price per share is $83.00."
+    db.add(IpoTerms(
+        cik="0002130357", accession_number="0002130357-26-000003", form_type="424B4",
+        filing_date=TODAY - timedelta(days=3), source_url="https://www.sec.gov/Archives/x.htm",
+        extractor_version="ipo-terms-1",
+        terms=json.dumps({"price_final": {"value": 83.0, "evidence": ev, "derived": False},
+                          "currency": {"value": "USD", "evidence": ev, "derived": False}}),
+    ))  # fmt: skip
+    db.commit()
+    row = client.get("/v1/public/ipos").json()["data"][0]
+    assert row["price_final"] == 83.0 and row["currency"] == "USD" and row["price_low"] is None
+    ipo = client.get("/v1/ipos?days=30", headers=auth).json()["data"][0]
+    t = ipo["terms"]["price_final"]
+    assert t["value"] == 83.0 and t["evidence"] == ev and t["form_type"] == "424B4"
+    assert t["source_url"].startswith("https://www.sec.gov/")

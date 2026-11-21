@@ -28,6 +28,8 @@ logger = logging.getLogger("app.prospectus")
 FORMS = ("S-1", "S-1/A", "F-1", "F-1/A", "424B4", "424B1")
 PREFIX = "pr:"
 NONE_ITEM = "pr:none"  # marks a document that was fetched but had no usable section
+COVER_ITEM = "pr:cover"  # the cover page and what precedes the table of contents
+COVER_CHARS = 15_000
 MAX_SECTION_CHARS = 250_000
 RECENT_YEARS = 3  # a registration this old is still worth quoting for an established filer
 # (key, title shown in citations, table-of-contents title pattern)
@@ -45,7 +47,7 @@ SECTIONS = (
     ("pr:owner", "Principal stockholders", r"principal( and selling)? (stock|share)holders"),
     ("pr:uw", "Underwriting", r"underwriting.*|plan of distribution"),
 )
-TITLES = {key: title for key, title, _ in SECTIONS}
+TITLES = {key: title for key, title, _ in SECTIONS} | {COVER_ITEM: "Cover page"}
 _PATTERNS = [(key, re.compile(rf"^(?:{pat})$", re.IGNORECASE)) for key, _, pat in SECTIONS]
 _TOC_LINK = re.compile(r'(?is)<a\b[^>]*href="#([^"]+)"[^>]*>(.*?)</a>')
 _ROW = re.compile(r"(?is)<tr\b.*?</tr>")
@@ -206,7 +208,10 @@ def ensure_read(db: Session, f: Filing, sec: SecClient | None) -> str:
     status = "fetch_failed"
     if url:
         try:
-            sections = split_sections(sec.get_text(url).data)
+            doc = sec.get_text(url).data
+            sections = split_sections(doc)
+            if sections:  # the cover page carries the deal terms (F-02)
+                sections[COVER_ITEM] = to_text(doc)[:COVER_CHARS]
             status = "ok" if sections else "no_section"
         except SecClientError as exc:
             log_event(logger, logging.WARNING, "prospectus fetch failed", url=url, error=str(exc))

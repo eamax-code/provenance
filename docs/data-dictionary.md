@@ -253,6 +253,30 @@ One reporting person on a structured Schedule 13D or 13G: `subject_cik`, `access
 When a company's `subsidiaries`, `holders` or recent `insiders` were last read from EDGAR, with
 `status` (ok, none, failed). The API rereads sources older than seven days for keyed callers.
 
+## ipo_terms (launch plan F-02)
+
+Deal terms read from a company's prospectuses: its final prospectus (424B4), its latest S-1/A or
+F-1/A (the price range) and its first S-1/F-1. Rules on the cover page and the Underwriting
+section (`app/services/ipo_terms.py`), never a model. `terms` is JSON: per field `value`,
+`evidence` (the verbatim sentence or table row) and `derived`.
+
+| Field | From |
+| --- | --- |
+| `price_low`, `price_high` | "offering price ... between $X and $Y" (registration amendment) |
+| `price_final`, `currency` | "initial public offering price per share is $X", cover table |
+| `shares_offered`, `shares_primary`, `shares_secondary` | cover heading; "we are selling N shares"; "selling stockholders ... N shares" |
+| `gross_proceeds`, `underwriting_discount_per_share`, `underwriting_discount_total` | cover table rows |
+| `exchange`, `ticker` | "list ... on the Nasdaq Global Select Market under the symbol" |
+| `underwriters`, `lead_underwriters` | Underwriting table; "... are the representatives of the underwriters" |
+| `lockup_days`, `lockup_days_max` | the period most often stated for lock-up agreements, and a longer one stated with it |
+| `closing_date` | "expect to deliver the shares ... on or about" |
+| `lockup_expiry`, `quiet_period_end` | derived: prospectus date plus lock-up days; plus 25 days (FINRA Rule 2241) |
+
+The prospectus's cover page is kept as `filing_sections.item = 'pr:cover'`. Read by the hourly
+tracker when a 424B4, S-1/A or F-1/A arrives, and by `scripts/read_ipo_terms.py`. Shown on
+`/v1/ipos` (`terms`), the MCP tool `companies_going_public`, `/v1/public/ipos` (price fields)
+and the company page overview (`ipo_terms`).
+
 ## edgar_feed, job_state (filings tracker, ADR 0012)
 
 ### edgar_feed
