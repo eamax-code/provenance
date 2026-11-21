@@ -19,10 +19,10 @@ def _filing(db, n, owner, name, title, day, officer=True, director=False):
     ))  # fmt: skip
 
 
-def _change(db, n, person, role, kind, day, effective=None):
+def _change(db, n, person, role, kind, day, effective=None, what=None):
     db.add(OfficerChange(
         cik=CIK, accession_number=f"0002-26-{n:06d}", seq=1, filing_date=day, person=person,
-        role=role, change_type=kind, effective=effective, verified=True,
+        role=role, change_type=kind, effective=effective, verified=True, what=what,
         source_url=f"https://www.sec.gov/Archives/edgar/data/320193/{n}/",
         extractor_version="test",
     ))  # fmt: skip
@@ -81,15 +81,22 @@ def test_apple_cook_and_ternus(db):
     _filing(db, 1, 1, "COOK TIMOTHY D", "Chief Executive Officer", date(2022, 9, 27),
             director=True)  # fmt: skip
     _filing(db, 2, 2, "TERNUS JOHN", "SVP, Hardware Engineering", TODAY - timedelta(days=40))
-    _change(db, 1, "Tim Cook", "Executive Chair", "role_change", date(2026, 4, 20),
-            "effective September 1, 2026")  # fmt: skip
+    # as the extraction stores it: the role left in `role`, the new one in `what`
+    _change(db, 1, "Tim Cook", "Chief Executive Officer", "role_change", date(2026, 4, 20),
+            "September 1, 2026",
+            "transitions from Chief Executive Officer to Executive Chair of Board")  # fmt: skip
+    _change(db, 3, "Art Levinson", "Chair of the Board", "role_change", date(2026, 4, 20),
+            "September 1, 2026", "becomes Lead Independent Director")  # fmt: skip
+    _filing(db, 3, 3, "LEVINSON ARTHUR D", None, TODAY - timedelta(days=50), officer=False,
+            director=True)  # fmt: skip
     _change(db, 2, "John Ternus", "Chief Executive Officer", "appointment", date(2026, 4, 20),
-            "effective September 1, 2026")  # fmt: skip
+            "September 1, 2026")  # fmt: skip
     db.commit()
     owners = insiders.roles(db, CIK)
     leadership.apply_to_roles(db, CIK, owners)
-    out = leadership.overview(db, CIK, owners)
+    out = leadership.overview(db, CIK, owners, date(2026, 11, 22))
     cur = out["current_leadership"]
+    assert cur["chair"]["title"] == "Executive Chair of Board"  # Levinson moved out of the chair
     assert (cur["ceo"]["name"], cur["ceo"]["since"], cur["ceo"]["basis"]) == (
         "John Ternus", "2026-09-01", "8-K item 5.02"
     )  # fmt: skip

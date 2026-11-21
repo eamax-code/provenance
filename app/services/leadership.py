@@ -95,6 +95,18 @@ def match_people(owner_name_as_filed: str, person: str | None) -> tuple[str, str
     return None
 
 
+_NEW_ROLE = re.compile(r"(?:\bto\b|\bbecomes?\b|\bnamed\b|\bas\b)\s+(?:the\s+)?(.+)$", re.I)
+
+
+def new_role(e: OfficerChange) -> str:
+    """The role a change starts. For a role change the record's `role` is the role being left
+    ("transitions from Chief Executive Officer to Executive Chair"), so read `what`."""
+    if e.change_type != "role_change":
+        return e.role or ""
+    m = _NEW_ROLE.search(e.what or "")
+    return m.group(1) if m else ""
+
+
 def effective_date(text: str | None) -> date | None:
     m = _DATE.search(text or "")
     if not m:
@@ -197,11 +209,18 @@ def overview(db: Session, cik: str, owners: list[dict], as_of: date | None = Non
     for role, pattern in ROLES.items():
         pick = None
         appointed = [(k, e) for k, ev in groups.items() if k not in departed for e in ev
-                     if e.change_type in STARTS_ROLE and pattern.search(e.role or "")]  # fmt: skip
+                     if e.change_type in STARTS_ROLE and pattern.search(new_role(e))]  # fmt: skip
+        # people who moved out of this role by a role change that has taken effect
+        left = {
+            k for k, ev in groups.items() for e in ev
+            if e.change_type == "role_change" and pattern.search(e.role or "")
+            and not pattern.search(new_role(e))
+            and (effective_date(e.effective) or e.filing_date or date.min) <= today
+        }  # fmt: skip
         if appointed:
             k, e = max(appointed, key=lambda x: (x[1].filing_date or date.min, x[1].seq))
             o = owner_for.get(k)
-            pick = {"name": o["name"] if o else e.person, "title": e.role,
+            pick = {"name": o["name"] if o else e.person, "title": new_role(e),
                     "since": (effective_date(e.effective) or e.filing_date).isoformat()
                     if (e.effective or e.filing_date) else None,
                     "basis": "8-K item 5.02",
@@ -209,9 +228,11 @@ def overview(db: Session, cik: str, owners: list[dict], as_of: date | None = Non
                     if o and o["first_filed"] else None,
                     "filing_date": e.filing_date.isoformat() if e.filing_date else None,
                     "source_url": e.source_url}  # fmt: skip
+        moved = {id(owner_for[k]) for k in left if k in owner_for}
         holders = [o for o in owners if o["current"] and o.get("kind") == "person"
                    and pattern.search(o.get("officer_title") or o.get("role") or "")
-                   and key_from_filed(o["name_as_filed"]) not in departed]  # fmt: skip
+                   and key_from_filed(o["name_as_filed"]) not in departed
+                   and id(o) not in moved]  # fmt: skip
         if holders:
             o = max(holders, key=lambda x: x["last_filed"])
             same = pick is not None and (
