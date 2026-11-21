@@ -18,6 +18,7 @@
       "chat_questions_per_day": 20,
       "forecasts": false,
       "support": "Docs",
+      "type_watches": false,
       "featured": false,
       "features": [
         "All metrics with citations",
@@ -47,6 +48,7 @@
       "chat_questions_per_day": 200,
       "forecasts": true,
       "support": "Email",
+      "type_watches": false,
       "featured": false,
       "features": [
         "Everything in Free",
@@ -75,10 +77,12 @@
       "chat_questions_per_day": 500,
       "forecasts": true,
       "support": "Email within two business days",
+      "type_watches": true,
       "featured": true,
       "features": [
         "Commercial use in your product",
         "100 watches, webhooks and live stream",
+        "Alerts on event types across companies",
         "500,000 requests a month",
         "5 keys"
       ],
@@ -102,6 +106,7 @@
       "chat_questions_per_day": 2000,
       "forecasts": true,
       "support": "Priority, one business day",
+      "type_watches": true,
       "featured": false,
       "features": [
         "Everything in Builder",
@@ -130,6 +135,7 @@
       "chat_questions_per_day": 5000,
       "forecasts": true,
       "support": "SLA",
+      "type_watches": true,
       "featured": false,
       "features": [
         "Custom limits and terms",

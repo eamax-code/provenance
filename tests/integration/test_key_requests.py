@@ -151,9 +151,11 @@ def test_approve_is_atomic_when_caller_rolls_back(client, db, settings):
     assert db.scalar(select(ApiKey).where(ApiKey.owner_email == "atomic@example.com")) is None
 
 
-def test_landing_page_has_request_form(client):
-    html = client.get("/").text
+def test_contact_page_has_request_form(client):
+    # Team and Enterprise requests moved from the home page to /contact/ (one key path on home)
+    html = client.get("/contact/").text
     assert 'id="key-request-form"' in html and "/v1/developer/key-requests" in html
+    assert 'href="/contact/"' in client.get("/").text
 
 
 def test_openapi_marks_key_requests_public(client):

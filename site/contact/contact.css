@@ -1,0 +1,18 @@
+/* One sentence of why on the left, the form on the right; one column on a phone. */
+.contact { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(32px, 6vw, 96px); align-items: start; padding-block: clamp(32px, 6vw, 96px); }
+.contact-copy { display: grid; gap: 20px; align-content: start; }
+.contact-copy h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); letter-spacing: -0.045em; line-height: 0.95; }
+.contact-copy p { font-size: var(--step-body); max-width: 44ch; }
+.contact-form { display: grid; gap: 8px; background: var(--field); color: var(--field-ink); border-radius: 4px; padding: clamp(24px, 4vw, 48px); }
+.contact-form label { font-weight: 600; margin-top: 10px; }
+.contact-form label:first-child { margin-top: 0; }
+.contact-form input, .contact-form textarea, .contact-form select { width: 100%; min-height: 52px; padding: 14px 16px; border: 0; border-radius: 4px; background: color-mix(in srgb, var(--field) 70%, #000); color: var(--field-ink); font: inherit; }
+.contact-form textarea { min-height: 120px; resize: vertical; }
+.contact-form :focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 2px; }
+.contact-form .help { color: var(--field-soft); font-size: var(--step-small); }
+.contact-submit { margin-top: 16px; min-height: 56px; border: 0; border-radius: 4px; background: var(--accent); color: var(--accent-ink); font: 600 var(--step-body)/1 inherit; cursor: pointer; }
+.contact-submit:hover { background: var(--accent-hover); }
+.contact-submit:disabled { opacity: 0.6; cursor: progress; }
+.contact-form .status { min-height: 1.4em; color: var(--field-soft); }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 900px) { .contact { grid-template-columns: minmax(0, 1fr); } }
