@@ -83,17 +83,18 @@ from later filings are additional rows, never overwrites.
 | `form_type`, `filed_date`, `accession_number` | Filing that reported the observation |
 | `source_tag`, `source_taxonomy` | XBRL concept and taxonomy (`us-gaap`) |
 | `source_url` | Filing index URL of the reporting filing |
-| `mapping_version` | Version of the concept mapping (`1.3.0`) |
+| `mapping_version` | Version of the concept mapping (`1.4.0`; 1.4.0 rows replace 1.3.0 rows as each company is re-read) |
 | `quality_status` | See table above |
 | `derived`, `derivation` | Derived quarter values are only produced at query time (`include_derived=true`) and are not stored |
 | `observation_key` | SHA-256 over metric, taxonomy, tag, unit, period, accession, derived flag; unique |
 | `first_detected_at`, `processed_at` | Provenance timestamps |
 
-### Concept mapping 1.3.0 (thirty metrics and two cover-page facts)
+### Concept mapping 1.4.0 (thirty metrics and two cover-page facts)
 
 Generated from `CONCEPT_MAP` in `app/services/fact_normalizer.py`. 1.0.0 to 1.2.0 had the first
-five metrics; 1.3.0 (2026-11-22, launch plan D-01) added the rest, industry fallback tags and the
-unit check.
+five metrics; 1.3.0 (2026-11-22, launch plan D-01) added the rest, industry fallback tags, the
+unit check, cover-page facts and IFRS; 1.4.0 (2026-11-22): total-first revenue, in-filing
+precedence, contract revenue as a component.
 
 | Metric | Statement | Candidate tags, in precedence order | Industry fallbacks | Unit | Period |
 | --- | --- | --- | --- | --- | --- |

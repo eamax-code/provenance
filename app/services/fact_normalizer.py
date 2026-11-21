@@ -23,10 +23,13 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-MAPPING_VERSION = "1.3.0"
+MAPPING_VERSION = "1.4.0"
 # 1.2.0: twelve months in a quarterly report is "ttm", not annual.
 # 1.3.0: thirty metrics across the income statement, balance sheet and cash flow; industry
-#        fallback tags (banks, utilities, REITs); each metric's unit kind is checked.
+#        fallback tags (banks, utilities, REITs); each metric's unit kind is checked; cover-page
+#        facts (dei); IFRS (ifrs-full).
+# 1.4.0: total-first revenue; precedence judged within each filing; contract revenue below the
+#        total is a component, not a conflict.
 
 
 def _m(
