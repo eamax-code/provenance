@@ -63,6 +63,27 @@ FILING_EVENT_TYPES: dict[str, FilingEventType] = {
 }
 
 
+# A compact name for each type, and the order in which one filing's types are ranked when only
+# one can be shown (most consequential first).
+SHORT_LABELS = {
+    "sec.bankruptcy": "Bankruptcy",
+    "sec.restatement": "Restatement",
+    "sec.change_in_control": "Change in control",
+    "sec.auditor_change": "Auditor change",
+    "sec.delisting": "Delisting",
+    "sec.deregistration": "Deregistration",
+    "sec.tender_offer": "Tender offer",
+    "sec.merger_proxy": "Merger vote",
+    "sec.acquisition_completed": "Acquisition completed",
+    "sec.late_filing": "Late filing",
+    "sec.material_agreement": "Material agreement",
+    "sec.shareholder_vote": "Shareholder vote",
+    "sec.results": "Results",
+}
+PRIORITY = tuple(SHORT_LABELS)
+OFFICER_CHANGE_RANK = PRIORITY.index("sec.late_filing") + 1  # officer changes rank here
+
+
 def types_for(form_type: str | None, items: str | list[str] | None) -> list[str]:
     """The event types a filing carries, in the order of FILING_EVENT_TYPES."""
     form = (form_type or "").upper()

@@ -12,11 +12,14 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | I-06 | Backups after the 2026-11-20 local data loss | local part done 2026-11-22: `scripts/backup_db.sh`, daily launchd dump (keep 3), restore steps in docs/operations.md; local DB restored from the 11-05 dump, rebuild from SEC archives running; production object storage waits on the host |
 | D-01 | Core statements 5 → 30 metrics (mapping 1.3.0) | mapping, tests, API/MCP/chat wiring and data dictionary done 2026-11-22; industry fallbacks for banks, utilities and REITs; unit check; re-normalisation of all filers runs after the filings rebuild, then spot checks (AAPL, JPM, XOM, DUK, O) |
 | D-05 | 8-K item and form events on feed, webhooks, MCP | done 2026-11-22: thirteen filing event types from form and declared 8-K items (`app/services/filing_events.py`); `event_types` on feed, SSE and webhook payloads; `/v1/events?event_type=`; watches limited by type (migration c4f7a2e9b1d6); MCP `recent_events` takes `event_type`; backfill never notifies |
+| Live | `GET /v1/public/ipos` and `/v1/public/events` for the home strip | done 2026-11-22: keyless, stored data only, at most 5 rows, cached 60 s, sec.gov filing links, short labels of 24 characters or fewer |
 | D-02, D-03 | Cover facts (dei), derived ratios | queued |
 | D-04 | IFRS mapping | queued |
 | I-05, I-02 | Semantic search regression test; deployment sizing from the rebuilt DB | queued |
 | K-01 to K-04 | CIK-LEI-ISIN, officer dates on edges, co-registrants, ticker history | queued |
-| G-01 | Pricing in code, one source of truth (not published until O-08) | queued |
+| G-01 | Pricing in code, one source of truth (owner approved prices 2026-11-22) | queued |
+| T-01 | Type watches across companies (Builder+), universe filter, hourly batch for high-volume types | queued after G-01 |
+| U-01 to U-03 | Public as_of, peers, leadership by person (with K-02) | queued after T-01 |
 | I-09, F-01 | Production smoke script, Sheets function | queued |
 | Owner | O-01 to O-09 (host, domain, email, merchant of record, model, news, legal, pricing) | waiting on you; G-02, I-01, I-03 wait on them |
 

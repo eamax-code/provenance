@@ -1,0 +1,153 @@
+"""Keyless "Live from EDGAR" lists for the home page: recent IPO milestones and notable filings.
+
+Stored data only, never an SEC request, so the demo and anonymous visitors cannot cause load on
+EDGAR. Each row links the filing on sec.gov. Cached like the rest of the public API.
+"""
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db.models import Company, Filing, OfficerChange
+from app.services import filing_events, ipo_pipeline
+from app.services.officer_changes import CHANGE_LABELS
+from app.services.public import _now_iso, cached
+
+MAX_LIMIT = 5
+IPO_DAYS = 30
+EVENT_DAYS = 14
+IPO_NOTE = (
+    "Stages come from EDGAR filings: a final prospectus (424B4) means the offering priced, not "
+    "that shares trade. Information, not investment advice."
+)
+EVENT_NOTE = (
+    "What each filing means comes from its form type and the 8-K items the company declared. "
+    "Information, not signals or investment advice."
+)
+STAGE_TEXT = {
+    "confidential": ("Confidential draft", "Draft registration submitted (DRS)"),
+    "filed": ("Filed", "Registration statement filed"),
+    "amended": ("Amended", "Registration statement amended"),
+    "effective": ("Effective", "Registration declared effective"),
+    "listing": ("Listing", "Exchange listing registered"),
+    "priced": ("Priced", "Final prospectus filed (424B4)"),
+    "withdrawn": ("Withdrawn", "Registration withdrawn"),
+}
+
+
+def _limit(limit: int) -> int:
+    return max(1, min(MAX_LIMIT, limit))
+
+
+def public_ipos(db: Session, limit: int = MAX_LIMIT, today: date | None = None) -> dict:
+    limit = _limit(limit)
+
+    def build():
+        since = (today or date.today()) - timedelta(days=IPO_DAYS)
+        rows = []
+        for item in ipo_pipeline.companies(db, since=since)[:limit]:
+            m = item["milestones"][item["stage"]]
+            stage_label, label = STAGE_TEXT[item["stage"]]
+            rows.append({
+                "cik": item["cik"], "company_name": item["name"], "ticker": item["ticker"],
+                "stage": item["stage"], "stage_label": stage_label,
+                "label": f"{label}" if item["stage"] != "filed" else f"{label} ({m['form_type']})",
+                "date": m["filing_date"].isoformat() if m["filing_date"] else None,
+                "form_type": m["form_type"], "blank_check": item["blank_check"],
+                "filing_url": m["source_url"],
+            })  # fmt: skip
+        return {"data": rows, "as_of": _now_iso(), "notes": [IPO_NOTE]}
+
+    return cached(f"live_ipos:{limit}:{today}", build)
+
+
+_ROLE_WORDS = (
+    ("chief executive", "CEO"), ("chief financial", "CFO"), ("chief operating", "COO"),
+    ("chief accounting", "CAO"), ("chief legal", "CLO"), ("general counsel", "General counsel"),
+    ("chief technology", "CTO"), ("chair", "Chair"), ("president", "President"),
+    ("director", "Director"), ("treasurer", "Treasurer"), ("secretary", "Secretary"),
+)  # fmt: skip
+SHORT_MAX = 24  # the home strip is one line on a phone
+
+
+def _role_short(role: str | None) -> str:
+    text = (role or "").lower()
+    for words, short in _ROLE_WORDS:
+        if words in text:
+            return short
+    return "Officer"
+
+
+def _officer_short(c: OfficerChange) -> str:
+    verb = {"departure": "departs", "retirement": "retires", "appointment": "appointed",
+            "election": "elected", "role_change": "changes role",
+            "not_standing_for_reelection": "leaves board"}.get(c.change_type)  # fmt: skip
+    text = f"{_role_short(c.role)} {verb}" if verb else "Leadership change"
+    return text if len(text) <= SHORT_MAX else "Leadership change"
+
+
+def public_events(db: Session, limit: int = MAX_LIMIT, today: date | None = None) -> dict:
+    limit = _limit(limit)
+
+    def build():
+        since = (today or date.today()) - timedelta(days=EVENT_DAYS)
+        found: list[tuple[date, int, dict]] = []
+        filings = db.execute(
+            select(Filing, Company.legal_name, Company.ticker)
+            .join(Company, Company.cik == Filing.cik)
+            .where(
+                Filing.filing_date >= since,
+                filing_events.condition(list(filing_events.FILING_EVENT_TYPES)),
+            )
+            .order_by(Filing.filing_date.desc(), Filing.accepted_at.desc().nulls_last())
+            .limit(200)
+        ).all()
+        for f, name, ticker in filings:
+            types = filing_events.types_for(f.form_type, f.items)
+            if not types:
+                continue
+            top = min(types, key=filing_events.PRIORITY.index)
+            found.append((f.filing_date, filing_events.PRIORITY.index(top), {
+                "type": top, "label": filing_events.FILING_EVENT_TYPES[top].label,
+                "short_label": filing_events.SHORT_LABELS[top],
+                "cik": f.cik, "company_name": name, "ticker": ticker,
+                "date": f.filing_date.isoformat(), "form_type": f.form_type,
+                "filing_url": f.source_url, "_accn": f.accession_number,
+            }))  # fmt: skip
+        changes = db.execute(
+            select(OfficerChange, Company.legal_name, Company.ticker)
+            .join(Company, Company.cik == OfficerChange.cik)
+            .where(
+                OfficerChange.filing_date >= since,
+                OfficerChange.change_type != "compensation",
+            )
+            .order_by(OfficerChange.filing_date.desc())
+            .limit(50)
+        ).all()
+        for c, name, ticker in changes:
+            found.append((c.filing_date, filing_events.OFFICER_CHANGE_RANK, {
+                "type": "sec.officer_change",
+                "label": f"{c.person or 'An officer'} {CHANGE_LABELS.get(c.change_type, '')}"
+                         f"{', ' + c.role if c.role else ''} (8-K item 5.02)",
+                "short_label": _officer_short(c),
+                "cik": c.cik, "company_name": name, "ticker": ticker,
+                "date": c.filing_date.isoformat(), "form_type": "8-K",
+                "filing_url": c.source_url, "_accn": c.accession_number,
+            }))  # fmt: skip
+        # newest first; on one day the more consequential first; one row per filing
+        found.sort(key=lambda r: (-r[0].toordinal(), r[1]))
+        rows, seen = [], set()
+        for _, _, row in found:
+            accn = row.pop("_accn")
+            if accn in seen:
+                continue
+            seen.add(accn)
+            rows.append(row)
+            if len(rows) == limit:
+                break
+        return {"data": rows, "as_of": _now_iso(), "notes": [EVENT_NOTE]}
+
+    return cached(f"live_events:{limit}:{today}", build)

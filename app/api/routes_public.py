@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path, Request, Response
+from fastapi import APIRouter, Depends, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import client_ip, db_session, enforce_ip_limit, settings_dep
@@ -10,6 +10,7 @@ from app.core.rate_limits import FixedWindowRateLimiter
 from app.schemas.common import ErrorEnvelope
 from app.schemas.public import PublicCompanyBundle, PublicPlans, ShowcaseList
 from app.services import company_overview as company_overview_service
+from app.services import live
 from app.services import public as public_service
 from app.services.sec_client import normalize_cik
 
@@ -128,3 +129,34 @@ def listing_events(
 ):
     _guard(request, response)
     return public_service.public_listing_events(db)
+
+
+@router.get(
+    "/ipos",
+    responses=_ERRORS,
+    summary="Latest IPO milestones from EDGAR, newest first (public, at most 5)",
+)
+def live_ipos(
+    request: Request,
+    response: Response,
+    limit: int = Query(live.MAX_LIMIT, ge=1, le=live.MAX_LIMIT),
+    db: Session = Depends(db_session),
+):
+    _guard(request, response)
+    return live.public_ipos(db, limit)
+
+
+@router.get(
+    "/events",
+    responses=_ERRORS,
+    summary="Latest notable filings: restatements, bankruptcies, officer changes and more "
+    "(public, at most 5)",
+)
+def live_events(
+    request: Request,
+    response: Response,
+    limit: int = Query(live.MAX_LIMIT, ge=1, le=live.MAX_LIMIT),
+    db: Session = Depends(db_session),
+):
+    _guard(request, response)
+    return live.public_events(db, limit)
