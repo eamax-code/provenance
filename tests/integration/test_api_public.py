@@ -189,9 +189,10 @@ def test_public_pages_are_served(client):
         assert "not affiliated" in r.text.lower() and script in r.text, path
     assert "/v1/public/companies" in client.get("/public.js").text
     html = client.get("/").text
-    assert (
-        "/v1/public/plans" in html and "/v1/public/companies" in html and 'id="live-data"' in html
-    )
+    assert "/v1/public/companies" in html and 'id="live-data"' in html and "/home-live.js" in html
+    # pricing reads the static copy of the plan table; the live strip reads the public endpoints
+    live = client.get("/home-live.js").text
+    assert "/plans.json" in live and "/v1/public/ipos" in live and "/v1/public/events" in live
 
 
 def test_public_listing_events_and_page(client, db):

@@ -2,6 +2,8 @@
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
+  /* /contact/?plan=builder preselects the plan the visitor came from */
+  try { var want = new URLSearchParams(location.search).get('plan'); if (want && $('kr-plan').querySelector('option[value="' + want.replace(/[^a-z]/g, '') + '"]')) $('kr-plan').value = want; } catch (e) {}
   var form = $('key-request-form'), status = $('kr-status'), submit = $('kr-submit');
   form.addEventListener('submit', function (e) {
     e.preventDefault();

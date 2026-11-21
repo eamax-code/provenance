@@ -266,44 +266,43 @@ code, pre { font-family: var(--code); }
 .copybtn:active { transform: scale(0.97); }
 @media (max-width: 1000px) { .cta .copy, .cta .code { grid-column: 1 / -1; } }
 
-/* ---------- pricing: plan names, one live stage ---------- */
-.plans { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 var(--gap); align-items: start; }
-.plans .names-col { grid-column: 1 / span 6; }
-.plans .names-col h2 { margin-bottom: 28px; }
-.plan-names { list-style: none; padding: 0; display: grid; gap: 4px; justify-items: start; }
-.plan-names button { display: inline-flex; align-items: center; gap: 0.28em; padding: 0; border: 0; background: none; font: 800 var(--step-head)/1.1 var(--face); letter-spacing: -0.045em; color: color-mix(in srgb, var(--ink) 55%, var(--bg)); cursor: pointer; transition: color var(--t-hover) ease; }
-.plan-names button::before { content: ""; width: 0.3em; height: 0.3em; border-radius: 50%; background: transparent; }
-.plan-names button[aria-pressed="true"], .plan-names button:hover { color: var(--ink); }
-.plan-names button[aria-pressed="true"]::before { background: var(--accent-hi); }
-.plan-names { position: relative; }
-.plan-dot { position: absolute; left: 0; top: 0; width: 0.3em; height: 0.3em; border-radius: 50%; background: var(--accent-hi); font: 800 var(--step-head)/1.1 var(--face); pointer-events: none; transition: transform 700ms var(--ease-expo); }
-.plan-names.has-dot button[aria-pressed="true"]::before { background: transparent; }
+/* ---------- pricing: five plans side by side, then the limits table ---------- */
+.pricing-head { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px var(--gap); align-items: end; margin-bottom: 40px; }
+.pricing-head h2 { grid-column: 1 / span 6; }
+.pricing-head p { grid-column: 7 / span 6; max-width: 52ch; }
+.tiers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+.tier { background: var(--surface); border-radius: var(--radius); padding: 24px 20px; display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 12px; align-content: start; min-width: 0; }
+.tier.is-featured { background: var(--field); color: var(--field-ink); }
+.tier h3 { font-size: var(--step-lead); }
+.tier .tier-badge { margin-top: 8px; font-weight: 700; color: var(--field-ink); }
+.tier .tier-for { color: var(--soft); font-size: var(--step-small); min-height: 2.8em; }
+.tier.is-featured .tier-for, .tier.is-featured .tier-year, .tier.is-featured .tier-price span { color: var(--field-soft); }
+.tier-price { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.tier-price b { font-size: clamp(2.25rem, 3.4vw, 3.25rem); font-weight: 800; letter-spacing: -0.05em; line-height: 0.9; }
+.tier-price.is-long b { font-size: clamp(1.75rem, 2.2vw, 2.25rem); }
+.tier-price span, .tier-year { color: var(--soft); font-size: var(--step-small); }
+.tier ul { list-style: none; padding: 0; display: grid; gap: 8px; align-content: start; font-size: var(--step-small); }
+.tier li { padding-left: 1.1em; position: relative; }
+.tier li::before { content: ""; position: absolute; left: 0; top: 0.6em; width: 0.4em; height: 0.4em; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.tier .button { width: 100%; }
+.tier.is-featured .button.quiet { background: var(--field-ink); color: var(--field); }
+@media (max-width: 1200px) { .tiers { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .tiers { grid-template-columns: minmax(0, 1fr); } .pricing-head h2, .pricing-head p { grid-column: 1 / -1; } .tier .tier-for { min-height: 0; } }
+.compare { margin-top: 48px; overflow-x: auto; }
+.compare table { width: 100%; border-collapse: collapse; font-size: var(--step-body); min-width: 760px; }
+.compare th, .compare td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--surface-2); }
+.compare thead th { font-weight: 600; color: var(--soft); }
+.compare tbody th { font-weight: 600; }
+.compare td.is-featured, .compare th.is-featured { background: color-mix(in srgb, var(--field) 55%, transparent); }
+.fine { margin-top: 20px; color: var(--soft); max-width: 72ch; font-size: var(--step-small); }
+
 /* One thumb that glides to the pressed button of a segmented control, one underline under the tabs. */
-.ui-seg, .billing, .tabs { position: relative; isolation: isolate; }
+.ui-seg, .tabs { position: relative; isolation: isolate; }
 .seg-thumb { position: absolute; left: 0; top: 0; z-index: -1; width: var(--w); height: var(--h); transform: translate(var(--x), var(--y)); border-radius: 4px; background: var(--surface-2); pointer-events: none; transition: transform 600ms var(--ease-expo), width 600ms var(--ease-expo), height 600ms var(--ease-expo); }
-.billing .seg-thumb { border-radius: 3px; background: var(--paper); }
 .has-thumb > button[aria-pressed="true"] { background: none; }
 .tab-ink { position: absolute; left: 0; top: 0; height: 4px; width: var(--w); transform: translate(var(--x), var(--y)); background: var(--accent-hi); pointer-events: none; transition: transform 700ms var(--ease-expo), width 700ms var(--ease-expo); }
 .has-ink .tab[aria-selected="true"] { border-bottom-color: transparent; }
 @media (max-width: 760px) { .tab-ink { height: 3px; } }
-.plan-stage { grid-column: 8 / span 5; position: sticky; top: 96px; display: grid; gap: 18px; }
-.price { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.price b { font-size: var(--step-display); font-weight: 800; letter-spacing: -0.05em; line-height: 0.85; }
-.price span { color: var(--soft); }
-.billing { display: inline-flex; gap: 4px; padding: 4px; background: var(--surface); border-radius: var(--radius); justify-self: start; }
-.billing button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 3px; background: none; font: 600 var(--step-small) var(--face); color: var(--soft); cursor: pointer; }
-.billing button[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
-.plan-stage ul { padding-left: 1.1em; display: grid; gap: 6px; }
-.plan-stage .button { justify-self: start; }
-.compare { margin-top: 96px; overflow-x: auto; }
-.compare table { width: 100%; border-collapse: collapse; font-size: var(--step-body); min-width: 680px; }
-.compare th, .compare td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--surface-2); }
-.compare thead th { font-weight: 600; color: var(--soft); }
-.fine { margin-top: 20px; color: var(--soft); max-width: 72ch; font-size: var(--step-small); }
-@media (max-width: 900px) {
-  .plans .names-col, .plan-stage { grid-column: 1 / -1; }
-  .plan-stage { position: static; margin-top: 32px; }
-}
 
 /* ---------- faq: sticky heading, filled tiles ---------- */
 .faq { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 var(--gap); align-items: start; }
@@ -353,7 +352,7 @@ code, pre { font-family: var(--code); }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
 @keyframes drift { from { transform: scale(1.08) translateY(-3%); } to { transform: scale(1.08) translateY(3%); } }
-@media (prefers-reduced-motion: reduce) { .plan-dot, .seg-thumb, .tab-ink { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .seg-thumb, .tab-ink { transition: none; } }
 /* Without script the tabs cannot switch: every panel shows, one after another. */
 html:not(.js) .tabs { display: none; }
 html:not(.js) .tabpanel { grid-area: auto; margin-bottom: 48px; }
@@ -422,8 +421,8 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     <button class="site-menu-btn" id="site-menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
     <nav class="site-nav" id="site-nav" aria-label="Primary">
       <div class="site-group">
-        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Platform</button>
-        <p class="site-group-name" aria-hidden="true">Platform</p>
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Product</button>
+        <p class="site-group-name" aria-hidden="true">Product</p>
         <ul class="site-menu" id="site-nav-platform">
           <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
           <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
@@ -434,17 +433,10 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
         <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-data">Data</button>
         <p class="site-group-name" aria-hidden="true">Data</p>
         <ul class="site-menu" id="site-nav-data">
-          <li><a href="/companies/"><b>Companies</b><span>Showcase companies, no key needed</span></a></li>
-          <li><a href="/listings/"><b>Listings</b><span>New and removed listings in Canada, the UK and the EU</span></a></li>
+          <li><a href="/companies/"><b>Companies</b><span>Find a company and open its figures</span></a></li>
+          <li><a href="/#markets"><b>Covered today</b><span>What each market has, and what it does not</span></a></li>
           <li><a href="/status/"><b>Status</b><span>What is loaded and how fresh it is</span></a></li>
-        </ul>
-      </div>
-      <div class="site-group">
-        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-coverage">Coverage</button>
-        <p class="site-group-name" aria-hidden="true">Coverage</p>
-        <ul class="site-menu" id="site-nav-coverage">
-          <li><a href="/#markets"><b>Markets</b><span>What is available today, by market</span></a></li>
-          <li><a href="/#roadmap"><b>Roadmap</b><span>India, the UK and Europe next</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>New and removed listings in Canada, the UK and the EU</span></a></li>
         </ul>
       </div>
       <div class="site-group">
@@ -458,6 +450,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
         </ul>
       </div>
       <a class="site-link" href="/#pricing">Pricing</a>
+      <a class="site-link" href="/account/">Sign in</a>
       <a class="site-button site-cta" href="/account/">Get API key</a>
     </nav>
     <a class="site-button" href="/account/">Get API key</a>
@@ -764,8 +757,8 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       <h2 id="build-title" class="h2-long"><span>Financial intelligence</span> <span>you can verify.</span></h2>
       <p>One API with structured data and traceable sources, ready for your apps and your AI agents.</p>
       <div class="actions">
-        <a class="button" href="/account/">Get API key</a>
-        <a class="button light" href="/developers/">Read documentation</a>
+        <a class="button" href="/account/">Get a free key</a>
+        <a class="button light" href="/developers/">Read the quickstart</a>
       </div>
     </div>
     <div class="code">
@@ -814,48 +807,19 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 </section>
 
 <section class="section wrap" id="pricing" aria-labelledby="pricing-title">
-  <div class="plans">
-    <div class="names-col">
-      <h2 id="pricing-title" data-reveal>Pricing</h2>
-      <ul class="plan-names" aria-label="Plans">
-        <li><button type="button" data-plan="free" aria-pressed="false">Free</button></li>
-        <li><button type="button" data-plan="builder" aria-pressed="true">Builder</button></li>
-        <li><button type="button" data-plan="team" aria-pressed="false">Team</button></li>
-        <li><button type="button" data-plan="enterprise" aria-pressed="false">Enterprise</button></li>
-      </ul>
-      <p class="fine" data-reveal style="--i:1">The SEC publishes the filings for free, and we say so. You pay for normalization, stable identifiers, change detection, signed delivery and a schema your tools can trust.</p>
-    </div>
-    <div class="plan-stage" id="plan-stage" aria-live="polite">
-      <div class="price"><b id="plan-price">$49</b><span id="plan-period">a month</span></div>
-      <div class="billing" role="group" aria-label="Billing period">
-        <button type="button" id="bill-monthly" aria-pressed="true">Monthly</button>
-        <button type="button" id="bill-annual" aria-pressed="false">Yearly, two months free</button>
-      </div>
-      <p id="plan-for">For indie fintech, research tooling and one production AI app.</p>
-      <ul id="plan-limits">
-        <li>300 requests a minute</li><li>250,000 requests a month</li><li>50 watched companies</li><li>1,000 rows per export</li><li>Email support within two business days</li>
-      </ul>
-      <a class="button" id="plan-action" href="#contact">Start Builder</a>
-    </div>
+  <div class="pricing-head">
+    <h2 id="pricing-title" data-reveal>Pricing</h2>
+    <p data-reveal style="--i:1">The SEC publishes the filings for free, and we say so. You pay for normalization, stable identifiers, change detection, signed delivery and a schema your tools can trust. Citations, quality flags and point-in-time reads come with every plan.</p>
   </div>
-
-  <div class="compare">
+  <div class="tiers" id="tiers" aria-live="polite"><p class="fine">Loading the plans… <a href="/developers/#limits">Plans and limits</a></p></div>
+  <div class="compare" id="compare" hidden>
     <table>
       <caption class="vh">Plan limits compared</caption>
-      <thead><tr><th scope="col">Limit</th><th scope="col">Free</th><th scope="col">Builder</th><th scope="col">Team</th><th scope="col">Enterprise</th></tr></thead>
-      <tbody>
-        <tr data-compare="rate"><td>Requests a minute</td><td data-plan-col="free">60</td><td data-plan-col="builder">300</td><td data-plan-col="team">1,000</td><td data-plan-col="enterprise">custom</td></tr>
-        <tr data-compare="monthly"><td>Requests a month</td><td data-plan-col="free">10,000</td><td data-plan-col="builder">250,000</td><td data-plan-col="team">2,000,000</td><td data-plan-col="enterprise">custom</td></tr>
-        <tr data-compare="watches"><td>Watched companies</td><td data-plan-col="free">5</td><td data-plan-col="builder">50</td><td data-plan-col="team">500</td><td data-plan-col="enterprise">custom</td></tr>
-        <tr data-compare="export"><td>Rows per export</td><td data-plan-col="free">1,000</td><td data-plan-col="builder">1,000</td><td data-plan-col="team">1,000, more on request</td><td data-plan-col="enterprise">custom</td></tr>
-        <tr><td>Webhook retries</td><td>6 attempts</td><td>6 attempts</td><td>6 attempts</td><td>custom</td></tr>
-        <tr><td>Poll interval for watched companies</td><td>5 minutes</td><td>5 minutes</td><td>5 minutes</td><td>custom</td></tr>
-        <tr><td>Support</td><td>Docs</td><td>Email</td><td>Priority</td><td>Named contact</td></tr>
-      </tbody>
+      <thead id="compare-head"></thead>
+      <tbody id="compare-body"></tbody>
     </table>
   </div>
-  <p class="fine" id="pricing-live">Limits shown are the defaults until /v1/public/plans responds.</p>
-  <p class="fine">Prices are proposed pilot pricing in US dollars, before taxes, and may change after the pilot. Quotas are per API key. Freshness depends on the poll interval and on the SEC; no latency guarantee is offered during the pilot. Nothing here is investment advice.</p>
+  <p class="fine">Prices in US dollars, before taxes; yearly prices are per month, billed once a year. Paid plans are set up by hand until online billing launches; overage and agent credits launch with it. Quotas are per key. Nothing here is investment advice.</p>
 </section>
 
 <section class="section wrap" id="faq" aria-labelledby="faq-title">
@@ -894,7 +858,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
   <div class="site-board">
     <div class="site-tile statement">
       <p>Public company intelligence. Built for humans and AI.</p>
-      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA or GLEIF. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance Filings API, pilot pricing.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA or GLEIF. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance.</p>
     </div>
     <nav class="site-tile links" aria-label="Site">
       <div class="cols">
@@ -1164,68 +1128,9 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     follow();
   });
 
-  /* pricing: one stage that shows the selected plan */
-  var PLANS = {
-    free: { monthly: 0, annual: 0, for: 'For trying the schema, building a prototype or running an agent demo.', extra: ['OpenAPI, llms.txt, the MCP server and the Python client'], action: 'Get a free key' },
-    builder: { monthly: 49, annual: 41, for: 'For indie fintech, research tooling and one production AI app.', extra: ['Email support within two business days'], action: 'Start Builder' },
-    team: { monthly: 199, annual: 166, for: 'For analytics products and data teams watching a defined list of companies.', extra: ['Priority support, usage reports and a measured freshness report for your watch list'], action: 'Start Team' },
-    enterprise: { custom: true, for: 'For dedicated polling lists, custom quotas, invoicing and a data-rights review.', extra: ['Dedicated ingestion schedule for your companies', 'Contract terms and security questionnaire', 'Joint legal review before bulk redistribution'], action: 'Talk to us' }
-  };
-  var LIMITS = { free: [60, 10000, 5, 1000], builder: [300, 250000, 50, 1000], team: [1000, 2000000, 500, 1000] };
-  var current = 'builder', yearly = false;
-  try { yearly = localStorage.getItem('billing') === 'annual'; } catch (e) {}
-  function limitsList(name) {
-    var l = LIMITS[name];
-    var out = l ? [fmtInt(l[0]) + ' requests a minute', fmtInt(l[1]) + ' requests a month', fmtInt(l[2]) + ' watched companies', fmtInt(l[3]) + ' rows per export'] : ['Custom rate limits and quotas'];
-    return out.concat(PLANS[name].extra);
-  }
-  var plist = document.querySelector('.plan-names');
-  var moveDot = marker(plist, 'plan-dot', 'button[aria-pressed="true"]', function (m, b) {
-    m.style.transform = 'translate(' + b.offsetLeft + 'px, ' + (b.offsetTop + (b.offsetHeight - m.offsetHeight) / 2) + 'px)';
-  });
-  plist.classList.add('has-dot');
-  var billing = document.querySelector('.billing'), moveBillThumb = marker(billing, 'seg-thumb', 'button[aria-pressed="true"]', fitBox);
-  billing.classList.add('has-thumb');
-  function showPlan(name, animate) {
-    var pb = document.querySelectorAll('.plan-names button');
-    var dir = indexOf(pb, function (x) { return x.getAttribute('data-plan') === name; }) < indexOf(pb, function (x) { return x.getAttribute('data-plan') === current; }) ? -1 : 1;
-    current = name; var p = PLANS[name], st = $('plan-stage');
-    document.querySelectorAll('.plan-names button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-plan') === name)); });
-    $('bill-monthly').setAttribute('aria-pressed', String(!yearly)); $('bill-annual').setAttribute('aria-pressed', String(yearly));
-    var paint = function () {
-      $('plan-price').textContent = p.custom ? 'Custom' : '$' + (yearly ? p.annual : p.monthly);
-      $('plan-period').textContent = p.custom ? 'priced with you' : (p.monthly === 0 ? 'for ever' : yearly ? 'a month, billed yearly' : 'a month');
-      $('plan-for').textContent = p.for;
-      $('plan-limits').innerHTML = limitsList(name).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
-      $('plan-action').textContent = p.action;
-      $('plan-action').href = name === 'free' ? '/account/' : '#contact';  // paid plans are arranged by hand in the pilot
-    };
-    if (animate === 'billing') glide($('plan-price').parentNode, yearly ? 1 : -1, paint);
-    else if (animate) glide(st, dir, paint);
-    else paint();
-    moveDot(!!animate); moveBillThumb(!!animate);
-  }
-  var replace = function () { moveDot(false); moveBillThumb(false); moveSegThumb(false); moveInk(false); };
+  var replace = function () { moveSegThumb(false); moveInk(false); };
   window.addEventListener('resize', replace);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(replace);
-  document.querySelectorAll('.plan-names button').forEach(function (b) {
-    b.addEventListener('click', function () { if (b.getAttribute('data-plan') !== current) showPlan(b.getAttribute('data-plan'), true); });
-    b.addEventListener('focus', function () { if (b.getAttribute('data-plan') !== current) showPlan(b.getAttribute('data-plan'), true); });
-  });
-  $('bill-monthly').addEventListener('click', function () { yearly = false; try { localStorage.setItem('billing', 'monthly'); } catch (e) {} showPlan(current, 'billing'); });
-  $('bill-annual').addEventListener('click', function () { yearly = true; try { localStorage.setItem('billing', 'annual'); } catch (e) {} showPlan(current, 'billing'); });
-  showPlan('builder', false);
-  getJSON('/v1/public/plans').then(function (d) {
-    d.data.forEach(function (p) {
-      if (PLANS[p.name] && !PLANS[p.name].custom) { PLANS[p.name].monthly = p.price_usd_per_month; PLANS[p.name].annual = p.annual_price_usd_per_month; }
-      if (LIMITS[p.name]) LIMITS[p.name] = [p.rate_limit_per_minute, p.monthly_request_quota, p.max_watches, p.max_export_rows];
-      if (p.name === 'enterprise') return;
-      var cell = function (key, v) { var td = document.querySelector('[data-compare="' + key + '"] [data-plan-col="' + p.name + '"]'); if (td) td.textContent = v; };
-      cell('rate', fmtInt(p.rate_limit_per_minute)); cell('monthly', fmtInt(p.monthly_request_quota)); cell('watches', fmtInt(p.max_watches));
-    });
-    $('pricing-live').textContent = 'Limits loaded live from /v1/public/plans, ' + d.pricing_status + ' pricing.';
-    showPlan(current, false);
-  }).catch(function () {});
 
   /* copy the tool definition */
   document.querySelectorAll('[data-copy]').forEach(function (b) {
