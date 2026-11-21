@@ -13,13 +13,23 @@ class PublicPlan(BaseModel):
     featured: bool
     price_usd_per_month: int | None = Field(description="Monthly price in USD; null = contact")
     annual_price_usd_per_month: int | None = Field(
-        description="Effective monthly price when billed yearly (two months free)"
+        description="Effective monthly price when billed yearly"
     )
+    price_display: str = Field(description='Price as shown, e.g. "$79" or "From $1,500"')
+    audience: str
+    use: str = Field(description="What the plan may be used for")
+    commercial_use: bool = Field(description="Data may be shown to your own users")
+    keys: int = Field(description="Active API keys per account")
     rate_limit_per_minute: int
     monthly_request_quota: int
     max_watches: int
     max_active_watches: int
+    max_event_streams: int
     max_export_rows: int
+    chat_questions_per_day: int
+    forecasts: bool
+    support: str
+    features: list[str]
 
 
 class PublicPlans(BaseModel):

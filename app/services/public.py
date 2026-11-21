@@ -9,7 +9,8 @@ from datetime import UTC, date, datetime
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.config import PUBLIC_PLANS, Settings, plan_limits
+from app.core.config import Settings, plan_limits
+from app.core.plans import PLANS, PUBLIC_PLAN_NAMES, public_view
 from app.core.timeutil import iso_z
 from app.db.models import Company, Filing, FinancialFact, ListingEvent, Market
 from app.schemas.companies import CompanyOut, FactOut, FilingOut, FreshnessOut
@@ -79,23 +80,12 @@ def _now_iso() -> str:
 def public_plans(settings: Settings) -> PublicPlans:
     def build():
         out = []
-        for entry in PUBLIC_PLANS:
-            limits = plan_limits(entry["name"], settings)
-            price = entry["price_usd_per_month"]
-            out.append(
-                PublicPlan(
-                    name=entry["name"],
-                    label=entry["label"],
-                    featured=entry["featured"],
-                    price_usd_per_month=price,
-                    annual_price_usd_per_month=round(price * 10 / 12) if price else price,
-                    rate_limit_per_minute=limits["rate_limit_per_minute"],
-                    monthly_request_quota=limits["monthly_request_quota"],
-                    max_watches=limits["max_watches"],
-                    max_active_watches=limits["max_active_watches"],
-                    max_export_rows=limits["max_export_rows"],
-                )
-            )
+        for name in PUBLIC_PLAN_NAMES:
+            view = public_view(PLANS[name])
+            limits = plan_limits(name, settings)  # settings may lower Free's limits
+            view.update({k: limits[k] for k in limits if k in view})
+            view["keys"] = view.pop("max_keys")
+            out.append(PublicPlan(**view))
         return PublicPlans(
             data=out,
             max_export_rows=settings.max_export_rows,

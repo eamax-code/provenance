@@ -17,10 +17,9 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.core.plans import PLAN_RANK
 from app.core.security import hash_secret
 from app.db.models import Account, AccountSession, ApiKey, AuditEvent, SignInToken, utcnow
-
-PLAN_RANK = ("free", "builder", "pilot", "team", "enterprise", "internal")
 
 
 def normalize_email(email: str) -> str:

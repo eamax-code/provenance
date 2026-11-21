@@ -74,6 +74,16 @@ class FakeNews:
         return news.parse_rss(RSS, limit)
 
 
+@pytest.fixture(autouse=True)
+def _analyst_key(db, api_key):
+    """Forecasts are on the Analyst plan and up (G-01)."""
+    from app.db.models import ApiKey
+
+    for k in db.scalars(select(ApiKey)):
+        k.plan = "analyst"
+    db.commit()
+
+
 def test_plan_reads_forecasts():
     p = widgets.plan("Forecast Microsoft revenue for the next 4 year")
     assert (p.kind, p.metric, p.years) == ("forecast", "revenue", 4)
@@ -200,3 +210,16 @@ def test_model_rates_are_bounded_and_ordered(app, client, auth, items_aapl):
     first, second = w["forecast"]
     assert first["low_growth"] <= first["base_growth"] <= first["high_growth"] <= 150
     assert second["low_growth"] >= -60
+
+
+def test_free_plan_gets_the_reported_trend_instead_of_a_forecast(app, client, auth, db, items_aapl):
+    from app.db.models import ApiKey
+
+    for k in db.scalars(select(ApiKey)):
+        k.plan = "free"
+    db.commit()
+    app.state.llm_factory = lambda: DownLLM()
+    body = _ask(client, auth, "What is the revenue outlook for Apple?")
+    assert body["intent"] != "forecast"
+    assert any("Analyst plan" in n for n in body["notes"])
+    assert body["widgets"] and body["widgets"][0]["type"] == "chart"

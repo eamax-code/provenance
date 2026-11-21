@@ -18,7 +18,7 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | D-04 | IFRS mapping | queued |
 | I-05, I-02 | Semantic search regression test; deployment sizing from the rebuilt DB | queued |
 | K-01 to K-04 | CIK-LEI-ISIN, officer dates on edges, co-registrants, ticker history | queued |
-| G-01 | Pricing in code, one source of truth (owner approved prices 2026-11-22) | queued |
+| G-01 | Pricing in code, one source of truth (owner approved prices 2026-11-22) | done 2026-11-22: `app/core/plans.py` (Free, Analyst $19, Builder $79, Team $249, Enterprise from $1,500); enforced: rate, quota, export rows, watches, streams, chat per day, forecasts (Analyst+), keys per account; `commercial_use` as a label; overage and credits hidden until G-02; `/v1/public/plans`, `site/plans.json` and the home JSON-LD from `scripts/sync_plans.py` (provenance-ui runs it with its home commit) |
 | T-01 | Type watches across companies (Builder+), universe filter, hourly batch for high-volume types | queued after G-01 |
 | U-01 to U-03 | Public as_of, peers, leadership by person (with K-02) | queued after T-01 |
 | I-09, F-01 | Production smoke script, Sheets function | queued |

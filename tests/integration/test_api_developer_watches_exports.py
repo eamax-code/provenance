@@ -72,7 +72,7 @@ def test_usage_metering_and_summary(client, auth, ingested_aapl, db):
     )
     assert body["requests_by_route"] == {"/v1/companies/search": 1, "/v1/companies/{cik}/facts": 1}
     assert body["plan"]["plan"] == "free" and body["plan"]["monthly_requests_used"] == 2
-    assert body["plan"]["rate_limit_per_minute"] == 60 and body["plan"]["max_export_rows"] == 1000
+    assert body["plan"]["rate_limit_per_minute"] == 60 and body["plan"]["max_export_rows"] == 100
     assert "from" in body and "to" in body
     # One bar a day across the 30-day window, today's holding both requests.
     assert len(body["daily"]) in (30, 31)

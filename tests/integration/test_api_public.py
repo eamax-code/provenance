@@ -14,10 +14,16 @@ def test_plans_are_public_and_match_config(client):
     assert r.status_code == 200, r.text
     body = r.json()
     names = [p["name"] for p in body["data"]]
-    assert names == ["free", "builder", "team", "enterprise"]  # internal and legacy pilot hidden
+    # internal and legacy pilot are hidden (G-01: one source, app/core/plans.py)
+    assert names == ["free", "analyst", "builder", "team", "enterprise"]
     builder = next(p for p in body["data"] if p["name"] == "builder")
     assert builder["featured"] is True and builder["rate_limit_per_minute"] == 300
-    assert builder["monthly_request_quota"] == 250_000 and builder["max_watches"] == 50
+    assert builder["monthly_request_quota"] == 500_000 and builder["max_watches"] == 100
+    assert builder["price_usd_per_month"] == 79 and builder["annual_price_usd_per_month"] == 65
+    assert builder["commercial_use"] is True and builder["keys"] == 5 and builder["features"]
+    ent = body["data"][-1]
+    assert ent["price_usd_per_month"] is None and ent["price_display"] == "From $1,500"
+    assert "overage" not in r.text.lower() and "with_billing" not in r.text
     assert body["max_export_rows"] == 1000 and "not affiliated" in body["disclaimer"]
     assert r.headers["Cache-Control"].startswith("public, max-age=")
 

@@ -11,6 +11,8 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.plans import PLANS, REQUESTABLE_PLANS, limits_of
+
 _PLACEHOLDER_DOMAINS = ("@example.com", "@example.org", "@example.net", "replace-with")
 
 
@@ -125,7 +127,7 @@ class Settings(BaseSettings):
     account_session_days: int = 30
     sign_in_per_email_per_hour: int = 5
     sign_in_per_ip_per_hour: int = 20
-    account_max_active_keys: int = 5
+    account_max_active_keys: int = 100  # ceiling; the plan sets the real number (G-01)
     # Read 8-K item 5.02 text from EDGAR when a chat question needs it (needs SEC_USER_AGENT).
     officer_extraction_enabled: bool = True
     # Read a company's latest S-1/F-1 prospectus from EDGAR when a chat question needs it.
@@ -214,62 +216,10 @@ class Settings(BaseSettings):
         return problems
 
 
-PLAN_LIMITS: dict[str, dict[str, int]] = {
-    # Advertised on the pricing page; keep in sync with site/index.html.
-    # rate limit per minute, requests per calendar month, export rows per request,
-    # distinct watched CIKs, total active watch rows (destinations), concurrent event streams
-    "free": {
-        "rate_limit_per_minute": 60,
-        "monthly_request_quota": 10_000,
-        "max_export_rows": 1000,
-        "max_watches": 5,
-        "max_active_watches": 10,
-        "max_event_streams": 1,
-    },
-    "builder": {
-        "rate_limit_per_minute": 300,
-        "monthly_request_quota": 250_000,
-        "max_export_rows": 1000,
-        "max_watches": 50,
-        "max_active_watches": 100,
-        "max_event_streams": 3,
-    },
-    "team": {
-        "rate_limit_per_minute": 1000,
-        "monthly_request_quota": 2_000_000,
-        "max_export_rows": 1000,
-        "max_watches": 500,
-        "max_active_watches": 1000,
-        "max_event_streams": 10,
-    },
-    "enterprise": {
-        "rate_limit_per_minute": 3000,
-        "monthly_request_quota": 50_000_000,
-        "max_export_rows": 1000,
-        "max_watches": 5000,
-        "max_active_watches": 10_000,
-        "max_event_streams": 50,
-    },
-    "internal": {
-        "rate_limit_per_minute": 1000,
-        "monthly_request_quota": 10_000_000,
-        "max_export_rows": 1000,
-        "max_watches": 5000,
-        "max_active_watches": 10_000,
-        "max_event_streams": 50,
-    },
-}
-# Legacy name from the first release; keys created as "pilot" keep Builder-level limits.
-PLAN_LIMITS["pilot"] = dict(PLAN_LIMITS["builder"])
+# Limits per plan come from app/core/plans.py, the one source of truth (launch plan G-01).
+PLAN_LIMITS: dict[str, dict[str, int]] = {name: limits_of(name) for name in PLANS}
 PLAN_NAMES = tuple(PLAN_LIMITS)
-SELF_SERVE_PLANS = ("free", "builder", "team")
-# Pilot pricing shown on the website (USD per month, billed monthly). None = contact sales.
-PUBLIC_PLANS: tuple[dict, ...] = (
-    {"name": "free", "label": "Free", "price_usd_per_month": 0, "featured": False},
-    {"name": "builder", "label": "Builder", "price_usd_per_month": 49, "featured": True},
-    {"name": "team", "label": "Team", "price_usd_per_month": 199, "featured": False},
-    {"name": "enterprise", "label": "Enterprise", "price_usd_per_month": None, "featured": False},
-)
+SELF_SERVE_PLANS = REQUESTABLE_PLANS
 
 
 def plan_limits(plan: str, settings: Settings) -> dict[str, int]:

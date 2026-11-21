@@ -21,6 +21,7 @@ from app.api.dependencies import (
 from app.api.routes_companies import get_sec_client_factory
 from app.core.config import Settings
 from app.core.errors import APIError
+from app.core.plans import PLANS
 from app.core.rate_limits import FixedWindowRateLimiter
 from app.db.models import Company
 from app.schemas.common import ErrorEnvelope
@@ -387,12 +388,14 @@ def chat(
             f"At most {settings.chat_rate_limit_per_minute} chat questions per minute.",
             headers={"Retry-After": str(decision.retry_after_seconds)},
         )
-    daily = chat_day_limiter.check(f"chat-day:{who}", settings.chat_requests_per_day)
+    request.state.plan = getattr(key, "plan", None)
+    per_day = _chat_per_day(key, settings)
+    daily = chat_day_limiter.check(f"chat-day:{who}", per_day)
     if not daily.allowed:
         raise APIError(
             429,
             "quota_exceeded",
-            f"At most {settings.chat_requests_per_day} chat questions a day.",
+            f"At most {per_day} chat questions a day on this plan.",
             headers={"Retry-After": str(daily.retry_after_seconds)},
         )
     saved = _saving_key(request, key)
@@ -411,6 +414,17 @@ def chat(
         chat_sessions.append(db, session, body.message, reply.model_dump(mode="json"))
         reply.session_id = str(session.id)
     return reply
+
+
+def _chat_per_day(key, settings: Settings) -> int:
+    """Questions a day for the caller's plan (G-01); the demo key keeps the site-wide cap."""
+    plan = PLANS.get(getattr(key, "plan", ""))
+    return plan.chat_questions_per_day if plan else settings.chat_requests_per_day
+
+
+def _forecasts_allowed(request: Request) -> bool:
+    plan = PLANS.get(getattr(request.state, "plan", None) or "")
+    return plan is None or plan.forecasts  # the demo key shows what forecasts look like
 
 
 def _saving_key(request: Request, key):
@@ -552,6 +566,13 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             intent="leadership",
             notes=notes,
         )
+    if plan.kind == "forecast" and not _forecasts_allowed(request):
+        notes.append(
+            "Forecasts are on the Analyst plan and up; this answer shows the reported figures."
+        )
+        plan = widgets.Plan("trend", plan.metric, plan.years)
+        chart = widgets.add_trend(brief, db, plan.metric, plan.years)
+        shown = [chart] if chart else []
     if plan.kind == "forecast":
         ev = _forecast_evidence(request, db, settings, brief, plan.metric)
         if ev is not None:

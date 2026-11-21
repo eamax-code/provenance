@@ -204,11 +204,16 @@ def create_key(
     _same_origin(request)
     account = found[0]
     active = [k for k in accounts.account_keys(db, account) if k.is_active]
-    if len(active) >= settings.account_max_active_keys:
+    # keys per account follow the account's best plan (G-01), never above the site-wide cap
+    max_keys = min(
+        settings.account_max_active_keys,
+        plan_limits(accounts.best_plan(active), settings)["max_keys"],
+    )
+    if len(active) >= max_keys:
         raise APIError(
             422,
             "key_limit_reached",
-            f"At most {settings.account_max_active_keys} active keys. Revoke one first.",
+            f"At most {max_keys} active keys on this plan. Revoke one first.",
         )
     key, raw = create_key_record(
         db, settings, account.email, "free", body.label, actor=f"account:{account.id}"
