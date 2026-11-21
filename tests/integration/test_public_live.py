@@ -139,3 +139,40 @@ def test_ipo_priced_is_the_first_424b4_after_registration_only(client, db):
     assert [(e["company_name"], e["short_label"]) for e in events] == [
         ("Anthropic, PBC", "IPO priced")
     ]
+
+
+def test_public_pipeline_company_and_lockups(client, db, auth):
+    import json
+
+    from app.db.models import IpoTerms
+
+    public_service.reset_cache()
+    _company(db, "0002130357", "Anthropic, PBC", "ANT")
+    _company(db, "0000000001", "Quiet Co")
+    _filing(db, "0002130357", "0002130357-26-000001", "S-1", 20)
+    _filing(db, "0002130357", "0002130357-26-000003", "424B4", 3)
+    _filing(db, "0000000001", "0000000001-26-000001", "S-1", 2)
+    soon = (TODAY + timedelta(days=60)).isoformat()
+    db.add(IpoTerms(
+        cik="0002130357", accession_number="0002130357-26-000003", form_type="424B4",
+        filing_date=TODAY - timedelta(days=3), source_url="https://www.sec.gov/Archives/x.htm",
+        extractor_version="ipo-terms-1",
+        terms=json.dumps({
+            "price_final": {"value": 83.0, "evidence": "The price is $83.00.", "derived": False},
+            "lockup_expiry": {"value": soon, "evidence": "Derived: ...", "derived": True},
+        }),
+    ))  # fmt: skip
+    db.commit()
+    body = client.get("/v1/public/ipos/pipeline").json()
+    assert body["counts"]["priced"] == 1 and body["counts"]["filed"] == 1
+    ant = next(r for r in body["data"] if r["cik"] == "0002130357")
+    assert ant["terms"]["price_final"] == 83.0 and ant["derived_terms"] == ["lockup_expiry"]
+    assert "evidence" not in json.dumps(ant)
+    one = client.get("/v1/public/ipos/2130357").json()
+    assert one["terms"]["price_final"]["evidence"] == "The price is $83.00."
+    assert one["milestones"]["priced"]["form_type"] == "424B4"
+    assert client.get("/v1/public/ipos/320193").status_code == 404
+    soon_list = client.get("/v1/public/ipos/pipeline?lockup_within_days=90").json()["data"]
+    assert [r["cik"] for r in soon_list] == ["0002130357"]
+    keyed = client.get("/v1/ipos?lockup_expiry_within_days=30", headers=auth).json()["data"]
+    assert keyed == []  # 60 days away

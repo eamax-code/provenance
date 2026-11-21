@@ -12,7 +12,7 @@ from app.core.errors import APIError
 from app.db.models import utcnow
 from app.schemas.common import PageMeta
 from app.schemas.graph import IpoList, IpoOut
-from app.services import ipo_pipeline, ipo_terms
+from app.services import ipo_pipeline, ipo_terms, live
 
 router = APIRouter(prefix="/v1", tags=["ipos"])
 
@@ -34,6 +34,12 @@ def list_ipos(
     since: date | None = Query(None, description="Activity on or after this date; overrides days"),
     stage: str | None = Query(None, description="One of " + ", ".join(ipo_pipeline.STAGES)),
     kind: str | None = Query(None, description="ipo or spin_off"),
+    lockup_expiry_within_days: int | None = Query(
+        None,
+        ge=1,
+        le=365,
+        description="Only IPOs whose lock-up ends within this many days (a derived date)",
+    ),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(db_session),
@@ -45,9 +51,16 @@ def list_ipos(
     if kind and kind not in ("ipo", "spin_off"):
         raise APIError(400, "invalid_kind", "kind must be ipo or spin_off")
     start = since or (utcnow().date() - timedelta(days=days))
+    today = utcnow().date()
+    if lockup_expiry_within_days and not since:
+        start = today - timedelta(days=730)  # lock-ups run up to a year or more after pricing
     rows = ipo_pipeline.companies(db, start, stage=stage)
     if kind:
         rows = [r for r in rows if r["kind"] == kind]
+    if lockup_expiry_within_days:
+        all_terms = ipo_terms.terms_by_cik(db, [r["cik"] for r in rows])
+        rows = [r for r in rows if live._lockup_within(all_terms.get(r["cik"]), today,
+                                                        lockup_expiry_within_days)]  # fmt: skip
     page = rows[offset : offset + limit]
     more = offset + limit < len(rows)
     terms = ipo_terms.terms_by_cik(db, [r["cik"] for r in page])

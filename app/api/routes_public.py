@@ -165,6 +165,48 @@ def live_ipos(
 
 
 @router.get(
+    "/ipos/pipeline",
+    responses=_ERRORS,
+    summary="Companies going public by stage, with deal terms (public)",
+    description="Stored data only, never calls the SEC. Up to 200 companies, newest activity "
+    "first, with counts by stage. lockup_within_days lists IPOs whose lock-up (a derived date) "
+    "ends within that many days.",
+)
+def ipo_pipeline_public(
+    request: Request,
+    response: Response,
+    days: int = Query(90, ge=1, le=365),
+    kind: str | None = Query("ipo", pattern="^(ipo|spin_off)$"),
+    lockup_within_days: int | None = Query(None, ge=1, le=365),
+    db: Session = Depends(db_session),
+):
+    _guard(request, response)
+    return live.public_pipeline(db, days, kind, lockup_within_days)
+
+
+@router.get(
+    "/ipos/{cik}",
+    responses=_ERRORS,
+    summary="One company going public: milestones and deal terms with their evidence (public)",
+)
+def ipo_public(
+    request: Request,
+    response: Response,
+    cik: str = Path(max_length=13),
+    db: Session = Depends(db_session),
+):
+    _guard(request, response)
+    try:
+        cik = normalize_cik(cik)
+    except ValueError as exc:
+        raise APIError(422, "invalid_parameter", "cik must be 1-10 digits.") from exc
+    body = live.public_ipo(db, cik)
+    if body is None:
+        raise APIError(404, "not_going_public", "No IPO filings for this company in two years.")
+    return body
+
+
+@router.get(
     "/events",
     responses=_ERRORS,
     summary="Latest notable filings: restatements, bankruptcies, officer changes and more "

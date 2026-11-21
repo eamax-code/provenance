@@ -24,6 +24,7 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | U-01, U-02 | Public as_of on the company overview; peers | done 2026-11-22: `/v1/public/companies/{cik}/overview?as_of=` (statements, figures, filings, leadership, events point in time; summary, peers, risk, listings current and labelled); `statements` (32 metrics by fiscal year, ratios with inputs), `cover`, `events`; peers by 4-digit SIC (3 when fewer than 4), annual report in 2 years, closest revenue, at most 6. Example: docs/api-examples/public-overview.json |
 | U-03 | Leadership by person with current CEO/CFO/Chair | with K-02 |
 | F-02 | IPO deal terms | done 2026-11-22: price range, final price, shares (new and sold), proceeds, discount, exchange and ticker, underwriters and leads, lock-up (and expiry, derived), quiet period end (derived), closing date; every value with its sentence; Anthropic: range $70-78, priced $83, 980M shares, $81.3B, Goldman Sachs and Morgan Stanley lead, 180/365-day lock-up. `sec.ipo_priced` done (first 424B4 after registration, stored as a filing tag at ingestion); lock-up expiry event next |
+| IPO pages | Keyless `/v1/public/ipos/pipeline` (by stage, terms values, counts, `lockup_within_days`) and `/v1/public/ipos/{cik}` (terms with evidence); `/v1/ipos?lockup_expiry_within_days=` | done 2026-11-22 |
 | I-09, F-01 | Production smoke script, Sheets function | queued |
 | Owner | O-01 to O-09 (host, domain, email, merchant of record, model, news, legal, pricing) | waiting on you; G-02, I-01, I-03 wait on them |
 

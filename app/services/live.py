@@ -204,3 +204,77 @@ def public_events(db: Session, limit: int = MAX_LIMIT, today: date | None = None
         return {"data": event_rows(db, since, limit), "as_of": _now_iso(), "notes": [EVENT_NOTE]}
 
     return cached(f"live_events:{limit}:{today}", build)
+
+
+PIPELINE_MAX = 200
+LOOKBACK_DAYS = 730
+
+
+def _lockup_within(terms: dict | None, today: date, days: int) -> bool:
+    exp = (terms or {}).get("lockup_expiry", {}).get("value")
+    return bool(exp) and today <= date.fromisoformat(exp) <= today + timedelta(days=days)
+
+
+def public_pipeline(
+    db: Session,
+    days: int = 90,
+    kind: str | None = "ipo",
+    lockup_within_days: int | None = None,
+    today: date | None = None,
+) -> dict:
+    """Companies going public by stage, with deal-term values (evidence on the per-company
+    endpoint). Stored data only."""
+    today = today or date.today()
+
+    def build():
+        since = today - timedelta(days=LOOKBACK_DAYS if lockup_within_days else days)
+        items = ipo_pipeline.companies(db, since=since)
+        if kind:
+            items = [i for i in items if i["kind"] == kind]
+        terms = ipo_terms.terms_by_cik(db, [i["cik"] for i in items])
+        if lockup_within_days:
+            items = [i for i in items if _lockup_within(terms.get(i["cik"]), today,
+                                                        lockup_within_days)]  # fmt: skip
+        counts = {s: 0 for s in ipo_pipeline.STAGES}
+        rows = []
+        for i in items:
+            counts[i["stage"]] += 1
+            t = terms.get(i["cik"]) or {}
+            rows.append({
+                **_ipo_row(i), "terms": {k: v["value"] for k, v in t.items()} or None,
+                "derived_terms": sorted(k for k, v in t.items() if v.get("derived")),
+            })  # fmt: skip
+        return {"data": rows[:PIPELINE_MAX], "counts": counts, "total": len(rows),
+                "as_of": _now_iso(), "notes": [IPO_NOTE, TERMS_NOTE]}  # fmt: skip
+
+    return cached(f"pipeline:{days}:{kind}:{lockup_within_days}:{today}", build)
+
+
+def public_ipo(db: Session, cik: str, today: date | None = None) -> dict | None:
+    today = today or date.today()
+
+    def build():
+        items = [i for i in ipo_pipeline.companies(db, since=today - timedelta(days=LOOKBACK_DAYS))
+                 if i["cik"] == cik]  # fmt: skip
+        if not items:
+            return None
+        return {**_ipo_row(items[0]), "terms": ipo_terms.terms_by_cik(db, [cik]).get(cik),
+                "notes": [IPO_NOTE, TERMS_NOTE]}  # fmt: skip
+
+    return cached(f"ipo:{cik}:{today}", build)
+
+
+TERMS_NOTE = (
+    "Deal terms are read from the prospectus by rules; each value on the company endpoint "
+    "carries the sentence it came from. Lock-up expiry and quiet period end are derived dates."
+)
+
+
+def _ipo_row(i: dict) -> dict:
+    return {
+        "cik": i["cik"], "name": i["name"], "ticker": i["ticker"], "exchange": i["exchange"],
+        "kind": i["kind"], "stage": i["stage"], "blank_check": i["blank_check"],
+        "last_activity": i["last_activity"].isoformat(),
+        "milestones": {k: {**v, "filing_date": v["filing_date"].isoformat()
+                           if v["filing_date"] else None} for k, v in i["milestones"].items()},
+    }  # fmt: skip
