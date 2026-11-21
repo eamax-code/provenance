@@ -53,6 +53,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--base", default="http://127.0.0.1:8770")
     ap.add_argument("--receiver", type=int, default=0, help="port for the webhook receiver")
+    ap.add_argument(
+        "--receiver-host",
+        default="127.0.0.1",
+        help="how the server reaches this machine (host.docker.internal from Docker)",
+    )
     ap.add_argument("--report", action="store_true")
     args = ap.parse_args()
     key = os.environ.get("PRV_KEY", "")
@@ -133,12 +138,12 @@ def main() -> int:
             def log_message(self, *a):
                 pass
 
-        srv = HTTPServer(("127.0.0.1", args.receiver), Handler)
+        srv = HTTPServer(("0.0.0.0", args.receiver), Handler)
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
+            dest = f"http://{args.receiver_host}:{args.receiver}/hook"
             w = c.post("/v1/watches", headers=h, json={"cik": "320193",
-                       "destination_type": "webhook",
-                       "destination": f"http://127.0.0.1:{args.receiver}/hook"})  # fmt: skip
+                       "destination_type": "webhook", "destination": dest})  # fmt: skip
             assert w.status_code == 201, w.text[:200]
             wid, secret = w.json()["id"], w.json()["webhook_secret"]
             t = c.post(f"/v1/watches/{wid}/test", headers=h)

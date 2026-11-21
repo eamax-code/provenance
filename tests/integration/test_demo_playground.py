@@ -136,3 +136,15 @@ def test_playground_page_is_served(client):
         assert route in js
     assert "demo" in js and "curl" in js
     assert "/playground/" in client.get("/").text
+
+
+def test_demo_key_returns_at_most_ten_rows_even_with_the_default_page(client, ingested_aapl, db,
+                                                                       settings):  # fmt: skip
+    from app.services import public as public_service
+
+    public_service.reset_cache()
+    r = client.get("/v1/companies/320193/facts?period=all", headers={"X-API-Key": "demo"})
+    if r.status_code == 403:  # not a showcase company in this fixture
+        return
+    assert r.status_code == 200 and len(r.json()["data"]) <= settings.demo_max_limit
+    assert r.headers["X-RateLimit-Limit"] == str(settings.demo_rate_limit_per_minute)

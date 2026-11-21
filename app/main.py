@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import secrets
 import time
@@ -9,7 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -87,6 +88,33 @@ Review the underlying filing before relying on a value.
 """
 
 
+async def _demo_capped(request: Request, response):
+    """The demo key's limits on every response: at most demo_max_limit rows in a list, whatever
+    the endpoint's default page size, and its rate limit stated in the headers."""
+    settings = request.app.state.settings
+    cap = settings.demo_max_limit
+    if response.headers.get("content-type", "").startswith("application/json"):
+        body = b"".join([chunk async for chunk in response.body_iterator])
+        try:
+            data = json.loads(body)
+        except ValueError:
+            data = None
+        if (
+            isinstance(data, dict)
+            and isinstance(data.get("data"), list)
+            and len(data["data"]) > cap
+        ):
+            data["data"] = data["data"][:cap]
+            if isinstance(data.get("meta"), dict):
+                data["meta"]["has_more"] = True
+            body = json.dumps(data, separators=(",", ":"), default=str).encode()
+        headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+        response = Response(content=body, status_code=response.status_code, headers=headers,
+                            media_type="application/json")  # fmt: skip
+    response.headers["X-RateLimit-Limit"] = str(settings.demo_rate_limit_per_minute)
+    return response
+
+
 class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         rid = "req_" + secrets.token_hex(8)
@@ -99,6 +127,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             request_id_var.reset(token)
             raise
         duration_ms = round((time.monotonic() - started) * 1000, 1)
+        if getattr(request.state, "demo", False):
+            response = await _demo_capped(request, response)
         response.headers["X-Request-ID"] = rid
         if "cache-control" not in response.headers:
             policy = cache_policy(request.url.path, response.headers.get("content-type", ""))
