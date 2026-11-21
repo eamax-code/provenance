@@ -152,6 +152,67 @@ function audit() {
   return { fail, warn: [...new Set(warn)].slice(0, 12), title: document.title };
 }
 
+async function view(page, theme, width) {
+    // every page view gets its own browser context, so storage set by one check never leaks into the next
+    const { browserContextId } = await send('Target.createBrowserContext', {});
+    const { targetId } = await send('Target.createTarget', { url: 'about:blank', browserContextId });
+    const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+    const errors = []; let status = 0;
+    listeners.push({ session: sessionId, method: 'Runtime.exceptionThrown', fn: (p) => errors.push('JS: ' + (p.exceptionDetails.exception?.description || p.exceptionDetails.text).split('\n')[0]) });
+    listeners.push({ session: sessionId, method: 'Log.entryAdded', fn: (p) => { if (p.entry.level === 'error') errors.push((/Content Security Policy/.test(p.entry.text) ? 'CSP: ' : 'console: ') + p.entry.text.slice(0, 200)); } });
+    listeners.push({ session: sessionId, method: 'Runtime.consoleAPICalled', fn: (p) => { if (p.type === 'error') errors.push('console.error: ' + p.args.map((a) => a.value ?? a.description ?? '').join(' ').slice(0, 200)); } });
+    listeners.push({ session: sessionId, method: 'Network.responseReceived', fn: (p) => { if (p.type === 'Document') status = p.response.status; } });
+    for (const d of ['Page', 'Runtime', 'Log', 'Network']) await send(d + '.enable', {}, sessionId);
+    const mobile = width < 600;
+    await send('Emulation.setDeviceMetricsOverride', { width, height: mobile ? 844 : 900, deviceScaleFactor: 1, mobile }, sessionId);
+    if (theme) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try{localStorage.setItem('prv-theme',${JSON.stringify(theme)})}catch(e){}` }, sessionId);
+    // a page may preset browser storage and stub API responses, to check states without writing data
+    if (page.storage) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try{${Object.entries(page.storage).map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)},${JSON.stringify(v)})`).join(';')}}catch(e){}` }, sessionId);
+    if (page.stubs) {
+      await send('Fetch.enable', { patterns: [{ urlPattern: '*/v1/*' }] }, sessionId);
+      listeners.push({ session: sessionId, method: 'Fetch.requestPaused', fn: (ev) => {
+        const stub = page.stubs.find((st) => new RegExp(st.match).test(ev.request.url));
+        if (!stub) { send('Fetch.continueRequest', { requestId: ev.requestId }, sessionId).catch(() => {}); return; }
+        const body = Buffer.from(JSON.stringify(stub.body)).toString('base64');
+        send('Fetch.fulfillRequest', { requestId: ev.requestId, responseCode: stub.status || 200, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body }, sessionId).catch(() => {});
+      } });
+    }
+    const loaded = new Promise((r) => listeners.push({ session: sessionId, method: 'Page.loadEventFired', fn: r }));
+    await send('Page.navigate', { url: base + page.path }, sessionId);
+    await Promise.race([loaded, sleep(20000)]);
+    // live fetches and reveals: wait until a visible h1 is on the page (up to 8 s), then settle
+    for (let t = 0; t < 32; t++) {
+      const r0 = await send('Runtime.evaluate', { expression: `[...document.querySelectorAll('h1')].some(h => h.getBoundingClientRect().height > 0 && getComputedStyle(h).visibility !== 'hidden')`, returnByValue: true }, sessionId);
+      if (r0.result?.value) break;
+      await sleep(250);
+    }
+    await sleep(900);
+    const r = await send('Runtime.evaluate', { expression: `(${audit})()`, returnByValue: true }, sessionId);
+    const res = r.result?.value || { fail: ['audit crashed: ' + (r.exceptionDetails?.exception?.description || '?')], warn: [] };
+    const want = page.status || 200;
+    if (status !== want) res.fail.unshift(`HTTP ${status} (want ${want})`);
+    const allowed = (page.allowConsole || []).map((p) => new RegExp(p));
+    res.fail.push(...[...new Set(errors)].filter((e) => !(want === 404 && /404/.test(e)) && !allowed.some((re) => re.test(e))));
+    // page-specific expectations: each a JS expression that must be true once the page has settled
+    for (const ex of page.expect || []) {
+      let okEx = false;
+      for (let t = 0; t < 20 && !okEx; t++) {
+        const r1 = await send('Runtime.evaluate', { expression: ex.js, returnByValue: true }, sessionId).catch(() => null);
+        okEx = !!(r1 && r1.result && r1.result.value);
+        if (!okEx) await sleep(250);
+      }
+      if (!okEx) res.fail.push('expectation failed: ' + ex.label);
+    }
+    if (out) {
+      mkdirSync(out, { recursive: true });
+      const shot = await send('Page.captureScreenshot', { format: 'jpeg', quality: 70 }, sessionId);
+      const slug = (page.path.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'home') + (theme ? '-' + theme : '') + '-' + width;
+      writeFileSync(join(out, slug + '.jpg'), Buffer.from(shot.data, 'base64'));
+    }
+    await send('Target.closeTarget', { targetId });
+    await send('Target.disposeBrowserContext', { browserContextId }).catch(() => {});
+  return res;
+}
 // ---- run ----
 const results = [];
 let failures = 0;
@@ -159,40 +220,13 @@ for (const page of config.pages) {
   if (only && !only.has(page.path)) continue;
   for (const theme of page.themes || [null]) {
     for (const width of widths) {
-      const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
-      const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
-      const errors = []; let status = 0;
-      listeners.push({ session: sessionId, method: 'Runtime.exceptionThrown', fn: (p) => errors.push('JS: ' + (p.exceptionDetails.exception?.description || p.exceptionDetails.text).split('\n')[0]) });
-      listeners.push({ session: sessionId, method: 'Log.entryAdded', fn: (p) => { if (p.entry.level === 'error') errors.push((/Content Security Policy/.test(p.entry.text) ? 'CSP: ' : 'console: ') + p.entry.text.slice(0, 200)); } });
-      listeners.push({ session: sessionId, method: 'Runtime.consoleAPICalled', fn: (p) => { if (p.type === 'error') errors.push('console.error: ' + p.args.map((a) => a.value ?? a.description ?? '').join(' ').slice(0, 200)); } });
-      listeners.push({ session: sessionId, method: 'Network.responseReceived', fn: (p) => { if (p.type === 'Document') status = p.response.status; } });
-      for (const d of ['Page', 'Runtime', 'Log', 'Network']) await send(d + '.enable', {}, sessionId);
-      const mobile = width < 600;
-      await send('Emulation.setDeviceMetricsOverride', { width, height: mobile ? 844 : 900, deviceScaleFactor: 1, mobile }, sessionId);
-      if (theme) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try{localStorage.setItem('prv-theme',${JSON.stringify(theme)})}catch(e){}` }, sessionId);
-      const loaded = new Promise((r) => listeners.push({ session: sessionId, method: 'Page.loadEventFired', fn: r }));
-      await send('Page.navigate', { url: base + page.path }, sessionId);
-      await Promise.race([loaded, sleep(20000)]);
-      // live fetches and reveals: wait until a visible h1 is on the page (up to 8 s), then settle
-      for (let t = 0; t < 32; t++) {
-        const r0 = await send('Runtime.evaluate', { expression: `[...document.querySelectorAll('h1')].some(h => h.getBoundingClientRect().height > 0 && getComputedStyle(h).visibility !== 'hidden')`, returnByValue: true }, sessionId);
-        if (r0.result?.value) break;
-        await sleep(250);
+      // the public per-IP limit can answer 429 when views run back to back: wait and look again
+      let res;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        res = await view(page, theme, width);
+        if (!res.fail.some((f) => / 429 /.test(f))) break;
+        await sleep(30000);
       }
-      await sleep(900);
-      const r = await send('Runtime.evaluate', { expression: `(${audit})()`, returnByValue: true }, sessionId);
-      const res = r.result?.value || { fail: ['audit crashed: ' + (r.exceptionDetails?.exception?.description || '?')], warn: [] };
-      const want = page.status || 200;
-      if (status !== want) res.fail.unshift(`HTTP ${status} (want ${want})`);
-      const allowed = (page.allowConsole || []).map((p) => new RegExp(p));
-      res.fail.push(...[...new Set(errors)].filter((e) => !(want === 404 && /404/.test(e)) && !allowed.some((re) => re.test(e))));
-      if (out) {
-        mkdirSync(out, { recursive: true });
-        const shot = await send('Page.captureScreenshot', { format: 'jpeg', quality: 70 }, sessionId);
-        const slug = (page.path.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'home') + (theme ? '-' + theme : '') + '-' + width;
-        writeFileSync(join(out, slug + '.jpg'), Buffer.from(shot.data, 'base64'));
-      }
-      await send('Target.closeTarget', { targetId });
       failures += res.fail.length;
       results.push({ path: page.path, theme, width, ...res });
       if (!flag('json')) {

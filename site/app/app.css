@@ -25,7 +25,7 @@ code { font-family: var(--font-mono); font-size: .85em; }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: .72rem; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); }
 .status-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); } .status-pill.on i { background: var(--good); box-shadow: 0 0 8px var(--good); }
 .panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
-.gate h1 { margin-bottom: 4px; }
+.gate .gate-title { margin-bottom: 4px; font-size: clamp(1.6rem, 2.6vw, 2.25rem); }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 input, select, textarea { font: inherit; color: var(--fg); background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 12px; min-width: 0; }
 input[type="search"], #key-input { flex: 1 1 320px; }

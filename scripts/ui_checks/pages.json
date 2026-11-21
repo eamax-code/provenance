@@ -14,6 +14,19 @@
     { "path": "/docs/" },
     { "path": "/changelog/" },
     { "path": "/playground/" },
+    { "path": "/app/#console", "label": "Free plan sees event-type watches disabled",
+      "storage": { "prv_api_key": "prv_test_stubbed_free_plan" },
+      "stubs": [
+        { "match": "/v1/developer/usage", "body": { "plan": { "plan": "free", "rate_limit_per_minute": 60, "monthly_request_quota": 10000 }, "requests_this_month": 12, "requests_by_route": {}, "daily": [] } },
+        { "match": "/v1/developer/api-keys", "body": { "data": [] } },
+        { "match": "/v1/developer/profile", "body": { "ui_theme": null } },
+        { "match": "/v1/(type-|listing-)?watches", "body": { "data": [], "meta": {} } }
+      ],
+      "expect": [
+        { "label": "type-watch destination disabled", "js": "!!document.getElementById('tw-dest') && document.getElementById('tw-dest').disabled" },
+        { "label": "Builder plan tag shown", "js": "(function(e){return !!e && !e.hidden && /Builder plan/.test(e.textContent)})(document.getElementById('tw-plan'))" },
+        { "label": "upgrade note links to /#pricing", "js": "(function(e){return !!e && !e.hidden && !!e.querySelector('a[href=\"/#pricing\"]')})(document.getElementById('tw-upgrade'))" }
+      ] },
     { "path": "/app/", "themes": ["dark", "light", "ledger", "terminal"] },
     { "path": "/chat/", "themes": ["dark", "light", "ledger", "terminal"] },
     { "path": "/account/", "allowConsole": ["status of 401"] },
