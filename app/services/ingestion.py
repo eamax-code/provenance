@@ -208,6 +208,20 @@ def parse_former_names(value: Any) -> list[tuple[str, date | None, date | None]]
     return out
 
 
+def record_ticker_change(db: Session, company: Company, new_ticker: str | None) -> None:
+    """Keep the ticker a company leaves as a former ticker (K-04), so search still finds it.
+    The SEC publishes only current tickers: this history starts when a change is first seen."""
+    old = company.ticker
+    if not old or not new_ticker or old.upper() == new_ticker.upper():
+        return
+    exists = db.scalar(select(CompanyAlias).where(
+        CompanyAlias.cik == company.cik, CompanyAlias.alias == old,
+        CompanyAlias.kind == "former_ticker"))  # fmt: skip
+    if exists is None:
+        db.add(CompanyAlias(cik=company.cik, alias=old, kind="former_ticker",
+                            valid_to=datetime.now(UTC).date()))  # fmt: skip
+
+
 def store_aliases(db: Session, cik: str, current_name: str, former_names) -> None:
     """Replace the company's former names; the current name is never its own alias."""
     db.execute(delete(CompanyAlias).where(CompanyAlias.cik == cik, CompanyAlias.kind == "former"))
@@ -421,6 +435,7 @@ def import_ticker_mapping(db: Session, payload: dict, now: datetime | None = Non
         else:
             changed = False
             if c.ticker != r["ticker"] and r["ticker"]:
+                record_ticker_change(db, c, r["ticker"])
                 c.ticker = r["ticker"]
                 changed = True
             if c.exchange != r["exchange"] and r["exchange"]:
@@ -451,6 +466,7 @@ def upsert_company(db: Session, rec: CompanyRecord, now: datetime, source_update
     if rec.metadata:
         apply_metadata(company, rec.metadata)
     if rec.ticker:
+        record_ticker_change(db, company, rec.ticker)
         company.ticker = rec.ticker
     if rec.exchange:
         company.exchange = rec.exchange

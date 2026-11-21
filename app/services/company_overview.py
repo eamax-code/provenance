@@ -79,7 +79,15 @@ def _identity(db: Session, company: Company) -> dict:
         }
         for a in db.scalars(
             select(CompanyAlias)
-            .where(CompanyAlias.cik == company.cik)
+            .where(CompanyAlias.cik == company.cik, CompanyAlias.kind == "former")
+            .order_by(CompanyAlias.valid_to.desc().nulls_last())
+        )
+    ]
+    out["former_tickers"] = [
+        {"ticker": a.alias, "to": a.valid_to.isoformat() if a.valid_to else None}
+        for a in db.scalars(
+            select(CompanyAlias)
+            .where(CompanyAlias.cik == company.cik, CompanyAlias.kind == "former_ticker")
             .order_by(CompanyAlias.valid_to.desc().nulls_last())
         )
     ]

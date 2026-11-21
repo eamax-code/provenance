@@ -137,3 +137,21 @@ def test_demo_key_keyword_only_and_showcase_only(client, db, stored_s1, settings
     assert r.status_code == 200 and r.json()["sections"] == []
     outside = client.get("/v1/search", params={"q": "computing capacity", "cik": CIK}, headers=DEMO)
     assert outside.status_code == 403
+
+
+def test_a_former_ticker_still_finds_the_company(db, client, auth):
+    from app.db.models import Company, CompanyAlias, utcnow
+    from app.services.ingestion import record_ticker_change
+
+    c = Company(cik="0001326801", legal_name="Meta Platforms, Inc.", ticker="FB",
+                quality_status="ok", source_url="https://www.sec.gov/",
+                first_detected_at=utcnow())  # fmt: skip
+    db.add(c)
+    db.commit()
+    record_ticker_change(db, c, "META")  # the SEC's ticker file now says META
+    c.ticker = "META"
+    record_ticker_change(db, c, "META")  # unchanged: nothing more recorded
+    db.commit()
+    assert [a.alias for a in db.query(CompanyAlias).filter_by(kind="former_ticker")] == ["FB"]
+    r = client.get("/v1/companies/search?q=FB", headers=auth).json()["data"]
+    assert r[0]["cik"] == "0001326801" and r[0]["match_type"] == "former_ticker"

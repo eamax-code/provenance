@@ -26,7 +26,9 @@ def normalize_name(value: str) -> str:
 @dataclass
 class SearchHit:
     company: Company
-    match_type: str  # cik | ticker | name_exact | name_prefix | name_contains | former_name
+    match_type: (
+        str  # cik | ticker | former_ticker | name_exact | name_prefix | name_contains | former_name
+    )
     # | name_fuzzy
     score: int
     former_name: str | None = None  # the former name that matched, for former_name hits
@@ -38,6 +40,7 @@ _SCORES = {
     "name_exact": 80,
     "name_prefix": 60,
     "name_contains": 40,
+    "former_ticker": 70,  # a ticker the company used before (K-04)
     "former_name": 50,  # below a prefix of the current name, above a word inside one
     "name_fuzzy": 20,
 }
@@ -71,6 +74,14 @@ def search_companies(db: Session, query: str, limit: int = 10) -> tuple[list[Sea
             select(Company).where(func.upper(Company.ticker) == ticker).limit(limit + 1)
         ):
             hits.setdefault(c.cik, SearchHit(c, "ticker", _SCORES["ticker"]))
+        old = func.upper(CompanyAlias.alias)
+        for c, alias in db.execute(
+            select(Company, CompanyAlias.alias)
+            .join(CompanyAlias, CompanyAlias.cik == Company.cik)
+            .where(CompanyAlias.kind == "former_ticker", old == ticker)
+            .limit(limit + 1)
+        ):
+            hits.setdefault(c.cik, SearchHit(c, "former_ticker", _SCORES["former_ticker"], alias))
 
     name = normalize_name(q)
     if name and len(name) >= 2:
@@ -126,6 +137,7 @@ def _former_name_matches(db: Session, name: str, limit: int) -> list[tuple[Compa
         select(Company, CompanyAlias.alias)
         .join(CompanyAlias, CompanyAlias.cik == Company.cik)
         .where(
+            CompanyAlias.kind == "former",  # names only; former tickers are matched as tickers
             or_(
                 alias == name,
                 alias.like(_escape_like(name) + "%", escape="\\"),
