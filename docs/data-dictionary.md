@@ -294,6 +294,19 @@ information about what insiders did, never a recommendation.
 feed (kind `insider`), type watches and MCP. Public: `/v1/public/insider-activity`; the company
 overview's `insider_activity`.
 
+## company_lei, lei_overrides (launch plan K-01)
+
+An SEC filer's LEI and, through it, its listings in Europe, the UK and Canada
+(`app/services/identity.py`). Evidence, strongest first: a hand-checked `lei_overrides` row
+(which may also record "no LEI"); the LEI in the SEC's record (`sec`, high); the GLEIF name equal
+after removing legal-form words and the GLEIF jurisdiction equal to the SEC state of
+incorporation (`name_jurisdiction`, high); the full legal name equal, legal form included, unique
+among issuers, and both in or both outside the US (`name_unique`, medium). Everything else stays
+unmatched. Rebuilt by `scripts/match_identifiers.py` and the daily listings job. Shown as
+`identity` on the company overview, a line on `/profile`, and `sec_cik` on
+`/v1/markets/issuers/{lei}`. Coverage follows the listings data: shares on the 38 covered venues,
+so most links are foreign private issuers that also file with the SEC.
+
 ## edgar_feed, job_state (filings tracker, ADR 0012)
 
 ### edgar_feed

@@ -111,3 +111,6 @@ class ListingEventList(BaseModel):
 class IssuerDetail(BaseModel):
     issuer: IssuerOut
     listings: list[InstrumentOut]
+    sec_cik: str | None = Field(
+        default=None, description="The SEC filer this LEI is linked to (K-01), when matched"
+    )

@@ -27,7 +27,7 @@ from app.db.models import (
 )
 from app.schemas.companies import CompanyOut
 from app.services import cover as cover_service
-from app.services import documents, ipo_terms, live, periods, statements
+from app.services import documents, identity, ipo_terms, live, periods, statements
 from app.services.form8k import ITEM_TITLES, split_items
 from app.services.form_names import form_label
 from app.services.intel import display_name
@@ -379,6 +379,7 @@ def build(
         "risk_factors": risk,
         "peers": _peers(db, company, today),
         "listings": _listings(db, company),
+        "identity": identity.for_company(db, cik),
         "notes": [
             "Figures are as reported in the company's annual reports; each links to its filing "
             "on sec.gov. Missing values mean no mappable figure was filed, not that there is none.",

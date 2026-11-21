@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import IngestionRun, utcnow
+from app.services import identity
 from app.services.ingestion import finish_run, start_run
 from app.services.markets import canada, firds, gleif
 from app.services.markets.http import MarketHttp
@@ -52,6 +53,7 @@ def run_all(
                     results[source] = {
                         "isin_map": mapped,
                         **gleif.enrich_issuers(db, settings, http),
+                        "sec_lei_links": identity.match_all(db),  # K-01
                     }
                 else:
                     results[source] = canada.ingest_source(db, settings, http, source)

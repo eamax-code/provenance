@@ -302,6 +302,31 @@ class InsiderActivity(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class CompanyLei(Base):
+    """An SEC filer's LEI (launch plan K-01), with how it was matched and how sure we are."""
+
+    __tablename__ = "company_lei"
+    __table_args__ = (Index("ix_company_lei_lei", "lei"),)
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    lei: Mapped[str] = mapped_column(String(20), nullable=False)
+    match_method: Mapped[str] = mapped_column(Text, nullable=False)  # sec | name_jurisdiction | ...
+    confidence: Mapped[str] = mapped_column(Text, nullable=False)  # high | medium
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    matched_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class LeiOverride(Base):
+    """A hand-checked CIK to LEI link, or (lei null) a confirmed "no LEI": always wins."""
+
+    __tablename__ = "lei_overrides"
+
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    lei: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    note: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class TypeWatch(Base):
     """A key holder's subscription to filing event types across companies (launch plan T-01):
     "any restatement", optionally narrowed to a universe. High-volume types without a universe

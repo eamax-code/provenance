@@ -25,6 +25,7 @@ from app.db.models import (
     OfficerChange,
 )
 from app.services import cover as cover_service
+from app.services import identity as identity_service
 from app.services import periods
 from app.services.form8k import ITEM_TITLES, split_items
 from app.services.form_names import form_phrase, human_date
@@ -136,6 +137,20 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
             )
     if cover_bits:
         lines.append("Cover page: " + "; ".join(cover_bits) + ".")
+    ident = identity_service.for_company(db, company.cik)
+    if ident:
+        where = sorted({x["venue"] or x["mic"] for x in ident["listings"]})
+        lines.append(
+            f"Legal entity identifier (LEI) {ident['lei']} "
+            f"({ident['match_method'].replace('_', ' ')}, {ident['confidence']} confidence)"
+            + (
+                f"; also listed on {len(where)} venue{'s' if len(where) != 1 else ''} in Europe or "
+                f"the UK: {', '.join(where[:6])}"
+                if where
+                else ""
+            )  # fmt: skip
+            + "."
+        )
     if mart and mart.first_filing_date:
         lines.append(
             f"Filings loaded here run from {mart.first_filing_date} to "

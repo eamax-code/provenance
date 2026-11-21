@@ -21,6 +21,7 @@ from app.schemas.markets import (
     MarketList,
     MarketOut,
 )
+from app.services import identity
 from app.services.markets.records import EVENT_TYPES, STATUSES, is_valid_isin
 
 router = APIRouter(prefix="/v1/markets", tags=["markets"])
@@ -250,6 +251,7 @@ def issuer(
     return IssuerDetail(
         issuer=IssuerOut.model_validate(row),
         listings=[InstrumentOut.model_validate(r) for r in listings],
+        sec_cik=identity.cik_for_lei(db, row.lei),
     )
 
 
