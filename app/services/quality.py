@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import math
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
@@ -263,6 +263,26 @@ def snapshot_to_dict(snap: DataQualitySnapshot) -> dict:
     }
 
 
+EDGAR_START = date(1993, 1, 1)
+
+
+def suspicious_period(stmt):
+    """Facts whose period cannot be right: ending before EDGAR began (1993), or more than two
+    years after the filing that reported it (a typo in a date context, a founding year)."""
+    from sqlalchemy import or_
+
+    from app.db.models import FinancialFact
+
+    later = FinancialFact.filed_date + timedelta(days=730)
+    return stmt.where(or_(FinancialFact.period_end < EDGAR_START, FinancialFact.period_end > later))
+
+
+def suspicious_count(db: Session) -> int:
+    from app.db.models import FinancialFact
+
+    return int(db.scalar(suspicious_period(select(func.count(FinancialFact.id)))) or 0)
+
+
 def render_report(db: Session, limit: int = 10) -> str:
     snaps = list(
         db.scalars(
@@ -284,6 +304,7 @@ def render_report(db: Session, limit: int = 10) -> str:
         f"  notifications: pending={latest.pending_deliveries} "
         f"delivered_24h={latest.delivered_24h} failed_24h={latest.failed_24h} "
         f"oldest_pending_s={latest.oldest_pending_age_seconds}",
+        f"  suspicious periods (before 1993, or 2+ years after filing): {suspicious_count(db)}",
         f"  universe: active={latest.universe_active} due={latest.universe_due} "
         f"disabled={latest.universe_disabled}",
         f"  latency: processed_24h={latest.processed_24h} "

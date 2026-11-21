@@ -22,7 +22,7 @@ from app.db.models import (
 )
 from app.services import ratios
 from app.services.fact_normalizer import CONCEPT_MAP, MAPPING_VERSION
-from app.services.quality import latest_snapshot
+from app.services.quality import EDGAR_START, latest_snapshot, suspicious_count
 from app.services.stats import read_snapshot, store_snapshot
 
 SNAPSHOT = "snapshot:coverage"
@@ -49,7 +49,15 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
             func.sum(case((FinancialFact.quality_status == "ok", 1), else_=0)),
             func.sum(case((FinancialFact.quality_status == "ambiguous_mapping", 1), else_=0)),
             func.count(distinct(case((usable, FinancialFact.cik)))),
-            func.min(case((usable, FinancialFact.period_end))),
+            func.min(
+                case(
+                    (
+                        (FinancialFact.quality_status == "ok")
+                        & (FinancialFact.period_end >= EDGAR_START),
+                        FinancialFact.period_end,
+                    )
+                )
+            ),
         ).group_by(FinancialFact.metric)
     ).all()
     by = {r[0]: r for r in rows}
@@ -72,17 +80,22 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
     forms.append({"label": "Insider reports (Forms 3, 4, 5)", "forms": ["3", "4", "5"],
                   "filings": int(db.scalar(select(func.count(distinct(
                       InsiderFiling.accession_number)))) or 0)})  # fmt: skip
+    holders_cos = int(db.scalar(select(func.count(distinct(BeneficialOwner.subject_cik)))) or 0)
     forms.append({"label": "5% holder reports (Schedules 13D and 13G)",
                   "forms": ["SC 13D", "SC 13G"],
                   "filings": int(db.scalar(select(func.count(distinct(
-                      BeneficialOwner.accession_number)))) or 0)})  # fmt: skip
+                      BeneficialOwner.accession_number)))) or 0),
+                  "basis": f"read on demand; {holders_cos} companies so far"})  # fmt: skip
+    subs_cos = int(db.scalar(select(func.count(distinct(Subsidiary.cik)))) or 0)
     forms.append({"label": "Subsidiary lists (exhibit 21)", "forms": ["EX-21"],
                   "filings": int(db.scalar(select(func.count(distinct(
-                      Subsidiary.accession_number)))) or 0)})  # fmt: skip
+                      Subsidiary.accession_number)))) or 0),
+                  "basis": f"read on demand; {subs_cos} companies so far"})  # fmt: skip
     snap = latest_snapshot(db)
     return {
         "universe": {"filers": filers, "with_facts": with_facts, "ifrs_filers": ifrs},
         "facts_total": int(sum(int(r[1]) for r in rows)),
+        "suspicious_periods": suspicious_count(db),
         "metrics": metrics,
         "ratios": [
             {"metric": k, "label": r.label, "formula": r.formula, "unit": ratios.unit_of(r, "USD")}

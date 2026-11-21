@@ -313,3 +313,21 @@ def test_public_company_search(client, ingested_aapl, fake_sec):
     )
     assert client.get("/v1/public/companies/search?q=").status_code == 422
     assert len(fake_sec.calls) == calls  # never asks the SEC
+
+
+def test_coverage_ignores_impossible_periods(client, db, ingested_aapl, settings):
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.db.models import FinancialFact
+    from app.services import coverage
+
+    f = db.scalar(select(FinancialFact).where(FinancialFact.metric == "revenue").limit(1))
+    f.period_end, f.quality_status = date(1927, 12, 31), "ok"  # a filer typo in a date context
+    db.commit()
+    body = coverage.refresh(db, settings)
+    rev = next(m for m in body["metrics"] if m["metric"] == "revenue")
+    assert rev["earliest_year"] >= 1993 and body["suspicious_periods"] >= 1
+    assert body["history"]["earliest_fact_year"] >= 1993
+    assert "read on demand" in body["forms"][-1]["basis"]
