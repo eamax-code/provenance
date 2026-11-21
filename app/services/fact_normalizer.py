@@ -257,11 +257,50 @@ CONCEPT_MAP: dict[str, dict[str, Any]] = {
     ),
 }
 
+# IFRS (ifrs-full) tags for the same metrics (launch plan D-04): (candidates, fallbacks). Foreign
+# private issuers file 20-F in IFRS; currency is kept as reported, never converted. Net income is
+# profit attributable to owners of the parent, the meaning of us-gaap NetIncomeLoss. A filing uses
+# one taxonomy, so IFRS tags never conflict with US GAAP tags of the same filing.
+IFRS_MAP: dict[str, tuple[list[str], list[str]]] = {
+    "revenue": (["Revenue", "RevenueFromContractsWithCustomers"], ["RevenueFromSaleOfGoods"]),
+    "cost_of_revenue": (["CostOfSales"], []),
+    "gross_profit": (["GrossProfit"], []),
+    "r_and_d": (["ResearchAndDevelopmentExpense"], []),
+    "sga": (["SellingGeneralAndAdministrativeExpense"], []),
+    "operating_income": (["ProfitLossFromOperatingActivities"], []),
+    "interest_expense": (["InterestExpense"], ["FinanceCosts"]),
+    "pretax_income": (["ProfitLossBeforeTax"], []),
+    "income_tax": (["IncomeTaxExpenseContinuingOperations"], []),
+    "net_income": (["ProfitLossAttributableToOwnersOfParent"], []),
+    "eps_basic": (["BasicEarningsLossPerShare"], []),
+    "eps_diluted": (["DilutedEarningsLossPerShare"], []),
+    "shares_basic_weighted": (["WeightedAverageShares"], []),
+    "shares_diluted_weighted": (["AdjustedWeightedAverageShares"], []),
+    "d_and_a": (["DepreciationAndAmortisationExpense"], []),
+    "cash_and_equivalents": (["CashAndCashEquivalents"], []),
+    "current_assets": (["CurrentAssets"], []),
+    "total_assets": (["Assets"], []),
+    "current_liabilities": (["CurrentLiabilities"], []),
+    "total_liabilities": (["Liabilities"], []),
+    "long_term_debt": (["NoncurrentPortionOfNoncurrentBorrowings"], ["LongtermBorrowings"]),
+    "long_term_debt_current": (["CurrentPortionOfLongtermBorrowings"], []),
+    "stockholders_equity": (["EquityAttributableToOwnersOfParent"], []),
+    "retained_earnings": (["RetainedEarnings"], []),
+    "operating_cash_flow": (["CashFlowsFromUsedInOperatingActivities"], []),
+    "capex": (["PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"], []),
+    "dividends_paid": (
+        ["DividendsPaidClassifiedAsFinancingActivities"],
+        ["DividendsPaidToEquityHoldersOfParentClassifiedAsFinancingActivities"],
+    ),
+    "share_repurchases": (["PaymentsToAcquireOrRedeemEntitysShares"], []),
+    "sbc": (["AdjustmentsForSharebasedPayments"], []),
+}
+
 SUPPORTED_METRICS = tuple(CONCEPT_MAP.keys())
 METRIC_LABELS = {m: spec["label"] for m, spec in CONCEPT_MAP.items()}
 METRIC_UNIT_KIND = {m: spec["unit"] for m, spec in CONCEPT_MAP.items()}
 DEFAULT_UNIT = {"currency": "USD", "per_share": "USD/shares", "shares": "shares"}
-TAXONOMIES = ("us-gaap",)
+TAXONOMIES = ("us-gaap", "ifrs-full")
 
 ANNUAL_FORMS = {"10-K", "10-K/A", "10-KT", "10-KT/A", "20-F", "20-F/A", "40-F", "40-F/A"}
 QUARTERLY_FORMS = {"10-Q", "10-Q/A", "10-QT", "10-QT/A"}
@@ -446,39 +485,53 @@ def normalize_company_facts(
     results: list[NormalizedFact] = []
     for metric, spec in CONCEPT_MAP.items():
         expected_ptype = spec["period_type"]
+        tags = _ordered_tags(metric, spec)
+        primary = sum(1 for _, _, fallback in tags if not fallback)
         candidate_facts: list[tuple[int, NormalizedFact]] = []
-        for taxonomy in (spec["taxonomy"],) if spec["taxonomy"] != "us-gaap" else TAXONOMIES:
+        for precedence, (taxonomy, tag, _) in enumerate(tags):
             tax = facts_root.get(taxonomy)
-            if not isinstance(tax, dict):
+            concept = tax.get(tag) if isinstance(tax, dict) else None
+            if not isinstance(concept, dict):
                 continue
-            tags = spec["candidates"] + spec.get("fallbacks", [])
-            for precedence, tag in enumerate(tags):
-                concept = tax.get(tag)
-                if not isinstance(concept, dict):
+            units = concept.get("units")
+            if not isinstance(units, dict):
+                continue
+            for unit, observations in units.items():
+                if not isinstance(observations, list):
                     continue
-                units = concept.get("units")
-                if not isinstance(units, dict):
-                    continue
-                for unit, observations in units.items():
-                    if not isinstance(observations, list):
-                        continue
-                    for obs in observations:
-                        nf = _normalize_observation(
-                            metric,
-                            expected_ptype,
-                            taxonomy,
-                            tag,
-                            unit,
-                            obs,
-                            cik,
-                            www_base,
-                            spec.get("unit"),
-                        )
-                        if nf is not None:
-                            candidate_facts.append((precedence, nf))
-        _apply_precedence(candidate_facts, len(spec["candidates"]))
+                for obs in observations:
+                    nf = _normalize_observation(
+                        metric,
+                        expected_ptype,
+                        taxonomy,
+                        tag,
+                        unit,
+                        obs,
+                        cik,
+                        www_base,
+                        spec.get("unit"),
+                    )
+                    if nf is not None:
+                        candidate_facts.append((precedence, nf))
+        _apply_precedence(candidate_facts, primary)
         results.extend(nf for _, nf in candidate_facts)
     return results
+
+
+def _ordered_tags(metric: str, spec: dict) -> list[tuple[str, str, bool]]:
+    """(taxonomy, tag, is_fallback) in precedence order: every primary tag (US GAAP, then IFRS)
+    before every fallback."""
+    if spec["taxonomy"] != "us-gaap":
+        return [(spec["taxonomy"], t, False) for t in spec["candidates"]] + [
+            (spec["taxonomy"], t, True) for t in spec["fallbacks"]
+        ]
+    ifrs_c, ifrs_f = IFRS_MAP.get(metric, ([], []))
+    return (
+        [("us-gaap", t, False) for t in spec["candidates"]]
+        + [("ifrs-full", t, False) for t in ifrs_c]
+        + [("us-gaap", t, True) for t in spec["fallbacks"]]
+        + [("ifrs-full", t, True) for t in ifrs_f]
+    )
 
 
 def _normalize_observation(

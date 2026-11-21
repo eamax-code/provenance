@@ -15,7 +15,7 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | Live | `GET /v1/public/ipos` and `/v1/public/events` for the home strip | done 2026-11-22: keyless, stored data only, at most 5 rows, cached 60 s, sec.gov filing links, short labels of 24 characters or fewer |
 | D-02 | Cover-page facts | done 2026-11-22: `shares_outstanding` and `public_float` from dei (mapping 1.3.0, 32 metrics), filer category and fiscal year end; `cover` on the public company bundle and a cover line on `/profile`, each with its filing. Auditor and PCAOB firm ID come from PCAOB Form AP (connections.md #8), not in SEC company facts |
 | D-03 | Derived ratios | queued (phase B) |
-| D-04 | IFRS mapping | queued |
+| D-04 | IFRS mapping | done 2026-11-22: `IFRS_MAP` for the 30 metrics (ifrs-full), currency as reported, statements use the reporting currency; about 920 IFRS filers re-read after the main re-normalisation |
 | I-05, I-02 | Semantic search regression test; deployment sizing from the rebuilt DB | queued |
 | K-01 to K-04 | CIK-LEI-ISIN, officer dates on edges, co-registrants, ticker history | queued |
 | G-01 | Pricing in code, one source of truth (owner approved prices 2026-11-22) | done 2026-11-22: `app/core/plans.py` (Free, Analyst $19, Builder $79, Team $249, Enterprise from $1,500); enforced: rate, quota, export rows, watches, streams, chat per day, forecasts (Analyst+), keys per account; `commercial_use` as a label; overage and credits hidden until G-02; `/v1/public/plans`, `site/plans.json` and the home JSON-LD from `scripts/sync_plans.py` (provenance-ui runs it with its home commit) |

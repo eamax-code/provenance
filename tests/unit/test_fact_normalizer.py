@@ -338,7 +338,8 @@ def test_cover_page_facts_come_from_dei():
             "EntityPublicFloat": {"units": {"USD": [
                 {"end": "2026-03-27", "val": 3647099000000, "accn": "0000320193-26-000026",
                  "fy": 2026, "fp": "FY", "form": "10-K", "filed": "2026-11-03"}]}},
-        }, "us-gaap": {"EntityPublicFloat": {"units": {"USD": [{"end": "2026-03-27", "val": 1}]}}}}},
+        }, "us-gaap": {"EntityPublicFloat": {"units": {"USD": [
+            {"end": "2026-03-27", "val": 1}]}}}}},
         "320193",
     )  # fmt: skip
     so = _by(facts, "shares_outstanding")[0]
@@ -346,3 +347,29 @@ def test_cover_page_facts_come_from_dei():
     assert so.quality_status == "ok" and so.period_class == "annual"
     (pf,) = _by(facts, "public_float")  # the us-gaap tag of the same name is not read
     assert pf.unit == "USD" and pf.source_taxonomy == "dei"
+
+
+def test_ifrs_filers_get_figures_in_their_reporting_currency():
+    def o(val, end, start="2024-01-01", form="20-F"):
+        return {"val": val, "start": start, "end": end, "accn": "0001046179-25-000010",
+                "fy": 2024, "fp": "FY", "form": form, "filed": "2025-04-17"}  # fmt: skip
+
+    payload = {"facts": {"ifrs-full": {
+        "Revenue": {"units": {"TWD": [o(2894307700000, "2024-12-31")],
+                              "USD": [o(88291000000, "2024-12-31")]}},
+        "ProfitLossAttributableToOwnersOfParent": {"units": {"TWD": [o(1173268000000,
+                                                                       "2024-12-31")]}},
+        "ProfitLoss": {"units": {"TWD": [o(1172433000000, "2024-12-31")]}},  # incl. minorities
+        "DilutedEarningsLossPerShare": {"units": {"TWD/shares": [o(45.25, "2024-12-31")]}},
+        "RevenueFromSaleOfGoods": {"units": {"TWD": [o(1, "2024-12-31")]}},  # fallback, covered
+    }}}  # fmt: skip
+    facts = normalize_company_facts(payload, "1046179")
+    rev = {f.unit: f for f in _by(facts, "revenue") if f.source_tag == "Revenue"}
+    assert rev["TWD"].currency == "TWD" and rev["TWD"].quality_status == "ok"
+    assert rev["TWD"].source_taxonomy == "ifrs-full" and rev["USD"].quality_status == "ok"
+    fallback = next(f for f in _by(facts, "revenue") if f.source_tag == "RevenueFromSaleOfGoods")
+    assert fallback.quality_status == "ambiguous_mapping"
+    (ni,) = _by(facts, "net_income")  # attributable to the parent; ProfitLoss is not mapped
+    assert ni.value == Decimal("1173268000000") and ni.quality_status == "ok"
+    (eps,) = _by(facts, "eps_diluted")
+    assert eps.currency == "TWD" and eps.unit == "TWD/shares"

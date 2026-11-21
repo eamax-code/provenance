@@ -59,16 +59,17 @@ def annual_cells(
     if as_of:
         stmt = known_by(stmt, as_of)
     rows = db.scalars(stmt).all()
-    # one unit per metric: the metric's own (USD) when reported, else the most recent one
+    # one unit per metric: the one with the most fiscal years (the reporting currency; IFRS
+    # filers add a USD convenience translation for the latest year only), USD on a tie
     units: dict[str, str] = {}
     for m in wanted:
-        mine = [r for r in rows if r.metric == m]
-        if not mine:
-            continue
-        own = default_unit(m)
-        units[m] = (
-            own if any(r.unit == own for r in mine) else max(mine, key=lambda r: r.period_end).unit
-        )
+        years: dict[str, set] = {}
+        for r in rows:
+            if r.metric == m:
+                years.setdefault(r.unit, set()).add(r.period_end)
+        if years:
+            own = default_unit(m)
+            units[m] = max(years, key=lambda u: (len(years[u]), u == own))
     best: dict[str, dict[date, FinancialFact]] = {}
     for r in rows:
         if units.get(r.metric) != r.unit:

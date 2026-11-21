@@ -141,6 +141,16 @@ it: utilities often report no total liabilities, banks no gross profit or cash a
 `InterestExpenseOperating`. **Utilities:** revenue falls back to
 `RegulatedAndUnregulatedOperatingRevenue` only for years no contract-revenue tag covers.
 
+**IFRS (D-04):** foreign private issuers that file 20-F in IFRS (TSMC, SAP, Novartis; about 920
+filers) are read from the `ifrs-full` taxonomy with `IFRS_MAP` in the same module: revenue is
+`Revenue` or `RevenueFromContractsWithCustomers` (fallback `RevenueFromSaleOfGoods`), net income
+is `ProfitLossAttributableToOwnersOfParent`, equity `EquityAttributableToOwnersOfParent`,
+operating income `ProfitLossFromOperatingActivities`, interest expense falls back to
+`FinanceCosts`. Currency is kept as reported (TWD, EUR, ...), never converted; many IFRS filers
+also report a USD convenience translation for the latest year, stored as its own unit. The
+company page's statements use the unit with the most fiscal years. Some 20-F filers (ASML) file
+in US GAAP and are read as such.
+
 **Fallbacks** are used only for a (unit, period) no candidate tag covers. Where a candidate
 covers it, the fallback observation is stored as `ambiguous_mapping` with the note "industry
 fallback tag", and it is never compared with the candidates for conflicts.
