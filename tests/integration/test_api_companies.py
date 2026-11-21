@@ -361,3 +361,19 @@ def test_facts_name_the_periods_own_fiscal_year(client, auth, ingested_aapl):
     assert labels and all(lbl.startswith("Q") and " FY" in lbl for lbl in labels)
     spec = client.get("/openapi.json").json()["components"]["schemas"]["FactOut"]["properties"]
     assert "period_fiscal_year" in spec and "comparative" in spec["fiscal_year"]["description"]
+
+
+def test_impossible_periods_are_flagged_when_returned(client, auth, db, ingested_aapl):
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.db.models import FinancialFact
+
+    f = db.scalar(select(FinancialFact).where(FinancialFact.metric == "total_assets").limit(1))
+    f.period_end, f.quality_status = date(1927, 12, 31), "ok"
+    db.commit()
+    r = client.get("/v1/companies/320193/facts?metric=total_assets&period=all&to=1930-01-01",
+                   headers=auth)  # fmt: skip
+    row = r.json()["data"][0]
+    assert row["period_end"] == "1927-12-31" and row["quality_status"] == "suspicious_period"

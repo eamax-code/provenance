@@ -37,6 +37,7 @@ from app.services.fact_normalizer import (
 )
 from app.services.ingestion import ingest_company
 from app.services.point_in_time import as_of_note, known_by
+from app.services.quality import is_suspicious_period
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
 
 logger = logging.getLogger("app.api.companies")
@@ -455,6 +456,8 @@ def _require_company(db: Session, cik: str) -> Company:
 
 def _to_fact_out(row: FinancialFact, revision_count: int, is_latest: bool) -> FactOut:
     out = FactOut.model_validate(row)
+    if is_suspicious_period(row.period_end, row.filed_date):
+        out.quality_status = "suspicious_period"  # before 1993, or 2+ years after its filing
     out.derivation = json.loads(row.derivation) if row.derivation else None
     out.revision_count = revision_count
     out.is_latest_revision = is_latest

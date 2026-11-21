@@ -277,6 +277,13 @@ def suspicious_period(stmt):
     return stmt.where(or_(FinancialFact.period_end < EDGAR_START, FinancialFact.period_end > later))
 
 
+def is_suspicious_period(period_end, filed_date) -> bool:
+    """The same rule for one row, applied when a figure is returned (until mapping 1.4.1)."""
+    return period_end < EDGAR_START or (
+        filed_date is not None and period_end > filed_date + timedelta(days=730)
+    )
+
+
 def suspicious_count(db: Session) -> int:
     from app.db.models import FinancialFact
 

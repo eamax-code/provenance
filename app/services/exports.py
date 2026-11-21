@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from app.db.models import FinancialFact, MartCompanyPeriod
 from app.services import periods
+from app.services.quality import is_suspicious_period
 
 EXPORT_COLUMNS = [
     "cik",
@@ -79,6 +80,8 @@ def fact_row(f: FinancialFact, fiscal_year_end: str | None = None) -> dict:
         if f.period_class in ("annual", "quarterly") else None
     )  # fmt: skip
     row["calendar_period"] = periods.calendar_period(f.period_start, f.period_end, f.period_class)
+    if is_suspicious_period(f.period_end, f.filed_date):
+        row["quality_status"] = "suspicious_period"
     return {col: row[col] for col in EXPORT_COLUMNS}
 
 
