@@ -96,6 +96,13 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
 .ev-what { display: grid; gap: 2px; }
 .ev-what .muted { font-size: 14px; }
 .people > li { padding: 12px 0; display: grid; gap: 6px; }
+.people .tag { margin-left: 8px; }
+.people .is-former b { color: var(--muted); }
+.now { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.now-role { background: var(--surface); border-radius: 4px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.now-role dt { color: var(--muted); font-size: 13px; font-weight: 600; }
+.now-role dd { margin: 0; font-size: 15px; }
+@media (max-width: 1200px) { .now { grid-template-columns: minmax(0, 1fr); } }
 .people ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; font-size: 14.5px; color: var(--muted); }
 .people ul span:first-child { color: var(--ink); }
 .peers li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 6px 0; font-size: 15px; }
@@ -228,6 +235,7 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
     </section>
     <section class="co-sec" id="people" aria-labelledby="t-people">
       <div class="sec-head"><h2 id="t-people">People</h2><p class="muted" id="people-count"></p></div>
+      <dl class="now" id="people-now" aria-label="Current leadership"></dl>
       <ul class="people" id="people-list"></ul>
     </section>
   </div>

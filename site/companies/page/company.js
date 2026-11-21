@@ -197,24 +197,39 @@
     });
   }
 
-  /* ---- people: leadership changes grouped by person, newest first ---- */
+  /* ---- people: who leads it now, then each person's changes, newest first ---- */
+  var STATUS = { appointed: 'Appointed', departed: 'Departed', leaving: 'Leaving', 'in office': 'In office' };
   function people(d) {
-    var L = d.leadership || { changes: [] }, box = $('people-list');
-    box.textContent = '';
+    var L = d.leadership || { changes: [] }, box = $('people-list'), now = $('people-now');
+    box.textContent = ''; now.textContent = '';
     $('people-count').textContent = L.item_502_filings ? L.item_502_filings + ' filings with item 5.02 since ' + P.date(L.since) : '';
-    if (!L.changes.length) { box.appendChild(el('p', { class: 'muted', text: 'No officer or director change read from these filings yet.' })); return; }
-    var by = {}, order = [];
-    L.changes.forEach(function (ch) { var k = ch.person || 'An officer'; if (!by[k]) { by[k] = []; order.push(k); } by[k].push(ch); });
-    order.slice(0, 8).forEach(function (name) {
-      var rows = by[name].slice().sort(function (a, b) { return a.filing_date < b.filing_date ? 1 : -1; });
-      var latest = rows[0];
-      var item = el('li', { class: 'person' }, [el('p', {}, [el('b', { text: name }), latest.role ? ', ' + latest.role : ''])]);
+    var cur = L.current_leadership || {};
+    [['ceo', 'Chief executive'], ['cfo', 'Chief financial officer'], ['chair', 'Chair']].forEach(function (r) {
+      var p = cur[r[0]];
+      now.appendChild(el('div', { class: 'now-role' }, [
+        el('dt', { text: r[1] }),
+        el('dd', {}, p ? [el('b', { text: p.name }), el('span', { class: 'muted', text: (p.title ? ' · ' + p.title : '') }), el('br'),
+          el('span', { class: 'muted small' }, [(p.basis === '8-K item 5.02' && p.since ? 'since ' + P.date(p.since) + ', ' : '') + 'from ', srcLink(p.basis === '8-K item 5.02' ? '8-K' : 'Form 4', p.source_url, 'Filed ' + P.date(p.filing_date))])]
+          : [el('span', { class: 'muted', text: 'Not named in recent filings' })])
+      ]));
+    });
+    var list = L.people && L.people.length ? L.people : null;
+    if (!list) {
+      if (!L.changes.length) { box.appendChild(el('p', { class: 'muted', text: 'No officer or director change read from these filings yet.' })); return; }
+      var by = {}, order = [];
+      L.changes.forEach(function (ch) { var k = ch.person || 'An officer'; if (!by[k]) { by[k] = []; order.push(k); } by[k].push(ch); });
+      list = order.map(function (n) { return { name: n, role: by[n][0].role, events: by[n].map(function (c) { return { filing_date: c.filing_date, sentence: c.what || c.change_label, verified: c.verified, source_url: c.source_url }; }) }; });
+    }
+    list.slice(0, 10).forEach(function (p) {
+      var head = el('p', {}, [el('b', { text: p.name }), p.role ? ', ' + p.role : '']);
+      if (p.status && STATUS[p.status]) head.appendChild(el('span', { class: 'tag', text: STATUS[p.status] + (p.status === 'leaving' && p.leaving_on ? ' ' + P.date(p.leaving_on) : '') }));
+      var item = el('li', { class: 'person' + (p.current === false ? ' is-former' : '') }, [head]);
       var ul = el('ul');
-      rows.forEach(function (ch) {
+      (p.events || []).slice().sort(function (a, b) { return a.filing_date < b.filing_date ? 1 : -1; }).forEach(function (ev) {
         ul.appendChild(el('li', {}, [
-          el('span', { text: P.date(ch.filing_date) + ': ' + (ch.what || ch.change_label) }), ' ',
-          srcLink('8-K', ch.source_url, 'Opens the filing'),
-          ch.verified ? null : el('span', { class: 'tag', title: 'Read by a model; the sentence did not match the filing exactly. Open the 8-K to check.', text: 'unverified' })
+          el('span', { text: P.date(ev.filing_date) + ': ' + humanDates(ev.sentence || ev.change_label || '') }), ' ',
+          srcLink('8-K', ev.source_url, 'Opens the filing'),
+          ev.verified === false ? el('span', { class: 'tag', title: 'Read by a model; the sentence did not match the filing exactly. Open the 8-K to check.', text: 'unverified' }) : null
         ]));
       });
       item.appendChild(ul);
