@@ -101,6 +101,33 @@
     });
   }
 
+  var SPEC = null;
+  function spec() { return SPEC || (SPEC = fetch('/openapi.json').then(function (r) { return r.ok ? r.json() : { paths: {} }; }).catch(function () { return { paths: {} }; })); }
+  function has(path, method) { return spec().then(function (d) { return !!(d.paths && d.paths[path] && d.paths[path][method]); }); }
+  function testButton(base, id, kind, cell) {
+    has(base + '/{watch_id}/test', 'post').then(function (ok) {
+      if (!ok) return;
+      var b = el('button', { class: 'btn small', type: 'button', text: 'Send test' });
+      b.addEventListener('click', function () {
+        b.disabled = true; b.textContent = 'Sending…';
+        api(base + '/' + id + '/test', { method: 'POST' }).then(function (res) {
+          var r = res.body || {};
+          toast('Test sent to the ' + kind + (r.status_code ? ': your endpoint answered ' + r.status_code : '') + '.', 'ok');
+        }).catch(function () {}).then(function () { b.disabled = false; b.textContent = 'Send test'; });
+      });
+      cell.insertBefore(b, cell.firstChild);
+    });
+  }
+  function pauseButton(base, w, cell, reload) {
+    has(base + '/{watch_id}', 'patch').then(function (ok) {
+      if (!ok) return;
+      var b = el('button', { class: 'btn small', type: 'button', text: w.is_active ? 'Pause' : 'Resume' });
+      b.addEventListener('click', function () {
+        api(base + '/' + w.id, { method: 'PATCH', body: { is_active: !w.is_active } }).then(function () { toast(w.is_active ? 'Paused. Nothing is sent until you resume it.' : 'Resumed.', 'ok'); reload(); });
+      });
+      cell.appendChild(b);
+    });
+  }
   function loadWatches() {
     var box = $('con-watches'); box.innerHTML = '';
     api('/v1/watches?include_inactive=true&limit=100').then(function (res) {
@@ -112,6 +139,8 @@
         var dl = el('button', { class: 'btn small', type: 'button', text: 'Deliveries' });
         dl.addEventListener('click', function () { loadDeliveries('/v1/watches/' + w.id, 'CIK ' + w.cik + ' → ' + w.destination, 'a new filing is detected'); });
         actions.appendChild(dl);
+        if (w.is_active && w.destination_type === 'webhook') testButton('/v1/watches', w.id, 'webhook', actions);
+        pauseButton('/v1/watches', w, actions, loadWatches);
         if (w.is_active) {
           var off = el('button', { class: 'btn small danger', type: 'button', text: 'Deactivate' });
           off.addEventListener('click', function () {
@@ -152,8 +181,10 @@
         var label = SCOPES[w.scope_type] + ' ' + w.scope_value;
         var actions = el('td', { class: 'row' });
         var dl = el('button', { class: 'btn small', type: 'button', text: 'Deliveries' });
-        dl.addEventListener('click', function () { loadDeliveries('/v1/listing-watches/' + w.id, label + ' → ' + w.destination, 'a listing event is detected'); });
+        dl.addEventListener('click', function () { loadDeliveries('/v1/listing-watches/' + w.id, label + ' → ' + w.destination, 'a listing event is read'); });
         actions.appendChild(dl);
+        if (w.is_active && w.destination_type === 'webhook') testButton('/v1/listing-watches', w.id, 'webhook', actions);
+        pauseButton('/v1/listing-watches', w, actions, loadListingWatches);
         if (w.is_active) {
           var off = el('button', { class: 'btn small danger', type: 'button', text: 'Deactivate' });
           off.addEventListener('click', function () {
@@ -167,6 +198,96 @@
       tbl.appendChild(tb); box.appendChild(el('div', { class: 'table-wrap' }, [tbl]));
     });
   }
+  /* ---- event-type watches ---- */
+  var FALLBACK_TYPES = [
+    ['sec.restatement', 'Restatement (4.02)'], ['sec.auditor_change', 'Auditor change (4.01)'], ['sec.bankruptcy', 'Bankruptcy (1.03)'],
+    ['sec.change_in_control', 'Change in control (5.01)'], ['sec.acquisition_completed', 'Acquisition completed (2.01)'], ['sec.material_agreement', 'Material agreement (1.01)'],
+    ['sec.officer_change', 'Officer or director change (5.02)'], ['sec.shareholder_vote', 'Shareholder vote (5.07)'], ['sec.results', 'Results (2.02)'],
+    ['sec.late_filing', 'Late filing (NT 10-K/Q)'], ['sec.delisting', 'Security delisted (Form 25)'], ['sec.deregistration', 'Deregistration (Form 15)'],
+    ['sec.tender_offer', 'Tender offer'], ['sec.merger_proxy', 'Merger proxy'], ['sec.ipo_priced', 'IPO priced (424B4)']
+  ];
+  function eventTypes() {
+    return has('/v1/event-types', 'get').then(function (ok) {
+      if (!ok) return FALLBACK_TYPES.map(function (x) { return { type: x[0], label: x[1] }; });
+      return api('/v1/event-types').then(function (r) { return (r.body && (r.body.data || r.body)) || []; });
+    });
+  }
+  function bindTypeCreate(allowed) {
+    var form = $('twatch-form'); if (!form) return;
+    $('tw-plan').hidden = false; $('tw-upgrade').hidden = !!allowed;
+    Array.prototype.forEach.call(form.elements, function (f) { f.disabled = !allowed; });
+    var box = $('tw-types');
+    if (!box.getAttribute('data-filled')) {
+      box.setAttribute('data-filled', '1');
+      eventTypes().then(function (list) {
+        list.forEach(function (e) {
+          var lab = el('label', { class: 'check' }, [el('input', { type: 'checkbox', name: 'tw-ev', value: e.type }), ' ' + (e.label || e.type) + (e.delivery === 'hourly_batch' ? ' (hourly)' : '')]);
+          box.appendChild(lab);
+          if (!allowed) lab.querySelector('input').disabled = true;
+        });
+      });
+    }
+    if (form.getAttribute('data-bound')) return; form.setAttribute('data-bound', '1');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var types = Array.prototype.map.call(form.querySelectorAll('input[name="tw-ev"]:checked'), function (c) { return c.value; });
+      if (!types.length) { toast('Pick at least one event type.', 'error'); return; }
+      var ciks = $('tw-ciks').value.split(/[\s,]+/).map(function (c) { return c.replace(/\D/g, ''); }).filter(Boolean);
+      var body = { event_types: types, destination: $('tw-dest').value.trim() };
+      if ($('tw-sic').value.trim()) body.sic_prefix = $('tw-sic').value.trim();
+      if ($('tw-exchange').value.trim()) body.exchange = $('tw-exchange').value.trim();
+      if ($('tw-filer').value) body.filer_category = $('tw-filer').value;
+      if (ciks.length) body.ciks = ciks;
+      api('/v1/type-watches', { method: 'POST', body: body }).then(function (res) {
+        showSecret($('twatch-secret'), 'Event-type watch created for ' + types.length + ' type' + (types.length > 1 ? 's' : '') + '.', res.body.webhook_secret);
+        form.reset(); loadTypeWatches(); loadUsage();
+      });
+    });
+  }
+  function scopeText(w) {
+    return [w.sic_prefix && 'SIC ' + w.sic_prefix + '…', w.exchange, w.filer_category, w.ciks && w.ciks.length && w.ciks.length + ' companies'].filter(Boolean).join(' · ') || 'All companies';
+  }
+  function loadTypeWatches() {
+    var box = $('con-twatches'); if (!box) return; box.innerHTML = '';
+    api('/v1/type-watches?include_inactive=true&limit=100').then(function (res) {
+      var rows = (res.body && res.body.data) || [];
+      if (!rows.length) { box.appendChild(el('p', { class: 'muted', text: 'No event-type watches yet.' })); return; }
+      var tbl = el('table', {}, [el('thead', {}, [el('tr', {}, ['Event types', 'Companies', 'Destination', 'Delivery', 'Last delivered', 'Status', ''].map(function (h) { return el('th', { text: h }); }))])]);
+      var tb = el('tbody');
+      rows.forEach(function (w) {
+        var actions = el('td', { class: 'row' });
+        has('/v1/type-watches/{watch_id}/deliveries', 'get').then(function (ok) {
+          if (!ok) return;
+          var dl = el('button', { class: 'btn small', type: 'button', text: 'Deliveries' });
+          dl.addEventListener('click', function () { loadDeliveries('/v1/type-watches/' + w.id, w.event_types.join(', ') + ' → ' + w.destination, 'a matching filing is read'); });
+          actions.insertBefore(dl, actions.firstChild);
+        });
+        if (w.is_active) testButton('/v1/type-watches', w.id, 'webhook', actions);
+        pauseButton('/v1/type-watches', w, actions, loadTypeWatches);
+        if (w.is_active) {
+          var off = el('button', { class: 'btn small danger', type: 'button', text: 'Deactivate' });
+          off.addEventListener('click', function () {
+            if (off.getAttribute('data-armed') !== '1') { off.setAttribute('data-armed', '1'); off.textContent = 'Confirm'; setTimeout(function () { off.removeAttribute('data-armed'); off.textContent = 'Deactivate'; }, 4000); return; }
+            api('/v1/type-watches/' + w.id, { method: 'DELETE' }).then(function () { toast('Event-type watch deactivated. Historical deliveries are kept.', 'ok'); loadTypeWatches(); loadUsage(); });
+          });
+          actions.appendChild(off);
+        }
+        tb.appendChild(el('tr', {}, [el('td', { class: 'wrap', text: w.event_types.join(', ') }), el('td', { text: scopeText(w) }), el('td', { class: 'mono wrap', text: w.destination }), el('td', { text: w.delivery_mode === 'batched' || w.delivery_mode === 'hourly_batch' ? 'Hourly batch' : 'As filed' }), el('td', { class: 'mono', text: fmtTs(w.last_delivered_at) }), el('td', {}, [el('span', { class: 'badge ' + (w.is_active ? 'ok' : 'failed'), text: w.is_active ? 'active' : 'inactive' })]), actions]));
+      });
+      tbl.appendChild(tb); box.appendChild(el('div', { class: 'table-wrap' }, [tbl]));
+    }).catch(function () {});
+  }
+  function gateTypeWatches() {
+    // the plan's own flag from the one plan table decides; Free and Analyst see the form, disabled
+    Promise.all([
+      api('/v1/developer/usage').then(function (r) { return r.body && r.body.plan && r.body.plan.plan; }).catch(function () { return null; }),
+      fetch('/plans.json').then(function (r) { return r.json(); }).catch(function () { return { data: [] }; })
+    ]).then(function (x) {
+      var plan = (x[1].data || []).filter(function (p) { return p.name === x[0]; })[0];
+      bindTypeCreate(x[0] === 'internal' || x[0] === 'enterprise' || !!(plan && plan.type_watches));
+    });
+  }
+
   function showSecret(out, title, secret) {
     out.hidden = false; out.innerHTML = '';
     out.appendChild(el('p', {}, [el('strong', { text: title })]));
@@ -208,9 +329,9 @@
 
   window.ProvenanceConsole = {
     load: function (apiFn, toastFn) {
-      api = apiFn; toast = toastFn; bindCreate(); bindListingCreate();
+      api = apiFn; toast = toastFn; bindCreate(); bindListingCreate(); gateTypeWatches();
       $('con-deliveries').hidden = true;
-      loadUsage(); loadKeys(); loadWatches(); loadListingWatches();
+      loadUsage(); loadKeys(); loadWatches(); loadTypeWatches(); loadListingWatches();
     }
   };
 })();
