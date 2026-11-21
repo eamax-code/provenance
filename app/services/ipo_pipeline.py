@@ -115,3 +115,43 @@ def _track(filings: list[Filing]) -> dict | None:
             stage = [s for s in reached if s != "withdrawn"][-1]  # refiled after withdrawing
     last = max(m["filing_date"] for m in milestones.values())
     return {"kind": kind, "stage": stage, "last_activity": last, "milestones": milestones}
+
+
+IPO_PRICED = "sec.ipo_priced"
+
+
+def priced_accession(db: Session, cik: str) -> str | None:
+    """The company's IPO pricing filing: its first 424B4 after its registration, if any."""
+    rows = db.scalars(
+        select(Filing)
+        .where(Filing.cik == cik, Filing.form_type.in_(FORMS + REPORTS))
+        .order_by(Filing.filing_date, Filing.accession_number)
+    ).all()
+    track = _track(list(rows))
+    if not track or track["kind"] != "ipo" or "priced" not in track["milestones"]:
+        return None
+    return track["milestones"]["priced"]["accession_number"]
+
+
+def tag_priced(db: Session, ciks: list[str]) -> int:
+    """Set sec.ipo_priced on each company's IPO pricing filing. Returns filings tagged."""
+    tagged = 0
+    for cik in ciks:
+        accn = priced_accession(db, cik)
+        if accn is None:
+            continue
+        f = db.scalar(select(Filing).where(Filing.cik == cik, Filing.accession_number == accn))
+        tags = set(t for t in (f.event_tags or "").split(",") if t) if f else set()
+        if f is not None and IPO_PRICED not in tags:
+            f.event_tags = ",".join(sorted(tags | {IPO_PRICED}))
+            tagged += 1
+    db.flush()
+    return tagged
+
+
+def tag_all_priced(db: Session) -> int:
+    """Backfill: every company with a 424B4 on record."""
+    ciks = list(db.scalars(select(Filing.cik).where(Filing.form_type == "424B4").distinct()))
+    n = tag_priced(db, ciks)
+    db.commit()
+    return n

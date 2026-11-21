@@ -28,7 +28,7 @@ def test_types_come_only_from_form_and_declared_items():
     assert filing_events.types_for("DEFM14A", None) == ["sec.merger_proxy"]
     assert filing_events.types_for("8-K", ["1.03"]) == ["sec.bankruptcy"]
     for name, t in filing_events.FILING_EVENT_TYPES.items():
-        assert name.startswith("sec.") and t.label and (t.item or t.forms)
+        assert name.startswith("sec.") and t.label and (t.item or t.forms or t.tagged)
 
 
 def test_feed_carries_event_types_and_filters_by_them(

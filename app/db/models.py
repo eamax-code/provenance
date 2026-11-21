@@ -102,6 +102,9 @@ class Filing(Base):
     source_published_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     primary_document: Mapped[str | None] = mapped_column(Text, nullable=True)
     items: Mapped[str | None] = mapped_column(Text, nullable=True)  # 8-K items, "5.02,9.01"
+    # Event types that need more than the form to tell (sec.ipo_priced: the company's first
+    # final prospectus after its registration), set at ingestion; comma-separated
+    event_tags: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     source_payload_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     first_detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)

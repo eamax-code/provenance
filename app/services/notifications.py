@@ -81,7 +81,7 @@ def next_hour(now: datetime) -> datetime:
 
 
 def _type_watch_deliveries(db: Session, filing: Filing, now: datetime) -> int:
-    types = set(filing_events.types_for(filing.form_type, filing.items))
+    types = set(filing_events.types_for(filing.form_type, filing.items, filing.event_tags))
     if not types:
         return 0
     watches = db.scalars(select(TypeWatch).where(TypeWatch.is_active.is_(True))).all()
@@ -120,7 +120,7 @@ def _company_watch_deliveries(db: Session, filing: Filing, now: datetime) -> int
     ).all()
     if not watches:
         return 0
-    types = set(filing_events.types_for(filing.form_type, filing.items))
+    types = set(filing_events.types_for(filing.form_type, filing.items, filing.event_tags))
     # A watch with event types only fires for filings that carry one of them (D-05).
     watches = [w for w in watches if not w.event_types or types & set(w.event_types.split(","))]
     if not watches:
@@ -247,7 +247,9 @@ def build_event_payload(
             "filing_date": filing.filing_date.isoformat() if filing.filing_date else None,
             "accepted_at": iso_z(filing.accepted_at),
             "items": split_items(filing.items),
-            "event_types": (types := filing_events.types_for(filing.form_type, filing.items)),
+            "event_types": (
+                types := filing_events.types_for(filing.form_type, filing.items, filing.event_tags)
+            ),
             "event_labels": {t: filing_events.FILING_EVENT_TYPES[t].label for t in types},
             "source_url": filing.source_url,
         },

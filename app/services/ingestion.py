@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.logging import log_event
 from app.db.models import Company, CompanyAlias, FinancialFact, IngestionRun, utcnow
 from app.db.models import Filing as FilingRow
-from app.services import events, notifications
+from app.services import events, ipo_pipeline, notifications
 from app.services.fact_normalizer import NormalizedFact, normalize_company_facts
 from app.services.form8k import normalize_items
 from app.services.sec_client import (
@@ -753,6 +753,8 @@ def _ingest_company(
     # Backfill never notifies (ADR 0004): not the company's first ingestion, not rows that came
     # from older-filings history pages, and not filings older than NOTIFY_MAX_FILING_AGE_DAYS.
     # The same rows, and only those, go to the event feed (ADR 0007).
+    if any(r.form_type == "424B4" for r in new_rows):
+        ipo_pipeline.tag_priced(db, [cik])  # sec.ipo_priced before anyone is notified
     first_ingestion = company.last_processed_at is None
     if not first_ingestion:
         history_accessions = {r.accession_number for r in filing_recs if r.from_history_page}

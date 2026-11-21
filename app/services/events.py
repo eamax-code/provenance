@@ -190,7 +190,7 @@ def fetch_page(
 
 
 def _filing_event(pos: Cursor, f: Filing, name: str, ticker: str | None) -> dict:
-    types = filing_events.types_for(f.form_type, f.items)
+    types = filing_events.types_for(f.form_type, f.items, f.event_tags)
     return {
         "id": pos.encode(),
         "type": FILING_EVENT_TYPE,

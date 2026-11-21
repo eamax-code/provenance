@@ -372,6 +372,7 @@ filer declared. Nothing is read from the text and nothing is inferred.
 
 | Type | From |
 | --- | --- |
+| `sec.ipo_priced` | the company's first 424B4 after its registration (not a follow-on): `filings.event_tags`, set at ingestion and by `scripts/build_marts.py` |
 | `sec.restatement` | 8-K item 4.02 (non-reliance on earlier financial statements) |
 | `sec.auditor_change` | 8-K item 4.01 |
 | `sec.bankruptcy` | 8-K item 1.03 |

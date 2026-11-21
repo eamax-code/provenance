@@ -226,7 +226,8 @@ TOOLS: dict[str, dict[str, Any]] = {
     "recent_events": {
         "title": "Event feed",
         "description": "New SEC filings, officer changes from 8-K item 5.02 and listing events, "
-        "in order. event_type narrows to what a filing means: sec.restatement (8-K 4.02), "
+        "in order. event_type narrows to what a filing means: sec.ipo_priced (an IPO's final "
+        "prospectus), sec.restatement (8-K 4.02), "
         "sec.auditor_change (4.01), sec.bankruptcy (1.03), sec.material_agreement (1.01), "
         "sec.acquisition_completed (2.01), sec.change_in_control (5.01), sec.results (2.02), "
         "sec.shareholder_vote (5.07), sec.late_filing (NT 10-K/Q), sec.deregistration "

@@ -118,3 +118,24 @@ def test_deal_terms_reach_the_ipo_list_and_the_strip(client, db, auth):
     t = ipo["terms"]["price_final"]
     assert t["value"] == 83.0 and t["evidence"] == ev and t["form_type"] == "424B4"
     assert t["source_url"].startswith("https://www.sec.gov/")
+
+
+def test_ipo_priced_is_the_first_424b4_after_registration_only(client, db):
+    from app.services import filing_events, ipo_pipeline
+
+    public_service.reset_cache()
+    _company(db, "0002130357", "Anthropic, PBC", "ANT")
+    _company(db, "0000000005", "Seasoned Co", "SEAS")
+    _filing(db, "0002130357", "0002130357-26-000001", "S-1", 20)
+    _filing(db, "0002130357", "0002130357-26-000003", "424B4", 3)
+    _filing(db, "0000000005", "0000000005-24-000001", "10-K", 400)  # already reporting
+    _filing(db, "0000000005", "0000000005-26-000001", "424B4", 2)  # a follow-on offering
+    db.commit()
+    assert ipo_pipeline.tag_all_priced(db) == 1
+    assert ipo_pipeline.tag_all_priced(db) == 0  # idempotent
+    assert filing_events.types_for("424B4", None, "sec.ipo_priced") == ["sec.ipo_priced"]
+    assert filing_events.types_for("424B4", None, None) == []
+    events = client.get("/v1/public/events").json()["data"]
+    assert [(e["company_name"], e["short_label"]) for e in events] == [
+        ("Anthropic, PBC", "IPO priced")
+    ]

@@ -171,7 +171,8 @@ _FILTER_DOCS = {
     "form_type": "Filings of these form types only, e.g. 8-K,10-Q",
     "items": "8-K filings with any of these items, e.g. 5.02,2.02",
     "mic": "Listing events on these venues only, e.g. XLON,XETA",
-    "event_type": "Event types, comma-separated: what a filing means (sec.restatement, "
+    "event_type": "Event types, comma-separated: what a filing means (sec.ipo_priced, "
+    "sec.restatement, "
     "sec.auditor_change, sec.bankruptcy, sec.material_agreement, sec.acquisition_completed, "
     "sec.change_in_control, sec.results, sec.shareholder_vote, sec.late_filing, "
     "sec.deregistration, sec.delisting, sec.tender_offer, sec.merger_proxy), "

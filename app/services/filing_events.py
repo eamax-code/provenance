@@ -23,9 +23,13 @@ class FilingEventType:
     label: str
     item: str | None = None  # 8-K item code
     forms: tuple[str, ...] = ()  # or one of these form types
+    tagged: bool = False  # or set on the filing at ingestion (Filing.event_tags)
 
 
 FILING_EVENT_TYPES: dict[str, FilingEventType] = {
+    "sec.ipo_priced": FilingEventType(
+        "Initial public offering priced: the company's final prospectus (424B4)", tagged=True
+    ),
     "sec.restatement": FilingEventType(
         "Earlier financial statements should no longer be relied upon (8-K item 4.02)", "4.02"
     ),
@@ -70,6 +74,7 @@ FILING_EVENT_TYPES: dict[str, FilingEventType] = {
 SHORT_LABELS = {
     "sec.bankruptcy": "Bankruptcy",
     "sec.restatement": "Restatement",
+    "sec.ipo_priced": "IPO priced",
     "sec.change_in_control": "Change in control",
     "sec.auditor_change": "Auditor change",
     "sec.delisting": "Security delisted",
@@ -91,13 +96,19 @@ OFFICER_CHANGE_RANK = PRIORITY.index("sec.late_filing") + 1  # officer changes r
 HIGH_VOLUME = frozenset({"sec.results", "sec.material_agreement", "sec.shareholder_vote"})
 
 
-def types_for(form_type: str | None, items: str | list[str] | None) -> list[str]:
+def types_for(
+    form_type: str | None, items: str | list[str] | None, tags: str | None = None
+) -> list[str]:
     """The event types a filing carries, in the order of FILING_EVENT_TYPES."""
     form = (form_type or "").upper()
     codes = set(split_items(items) if isinstance(items, str) or items is None else items)
+    tagged = set(split_items(tags))
     out = []
     for name, t in FILING_EVENT_TYPES.items():
-        if t.item is not None:
+        if t.tagged:
+            if name in tagged:
+                out.append(name)
+        elif t.item is not None:
             if form in EIGHT_K_FORMS and t.item in codes:
                 out.append(name)
         elif form in t.forms:
@@ -114,7 +125,9 @@ def condition(types: list[str]):
     clauses = []
     for name in types:
         t = FILING_EVENT_TYPES[name]
-        if t.item is not None:
+        if t.tagged:
+            clauses.append(Filing.event_tags.like(f"%{name}%"))
+        elif t.item is not None:
             clauses.append(Filing.form_type.in_(EIGHT_K_FORMS) & Filing.items.like(f"%{t.item}%"))
         else:
             clauses.append(Filing.form_type.in_(t.forms))

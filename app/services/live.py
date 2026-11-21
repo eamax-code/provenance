@@ -161,7 +161,7 @@ def event_rows(
         changes_stmt = changes_stmt.where(OfficerChange.cik == cik)
     exchanges = set() if cik else _exchange_filers(db)
     for f, name, ticker in db.execute(stmt).all():
-        types = filing_events.types_for(f.form_type, f.items)
+        types = filing_events.types_for(f.form_type, f.items, f.event_tags)
         if not types or f.cik in exchanges:
             continue  # an exchange files Form 25 for others; the issuer's own row counts
         top = min(types, key=filing_events.PRIORITY.index)

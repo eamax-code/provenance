@@ -11,7 +11,7 @@ import time
 
 from _bootstrap import bootstrap
 
-from app.services import documents, marts
+from app.services import documents, ipo_pipeline, marts
 from app.services.sec_client import normalize_cik
 
 
@@ -23,6 +23,10 @@ def main() -> None:
     db = Session()
     try:
         ciks = [normalize_cik(c) for c in args.cik] if args.cik else None
+        t = time.perf_counter()
+        n = ipo_pipeline.tag_priced(db, ciks) if ciks else ipo_pipeline.tag_all_priced(db)
+        db.commit()
+        print(f"sec.ipo_priced tags: {n} new in {time.perf_counter() - t:.1f}s")
         t = time.perf_counter()
         n = marts.build_company_marts(db, ciks)
         print(f"mart_company: {n} rows in {time.perf_counter() - t:.1f}s")
