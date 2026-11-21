@@ -13,7 +13,6 @@
     ["exports", "Exports", "Bounded CSV and JSON downloads."],
     ["chat", "Chat", "Questions answered from the data, with citations."],
     ["developer", "Keys and usage", "Usage, keys, profile and key requests, with your API key."],
-    ["account", "Account (browser)", "Sign in by emailed link and manage keys; uses a session cookie, not a key."],
     ["public", "Public", "No key needed: plans, showcase companies and listing events."],
     ["operations", "Operations", "Health and readiness of this deployment."],
   ];

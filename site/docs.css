@@ -21,11 +21,14 @@
 .steps > li::before { content: counter(step); grid-row: span 3; width: 32px; height: 32px; border-radius: 50%; background: var(--field); color: var(--field-ink); display: grid; place-items: center; font-weight: 700; font-size: .95rem; }
 .steps > li > * { grid-column: 2; }
 .code { position: relative; border: 1px solid var(--line); border-radius: var(--radius); background: var(--code-bg); min-width: 0; }
-.code-tabs { display: flex; gap: 2px; padding: 6px 6px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.code-tabs { display: flex; gap: 2px; padding: 6px 6px 0; flex-wrap: wrap; }
 .code-tabs button { border: 0; background: none; color: var(--soft); font: 600 .85rem var(--face); padding: 8px 12px; border-radius: 4px 4px 0 0; cursor: pointer; border-bottom: 2px solid transparent; }
 .code-tabs button[aria-selected="true"] { color: var(--code-ink); border-bottom-color: var(--accent-hi); }
 .code pre { margin: 0; padding: 16px 84px 16px 18px; overflow-x: auto; color: var(--code-ink); font: 13.5px/1.6 var(--mono); tab-size: 2; }
-.code pre[hidden] { display: none; }
+.code pre[hidden], .code [role="tabpanel"][hidden] { display: none; }
+.code pre code { font-size: inherit; background: none; padding: 0; border: 0; }
+.code .mcp-ask { padding: 0 18px 16px; font-size: var(--step-small); color: var(--code-ink); }
+.button-link { font-weight: 600; }
 .code .copy { position: absolute; top: 6px; right: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 4px; font: 600 .78rem var(--face); padding: 5px 10px; cursor: pointer; }
 .code .copy:hover { border-color: var(--soft); }
 .code .c { color: var(--soft); }

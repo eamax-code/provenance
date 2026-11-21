@@ -83,9 +83,8 @@
 <!-- /shell:header -->
 <main class="app" id="main">
   <div class="pub-head">
-    <p class="eyebrow">Developers</p>
     <h1>Your first cited figure in ten minutes</h1>
-    <p class="muted">Every value Provenance returns carries the SEC filing it came from. Start with the demo key, no sign-up, then follow a guide for the part you need.</p>
+    <p class="muted">Every value Provenance returns carries the SEC filing it came from. The first call below works as pasted, with the demo key and no sign-up.</p>
   </div>
   <div class="doc">
     <nav class="doc-toc" aria-label="On this page">
@@ -119,20 +118,17 @@
         <h2 id="quickstart-h">Quickstart</h2>
         <ol class="steps">
           <li>
-            <h3>Get a key</h3>
-            <p>Use <code>demo</code> to try the API now: read-only endpoints, the showcase companies, ten rows a page and 20 requests a minute. For every company, exports and alerts, <a href="/account/">create a free account</a> and make a key in a minute. It is shown to you once; keep it in an environment variable, not in code.</p>
-          </li>
-          <li>
-            <h3>Make a request</h3>
-            <p>Send the key in the <code>X-API-Key</code> header. This asks for Apple's annual revenue.</p>
+            <h3>Make a call, no sign-up</h3>
+            <p>This asks for Apple's annual revenue with the public <code>demo</code> key. Pick how you work; each tab runs as pasted.</p>
             <div class="code" data-tabs>
-              <div class="code-tabs" role="tablist" aria-label="Language">
+              <div class="code-tabs" role="tablist" aria-label="How you call it">
                 <button type="button" role="tab" aria-selected="true">curl</button>
                 <button type="button" role="tab" aria-selected="false">Python</button>
                 <button type="button" role="tab" aria-selected="false">JavaScript</button>
+                <button type="button" role="tab" aria-selected="false">MCP (Claude, Cursor)</button>
               </div>
 <pre role="tabpanel"><code>curl -s "{{BASE}}/v1/companies/320193/facts?metric=revenue&amp;period=annual&amp;limit=3" \
-  -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre>
+  -H "X-API-Key: demo"</code></pre>
 <pre role="tabpanel" hidden><code>pip install "provenance-client @ git+https://github.com/eamax-code/provenance#subdirectory=clients/python"
 
 from provenance_client import Client
@@ -142,16 +138,32 @@ for fact in client.facts("320193", metric="revenue", period="annual")[:3]:
     print(fact["period_end"], fact["value"], fact["source_url"])</code></pre>
 <pre role="tabpanel" hidden><code>const res = await fetch(
   "{{BASE}}/v1/companies/320193/facts?metric=revenue&amp;period=annual&amp;limit=3",
-  { headers: { "X-API-Key": process.env.PROVENANCE_API_KEY ?? "demo" } },
+  { headers: { "X-API-Key": "demo" } },
 );
 if (!res.ok) throw new Error((await res.json()).error.message);
 const { data } = await res.json();
 data.forEach((f) =&gt; console.log(f.period_end, f.value, f.source_url));</code></pre>
+<div role="tabpanel" hidden>
+<!-- shell:mcp -->
+<pre class="ui-code mcp-line"><code data-origin>claude mcp add --transport http provenance \
+  {{BASE}}/mcp \
+  --header "X-API-Key: $PROVENANCE_API_KEY"</code></pre>
+<!-- /shell:mcp -->
+<p class="mcp-ask">With no key set, the demo limits apply. Then ask: "What was Apple's revenue in each of the last three years, and which filings report it?"</p>
+</div>
             </div>
+            <p><a class="button-link" href="/playground/#company-facts:run">Run it here</a>, in the playground, without leaving the browser.</p>
           </li>
           <li>
-            <h3>Cite what you show</h3>
-            <p>Each row has a <code>source_url</code> to the filing on sec.gov and its <code>accession_number</code>. Link the figure to that page wherever you display it. The next section explains the rest of the row.</p>
+            <h3>Read the citation</h3>
+            <p>Each row has a <code>source_url</code> to the filing on sec.gov and its <code>accession_number</code>. Link the figure to that page wherever you display it. <a href="#citation">The next section</a> explains the rest of the row.</p>
+          </li>
+          <li>
+            <h3>Swap in your own key</h3>
+            <p>The demo key covers the showcase companies, ten rows a page and 20 requests a minute. For every company, exports and alerts, <a href="/account/">create a free account</a> and make a key in a minute. It is shown to you once; keep it in an environment variable, not in code:</p>
+            <div class="code"><pre><code>export PROVENANCE_API_KEY="your key"
+curl -s "{{BASE}}/v1/companies/789019/facts?metric=revenue&amp;period=annual&amp;limit=3" \
+  -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
           </li>
         </ol>
       </section>
@@ -286,7 +298,13 @@ curl -s "{{BASE}}/v1/markets/instruments?q=Exosens&amp;region=europe" -H "X-API-
             <button type="button" role="tab" aria-selected="false">Claude Desktop</button>
             <button type="button" role="tab" aria-selected="false">Any client</button>
           </div>
-<pre role="tabpanel"><code>claude mcp add --transport http provenance {{BASE}}/mcp --header "X-API-Key: $PROVENANCE_API_KEY"</code></pre>
+<div role="tabpanel">
+<!-- shell:mcp -->
+<pre class="ui-code mcp-line"><code data-origin>claude mcp add --transport http provenance \
+  {{BASE}}/mcp \
+  --header "X-API-Key: $PROVENANCE_API_KEY"</code></pre>
+<!-- /shell:mcp -->
+</div>
 <pre role="tabpanel" hidden><code><span class="c">// claude_desktop_config.json</span>
 {
   "mcpServers": {

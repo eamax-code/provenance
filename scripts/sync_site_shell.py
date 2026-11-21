@@ -102,6 +102,8 @@ def parts() -> dict[str, str]:
         "theme": (SHELL / "theme-head.html").read_text().strip(),
         "header": (SHELL / "header.html").read_text().strip(),
         "footer": (SHELL / "footer.html").read_text().strip(),
+        # the one MCP install line, so home and the developer guide never drift apart
+        "mcp": (SHELL / "mcp.html").read_text().strip(),
     }
 
 

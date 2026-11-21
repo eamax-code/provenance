@@ -844,9 +844,13 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     </div>
     <div class="code">
       <p>Or hand it to your agent in one line.</p>
-      <div class="call"><button class="copybtn" type="button" data-copy="tooldef">Copy</button><pre class="ui-code" id="tooldef"><code data-origin>claude mcp add --transport http provenance \
+      <div class="call"><button class="copybtn" type="button" data-copy="tooldef">Copy</button><div id="tooldef">
+<!-- shell:mcp -->
+<pre class="ui-code mcp-line"><code data-origin>claude mcp add --transport http provenance \
   {{BASE}}/mcp \
-  --header "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
+  --header "X-API-Key: $PROVENANCE_API_KEY"</code></pre>
+<!-- /shell:mcp -->
+</div></div>
       <p>Then ask: "What was Microsoft's operating income in each of the last three years, and which filings report it?"</p>
     </div>
   </div>

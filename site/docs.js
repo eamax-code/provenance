@@ -40,7 +40,7 @@
     btn.className = "copy";
     btn.textContent = "Copy";
     btn.addEventListener("click", async () => {
-      const pre = [...block.querySelectorAll("pre")].find((p) => !p.hidden);
+      const pre = [...block.querySelectorAll("pre")].find((p) => !p.closest("[hidden]"));
       try {
         await navigator.clipboard.writeText(pre.innerText.trim());
         btn.textContent = "Copied";

@@ -55,7 +55,8 @@
   $('pg-key').addEventListener('change', function () { loadPeriods(); });
   function keyNote() {
     var k = $('pg-key').value.trim();
-    $('pg-key-note').textContent = k === 'demo' ? 'Demo: showcase companies, 10 rows, 20 requests/min.' : (k ? 'Your key stays in this browser.' : 'No key: only public endpoints will work.');
+    $('pg-key-note').textContent = k === 'demo' ? '' : (k ? 'Your key stays in this browser.' : 'No key: only public endpoints will work.');
+    $('pg-use-demo').hidden = k === 'demo';
   }
 
   /* ---- catalog ---- */
@@ -205,6 +206,8 @@
         var ra = r.headers.get('Retry-After'); if (ra) meta.push('retry after ' + ra + ' s');
         $('pg-meta').textContent = meta.join(' · ');
         renderJson(body); $('pg-copy-resp').disabled = false;
+        $('pg-upsell').hidden = !(key === 'demo' && (r.status === 401 || r.status === 403 || r.status === 429));
+        showCitation(body);
       });
     }).catch(function () {
       $('pg-status').textContent = 'network error'; $('pg-status').className = 'badge s5';
@@ -212,15 +215,33 @@
     }).then(function () { $('pg-send').disabled = false; });
   });
 
+  /* The filing behind the first row, so the citation is the first thing read. sec.gov Archives links only. */
+  var ARCHIVE = /^https:\/\/www\.sec\.gov\/Archives\//;
+  function showCitation(body) {
+    var box = $('pg-cite'), row = body && body.data && body.data[0];
+    box.hidden = true; box.innerHTML = '';
+    if (!row || typeof row !== 'object' || !ARCHIVE.test(row.source_url || '')) return;
+    var what = [row.fiscal_year && (row.period_class === 'annual' ? 'FY' + row.fiscal_year : row.fiscal_year), row.form_type, row.filed_date && 'filed ' + day(row.filed_date)].filter(Boolean).join(' · ');
+    box.appendChild(document.createTextNode('Every row cites its filing. Row 1 came from ' + (what || 'this filing') + ': '));
+    box.appendChild(el('a', { href: row.source_url, rel: 'noopener', target: '_blank', text: 'open it on sec.gov' }));
+    if (row.quality_status && row.quality_status !== 'ok') box.appendChild(document.createTextNode(' (quality: ' + row.quality_status + ')'));
+    box.hidden = false;
+  }
+  function day(iso) { var d = new Date(iso + 'T00:00:00Z'); return isNaN(d) ? iso : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }); }
+  var CITE_KEYS = { '"source_url"': 1, '"accession_number"': 1, '"quality_status"': 1, '"source_tag"': 1 };
+
   function renderJson(body) {
     var out = $('pg-response'); out.innerHTML = '';
     if (typeof body === 'string') { out.textContent = body; return; }
     var text = JSON.stringify(body, null, 2);
-    var re = /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, last = 0, m;
+    var re = /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, last = 0, m, citeNext = false;
     while ((m = re.exec(text))) {
       if (m.index > last) out.appendChild(document.createTextNode(text.slice(last, m.index)));
       var cls = m[1] ? (m[2] ? 'k' : 's') : m[3] ? 'b' : m[0] === 'null' ? 'z' : 'n';
-      out.appendChild(el('span', { class: cls, text: m[1] || m[0] }));
+      if (m[2] && CITE_KEYS[m[1]]) { citeNext = true; cls += ' cite'; }
+      else if (!m[2] && citeNext) { cls += ' cite'; citeNext = false; }
+      var raw = m[1] || m[0], url = cls.indexOf('cite') > -1 && m[1] && !m[2] ? JSON.parse(raw) : '';
+      out.appendChild(ARCHIVE.test(url) ? el('a', { class: cls, href: url, rel: 'noopener', target: '_blank', text: raw }) : el('span', { class: cls, text: raw }));
       if (m[2]) out.appendChild(document.createTextNode(m[2]));
       last = re.lastIndex;
     }
@@ -237,7 +258,8 @@
   /* ---- defaults from live data: first showcase CIK, latest listing ISIN and LEI ---- */
   function loadDefaults() {
     var a = fetch('/v1/public/companies').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-      if (d && d.data && d.data.length) DEFAULTS.cik = String(parseInt(d.data[0].cik, 10));
+      var ciks = d && d.data ? d.data.map(function (c) { return String(parseInt(c.cik, 10)); }) : [];
+      if (ciks.length && ciks.indexOf(DEFAULTS.cik) === -1) DEFAULTS.cik = ciks[0];
     }).catch(function () {});
     var b = fetch('/v1/public/listings/events').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
       var withIsin = d && d.data ? d.data.filter(function (e) { return e.isin; })[0] : null;
@@ -255,10 +277,12 @@
   renderCatalog(); keyNote();
   var hash = (location.hash || '').replace('#', ''), autorun = /:run$/.test(hash);
   hash = hash.replace(/:run$/, '');
-  select(CATALOG.some(function (e) { return e.id === hash; }) ? hash : 'listing-events');
+  var linked = CATALOG.some(function (e) { return e.id === hash; });
+  // No link: open on one company's revenue and run it, so the first screen shows a cited answer.
+  select(linked ? hash : 'company-facts');
   loadDefaults().then(function () {
     select(current.id);
-    // Shareable links: /playground/#<endpoint>:run sends the request on open.
-    if (autorun) $('pg-form').requestSubmit();
+    // Shareable links: /playground/#<endpoint>:run sends the request on open; a bare link only selects.
+    if (autorun || !linked) $('pg-form').requestSubmit();
   });
 })();

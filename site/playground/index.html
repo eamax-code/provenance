@@ -82,21 +82,21 @@
 </header>
 <!-- /shell:header -->
 <div class="app">
-  <div class="pub-head">
-    <p class="eyebrow">API playground · no signup</p>
-    <h1>Try the API with the demo key</h1>
-    <p class="muted">Pick an endpoint, adjust the parameters and send a real request to this deployment. The <code>demo</code> key works on read-only endpoints for the public showcase companies, up to 10 rows per request and 20 requests per minute. Paste your own key for full access.</p>
-  </div>
   <main id="main" class="pg">
+  <div class="pg-top">
+    <h1>Playground</h1>
+    <p>Real requests to this server with the <code>demo</code> key: showcase companies, 10 rows, 20 a minute. Paste your own key for every company.</p>
+  </div>
+  <div class="pg-grid">
     <aside class="pg-nav" aria-label="Endpoints"><div id="pg-catalog"></div></aside>
     <section class="pg-main">
       <div class="panel pg-head">
         <div class="pg-title"><span class="pg-method" id="pg-method">GET</span><code id="pg-path">/v1/...</code></div>
         <p class="muted" id="pg-desc"></p>
         <div class="pg-keyrow">
-          <label for="pg-key" class="eyebrow">API key</label>
+          <label for="pg-key" class="pg-keylabel">API key</label>
           <input id="pg-key" value="demo" autocomplete="off" spellcheck="false">
-          <button type="button" class="btn small" id="pg-use-demo">Use demo key</button>
+          <button type="button" class="linkish" id="pg-use-demo" hidden>Back to demo</button>
           <button type="button" class="btn small" id="pg-use-mine" hidden>Use my saved key</button>
           <span class="muted small" id="pg-key-note"></span>
         </div>
@@ -106,15 +106,18 @@
         <div class="pg-params" id="pg-params"></div>
         <div class="row"><button class="btn primary" type="submit" id="pg-send">Send request</button><span class="muted small" id="pg-hint"></span></div>
       </form>
-      <section class="panel">
+      <section class="panel pg-req">
         <div class="row" style="justify-content:space-between"><h2 class="pg-h">Request</h2><div class="pg-tabs" role="tablist" id="pg-tabs"><button type="button" class="tab" data-lang="curl" aria-pressed="true">curl</button><button type="button" class="tab" data-lang="python" aria-pressed="false">Python</button><button type="button" class="tab" data-lang="js" aria-pressed="false">JavaScript</button><button type="button" class="btn small" id="pg-copy-code">Copy</button></div></div>
         <pre class="pg-code" id="pg-code"></pre>
       </section>
-      <section class="panel">
+      <section class="panel pg-resp">
         <div class="row" style="justify-content:space-between"><h2 class="pg-h">Response</h2><div class="row small"><span class="badge" id="pg-status">not sent</span><span class="mono" id="pg-meta"></span><button type="button" class="btn small" id="pg-copy-resp" disabled>Copy JSON</button></div></div>
+        <p class="pg-cite" id="pg-cite" aria-live="polite" hidden></p>
+        <p class="pg-upsell" id="pg-upsell" hidden>This call needs your own key. <a href="/account/">Get a free key</a>: it takes a minute and works on every company.</p>
         <pre class="pg-json" id="pg-response"><span class="muted">Send a request to see the live response.</span></pre>
       </section>
     </section>
+  </div>
   </main>
   <div class="cta-bar"><strong>Ready for every company, quarterly data, exports and alerts?</strong><a class="btn primary small" href="/account/">Get a free key</a><a class="btn small" href="/docs">API reference</a></div>
   <p class="page-note">Data from SEC EDGAR, ESMA FIRDS, FCA FIRDS and GLEIF. Provenance is independent and not affiliated with or endorsed by the SEC, ESMA, the FCA or GLEIF. Not investment advice. <a href="/docs">API docs</a> · <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></p>
