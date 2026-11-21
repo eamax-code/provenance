@@ -21,12 +21,12 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.timeutil import iso_z
-from app.db.models import Company, Filing, ListingEvent, OfficerChange, utcnow
+from app.db.models import Company, Filing, InsiderActivity, ListingEvent, OfficerChange, utcnow
 from app.services import filing_events
 from app.services.form8k import split_items
 from app.services.notifications import EVENT_TYPE as FILING_EVENT_TYPE
 
-KINDS = ("filing", "leadership", "listing")  # feed order breaks ties in this (alphabetical) order
+KINDS = ("filing", "insider", "leadership", "listing")  # ties break in this alphabetical order
 OFFICER_CHANGE_EVENT_TYPE = "sec.officer_change"
 _MAX_UUID = uuid.UUID(int=(1 << 128) - 1)
 
@@ -74,6 +74,7 @@ class EventFilters:
     items: list[str] = field(default_factory=list)  # 8-K item codes, e.g. 5.02
     mics: list[str] = field(default_factory=list)
     event_types: list[str] = field(default_factory=list)  # listing event types
+    insider_types: list[str] = field(default_factory=list)  # sec.insider_* (F-03)
     filing_types: list[str] = field(default_factory=list)  # sec.restatement, ... (D-05)
 
 
@@ -88,7 +89,7 @@ def publish_pending(db: Session, now: datetime | None = None) -> int:
     """Stamp committed pending rows as published. Call after the ingesting transaction commits."""
     now = now or utcnow()
     total = 0
-    for model in (Filing, OfficerChange, ListingEvent):
+    for model in (Filing, OfficerChange, ListingEvent, InsiderActivity):
         result = db.execute(
             update(model)
             .where(model.stream_status == "pending")
@@ -140,6 +141,26 @@ def fetch_page(
         for filing, name, ticker in db.execute(stmt):
             pos = Cursor(filing.stream_at, "filing", filing.id)
             candidates.append((pos, _filing_event(pos, filing, name, ticker)))
+    if "insider" in filters.kinds:
+        stmt = (
+            select(InsiderActivity, Company.legal_name, Company.ticker)
+            .join(Company, Company.cik == InsiderActivity.cik)
+            .where(
+                InsiderActivity.stream_status == "published",
+                InsiderActivity.stream_at.is_not(None),
+                InsiderActivity.stream_at <= until,
+                _after(InsiderActivity.stream_at, InsiderActivity.id, "insider", after),
+            )
+            .order_by(InsiderActivity.stream_at, InsiderActivity.id)
+            .limit(limit + 1)
+        )
+        if filters.ciks:
+            stmt = stmt.where(InsiderActivity.cik.in_(filters.ciks))
+        if filters.insider_types:
+            stmt = stmt.where(InsiderActivity.activity_type.in_(filters.insider_types))
+        for act, name, ticker in db.execute(stmt):
+            pos = Cursor(act.stream_at, "insider", act.id)
+            candidates.append((pos, _insider_event(pos, act, name, ticker)))
     if "leadership" in filters.kinds:
         stmt = (
             select(OfficerChange, Company.legal_name, Company.ticker)
@@ -210,6 +231,18 @@ def _filing_event(pos: Cursor, f: Filing, name: str, ticker: str | None) -> dict
             "event_labels": {t: filing_events.FILING_EVENT_TYPES[t].label for t in types},
             "source_url": f.source_url,
         },
+    }
+
+
+def _insider_event(pos: Cursor, a: InsiderActivity, name: str, ticker: str | None) -> dict:
+    from app.services.insider_activity import as_dict
+
+    return {
+        "id": pos.encode(),
+        "type": a.activity_type,
+        "kind": "insider",
+        "stream_at": iso_z(a.stream_at),
+        "data": {**as_dict(a), "company_name": name, "ticker": ticker},
     }
 
 

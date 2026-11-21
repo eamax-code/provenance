@@ -44,7 +44,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.logging import log_event
 from app.db.models import Company, EdgarFeedEntry, Filing, JobState, utcnow
-from app.services import insiders, ipo_terms, marts, universe
+from app.services import insider_activity, insiders, ipo_terms, marts, notifications, universe
 from app.services.events import publish_pending
 from app.services.ingestion import IngestionError, ingest_company
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
@@ -393,7 +393,14 @@ def handle(
                 history_pages=None if new else 0,
             )  # fmt: skip
             if forms & INSIDER:
+                before = insider_activity.accessions(db, cik)
                 out["insider_filings"] += insiders.fill_recent(db, client, cik, limit=20)["fetched"]
+                fresh = None if new else insider_activity.accessions(db, cik) - before
+                found = insider_activity.store(
+                    db, cik, fresh, insider_activity.coverage_start(db)
+                )  # backfill for a company first seen now; new activity otherwise (F-03)
+                notifications.create_insider_deliveries(db, found)
+                out["insider_activity"] = out.get("insider_activity", 0) + len(found)
             if forms & TERMS_FORMS:  # deal terms from the prospectus (F-02)
                 out["ipo_terms"] = out.get("ipo_terms", 0) + ipo_terms.read_company(db, cik, client)
             if new:

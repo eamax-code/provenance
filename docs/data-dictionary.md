@@ -277,6 +277,23 @@ tracker when a 424B4, S-1/A or F-1/A arrives, and by `scripts/read_ipo_terms.py`
 `/v1/ipos` (`terms`), the MCP tool `companies_going_public`, `/v1/public/ipos` (price fields)
 and the company page overview (`ipo_terms`).
 
+## insider_activity (launch plan F-03)
+
+Insider activity found by rules in the loaded Forms 4 (`app/services/insider_activity.py`);
+information about what insiders did, never a recommendation.
+
+| Type | Rule |
+| --- | --- |
+| `sec.insider_cluster_buy` | three or more insiders bought in the open market (code P) within 30 days; one event per cluster, at the third insider's filing |
+| `sec.insider_first_buy` | an insider's first open-market purchase at the company in two years or more, only where the loaded data reaches two years back |
+| `sec.insider_large_sale` | an officer or director sold $1 million or more in one filing, and the filing says it was not under a Rule 10b5-1 plan (filings without the checkbox are not judged) |
+
+`owners` and `detail` are JSON (insiders, values, the previous purchase). Backfill
+(`scripts/detect_insider_activity.py`, or a company first seen by the tracker) is stored with
+`stream_status=skipped`; activity in Forms 4 the hourly tracker loads later is published to the
+feed (kind `insider`), type watches and MCP. Public: `/v1/public/insider-activity`; the company
+overview's `insider_activity`.
+
 ## edgar_feed, job_state (filings tracker, ADR 0012)
 
 ### edgar_feed

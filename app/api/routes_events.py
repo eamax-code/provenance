@@ -22,7 +22,7 @@ from app.db.models import ApiKey, utcnow
 from app.db.session import session_factory
 from app.schemas.common import ErrorEnvelope
 from app.services import events as feed
-from app.services import filing_events
+from app.services import filing_events, insider_activity
 from app.services.sec_client import normalize_cik
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
@@ -86,7 +86,9 @@ def _filters(
     kinds = set(_split(types) or feed.KINDS)
     if not kinds <= set(feed.KINDS):
         raise APIError(
-            422, "invalid_parameter", "types must be among filing, leadership and listing."
+            422,
+            "invalid_parameter",
+            "types must be among filing, insider, leadership and listing.",
         )
     try:
         ciks = [normalize_cik(c) for c in _split(cik)]
@@ -100,11 +102,16 @@ def _filters(
     requested = _split(event_type)
     sec_types = [t for t in requested if t.startswith("sec.")]
     event_types = [t for t in requested if not t.startswith("sec.")]
-    known = set(filing_events.FILING_EVENT_TYPES) | {feed.OFFICER_CHANGE_EVENT_TYPE}
+    known = (
+        set(filing_events.FILING_EVENT_TYPES)
+        | {feed.OFFICER_CHANGE_EVENT_TYPE}
+        | set(insider_activity.TYPES)
+    )
     unknown = [t for t in sec_types if t not in known]
     if unknown:
         raise APIError(422, "invalid_parameter", f"Unknown event type: {', '.join(unknown)}.")
     filing_types = [t for t in sec_types if t in filing_events.FILING_EVENT_TYPES]
+    insider_types = [t for t in sec_types if t in insider_activity.TYPES]
     if sec_types and event_types:
         raise APIError(
             422,
@@ -124,11 +131,13 @@ def _filters(
         wanted = {"filing"} if filing_types else set()
         if feed.OFFICER_CHANGE_EVENT_TYPE in sec_types:
             wanted.add("leadership")
+        if insider_types:
+            wanted.add("insider")
         kinds &= wanted
     if forms or item_codes:
         kinds &= {"filing"}
     elif ciks:
-        kinds &= {"filing", "leadership"}
+        kinds &= {"filing", "insider", "leadership"}
     if listing_filters:
         kinds &= {"listing"}
     if not kinds:
@@ -141,6 +150,7 @@ def _filters(
         mics=mics,
         event_types=event_types,
         filing_types=filing_types,
+        insider_types=insider_types,
     )
 
 
@@ -165,7 +175,8 @@ def _start(after: str | None, since: datetime | None, settings: Settings, defaul
 
 
 _FILTER_DOCS = {
-    "types": "filing, leadership (officer changes read from 8-K item 5.02), listing; "
+    "types": "filing, insider (activity found in Forms 4), leadership (officer changes read from "
+    "8-K item 5.02), listing; "
     "comma-separated, default all",
     "cik": "Filings for these CIKs only (comma-separated, at most 50)",
     "form_type": "Filings of these form types only, e.g. 8-K,10-Q",

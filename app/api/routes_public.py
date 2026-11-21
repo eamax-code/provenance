@@ -214,6 +214,21 @@ def ipo_public(
 
 
 @router.get(
+    "/insider-activity",
+    responses=_ERRORS,
+    summary="Latest insider activity found in Forms 4 (public, at most 5)",
+)
+def live_insider_activity(
+    request: Request,
+    response: Response,
+    limit: int = Query(live.MAX_LIMIT, ge=1, le=live.MAX_LIMIT),
+    db: Session = Depends(db_session),
+):
+    _guard(request, response)
+    return live.public_insider_activity(db, limit)
+
+
+@router.get(
     "/events",
     responses=_ERRORS,
     summary="Latest notable filings: restatements, bankruptcies, officer changes and more "

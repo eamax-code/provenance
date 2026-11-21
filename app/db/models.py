@@ -276,6 +276,32 @@ class IpoTerms(Base):
     extracted_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class InsiderActivity(Base):
+    """Insider activity found by rules in Forms 4 (launch plan F-03): cluster buying, a first
+    open-market purchase in two years, a large sale outside a 10b5-1 plan. Information about
+    what insiders did, never a recommendation."""
+
+    __tablename__ = "insider_activity"
+    __table_args__ = (
+        UniqueConstraint("activity_type", "cik", "accession_number", name="uq_insider_activity"),
+        Index("ix_insider_activity_cik_date", "cik", "activity_date"),
+        Index("ix_insider_activity_stream", "stream_status", "stream_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)  # the issuer
+    activity_type: Mapped[str] = mapped_column(Text, nullable=False)
+    activity_date: Mapped[date] = mapped_column(Date, nullable=False)  # the trade that made it so
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    owners: Mapped[str] = mapped_column(Text, nullable=False)  # JSON [{owner_cik, name, role}]
+    detail: Mapped[str] = mapped_column(Text, nullable=False)  # JSON, rule specific
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    stream_status: Mapped[str] = mapped_column(Text, nullable=False, default="skipped")
+    stream_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class TypeWatch(Base):
     """A key holder's subscription to filing event types across companies (launch plan T-01):
     "any restatement", optionally narrowed to a universe. High-volume types without a universe
@@ -323,6 +349,9 @@ class NotificationDelivery(Base):
     )
     type_watch_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("type_watches.id"), nullable=True
+    )
+    insider_activity_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("insider_activity.id"), nullable=True
     )
     event_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")

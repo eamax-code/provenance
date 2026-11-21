@@ -332,7 +332,7 @@ def _listings(db: Session, company: Company) -> list[dict]:
 
 
 POINT_IN_TIME = ("statements", "key_figures", "years", "cover", "filings", "filing_activity",
-                 "leadership", "events")  # fmt: skip
+                 "insider_activity", "leadership", "events")  # fmt: skip
 CURRENT = ("summary", "history", "risk_factors", "peers", "listings")
 
 
@@ -373,6 +373,9 @@ def build(
             db, anchor - timedelta(days=EVENT_DAYS), EVENTS, until=anchor, cik=cik
         ),
         "ipo_terms": ipo_terms.terms_by_cik(db, [cik]).get(cik),
+        "insider_activity": live.insider_rows(
+            db, anchor - timedelta(days=EVENT_DAYS), EVENTS, until=anchor, cik=cik
+        ),
         "risk_factors": risk,
         "peers": _peers(db, company, today),
         "listings": _listings(db, company),

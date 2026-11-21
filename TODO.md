@@ -26,6 +26,7 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | F-02 | IPO deal terms | done 2026-11-22: price range, final price, shares (new and sold), proceeds, discount, exchange and ticker, underwriters and leads, lock-up (and expiry, derived), quiet period end (derived), closing date; every value with its sentence; Anthropic: range $70-78, priced $83, 980M shares, $81.3B, Goldman Sachs and Morgan Stanley lead, 180/365-day lock-up. `sec.ipo_priced` done (first 424B4 after registration, stored as a filing tag at ingestion); lock-up expiry event next |
 | IPO pages | Keyless `/v1/public/ipos/pipeline` (by stage, terms values, counts, `lockup_within_days`) and `/v1/public/ipos/{cik}` (terms with evidence); `/v1/ipos?lockup_expiry_within_days=` | done 2026-11-22 |
 | S-01 | Summary text formatting at the source | done 2026-11-22: dates as "26 Sep 2026", forms as plain names from one map (`app/services/form_names.py`: "an insider trade report (Form 4)"), leadership sentence says what happened; `form_label` on overview filings and events |
+| F-03 | Insider activity events | done 2026-11-22: cluster buying, first buy in 2+ years, large sale outside a 10b5-1 plan; feed kind `insider`, type watches, MCP, `/v1/public/insider-activity`, company overview; backfill never notifies |
 | I-09, F-01 | Production smoke script, Sheets function | queued |
 | Owner | O-01 to O-09 (host, domain, email, merchant of record, model, news, legal, pricing) | waiting on you; G-02, I-01, I-03 wait on them |
 

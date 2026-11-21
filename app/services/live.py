@@ -294,3 +294,43 @@ def _ipo_row(i: dict) -> dict:
         "milestones": {k: {**v, "filing_date": v["filing_date"].isoformat()
                            if v["filing_date"] else None} for k, v in i["milestones"].items()},
     }  # fmt: skip
+
+
+INSIDER_DAYS = 30
+INSIDER_NOTE = (
+    "Found by rules in Forms 4: three or more insiders buying within 30 days, a first purchase "
+    "in two years, a sale of $1 million or more outside a 10b5-1 plan. Information about what "
+    "insiders did, not a recommendation."
+)
+
+
+def insider_rows(
+    db: Session, since: date, limit: int, until: date | None = None, cik: str | None = None
+) -> list[dict]:
+    from app.db.models import InsiderActivity
+    from app.services.insider_activity import as_dict
+
+    stmt = (
+        select(InsiderActivity, Company.legal_name, Company.ticker)
+        .join(Company, Company.cik == InsiderActivity.cik)
+        .where(InsiderActivity.filing_date >= since)
+        .order_by(InsiderActivity.filing_date.desc(), InsiderActivity.activity_type)
+        .limit(limit)
+    )
+    if until:
+        stmt = stmt.where(InsiderActivity.filing_date <= until)
+    if cik:
+        stmt = stmt.where(InsiderActivity.cik == cik)
+    return [{**as_dict(a), "company_name": name, "ticker": ticker}
+            for a, name, ticker in db.execute(stmt)]  # fmt: skip
+
+
+def public_insider_activity(db: Session, limit: int = MAX_LIMIT, today: date | None = None):
+    limit = _limit(limit)
+
+    def build():
+        since = (today or date.today()) - timedelta(days=INSIDER_DAYS)
+        return {"data": insider_rows(db, since, limit), "as_of": _now_iso(),
+                "notes": [INSIDER_NOTE]}  # fmt: skip
+
+    return cached(f"live_insider:{limit}:{today}", build)
