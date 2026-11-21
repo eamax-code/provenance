@@ -62,3 +62,28 @@ Open: GDELT can be slow (one 10-second timeout in testing), and about 4% of fact
 
 ## Issues found, by severity
 1.
+
+## Production smoke, 2026-11-21 23:31 UTC
+
+Against `http://127.0.0.1:8790` (production settings), `scripts/smoke_prod.py`.
+
+| Check | Result | Time | Detail |
+| --- | --- | --- | --- |
+| readyz | FAIL | 83 ms | AssertionError: {'status': 'not_ready', 'database': 'ok', 'configuration': ['WEBHOOK_ALLOW_PRIVATE_DESTINATIONS must be false in production', 'EMAIL_PROVIDER=console is for development; use smtp in pr |
+| demo key: data and limits | pass | 90 ms | limit 20/min, rows 10 |
+| keyed facts with as_of | pass | 45 ms | FY2023 383285000000 filed 2023-11-03 |
+| plans | pass | 4 ms | free, analyst, builder, team, enterprise |
+| MCP tools/list and a call | pass | 71 ms | 11 tools |
+| event stream (SSE) | pass | 13 ms | 2 lines, first retry: 3000 |
+| type watch (Builder) | pass | 73 ms | immediate |
+| signed webhook to a receiver | pass | 560 ms | delivered and verified (sec.test) |
+
+7 of 8 checks passed.
+
+Notes on this run: the production image (`docker build`, `APP_ENV=production`) ran against the
+local database. `readyz` reports two configuration problems, both expected for a rehearsal:
+private webhook destinations were allowed so the script's local receiver could be reached
+(never in production), and no email provider is configured yet (owner decision O-03). Every
+other promise passed. The first run found that the demo key returned 20 rows on endpoints whose
+default page is 20; fixed in be39fc6 (at most 10 rows on every list, limit stated in
+`X-RateLimit-Limit`).
