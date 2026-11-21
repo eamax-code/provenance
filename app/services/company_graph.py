@@ -9,16 +9,20 @@ their CIK so a client can open them. `as_of` uses only filings made by that date
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Company, GraphSourceState
+from app.db.models import Company, Filing, GraphSourceState
 from app.services import beneficial_owners, insiders, leadership, subsidiaries
 from app.services.sec_client import filing_index_url, normalize_cik
 
-LAYERS = ("insiders", "interlocks", "subsidiaries", "holders")
+LAYERS = ("insiders", "interlocks", "subsidiaries", "holders", "co_registrants")
+# Reports filed as one document by several registrants (a utility holding company and its
+# utilities, guarantor subsidiaries); insider forms are left out, they name people.
+CO_REGISTRANT_FORMS = ("10-K", "10-K/A", "10-Q", "10-Q/A", "8-K", "8-K/A")
+CO_REGISTRANT_YEARS = 3
 MAX_SUBSIDIARIES = 400
 MAX_INTERLOCKS_PER_OWNER = 25
 
@@ -298,6 +302,40 @@ def build(
             }
         else:
             sources["subsidiaries"] = {"count": 0, "note": "No exhibit 21 read yet."}
+
+    if "co_registrants" in layers:
+        ref = as_of or date.today()
+        mine = select(Filing.accession_number).where(
+            Filing.cik == cik,
+            Filing.form_type.in_(CO_REGISTRANT_FORMS),
+            Filing.filing_date >= ref - timedelta(days=365 * CO_REGISTRANT_YEARS),
+            Filing.filing_date <= ref,
+        )
+        shared = db.execute(
+            select(Filing.cik, func.count(), func.max(Filing.filing_date),
+                   func.max(Filing.accession_number), func.max(Filing.form_type))
+            .where(Filing.accession_number.in_(mine), Filing.cik != cik)
+            .group_by(Filing.cik)
+        ).all()  # fmt: skip
+        names = _names(db, {r[0] for r in shared})
+        count = 0
+        for other, n, last, accn, form in sorted(shared, key=lambda r: -r[1]):
+            comp = names.get(other)
+            if comp is None:
+                continue
+            tid = company_node(other, comp.legal_name, "co_registrants", ticker=comp.ticker)
+            edges.append({
+                "source": f"company:{cik}", "target": tid, "type": "co_registrant",
+                "label": f"{n} shared report{'s' if n != 1 else ''}", "current": True,
+                "since": None, "last": last, "filings": n,
+                "evidence": _filing(other, accn, form, last),
+            })  # fmt: skip
+            count += 1
+        sources["co_registrants"] = {
+            "count": count,
+            "note": "Companies that filed the same 10-K, 10-Q or 8-K as this one (one document, "
+            f"several registrants) in the last {CO_REGISTRANT_YEARS} years.",
+        }
 
     return {
         "company": {

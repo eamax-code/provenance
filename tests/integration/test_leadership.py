@@ -107,3 +107,25 @@ def test_apple_cook_and_ternus(db):
     assert leadership.match_people("COOK TIMOTHY D", "Tim Cook") == ("name_nickname", "high")
     assert leadership.match_people("COOK T", "Tim Cook") == ("name_initial", "medium")
     assert leadership.match_people("COOK THOMAS", "Tim Cook") is None
+
+
+def test_co_registrants_share_reports(db, client, auth):
+    from app.db.models import Filing
+    from app.services import company_graph
+
+    for cik, name in (("0000017797", "Duke Energy Corp"), ("0000030371", "Duke Energy Carolinas"),
+                      ("0000000099", "Someone Else Inc")):  # fmt: skip
+        db.add(Company(cik=cik, legal_name=name, quality_status="ok",
+                       source_url="https://www.sec.gov/", first_detected_at=utcnow()))  # fmt: skip
+    for cik in ("0000017797", "0000030371"):  # one combined 10-K, two registrants
+        db.add(Filing(cik=cik, accession_number="0001326160-26-000010", form_type="10-K",
+                      filing_date=TODAY - timedelta(days=60), first_detected_at=utcnow(),
+                      quality_status="ok", source_url="https://www.sec.gov/x/"))  # fmt: skip
+    db.add(Filing(cik="0000000099", accession_number="0001-26-000555", form_type="4",
+                  filing_date=TODAY - timedelta(days=5), first_detected_at=utcnow(),
+                  quality_status="ok", source_url="https://www.sec.gov/y/"))  # fmt: skip
+    db.commit()
+    g = company_graph.build(db, "0000017797", layers=("co_registrants",))
+    edges = [e for e in g["edges"] if e["type"] == "co_registrant"]
+    assert [e["target"] for e in edges] == ["company:0000030371"]
+    assert edges[0]["filings"] == 1 and g["sources"]["co_registrants"]["count"] == 1

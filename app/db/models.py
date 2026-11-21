@@ -90,6 +90,7 @@ class Filing(Base):
         Index("ix_filings_stream_status", "stream_status"),
         Index("ix_filings_stream_at", "stream_at"),
         Index("ix_filings_form_date", "form_type", "filing_date"),
+        Index("ix_filings_accession", "accession_number"),  # co-registrants (K-03)
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
