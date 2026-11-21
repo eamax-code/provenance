@@ -44,9 +44,10 @@
 
 /* changelog */
 .log { list-style: none; margin: 0; padding: 0 !important; display: grid; gap: 0 !important; }
-.log > li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 22px 0; border-top: 1px solid var(--line); max-width: none; }
+.log > li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 24px 0; max-width: none; }
+.log > li + li { margin-top: 8px; }
 @media (min-width: 760px) { .log > li { grid-template-columns: 150px minmax(0, 1fr); gap: 24px; } }
-.log time { font: 500 .9rem var(--mono); color: var(--soft); }
+.log time { font: 700 1rem var(--face); color: var(--ink); }
 .log h3 { margin: 0 0 6px; }
 .tag { display: inline-block; font: 600 .72rem var(--face); letter-spacing: .02em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--soft); vertical-align: middle; margin-right: 6px; }
 .tag.new { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }

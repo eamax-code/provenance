@@ -51,11 +51,19 @@
   }
 
   /* ---- status page ---- */
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var humanDay = function (iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? +m[3] + ' ' + MON[+m[2] - 1] + ' ' + m[1] : 'not given'; };
   function statusPage() {
     var grid = $('status-kv'); if (!grid) return;
     getJSON('/v1/stats').then(function (res) {
       if (!res.ok) throw new Error(res.status);
       var d = res.body; grid.innerHTML = '';
+      // the three numbers a builder checks first
+      var setLead = function (id, v) { var n = $(id); if (n) n.textContent = v; };
+      var ql = d.quality_snapshot && d.quality_snapshot.latency, p50 = ql && ql.accept_to_detect_p50_seconds;
+      setLead('lead-latency', p50 == null ? 'Not measured yet' : p50 < 90 ? p50 + ' s' : p50 < 5400 ? Math.round(p50 / 60) + ' min' : p50 < 172800 ? (p50 / 3600).toFixed(1) + ' hours' : Math.round(p50 / 86400) + ' days');
+      setLead('lead-latest', d.filings.latest_filing_date ? humanDay(d.filings.latest_filing_date) : 'None yet');
+      setLead('lead-companies', fmtInt(d.companies.ingested));
       var kv = function (k, v) { grid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };
       kv('US filings health', d.service.health); kv('Version', d.service.version);
       kv('Companies', fmtInt(d.companies.ingested) + ' ingested / ' + fmtInt(d.companies.known) + ' known'); kv('Filings', fmtInt(d.filings.total) + ' (' + fmtInt(d.filings.with_acceptance_timestamp) + ' with SEC acceptance time)');
@@ -83,7 +91,6 @@
         var evs = L.events_by_type || {};
         lkv('Venues covered', fmtInt(L.venues)); lkv('Instruments tracked', fmtInt(L.instruments));
         lkv('Events by type', Object.keys(evs).sort().map(function (k) { return k.replace(/_/g, ' ') + ' ' + fmtInt(evs[k]); }).join(' · ') || 'none yet');
-        lkv('Latest event detected', fmtTs(L.latest_event_detected_at));
         setState('listings-status-state', (L.instruments || 0) > 0 ? '' : 'No international listings ingested yet. Run scripts/ingest_markets.py --all.');
       }
       var usEmpty = d.service.health === 'empty';
@@ -135,6 +142,8 @@
   }
 
   /* ---- listings page ---- */
+  var EVENT = { new_listing: 'New listing', ipo: 'First admission', delisting: 'Delisted', suspended: 'Suspended', reinstated: 'Reinstated', modified: 'Details changed' };
+  var SOURCE = { esma_firds: 'ESMA FIRDS', fca_firds: 'FCA FIRDS', gleif: 'GLEIF', tmx: 'TMX lists', cse: 'CSE list' };
   function listingsPage() {
     var tbl = $('listings-table'); if (!tbl) return;
     getJSON('/v1/public/listings/events').then(function (res) {
@@ -144,14 +153,14 @@
       setState('listings-state', '');
       res.body.data.forEach(function (e) {
         var v = res.body.venues[e.mic] || {};
+        // the event date only: when we noticed a change is never shown (owner rule, 2026-11-04)
         tb.appendChild(el('tr', {}, [
-          el('td', { class: 'mono', text: fmtTs(e.detected_at) }),
-          el('td', {}, [el('span', { class: 'badge ' + ({ new_listing: 'ok', ipo: 'ok', delisting: 'failed', suspended: 'partial' }[e.event_type] || ''), text: e.event_type })]),
+          el('td', { text: humanDay(e.event_date) }),
+          el('td', {}, [el('span', { class: 'badge', text: (EVENT[e.event_type] || e.event_type.replace(/_/g, ' ')) })]),
           el('td', { class: 'wrap', text: e.issuer_name }),
           el('td', { class: 'mono', text: e.isin || e.symbol || e.listing_key }),
           el('td', { text: e.mic + ' · ' + (v.name || '') + (v.country ? ' (' + v.country + ')' : '') }),
-          el('td', { class: 'mono', text: e.event_date || 'null' }),
-          el('td', { text: e.source })
+          el('td', { text: SOURCE[e.source] || e.source })
         ]));
       });
       var m = $('listings-meta'); if (m) m.textContent = res.body.data.length + ' events · generated ' + fmtTs(res.body.generated_at);

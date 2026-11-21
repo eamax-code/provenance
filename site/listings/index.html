@@ -29,7 +29,7 @@
 <link rel="stylesheet" href="/app/app.css">
 <link rel="stylesheet" href="/public.css">
 </head>
-<body>
+<body class="data-page">
 <!-- shell:header -->
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-bar">
@@ -77,13 +77,12 @@
 <!-- /shell:header -->
 <main class="app" id="main">
   <div class="pub-head">
-    <p class="eyebrow">Live from /v1/public/listings/events</p>
     <h1>Listing lifecycle: Canada, Europe, UK</h1>
     <p class="muted">Instruments that recently started or stopped trading on covered venues, from official registers (ESMA FIRDS, FCA FIRDS) with issuer identity from GLEIF. A new listing is an instrument first trading on a venue; it is not an IPO determination.</p>
     <p class="breadcrumb" id="listings-meta"></p>
   </div>
   <p class="state" id="listings-state">Loading live data…</p>
-  <section class="panel"><h2>Recent events</h2><div class="table-wrap"><table id="listings-table"><thead><tr><th>Detected</th><th>Event</th><th>Issuer</th><th>ISIN / symbol</th><th>Venue</th><th>Event date</th><th>Source</th></tr></thead><tbody></tbody></table></div></section>
+  <section class="panel"><h2>Recent events</h2><div class="table-wrap"><table id="listings-table"><thead><tr><th>Event date</th><th>Event</th><th>Issuer</th><th>ISIN / symbol</th><th>Venue</th><th>Source</th></tr></thead><tbody></tbody></table></div></section>
   <div class="cta-bar"><strong>Need the full feed, filters by venue or region, instrument search and issuer identity?</strong><a class="btn primary small" href="/account/">Get a free key</a><a class="btn small" href="/docs#/markets">Markets API docs</a></div>
   <p class="page-note">Listing data from ESMA FIRDS, FCA FIRDS and GLEIF. Provenance is independent and not affiliated with ESMA, the FCA, GLEIF, the CSA, TMX, the CSE or any exchange. Not investment advice. <a href="/developers/">Developer docs</a> · <a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></p>
 </main>

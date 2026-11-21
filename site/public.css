@@ -17,3 +17,10 @@
 .breadcrumb a { color: var(--muted); }
 .page-note { font-size: .85rem; color: var(--muted); max-width: 80ch; }
 .page-note a { color: inherit; text-decoration: underline; }
+
+/* status: the three numbers first */
+.lead3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 8px 0 24px; }
+.lead3 > div { background: var(--surface); border-radius: 4px; padding: 18px 20px; display: grid; gap: 6px; }
+.lead3 b { font-size: clamp(1.75rem, 3vw, 2.75rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.lead3 span { color: var(--soft); font-size: 15px; }
+@media (max-width: 700px) { .lead3 { grid-template-columns: minmax(0, 1fr); } }
