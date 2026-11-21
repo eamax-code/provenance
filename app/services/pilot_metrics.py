@@ -20,12 +20,25 @@ def _utc(value: datetime) -> datetime:
     return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
+# Test and operator activity never counts: reserved test domains (RFC 2606) and internal keys.
+TEST_DOMAINS = (".invalid", "@example.com", "@example.org", "@example.net", ".test")
+
+
+def is_internal(email: str | None, plan: str | None = None) -> bool:
+    e = (email or "").lower()
+    return plan == "internal" or any(e.endswith(d) for d in TEST_DOMAINS)
+
+
 def collect(db: Session, now: datetime | None = None) -> dict:
     now = now or datetime.now(UTC)
     week_ago = now - timedelta(days=7)
-    accounts = db.scalars(select(Account)).all()
+    accounts = [a for a in db.scalars(select(Account)) if not is_internal(a.email)]
     keys_by_email: dict[str, list] = {}
+    internal: set = set()
     for key in db.scalars(select(ApiKey)):
+        if is_internal(key.owner_email, key.plan):
+            internal.add(key.id)
+            continue
         keys_by_email.setdefault(key.owner_email.lower(), []).append(key.id)
 
     first_call_minutes: list[float] = []
@@ -53,15 +66,23 @@ def collect(db: Session, now: datetime | None = None) -> dict:
         )
         activated += int(calls >= ACTIVATION_CALLS)
 
-    active_keys = set(
-        db.scalars(select(ApiUsage.api_key_id).where(ApiUsage.occurred_at >= week_ago).distinct())
-    )
-    mcp_keys = set(
-        db.scalars(
-            select(ApiUsage.api_key_id)
-            .where(ApiUsage.occurred_at >= week_ago, ApiUsage.route_template.like("% (mcp)"))
-            .distinct()
+    active_keys = (
+        set(
+            db.scalars(
+                select(ApiUsage.api_key_id).where(ApiUsage.occurred_at >= week_ago).distinct()
+            )
         )
+        - internal
+    )
+    mcp_keys = (
+        set(
+            db.scalars(
+                select(ApiUsage.api_key_id)
+                .where(ApiUsage.occurred_at >= week_ago, ApiUsage.route_template.like("% (mcp)"))
+                .distinct()
+            )
+        )
+        - internal
     )
     snap = db.scalar(select(DataQualitySnapshot).order_by(DataQualitySnapshot.taken_at.desc()))
     ok_pct = None

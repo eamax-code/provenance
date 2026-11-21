@@ -47,3 +47,11 @@ def test_listing_event_dicts_have_no_detection_time(add_listings, client, auth, 
     assert not BANNED.search(public)
     keyed = client.get("/v1/markets/events", headers=auth).text
     assert not BANNED.search(keyed)
+    for path in (
+        "/v1/stats",
+        "/v1/public/plans",
+        "/v1/public/ipos",
+        "/v1/public/events",
+        "/v1/public/insider-activity",
+    ):  # dict responses, not models
+        assert not BANNED.search(client.get(path, headers=auth).text), path

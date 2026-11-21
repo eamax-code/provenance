@@ -161,7 +161,12 @@ def compute_stats(db: Session, settings: Settings, now: datetime | None = None) 
                     )
                 ).all()
             },
-            "latest_event_detected_at": _iso(db.scalar(select(func.max(ListingEvent.detected_at)))),
+            # the newest event's own date; when we detected it is never published
+            "latest_event_date": (
+                d.isoformat()
+                if (d := db.scalar(select(func.max(ListingEvent.event_date))))
+                else None
+            ),
         },
         "quality_snapshot": snapshot_to_dict(snap) if (snap := latest_snapshot(db)) else None,
         "mapping_version": MAPPING_VERSION,
