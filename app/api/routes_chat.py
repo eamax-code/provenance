@@ -32,6 +32,7 @@ from app.services import (
     forecast,
     humanize,
     intel,
+    ipo_terms,
     news,
     officer_changes,
     prospectus,
@@ -123,8 +124,8 @@ class ChatReply(BaseModel):
     intent: str | None = Field(
         None,
         description="How the question was read: 'coverage', 'ipos', 'filers', 'filing_count', "
-        "'rank', 'list_followup', 'out_of_scope', 'figure', 'leadership', 'trend', 'forecast' or "
-        "'question'",
+        "'rank', 'list_followup', 'out_of_scope', 'figure', 'leadership', 'trend', 'forecast', "
+        "'ipo_terms' or 'question'",
     )
     widgets: list[dict] = Field(
         [], description="Charts and figure tiles drawn from the cited data (see the chat page)"
@@ -427,6 +428,36 @@ def _forecasts_allowed(request: Request) -> bool:
     return plan is None or plan.forecasts  # the demo key shows what forecasts look like
 
 
+IPO_TERMS_NOTE = (
+    "Read from the company's prospectuses by rules; each figure cites its filing and the card "
+    "shows the sentence it came from. Lock-up expiry is a derived date. Not investment advice."
+)
+
+
+def _ipo_terms_reply(db: Session, company: Company, as_of: date | None) -> ChatReply | None:
+    """C-01: deal terms answered straight from the stored prospectus terms, no model."""
+    terms = ipo_terms.terms_by_cik(db, [company.cik]).get(company.cik) or {}
+    if as_of:
+        terms = {
+            k: t for k, t in terms.items() if (t.get("filing_date") or "") <= as_of.isoformat()
+        }
+    if not (terms.get("price_final") or terms.get("price_low")):
+        return None
+    text, cites = ipo_terms.chat_answer(intel.display_name(company.legal_name), terms)
+    return ChatReply(
+        company=_company_dict(company),
+        answer=text,
+        brief=None,
+        citations=cites,
+        checks={"grounded": True, "cited": bool(cites)},
+        model=None,
+        answered_by="data",
+        intent="ipo_terms",
+        widgets=[{"type": "ipo_terms", "terms": terms}],
+        notes=[IPO_TERMS_NOTE],
+    )
+
+
 def _saving_key(request: Request, key):
     """The API key a conversation is saved under; None for the public demo key."""
     if getattr(request.state, "demo", False):
@@ -522,6 +553,11 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
                 else "Name a company (ticker, CIK or name) that this service has loaded."
             ],
         )
+
+    if ipo_terms.is_terms_question(body.message):
+        reply = _ipo_terms_reply(db, company, body.as_of)
+        if reply is not None:
+            return reply
 
     leadership_q = intel.is_leadership_question(body.message)
     if leadership_q:

@@ -251,7 +251,9 @@ def test_leadership_answer_counts_all_filings_not_just_those_listed(
     body = client.post(
         "/v1/chat", json={"message": "Apple CEO change?", "as_of": "2024-12-31"}, headers=auth
     ).json()
-    assert "7 8-Ks with item 5.02" in body["answer"] and "the latest 5" in body["answer"]
+    # counts in words so they never run into dates (S-01); unread filings come last
+    assert body["answer"].startswith("Seven filings report director or officer changes")
+    assert "Also filed, not read yet:" in body["answer"]
 
 
 def test_name_match_prefers_the_listed_company(db, items_aapl):
@@ -582,3 +584,28 @@ def test_one_word_that_only_starts_a_former_name_picks_no_company(client, db, in
     assert intel.resolve_company(db, "What is the capital of France?") is None
     hit = intel.resolve_company(db, "France Telecom revenue")
     assert hit is not None and hit.cik == "0000320193"  # the whole old name still works
+
+
+def test_ipo_terms_are_answered_from_the_prospectus_without_a_model(client, auth, db):
+    import json
+    from datetime import date
+
+    from app.db.models import Company, IpoTerms, utcnow
+
+    db.add(Company(cik="0002130357", legal_name="Anthropic, PBC", ticker="ANT",
+                   quality_status="ok", source_url="https://www.sec.gov/",
+                   first_detected_at=utcnow()))  # fmt: skip
+    ev = "The initial public offering price per share is $83.00."
+    db.add(IpoTerms(
+        cik="0002130357", accession_number="0001628280-26-074944", form_type="424B4",
+        filing_date=date(2026, 11, 19), extractor_version="ipo-terms-1",
+        source_url="https://www.sec.gov/Archives/edgar/data/2130357/x.htm",
+        terms=json.dumps({"price_final": {"value": 83.0, "evidence": ev, "derived": False}}),
+    ))  # fmt: skip
+    db.commit()
+    r = client.post("/v1/chat", json={"message": "What were Anthropic's IPO terms?"}, headers=auth)
+    body = r.json()
+    assert r.status_code == 200 and body["intent"] == "ipo_terms" and body["answered_by"] == "data"
+    assert body["answer"].startswith("Anthropic, PBC priced its IPO at $83.00 a share")
+    assert body["citations"][0]["url"].startswith("https://www.sec.gov/Archives/")
+    assert body["widgets"][0]["terms"]["price_final"]["evidence"] == ev

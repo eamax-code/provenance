@@ -305,3 +305,93 @@ def flat(terms: dict | None) -> dict:
     """The price fields as plain values (null when not read), for compact lists."""
     terms = terms or {}
     return {k: (terms[k]["value"] if k in terms else None) for k in PRICE_FIELDS}
+
+
+# -- chat (C-01) --------------------------------------------------------------------------------
+
+_TERMS_Q = re.compile(
+    r"\b(ipo terms?|terms of (?:the|its) (?:ipo|offering)|ipo price|price range|priced|"
+    r"offering price|underwr\w*|lock-?ups?|raised?|proceeds|shares (?:offered|sold)|"
+    r"deal terms?|ipo)\b",
+    re.IGNORECASE,
+)
+_NOT_TERMS = re.compile(r"\b(risk|business|compet\w*|revenue|customers?|strategy|dilution)\b",
+                        re.IGNORECASE)  # fmt: skip
+
+
+def is_terms_question(text: str) -> bool:
+    return bool(_TERMS_Q.search(text)) and not _NOT_TERMS.search(text)
+
+
+def _usd(v: float) -> str:
+    for div, word in ((1e9, "billion"), (1e6, "million")):
+        if abs(v) >= div:
+            return f"${v / div:,.1f} {word}"
+    return f"${v:,.2f}"
+
+
+def chat_answer(name: str, terms: dict) -> tuple[str, list[dict]]:
+    """A data-first answer from stored deal terms; every sentence cites its filing."""
+    from app.services.form_names import form_label, form_phrase, human_date
+
+    cites: list[dict] = []
+
+    def cite(field: str) -> str:
+        t = terms[field]
+        label = f"{t['form_type']} filed {human_date(t['filing_date'])}"
+        for c in cites:
+            if c["url"] == t["source_url"]:
+                return f"[{c['n']}]"
+        cites.append({"n": len(cites) + 1, "label": label, "url": t["source_url"],
+                      "what": form_phrase(t["form_type"])})  # fmt: skip
+        return f"[{len(cites)}]"
+
+    def v(field):
+        return terms[field]["value"] if field in terms else None
+
+    out = []
+    if v("price_final") is not None:
+        s = (f"{name} priced its IPO at ${v('price_final'):,.2f} a share in "
+             f"{form_phrase('424B4')} filed {human_date(terms['price_final']['filing_date'])}"
+             f" {cite('price_final')}")  # fmt: skip
+        if v("price_low") is not None and v("price_high") is not None:
+            lo, hi, p = v("price_low"), v("price_high"), v("price_final")
+            where = "above" if p > hi else "below" if p < lo else "within"
+            rng = terms["price_low"]
+            doc = form_label(rng["form_type"])
+            s += (f", {where} the ${lo:,.2f} to ${hi:,.2f} range in its {doc[0].lower()}{doc[1:]}"
+                  f" filed {human_date(rng['filing_date'])} {cite('price_low')}")  # fmt: skip
+        out.append(s + ".")
+    elif v("price_low") is not None:
+        out.append(f"{name} expects to price its IPO between ${v('price_low'):,.2f} and "
+                   f"${v('price_high'):,.2f} a share {cite('price_low')}.")  # fmt: skip
+    if v("shares_offered"):
+        s = f"It offered {v('shares_offered'):,.0f} shares"
+        if v("shares_primary") and v("shares_secondary"):
+            s += (f": {v('shares_primary'):,.0f} new and {v('shares_secondary'):,.0f} sold by "
+                  "existing holders")  # fmt: skip
+        out.append(f"{s} {cite('shares_offered')}.")
+    if v("gross_proceeds"):
+        s = f"Gross proceeds were {_usd(v('gross_proceeds'))}"
+        if v("underwriting_discount_total"):
+            s += f", before an underwriting discount of {_usd(v('underwriting_discount_total'))}"
+        out.append(f"{s} {cite('gross_proceeds')}.")
+    if v("lead_underwriters"):
+        leads = v("lead_underwriters")
+        n = len(v("underwriters") or [])
+        lead_text = (
+            " and ".join(leads) if len(leads) < 3 else ", ".join(leads[:-1]) + ", and " + leads[-1]
+        )
+        out.append(f"{lead_text} led {'the ' + str(n) + ' underwriters' if n else 'the offering'} "
+                   f"{cite('lead_underwriters')}.")  # fmt: skip
+    if v("exchange") and v("ticker"):
+        out.append(f"The shares list on the {v('exchange')} as {v('ticker')} {cite('ticker')}.")
+    if v("lockup_days"):
+        s = f"The lock-up runs {v('lockup_days')} days"
+        if v("lockup_days_max"):
+            s += f" ({v('lockup_days_max')} for some holders)"
+        if v("lockup_expiry"):
+            s += (f", to {human_date(v('lockup_expiry'))}, a date derived from the "
+                  "prospectus date")  # fmt: skip
+        out.append(f"{s} {cite('lockup_days')}.")
+    return " ".join(out), cites

@@ -24,6 +24,7 @@ from app.services.company_lookup import (
 )
 from app.services.fact_normalizer import METRIC_LABELS, default_unit, display_value
 from app.services.form8k import ITEM_TITLES, LEADERSHIP_ITEM, split_items
+from app.services.form_names import form_label, human_date
 from app.services.point_in_time import known_by
 from app.services.sec_client import company_filings_url
 
@@ -311,8 +312,9 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
     if cov["filings"]:
         b.context_lines.append(
             f"[{n}] Filings loaded in this service for the company: {cov['filings']}, filed "
-            f"{cov['first_filed']} to {cov['last_filed']}; 8-K filings since {cov['since']}: "
-            f"{cov['eight_ks_since']}. Anything filed after {cov['last_filed']} is not loaded."
+            f"{human_date(cov['first_filed'])} to {human_date(cov['last_filed'])}; 8-K filings "
+            f"since {human_date(cov['since'])}: {cov['eight_ks_since']}. Anything filed after "
+            f"{human_date(cov['last_filed'])} is not loaded."
         )
     else:
         b.context_lines.append(f"[{n}] No filings are loaded in this service for the company.")
@@ -327,7 +329,7 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
         growth = None
         if prev is not None and prev.value:
             growth = round(float((cur.value - prev.value) / abs(prev.value)) * 100, 1)
-        n = b.cite(f"{label}, {cur.form_type} filed {cur.filed_date}", cur.source_url)
+        n = b.cite(f"{label}, {cur.form_type} filed {human_date(cur.filed_date)}", cur.source_url)
         b.metrics.append(
             {
                 "metric": metric,
@@ -349,9 +351,9 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
                 ],
             }
         )
-        line = f"[{n}] {label}, fiscal year ended {cur.period_end}: {money(cur.value)}"
+        line = f"[{n}] {label}, fiscal year ended {human_date(cur.period_end)}: {money(cur.value)}"
         if prev is not None:
-            line += f"; prior year (ended {prev.period_end}) {money(prev.value)}"
+            line += f"; prior year (ended {human_date(prev.period_end)}) {money(prev.value)}"
             if growth is not None:
                 line += f"; change {growth:+.1f}%"
         b.context_lines.append(line + f". Filed {cur.filed_date} ({cur.form_type}).")
@@ -364,9 +366,9 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
     ).all()
     for f in recent:
         items = split_items(f.items)
-        n = b.cite(f"{f.form_type} filed {f.filing_date}", f.source_url)
+        n = b.cite(f"{f.form_type} filed {human_date(f.filing_date)}", f.source_url)
         b.filings.append(_filing_card(f, items, n))
-        line = f"[{n}] Filing: {f.form_type} filed {f.filing_date}"
+        line = f"[{n}] Filing: {form_label(f.form_type)}, filed {human_date(f.filing_date)}"
         if items:
             line += " covering 8-K items " + "; ".join(
                 f"{i} {ITEM_TITLES.get(i, '')}" for i in items
@@ -384,7 +386,7 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
     )
     readings = officer_changes.changes_by_accession(db, [f.accession_number for f in leadership])
     for f in leadership:
-        n = b.cite(f"8-K item 5.02 filed {f.filing_date}", f.source_url)
+        n = b.cite(f"8-K item 5.02 filed {human_date(f.filing_date)}", f.source_url)
         card = _filing_card(f, split_items(f.items), n)
         reading = readings.get(f.accession_number)
         card["reading"] = reading["status"] if reading else "not_read"
@@ -396,12 +398,12 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
             for c in reading["changes"]:
                 flag = "" if c.verified else " (details not confirmed against the filing text)"
                 b.context_lines.append(
-                    f"[{n}] Leadership change in 8-K filed {f.filing_date} (item 5.02): "
-                    f"{officer_changes.describe(c)}{flag}"
+                    f"[{n}] Leadership change in 8-K filed {human_date(f.filing_date)} "
+                    f"(item 5.02): {officer_changes.describe(c)}{flag}"
                 )
         else:
             b.context_lines.append(
-                f"[{n}] Leadership filing: 8-K filed {f.filing_date} under item 5.02 "
+                f"[{n}] Leadership filing: 8-K filed {human_date(f.filing_date)} under item 5.02 "
                 "(directors or officers). "
                 + (
                     "It names no individual director or officer change."
@@ -409,6 +411,8 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
                     else "Its text has not been read here."
                 )
             )
+    # cards whose text is read first; an unread filing is never the first card (S-01)
+    b.leadership_filings.sort(key=lambda c: c["reading"] not in ("ok",) and not c["changes"])
     return b
 
 
@@ -462,34 +466,39 @@ def leadership_answer(b: Brief) -> str:
     """Answer an officer/director question straight from the data; no model needed for a lookup."""
     name, cov = display_name(b.company.legal_name), b.coverage
     since = cov["since"]
+    since_h = human_date(since)
     if b.leadership_filings:
         total = max(cov.get("leadership_since") or 0, len(b.leadership_filings))
-        shown = (
-            ""
-            if total == len(b.leadership_filings)
-            else f"; the latest {len(b.leadership_filings)}"
+        read = [f for f in b.leadership_filings if f["changes"] or f["reading"] == "ok"]
+        unread = [f for f in b.leadership_filings if f not in read]
+        head = (
+            f"{_words(total).capitalize()} {'filing reports' if total == 1 else 'filings report'}"
+            f" director or officer changes at {name} (8-K item 5.02) since {since_h}"
         )
-        lines = [
-            f"Recent leadership changes at {name}: {_count(total, '8-K')} with item 5.02 "
-            f"(directors and officers) since {since}{shown}.",
-            "",
-        ]
-        unverified = unread = False
-        for f in b.leadership_filings:
-            ref = f"[{f['citation']}]"
+        if read and total > len(read):
+            head += f"; the latest {_words(len(read))} {'is' if len(read) == 1 else 'are'} below"
+        lines = [head + ".", ""]
+        unverified = False
+        for f in read:
+            ref, when = f"[{f['citation']}]", human_date(f["filing_date"])
             if f["changes"]:
                 for c in f["changes"]:
                     mark = "" if c["verified"] else " (unverified)"
                     unverified |= not c["verified"]
-                    lines.append(f"• {f['filing_date']}: {c['sentence']}{mark} {ref}")
-            elif f["reading"] == "ok":
+                    lines.append(f"• {when}: {c['sentence']}{mark} {ref}")
+            else:
                 lines.append(
-                    f"• {f['filing_date']}: names no individual director or officer change "
+                    f"• {when}: names no individual director or officer change "
                     f"(often a pay plan or arrangement) {ref}"
                 )
-            else:
-                unread = True
-                lines.append(f"• {f['filing_date']}: filing text not read yet {ref}")
+        if unread:  # never lead with a filing whose text is not read (the demo never fetches)
+            lines.append(
+                "Also filed, not read yet: "
+                + "; ".join(
+                    f"8-K of {human_date(f['filing_date'])} [{f['citation']}]" for f in unread
+                )  # fmt: skip
+                + "."
+            )
         lines.append("")
         lines.append(
             "Names and reasons are read from each filing's text by the local model and checked "
@@ -504,25 +513,33 @@ def leadership_answer(b: Brief) -> str:
         return "\n".join(lines)
     elif cov["eight_ks_since"] and cov["eight_ks_with_items"] == cov["eight_ks_since"]:
         lines = [
-            f"None of the {_count(cov['eight_ks_since'], '8-K')} loaded for {name} since {since} "
+            f"None of the {_count(cov['eight_ks_since'], '8-K')} loaded for {name} since {since_h} "
             "reports a change of directors or officers (item 5.02) [1]."
         ]
     elif cov["eight_ks_since"]:
         k, missing = cov["eight_ks_since"], cov["eight_ks_since"] - cov["eight_ks_with_items"]
         lines = [
-            f"{name} has {_count(k, '8-K')} loaded since {since}, and {missing} of them "
+            f"{name} has {_count(k, '8-K')} loaded since {since_h}, and {missing} of them "
             f"{'carries' if missing == 1 else 'carry'} no item codes, so officer or director "
             "changes can't be ruled out from this data [1].",
             "Refreshing the company from SEC adds the item codes.",
         ]
     else:
-        lines = [f"No 8-K filings for {name} since {since} are loaded in this service [1]."]
+        lines = [f"No 8-K filings for {name} since {since_h} are loaded in this service [1]."]
         if cov["filings"]:
             lines.append(
                 f"It holds {cov['filings']} filings for the company, the latest filed "
                 f"{cov['last_filed']}, so it can't tell whether directors or officers changed."
             )
     return " ".join(lines)
+
+
+_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
+
+
+def _words(n: int) -> str:
+    """Small counts in words, so they never run into the dates beside them."""
+    return _WORDS[n] if 0 <= n < len(_WORDS) else f"{n:,}"
 
 
 def _count(n: int, noun: str) -> str:

@@ -71,3 +71,31 @@ def test_nothing_without_evidence():
             "derived": True,
         }
     }
+
+
+def test_chat_answer_cites_every_line():
+    f = ipo_terms.extract(
+        _read("anthropic_424b4_cover.txt"), _read("anthropic_424b4_underwriting.txt"), "424B4",
+        date(2026, 11, 19), _read("anthropic_424b4_summary.txt"),
+    )  # fmt: skip
+    url = "https://www.sec.gov/Archives/edgar/data/2130357/x-424b4.htm"
+    terms = {k: {**v, "form_type": "424B4", "filing_date": "2026-11-19", "source_url": url}
+             for k, v in f.items()}  # fmt: skip
+    terms["price_low"] = {
+        "value": 70.0,
+        "evidence": "...",
+        "derived": False,
+        "form_type": "S-1/A",
+        "filing_date": "2026-11-17",
+        "source_url": "https://www.sec.gov/Archives/edgar/data/2130357/a.htm",
+    }
+    terms["price_high"] = {**terms["price_low"], "value": 78.0}
+    text, cites = ipo_terms.chat_answer("Anthropic", terms)
+    assert text.startswith("Anthropic priced its IPO at $83.00 a share")
+    assert "above the $70.00 to $78.00 range in its amended registration statement (S-1/A)" in text
+    assert "19 Nov 2026" in text and "18 May 2027" in text and "derived" in text
+    assert [c["label"] for c in cites] == ["424B4 filed 19 Nov 2026", "S-1/A filed 17 Nov 2026"]
+    assert text.count("[1]") + text.count("[2]") == 7  # price, range, shares, proceeds, leads,
+    # listing and lock-up each cite their filing
+    assert ipo_terms.is_terms_question("Who underwrote Anthropic?")
+    assert not ipo_terms.is_terms_question("What are Anthropic's IPO risk factors?")

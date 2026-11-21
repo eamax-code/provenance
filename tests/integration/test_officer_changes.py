@@ -133,7 +133,7 @@ def test_demo_key_never_fetches_from_sec(
     app.state.sec_client_factory = lambda: sec_client
     body = _ask(client, {"X-API-Key": "demo"})
     assert oc.document_url(leadership_8k) not in fake_sec.calls
-    assert "filing text not read yet" in body["answer"]
+    assert "Also filed, not read yet:" in body["answer"]  # never the first card (S-01)
     assert db.scalar(select(func.count(FilingSection.id))) == 0
 
 
