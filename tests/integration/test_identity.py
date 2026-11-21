@@ -57,7 +57,7 @@ def test_matching_rules_and_listings(db, client, auth):
     counts = identity.match_all(db)
     assert counts == {"override": 1, "sec": 1, "name_jurisdiction": 1, "name_unique": 1,
                       "gleif_name_jurisdiction": 0, "gleif_name_unique": 0,
-                      "unmatched": 1}  # fmt: skip
+                      "gleif_normalised_name": 0, "unmatched": 1}  # fmt: skip
     apple = identity.for_company(db, "0000320193")
     assert apple["lei"] == "HWUPKR0MPOU8FGXBT394" and apple["confidence"] == "high"
     # a US ISIN wraps the licensed CUSIP: the listing shows its venue, never the ISIN
@@ -104,3 +104,28 @@ def test_golden_copy_links_us_and_foreign_filers(db, tmp_path):
     assert lei_golden.jurisdictions_agree("CA", "CA-ON") and not lei_golden.jurisdictions_agree(
         "US-DE", "US-NY"
     )
+
+
+def test_normalised_names_match_with_the_same_jurisdiction(db, tmp_path):
+    import zipfile
+
+    from app.services import lei_golden
+
+    _company(db, "0000050863", "INTEL CORP /DE/", "DE")
+    _company(db, "0000001800", "The Widget Company", "OH")
+    db.commit()
+    header = (
+        "LEI,Entity.LegalName,Entity.OtherEntityNames.OtherEntityName.1,"
+        "Entity.LegalJurisdiction,Entity.EntityStatus,Registration.RegistrationStatus\n"
+    )
+    rows = ["KNX4USFCNGPY45LOCE31,INTEL CORPORATION,,US-DE,ACTIVE,ISSUED",
+            "549300WIDGETCO000001,WGT HOLDINGS INC,Widget Company,US-OH,ACTIVE,ISSUED"]  # fmt: skip
+    path = tmp_path / "g.csv.zip"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("g.csv", header + "\n".join(rows) + "\n")
+    lei_golden.load(db, path)
+    identity.match_all(db)
+    intel = identity.for_company(db, "0000050863")
+    assert intel["lei"] == "KNX4USFCNGPY45LOCE31" and intel["confidence"] == "high"
+    widget = identity.for_company(db, "0000001800")  # matched through GLEIF's other name
+    assert widget["match_method"] == "gleif_normalised_name"

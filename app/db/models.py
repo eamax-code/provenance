@@ -327,6 +327,8 @@ class GleifEntity(Base):
     lei: Mapped[str] = mapped_column(String(20), primary_key=True)
     legal_name: Mapped[str] = mapped_column(Text, nullable=False)
     name_key: Mapped[str] = mapped_column(Text, nullable=False)
+    # normalised keys of the legal, other and transliterated names, "|"-joined (K-01c)
+    norm_keys: Mapped[str | None] = mapped_column(Text, nullable=True)
     jurisdiction: Mapped[str | None] = mapped_column(Text, nullable=True)
     entity_status: Mapped[str | None] = mapped_column(Text, nullable=True)
     registration_status: Mapped[str | None] = mapped_column(Text, nullable=True)

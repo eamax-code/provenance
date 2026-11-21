@@ -18,7 +18,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, CompanyAlias, GleifEntity, utcnow
-from app.services.identity import US_STATES, strict_key
+from app.services.identity import US_STATES, norm_key, strict_key
 
 GOLDEN_LATEST = "https://goldencopy.gleif.org/api/v2/golden-copies/publishes/latest"
 GOLDEN_MAX_BYTES = 900 * 1024 * 1024
@@ -65,13 +65,23 @@ def jurisdictions_agree(sec: str | None, gleif: str | None) -> bool:
 
 def filer_keys(db: Session) -> set[str]:
     names = set(db.scalars(select(Company.legal_name)))
-    names |= set(db.scalars(select(CompanyAlias.alias)))
+    names |= set(db.scalars(select(CompanyAlias.alias).where(CompanyAlias.kind == "former")))
     return {k for k in (strict_key(n) for n in names) if k}
 
 
-def load(db: Session, path, keys: set[str] | None = None) -> dict:
-    """Stream the golden-copy zip and keep the entities whose legal name matches a filer."""
+def filer_norm_keys(db: Session) -> set[str]:
+    return {k for k in (norm_key(n) for n in db.scalars(select(Company.legal_name))) if k}
+
+
+_OTHER = ("Entity.OtherEntityNames.OtherEntityName.",
+          "Entity.TransliteratedOtherEntityNames.TransliteratedOtherEntityName.")  # fmt: skip
+
+
+def load(db: Session, path, keys: set[str] | None = None, norms: set[str] | None = None) -> dict:
+    """Stream the golden-copy zip and keep the entities whose legal name matches a filer's
+    exactly, or whose legal, other or transliterated name matches one after normalising."""
     keys = keys if keys is not None else filer_keys(db)
+    norms = norms if norms is not None else filer_norm_keys(db)
     now = utcnow()
     kept = seen = 0
     db.execute(delete(GleifEntity))
@@ -80,14 +90,19 @@ def load(db: Session, path, keys: set[str] | None = None) -> dict:
         member = next(n for n in zf.namelist() if n.lower().endswith(".csv"))
         with zf.open(member) as raw:
             reader = csv.DictReader(io.TextIOWrapper(raw, encoding="utf-8", newline=""))
+            other_cols = [c for c in (reader.fieldnames or []) if c.startswith(_OTHER)
+                          and c[-1].isdigit()]  # fmt: skip
             for row in reader:
                 seen += 1
                 name = row.get("Entity.LegalName") or ""
                 key = strict_key(name)
-                if key not in keys:
+                names = [name] + [row[c] for c in other_cols if row.get(c)]
+                nkeys = {norm_key(n) for n in names} - {""}
+                if key not in keys and not nkeys & norms:
                     continue
                 batch.append(GleifEntity(
                     lei=row["LEI"], legal_name=name, name_key=key,
+                    norm_keys="|".join(sorted(nkeys)),
                     jurisdiction=row.get("Entity.LegalJurisdiction") or None,
                     entity_status=row.get("Entity.EntityStatus") or None,
                     registration_status=row.get("Registration.RegistrationStatus") or None,

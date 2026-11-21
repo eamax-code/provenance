@@ -39,6 +39,7 @@ _VARIANTS = (
     (r"\bincorporated\b", "inc"), (r"\bcorporation\b", "corp"), (r"\bcompany\b", "co"),
     (r"\blimited\b", "ltd"), (r"\bn v\b", "nv"), (r"\bs a\b", "sa"), (r"\bs p a\b", "spa"),
     (r"\baktiengesellschaft\b", "ag"), (r"\bpublic limited co\b", "plc"),
+    (r"\bp l c\b", "plc"), (r"\bl l c\b", "llc"), (r"\bl p\b", "lp"),
 )  # fmt: skip
 US_STATES = set(
     "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH "
@@ -55,6 +56,17 @@ def strict_key(name: str | None) -> str:
     for pattern, short in _VARIANTS:
         text = re.sub(pattern, short, text)
     return text
+
+
+_SEC_SUFFIX = re.compile(r"\s*/[A-Za-z]{1,5}/?\s*$")  # "INTEL CORP /DE/", "XYZ INC/NEW"
+
+
+def norm_key(name: str | None) -> str:
+    """K-01c: the legal name with the SEC's state suffixes ("/DE/", "/NEW/") and a leading or
+    trailing "The" removed, then the strict key (legal-form spellings unified, form kept)."""
+    text = _SEC_SUFFIX.sub("", name or "").strip()
+    text = re.sub(r"^the\s+|,?\s+the$", "", text, flags=re.I)
+    return strict_key(text)
 
 
 def _same_side(issuer: Issuer, company: Company) -> bool:
@@ -83,11 +95,16 @@ def match_all(db: Session) -> dict:
     from app.services.lei_golden import company_jurisdiction, jurisdictions_agree
 
     golden: dict[str, list[GleifEntity]] = {}
+    by_norm: dict[str, list[GleifEntity]] = {}
     for g in db.scalars(select(GleifEntity).where(GleifEntity.entity_status == "ACTIVE")):
         golden.setdefault(g.name_key, []).append(g)
+        for k in (g.norm_keys or "").split("|"):
+            if k:
+                by_norm.setdefault(k, []).append(g)
     rows: list[CompanyLei] = []
     counts = {"override": 0, "sec": 0, "name_jurisdiction": 0, "gleif_name_jurisdiction": 0,
-              "name_unique": 0, "gleif_name_unique": 0, "unmatched": 0}  # fmt: skip
+              "name_unique": 0, "gleif_name_unique": 0, "gleif_normalised_name": 0,
+              "unmatched": 0}  # fmt: skip
     for c in db.scalars(select(Company)):
         o = overrides.get(c.cik)
         if o is not None:
@@ -146,11 +163,7 @@ def match_all(db: Session) -> dict:
                 matched_at=now,
             ))  # fmt: skip
             counts["name_unique"] += 1
-        elif (
-            len(gold) == 1
-            and (here or "").startswith("US") == (gold[0].jurisdiction or "").startswith("US")
-            and not (here and gold[0].jurisdiction)
-        ):
+        elif len(gold) == 1 and not (here and gold[0].jurisdiction):
             g = gold[0]  # unique name; one side's jurisdiction is unknown, so medium
             rows.append(CompanyLei(
                 cik=c.cik, lei=g.lei, match_method="gleif_name_unique", confidence="medium",
@@ -160,6 +173,19 @@ def match_all(db: Session) -> dict:
                 matched_at=now,
             ))  # fmt: skip
             counts["gleif_name_unique"] += 1
+        elif len(norm := [g for g in by_norm.get(norm_key(c.legal_name), [])
+                          if jurisdictions_agree(here, g.jurisdiction)]) == 1:  # fmt: skip
+            g = norm[0]  # K-01c: normalised names and the jurisdiction agree, one candidate
+            exact_place = (here or "").upper() == (g.jurisdiction or "").upper()
+            rows.append(CompanyLei(
+                cik=c.cik, lei=g.lei, match_method="gleif_normalised_name",
+                confidence="high" if exact_place else "medium",
+                evidence=f"GLEIF name {g.legal_name!r} matches the SEC name {c.legal_name!r} "
+                f"after normalising (state suffixes, The, legal-form spellings, other names), "
+                f"and the jurisdiction {g.jurisdiction} agrees with {here}",
+                matched_at=now,
+            ))  # fmt: skip
+            counts["gleif_normalised_name"] += 1
         else:
             counts["unmatched"] += 1
     db.execute(delete(CompanyLei))
