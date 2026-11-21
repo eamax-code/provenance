@@ -112,7 +112,7 @@
         b.disabled = true; b.textContent = 'Sending…';
         api(base + '/' + id + '/test', { method: 'POST' }).then(function (res) {
           var r = res.body || {};
-          toast('Test sent to the ' + kind + (r.status_code ? ': your endpoint answered ' + r.status_code : '') + '.', 'ok');
+          toast(r.delivered ? 'Test delivered: your endpoint answered ' + r.status_code + '.' : 'Test not delivered' + (r.status_code ? ': your endpoint answered ' + r.status_code : '') + (r.error ? ' (' + r.error + ')' : '') + '.', r.delivered ? 'ok' : 'error');
         }).catch(function () {}).then(function () { b.disabled = false; b.textContent = 'Send test'; });
       });
       cell.insertBefore(b, cell.firstChild);
@@ -121,9 +121,11 @@
   function pauseButton(base, w, cell, reload) {
     has(base + '/{watch_id}', 'patch').then(function (ok) {
       if (!ok) return;
-      var b = el('button', { class: 'btn small', type: 'button', text: w.is_active ? 'Pause' : 'Resume' });
+      if (!w.is_active) return; // deleted watches cannot be resumed
+      var b = el('button', { class: 'btn small', type: 'button', text: w.paused ? 'Resume' : 'Pause' });
       b.addEventListener('click', function () {
-        api(base + '/' + w.id, { method: 'PATCH', body: { is_active: !w.is_active } }).then(function () { toast(w.is_active ? 'Paused. Nothing is sent until you resume it.' : 'Resumed.', 'ok'); reload(); });
+        // the API pauses with is_active: false and resumes with true; "paused" in the response says which
+        api(base + '/' + w.id, { method: 'PATCH', body: { is_active: !!w.paused } }).then(function () { toast(w.paused ? 'Resumed.' : 'Paused. Nothing is sent or queued until you resume it.', 'ok'); reload(); });
       });
       cell.appendChild(b);
     });
@@ -149,7 +151,7 @@
           });
           actions.appendChild(off);
         }
-        tb.appendChild(el('tr', {}, [el('td', { class: 'mono', text: w.cik }), el('td', { text: w.destination_type }), el('td', { class: 'mono wrap', text: w.destination }), el('td', { class: 'mono', text: fmtTs(w.created_at) }), el('td', { class: 'mono', text: fmtTs(w.last_delivered_at) }), el('td', {}, [el('span', { class: 'badge ' + (w.is_active ? 'ok' : 'failed'), text: w.is_active ? 'active' : 'inactive' })]), actions]));
+        tb.appendChild(el('tr', {}, [el('td', { class: 'mono', text: w.cik }), el('td', { text: w.destination_type }), el('td', { class: 'mono wrap', text: w.destination }), el('td', { class: 'mono', text: fmtTs(w.created_at) }), el('td', { class: 'mono', text: fmtTs(w.last_delivered_at) }), el('td', {}, [el('span', { class: 'badge ' + (!w.is_active ? 'failed' : w.paused ? 'partial' : 'ok'), text: !w.is_active ? 'inactive' : w.paused ? 'paused' : 'active' })]), actions]));
       });
       tbl.appendChild(tb); box.appendChild(el('div', { class: 'table-wrap' }, [tbl]));
     });
@@ -193,7 +195,7 @@
           });
           actions.appendChild(off);
         }
-        tb.appendChild(el('tr', {}, [el('td', { text: label }), el('td', { text: w.event_types.join(', ').replace(/_/g, ' ') }), el('td', { class: 'mono wrap', text: w.destination }), el('td', { class: 'mono', text: fmtTs(w.created_at) }), el('td', { class: 'mono', text: fmtTs(w.last_delivered_at) }), el('td', {}, [el('span', { class: 'badge ' + (w.is_active ? 'ok' : 'failed'), text: w.is_active ? 'active' : 'inactive' })]), actions]));
+        tb.appendChild(el('tr', {}, [el('td', { text: label }), el('td', { text: w.event_types.join(', ').replace(/_/g, ' ') }), el('td', { class: 'mono wrap', text: w.destination }), el('td', { class: 'mono', text: fmtTs(w.created_at) }), el('td', { class: 'mono', text: fmtTs(w.last_delivered_at) }), el('td', {}, [el('span', { class: 'badge ' + (!w.is_active ? 'failed' : w.paused ? 'partial' : 'ok'), text: !w.is_active ? 'inactive' : w.paused ? 'paused' : 'active' })]), actions]));
       });
       tbl.appendChild(tb); box.appendChild(el('div', { class: 'table-wrap' }, [tbl]));
     });
@@ -209,7 +211,7 @@
   function eventTypes() {
     return has('/v1/event-types', 'get').then(function (ok) {
       if (!ok) return FALLBACK_TYPES.map(function (x) { return { type: x[0], label: x[1] }; });
-      return api('/v1/event-types').then(function (r) { return (r.body && (r.body.data || r.body)) || []; });
+      return api('/v1/event-types').then(function (r) { return ((r.body && (r.body.data || r.body)) || []).filter(function (e) { return e.type_watch !== false; }); });
     });
   }
   function bindTypeCreate(allowed) {
@@ -221,7 +223,7 @@
       box.setAttribute('data-filled', '1');
       eventTypes().then(function (list) {
         list.forEach(function (e) {
-          var lab = el('label', { class: 'check' }, [el('input', { type: 'checkbox', name: 'tw-ev', value: e.type }), ' ' + (e.label || e.type) + (e.delivery === 'hourly_batch' ? ' (hourly)' : '')]);
+          var lab = el('label', { class: 'check' }, [el('input', { type: 'checkbox', name: 'tw-ev', value: e.type }), ' ' + (e.label || e.type) + (e.delivery === 'hourly_batch' ? ' (hourly unless filtered)' : '')]);
           box.appendChild(lab);
           if (!allowed) lab.querySelector('input').disabled = true;
         });
@@ -272,7 +274,7 @@
           });
           actions.appendChild(off);
         }
-        tb.appendChild(el('tr', {}, [el('td', { class: 'wrap', text: w.event_types.join(', ') }), el('td', { text: scopeText(w) }), el('td', { class: 'mono wrap', text: w.destination }), el('td', { text: w.delivery_mode === 'batched' || w.delivery_mode === 'hourly_batch' ? 'Hourly batch' : 'As filed' }), el('td', { class: 'mono', text: fmtTs(w.last_delivered_at) }), el('td', {}, [el('span', { class: 'badge ' + (w.is_active ? 'ok' : 'failed'), text: w.is_active ? 'active' : 'inactive' })]), actions]));
+        tb.appendChild(el('tr', {}, [el('td', { class: 'wrap', text: w.event_types.join(', ') }), el('td', { text: scopeText(w) }), el('td', { class: 'mono wrap', text: w.destination }), el('td', { text: w.delivery_mode === 'batched' || w.delivery_mode === 'hourly_batch' ? 'Hourly batch' : 'As filed' }), el('td', { class: 'mono', text: fmtTs(w.last_delivered_at) }), el('td', {}, [el('span', { class: 'badge ' + (!w.is_active ? 'failed' : w.paused ? 'partial' : 'ok'), text: !w.is_active ? 'inactive' : w.paused ? 'paused' : 'active' })]), actions]));
       });
       tbl.appendChild(tb); box.appendChild(el('div', { class: 'table-wrap' }, [tbl]));
     }).catch(function () {});
