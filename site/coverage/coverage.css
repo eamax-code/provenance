@@ -1,0 +1,32 @@
+/* Coverage: numbers first, then the metrics by statement, the forms, the markets and what's next. */
+.cov { max-width: 1440px; margin: 0 auto; padding: 24px clamp(16px, 2.3vw, 32px) 56px; display: grid; gap: clamp(40px, 5vw, 72px); }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.cov-head { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: 16px clamp(24px, 4vw, 64px); align-items: end; }
+.cov-head h1 { font-size: clamp(2.5rem, 5vw, 4.75rem); font-weight: 800; letter-spacing: -0.045em; line-height: .95; }
+.cov-head p { font-size: var(--step-body); max-width: 56ch; }
+.cov-nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.cov-nums > div { background: var(--surface); border-radius: 4px; padding: 18px 20px; display: grid; gap: 6px; }
+.cov-nums b { font-size: clamp(1.75rem, 3vw, 2.75rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.cov-nums span { color: var(--soft); font-size: 15px; }
+.cov-sec { display: grid; gap: 16px; }
+.cov-sec-head { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 8px clamp(24px, 4vw, 64px); align-items: baseline; }
+.cov-sec-head h2 { font-size: clamp(1.75rem, 2.6vw, 2.5rem); font-weight: 800; letter-spacing: -0.035em; }
+.cov-sec-head p { color: var(--soft); max-width: 64ch; }
+.cov-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.cov-table, .cov-forms { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--surface); border-radius: 4px; }
+.cov-table th, .cov-table td, .cov-forms th, .cov-forms td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.cov-table thead th { color: var(--ink); font-weight: 700; }
+.cov-table thead th.n { color: var(--soft); font-weight: 600; font-size: 13px; }
+.cov-table th[scope="row"], .cov-forms th[scope="row"] { font-weight: 600; }
+.cov-table .n { text-align: right; white-space: nowrap; }
+.cov-forms thead th { color: var(--soft); font-size: 13px; font-weight: 600; }
+.cov-next { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.cov-next li { background: var(--surface); border-radius: 4px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.cov-next li:first-child { background: var(--field); color: var(--field-ink); }
+.cov-note { color: var(--soft); font-size: 14px; max-width: 90ch; }
+@media (max-width: 1000px) {
+  .cov-head, .cov-sec-head { grid-template-columns: minmax(0, 1fr); }
+  .cov-nums, .cov-next { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cov-metrics { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) { .cov-nums, .cov-next { grid-template-columns: minmax(0, 1fr); } }
