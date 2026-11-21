@@ -65,6 +65,24 @@ def companies(
 
 
 @router.get(
+    "/companies/search",
+    responses=_ERRORS,
+    summary="Find a company by name, ticker, former name or CIK (public, at most 10)",
+    description="Stored data only, never calls the SEC. is_public_page says whether the "
+    "company has a public page.",
+)
+def company_search(
+    request: Request,
+    response: Response,
+    q: str = Query(min_length=1, max_length=100),
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+):
+    _guard(request, response)
+    return live.public_company_search(db, settings, q)
+
+
+@router.get(
     "/companies/{cik}",
     response_model=PublicCompanyBundle,
     responses=_ERRORS,

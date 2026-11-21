@@ -353,3 +353,30 @@ def public_insider_activity(db: Session, limit: int = MAX_LIMIT, today: date | N
                 "notes": [INSIDER_NOTE]}  # fmt: skip
 
     return cached(f"live_insider:{limit}:{today}", build)
+
+
+SEARCH_MAX = 10
+
+
+def public_company_search(db: Session, settings, q: str) -> dict:
+    """Keyless company lookup for the companies list and the 404 page: stored names, tickers,
+    former names and CIKs only, never an SEC request."""
+    from app.services import public as public_service
+    from app.services.company_lookup import search_companies
+    from app.services.intel import display_name
+
+    key = q.strip().lower()[:100]
+
+    def build():
+        showcase, _ = public_service.showcase_ciks(db, settings)
+        hits, _ = search_companies(db, key, SEARCH_MAX)
+        return {
+            "data": [{
+                "cik": h.company.cik, "display_name": display_name(h.company.legal_name),
+                "ticker": h.company.ticker, "exchange": h.company.exchange,
+                "matched_former_name": h.former_name, "is_public_page": h.company.cik in showcase,
+            } for h in hits],
+            "notes": ["Companies this service has loaded; pages exist for the showcase companies."],
+        }  # fmt: skip
+
+    return cached(f"company_search:{key}", build)

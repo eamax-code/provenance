@@ -297,3 +297,19 @@ def test_theme_and_gamification_prototypes_are_served(client):
     game = client.get("/poc/gamification/game.js").text
     # the real public API; progress stays in the browser
     assert "/v1/public/" in game and "localStorage" in game
+
+
+def test_public_company_search(client, ingested_aapl, fake_sec):
+    _reset()
+    calls = len(fake_sec.calls)
+    r = client.get("/v1/public/companies/search?q=aapl")
+    assert r.status_code == 200 and r.headers["cache-control"].startswith("public")
+    top = r.json()["data"][0]
+    assert top["cik"] == "0000320193" and top["ticker"] == "AAPL"
+    assert set(top) == {"cik", "display_name", "ticker", "exchange", "matched_former_name",
+                        "is_public_page"}  # fmt: skip
+    assert client.get("/v1/public/companies/search?q=320193").json()["data"][0]["cik"] == (
+        "0000320193"
+    )
+    assert client.get("/v1/public/companies/search?q=").status_code == 422
+    assert len(fake_sec.calls) == calls  # never asks the SEC
