@@ -12,7 +12,7 @@ import sys
 
 from _bootstrap import bootstrap
 
-from app.services import quality
+from app.services import coverage, quality
 
 
 def main() -> int:
@@ -25,6 +25,7 @@ def main() -> int:
     try:
         if args.take:
             quality.take_snapshot(db, settings)
+            coverage.refresh(db, settings)  # the public /coverage/ page
             db.commit()
         print(quality.render_report(db, limit=args.limit))
         return 0

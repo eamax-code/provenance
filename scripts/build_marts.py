@@ -11,7 +11,7 @@ import time
 
 from _bootstrap import bootstrap
 
-from app.services import documents, ipo_pipeline, marts
+from app.services import coverage, documents, ipo_pipeline, marts
 from app.services.sec_client import normalize_cik
 
 
@@ -19,7 +19,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--cik", action="append", help="Rebuild only this company (repeatable)")
     args = parser.parse_args()
-    _, Session = bootstrap()
+    settings, Session = bootstrap()
     db = Session()
     try:
         ciks = [normalize_cik(c) for c in args.cik] if args.cik else None
@@ -43,6 +43,9 @@ def main() -> None:
             t = time.perf_counter()
             n = marts.build_filing_activity(db)
             print(f"mart_filing_activity: {n} rows in {time.perf_counter() - t:.1f}s")
+            t = time.perf_counter()
+            coverage.refresh(db, settings)  # the public /coverage/ page
+            print(f"coverage snapshot in {time.perf_counter() - t:.1f}s")
     finally:
         db.close()
 

@@ -12,6 +12,7 @@ from app.core.rate_limits import FixedWindowRateLimiter
 from app.schemas.common import ErrorEnvelope
 from app.schemas.public import PublicCompanyBundle, PublicPlans, ShowcaseList
 from app.services import company_overview as company_overview_service
+from app.services import coverage as coverage_service
 from app.services import live
 from app.services import public as public_service
 from app.services.sec_client import normalize_cik
@@ -228,6 +229,23 @@ def ipo_public(
             "ending in the next 180). Use GET /v1/ipos with an API key.",
         )
     return body
+
+
+@router.get(
+    "/coverage",
+    responses=_ERRORS,
+    summary="What this service covers: filers, metrics with quality, forms read, history (public)",
+    description="Served from a snapshot made when the quality report runs (and daily); its "
+    "generated_at says when.",
+)
+def coverage(
+    request: Request,
+    response: Response,
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+):
+    _guard(request, response)
+    return coverage_service.stored(db, settings)
 
 
 @router.get(
