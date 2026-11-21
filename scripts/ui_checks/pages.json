@@ -1,0 +1,22 @@
+{
+  "widths": [1440, 390],
+  "pages": [
+    { "path": "/" },
+    { "path": "/companies/" },
+    { "path": "/companies/320193" },
+    { "path": "/listings/" },
+    { "path": "/status/" },
+    { "path": "/developers/" },
+    { "path": "/docs/" },
+    { "path": "/changelog/" },
+    { "path": "/playground/" },
+    { "path": "/app/", "themes": ["dark", "light", "ledger", "terminal"] },
+    { "path": "/chat/", "themes": ["dark", "light", "ledger", "terminal"] },
+    { "path": "/account/", "allowConsole": ["status of 401"] },
+    { "path": "/legal/terms/" },
+    { "path": "/legal/privacy/" },
+    { "path": "/legal/acceptable-use/" },
+    { "path": "/legal/data-sources/" },
+    { "path": "/this-page-does-not-exist", "status": 404 }
+  ]
+}
