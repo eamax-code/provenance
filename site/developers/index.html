@@ -98,6 +98,7 @@
         <li><a href="#listings">Listings</a></li>
         <li><a href="#agents">AI agents</a></li>
         <li><a href="#mcp">MCP server</a></li>
+        <li><a href="#sheets">Google Sheets</a></li>
         <li><a href="#errors">Errors</a></li>
         <li><a href="#limits">Limits and plans</a></li>
       </ul>
@@ -316,6 +317,16 @@ Transport  Streamable HTTP (POST, JSON responses)
 Auth       X-API-Key: YOUR_KEY   or   Authorization: Bearer YOUR_KEY</code></pre>
         </div>
         <p>Then ask, for example: "What was Microsoft's operating income in each of the last three fiscal years, and which filings report it?"</p>
+      </section>
+
+      <section id="sheets" aria-labelledby="sheets-h">
+        <h2 id="sheets-h">Google Sheets</h2>
+        <p>Two custom functions put a reported figure, and the filing behind it, into a cell. Paste <a href="https://github.com/eamax-code/provenance/blob/main/clients/sheets/Code.gs">Code.gs</a> into <b>Extensions &gt; Apps Script</b>, and add your key as the script property <code>PROVENANCE_API_KEY</code> with the API address as <code>PROVENANCE_BASE_URL</code>. The key stays in the script, not the sheet.</p>
+        <p>The period is optional: <code>latest</code>, <code>latest quarter</code>, <code>FY2024</code>, <code>Q2 FY2026</code>, <code>CY2025</code> or <code>CY2025Q4</code>. A period nobody filed returns <code>not reported</code>, never 0. Each cell is one request against your plan, cached for six hours.</p>
+        <div class="code"><pre><code>=PROVENANCE("AAPL", "revenue", "FY2024")
+=PROVENANCE("MSFT", "operating_income", "CY2025")
+=PROVENANCE("320193", "net_income", "Q2 FY2026")
+=PROVENANCE_SOURCE("AAPL", "revenue", "FY2024")</code></pre></div>
       </section>
 
       <section id="errors" aria-labelledby="errors-h">
