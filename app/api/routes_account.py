@@ -34,7 +34,8 @@ from app.services.api_keys import create_key_record, revoke_key
 from app.services.email_adapter import can_send, send_sign_in_email
 from app.services.usage import requests_this_month
 
-router = APIRouter(prefix="/v1/account", tags=["account"])
+# Cookie-only endpoints for the /account/ page: site-internal, so not in the public reference.
+router = APIRouter(prefix="/v1/account", tags=["account"], include_in_schema=False)
 
 SESSION_COOKIE = "prv_session"
 SENT = (

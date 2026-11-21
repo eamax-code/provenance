@@ -179,7 +179,9 @@ def test_account_pages_are_served_in_the_shared_layout(client):
     header = client.get("/").text
     assert 'class="site-button" href="/account/">Get API key' in header
     spec = client.get("/openapi.json").json()["paths"]
-    assert spec["/v1/account/sign-in"]["post"]["security"] == []
+    # cookie-only endpoints for the /account/ page are site-internal, not in the reference
+    assert not [path for path in spec if path.startswith("/v1/account")]
+    assert "/healthz" in spec and "/readyz" in spec
 
 
 def test_account_page_gets_a_first_request_ready_and_carries_the_theme(client):
