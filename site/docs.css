@@ -93,3 +93,12 @@
 .lost form input { flex: 1 1 260px; min-height: 48px; font-size: 1rem; }
 .lost form .btn { min-height: 48px; }
 #ref-body.doc-body { max-width: none; }
+
+/* three columns on wide screens: page list, prose, the section's code (moved by docs.js) */
+@media (min-width: 1280px) {
+  .doc-body:has(.sec-split) { max-width: none; }
+  .sec-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 40px; align-items: start; }
+  .sec-split .sec-prose { display: grid; gap: 14px; min-width: 0; }
+  .sec-split .sec-code { display: grid; gap: 12px; position: sticky; top: calc(var(--bar-h) + 16px); min-width: 0; }
+  .sec-split .sec-code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+}

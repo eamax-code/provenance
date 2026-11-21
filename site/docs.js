@@ -9,6 +9,22 @@
     if (code.textContent.includes("{{BASE}}")) code.innerHTML = code.innerHTML.replaceAll("{{BASE}}", base);
   });
 
+  // Guides on wide screens read in three columns: the page list, the prose, and the section's code
+  // held beside it (sticky). Narrow screens keep the code under its paragraph.
+  if (window.matchMedia("(min-width: 1280px)").matches) {
+    document.querySelectorAll(".doc-body > section").forEach((sec) => {
+      const codes = [...sec.children].filter((n) => n.classList.contains("code"));
+      if (!codes.length) return;
+      const prose = document.createElement("div");
+      prose.className = "sec-prose";
+      const aside = document.createElement("div");
+      aside.className = "sec-code";
+      [...sec.children].forEach((n) => (n.classList.contains("code") ? aside : prose).append(n));
+      sec.append(prose, aside);
+      sec.classList.add("sec-split");
+    });
+  }
+
   // Tabs: one block, several languages. Arrow keys move between tabs.
   document.querySelectorAll("[data-tabs]").forEach((block, b) => {
     const tabs = [...block.querySelectorAll('[role="tab"]')];
