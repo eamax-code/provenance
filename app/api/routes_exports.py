@@ -91,8 +91,15 @@ def export_facts(
     now = datetime.now(UTC)
     filename = export_filename(metric, cik_list, format, now)
     headers = _headers(filename, len(rows), truncated, requested)
+    year_ends = dict(
+        db.execute(
+            select(Company.cik, Company.fiscal_year_end).where(
+                Company.cik.in_({r.cik for r in rows})
+            )
+        ).all()
+    )
     if format == "csv":
-        body = render_csv(rows)
+        body = render_csv(rows, year_ends)
         media = "text/csv; charset=utf-8"
     else:
         body = render_json(
@@ -105,6 +112,7 @@ def export_facts(
                 "generated_at": now.isoformat().replace("+00:00", "Z"),
                 "source": "SEC EDGAR; independent service, not affiliated with the SEC",
             },
+            year_ends,
         )
         media = "application/json"
     request.state.export_rows = len(rows)

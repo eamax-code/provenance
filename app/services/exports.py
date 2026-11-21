@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from app.db.models import FinancialFact, MartCompanyPeriod
+from app.services import periods
 
 EXPORT_COLUMNS = [
     "cik",
@@ -21,8 +22,11 @@ EXPORT_COLUMNS = [
     "period_end",
     "period_type",
     "period_class",
-    "fiscal_year",
-    "fiscal_period",
+    "period_fiscal_year",  # the fiscal year the period belongs to
+    "period_label",  # "FY2025", "Q1 FY2026"
+    "calendar_period",  # "CY2025Q3", as the SEC frames it
+    "filing_fiscal_year",  # the SEC fy label of the filing that reported it (not the period's)
+    "filing_fiscal_period",
     "form_type",
     "filed_date",
     "accession_number",
@@ -62,22 +66,37 @@ def _json_cell(value):
     return str(value)
 
 
-def fact_row(f: FinancialFact) -> dict:
-    return {col: getattr(f, col) for col in EXPORT_COLUMNS}
+_RENAMED = {"filing_fiscal_year": "fiscal_year", "filing_fiscal_period": "fiscal_period"}
+_COMPUTED = ("period_fiscal_year", "period_label", "calendar_period")
 
 
-def render_csv(facts: list[FinancialFact]) -> bytes:
+def fact_row(f: FinancialFact, fiscal_year_end: str | None = None) -> dict:
+    row = {col: getattr(f, _RENAMED.get(col, col)) for col in EXPORT_COLUMNS
+           if col not in _COMPUTED}  # fmt: skip
+    row["period_fiscal_year"] = periods.fiscal_year(f.period_end, fiscal_year_end)
+    row["period_label"] = (
+        periods.label(f.period_end, f.period_class, fiscal_year_end)
+        if f.period_class in ("annual", "quarterly") else None
+    )  # fmt: skip
+    row["calendar_period"] = periods.calendar_period(f.period_start, f.period_end, f.period_class)
+    return {col: row[col] for col in EXPORT_COLUMNS}
+
+
+def render_csv(facts: list[FinancialFact], year_ends: dict[str, str | None] | None = None) -> bytes:
     buf = io.StringIO()
     writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
     writer.writerow(EXPORT_COLUMNS)
     for f in facts:
-        row = fact_row(f)
+        row = fact_row(f, (year_ends or {}).get(f.cik))
         writer.writerow([_cell(row[c]) for c in EXPORT_COLUMNS])
     return buf.getvalue().encode("utf-8")
 
 
-def render_json(facts: list[FinancialFact], meta: dict) -> bytes:
-    rows = [{c: _json_cell(v) for c, v in fact_row(f).items()} for f in facts]
+def render_json(
+    facts: list[FinancialFact], meta: dict, year_ends: dict[str, str | None] | None = None
+) -> bytes:
+    rows = [{c: _json_cell(v) for c, v in fact_row(f, (year_ends or {}).get(f.cik)).items()}
+            for f in facts]  # fmt: skip
     return json.dumps({"data": rows, "meta": meta}, separators=(",", ":")).encode("utf-8")
 
 
@@ -89,7 +108,7 @@ PERIOD_METRICS = [
     "operating_cash_flow",
 ]
 PERIOD_COLUMNS = (
-    ["cik", "company", "fiscal_year", "period_end", "unit"]
+    ["cik", "company", "period_fiscal_year", "period_label", "period_end", "unit"]
     + PERIOD_METRICS
     + [f"{m}_filing_url" for m in PERIOD_METRICS]
 )
@@ -101,7 +120,8 @@ def period_row(row: MartCompanyPeriod, company: str | None) -> dict:
     out = {
         "cik": row.cik,
         "company": company,
-        "fiscal_year": row.fiscal_year,
+        "period_fiscal_year": row.fiscal_year,  # the mart's year is the period's own
+        "period_label": f"FY{row.fiscal_year}",
         "period_end": row.period_end,
         "unit": "USD",
     }

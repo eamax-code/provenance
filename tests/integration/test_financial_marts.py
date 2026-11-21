@@ -98,7 +98,7 @@ def test_company_years_export(client, auth, db, sec_client):
     r = client.get("/v1/exports/company-years", params={"ciks": "320193,789019"}, headers=auth)
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
     rows = list(csv.DictReader(io.StringIO(r.text)))
-    fy24 = next(x for x in rows if x["cik"] == "0000320193" and x["fiscal_year"] == "2024")
+    fy24 = next(x for x in rows if x["cik"] == "0000320193" and x["period_fiscal_year"] == "2024")
     assert fy24["revenue"] == "391035000000" and fy24["company"] == "Apple Inc."
     assert fy24["revenue_filing_url"].startswith("https://www.sec.gov/Archives/")
     assert r.headers["X-Export-Rows"] == str(len(rows))
@@ -109,7 +109,7 @@ def test_company_years_export(client, auth, db, sec_client):
     )
     body = one_year.json()
     assert len(body["data"]) == 1 and body["meta"]["truncated"] is True
-    assert body["data"][0]["fiscal_year"] == 2024
+    assert body["data"][0]["period_fiscal_year"] == 2024
     unbounded = client.get("/v1/exports/company-years", params={"from_year": 2020}, headers=auth)
     assert unbounded.status_code == 422
     assert (

@@ -52,7 +52,7 @@ def test_csv_escaping_and_nulls():
     assert rows[0] == EXPORT_COLUMNS
     row = dict(zip(EXPORT_COLUMNS, rows[1], strict=True))
     assert row["source_tag"] == 'Tag "quoted", with, commas\nand newline ✓'
-    assert row["value"] == "" and row["currency"] == "" and row["fiscal_year"] == ""
+    assert row["value"] == "" and row["currency"] == "" and row["filing_fiscal_year"] == ""
     assert row["processed_at"].endswith("Z") and row["derived"] == "false"
 
 
@@ -91,3 +91,17 @@ def test_rate_limiter_window():
     assert not d.allowed and d.retry_after_seconds >= 1
     assert rl.check("other", 3, now=t0 + 1).allowed
     assert rl.check("k", 3, now=t0 + 61).allowed
+
+
+def test_export_columns_name_the_period_year_not_the_filings():
+    from app.services.exports import EXPORT_COLUMNS, fact_row
+
+    assert "fiscal_year" not in EXPORT_COLUMNS
+    assert {"period_fiscal_year", "period_label", "calendar_period", "filing_fiscal_year"} <= set(
+        EXPORT_COLUMNS
+    )
+    # a 10-K's comparative for last year: the filing says fy 2025, the period is FY2024
+    f = _fact(period_end=date(2024, 9, 28), fiscal_year=2025)
+    row = fact_row(f, "0927")
+    assert row["period_fiscal_year"] == 2024 and row["period_label"] == "FY2024"
+    assert row["filing_fiscal_year"] == 2025
