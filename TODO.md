@@ -20,7 +20,8 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | K-01 to K-04 | CIK-LEI-ISIN, officer dates on edges, co-registrants, ticker history | queued |
 | G-01 | Pricing in code, one source of truth (owner approved prices 2026-11-22) | done 2026-11-22: `app/core/plans.py` (Free, Analyst $19, Builder $79, Team $249, Enterprise from $1,500); enforced: rate, quota, export rows, watches, streams, chat per day, forecasts (Analyst+), keys per account; `commercial_use` as a label; overage and credits hidden until G-02; `/v1/public/plans`, `site/plans.json` and the home JSON-LD from `scripts/sync_plans.py` (provenance-ui runs it with its home commit) |
 | T-01 | Type watches across companies (Builder+), universe filter, hourly batch for high-volume types | done 2026-11-22: `POST/GET/DELETE /v1/type-watches`; universe by SIC prefix, exchange, filer category or up to 500 CIKs; rare types one by one, results/agreements/votes without a universe as one `sec.filing.batch` webhook an hour; counts as one watch; same signing; backfill never notifies (migration d9e2b6f4a8c3) |
-| U-01 to U-03 | Public as_of, peers, leadership by person (with K-02) | queued after T-01 |
+| U-01, U-02 | Public as_of on the company overview; peers | done 2026-11-22: `/v1/public/companies/{cik}/overview?as_of=` (statements, figures, filings, leadership, events point in time; summary, peers, risk, listings current and labelled); `statements` (32 metrics by fiscal year, ratios with inputs), `cover`, `events`; peers by 4-digit SIC (3 when fewer than 4), annual report in 2 years, closest revenue, at most 6. Example: docs/api-examples/public-overview.json |
+| U-03 | Leadership by person with current CEO/CFO/Chair | with K-02 |
 | I-09, F-01 | Production smoke script, Sheets function | queued |
 | Owner | O-01 to O-09 (host, domain, email, merchant of record, model, news, legal, pricing) | waiting on you; G-02, I-01, I-03 wait on them |
 

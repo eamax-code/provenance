@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
@@ -100,6 +102,11 @@ def company_overview(
     request: Request,
     response: Response,
     cik: str = Path(max_length=13),
+    as_of: date | None = Query(
+        None,
+        description="Point in time: figures, filings, leadership and events as filed by this "
+        "date (summary, peers, risk factors and listings stay current)",
+    ),
     db: Session = Depends(db_session),
     settings: Settings = Depends(settings_dep),
 ):
@@ -111,7 +118,18 @@ def company_overview(
     ciks, _ = public_service.showcase_ciks(db, settings)
     if cik not in ciks:
         raise APIError(404, "company_not_found", "This company is not part of the public showcase.")
-    body = public_service.cached(f"overview:{cik}", lambda: company_overview_service.build(db, cik))
+    if as_of is not None:
+        if as_of > date.today():
+            raise APIError(422, "invalid_parameter", "as_of cannot be in the future.")
+        first = company_overview_service.first_filing_date(db, cik)
+        if first is None or as_of < first:
+            when = f"{first.day} {first:%b %Y}" if first else "that date"
+            raise APIError(
+                422, "invalid_parameter", f"No filings before {when}; pick a later date."
+            )
+    body = public_service.cached(
+        f"overview:{cik}:{as_of}", lambda: company_overview_service.build(db, cik, as_of=as_of)
+    )
     if body is None:
         raise APIError(404, "company_not_found", "This company is not part of the public showcase.")
     return body

@@ -10,6 +10,7 @@ figure and event links to its filing on sec.gov; no source API URLs are returned
 from __future__ import annotations
 
 import json
+import math
 from datetime import date, timedelta
 
 from sqlalchemy import case, func, select
@@ -25,7 +26,8 @@ from app.db.models import (
     OfficerChange,
 )
 from app.schemas.companies import CompanyOut
-from app.services import documents, periods
+from app.services import cover as cover_service
+from app.services import documents, live, periods, statements
 from app.services.form8k import ITEM_TITLES, split_items
 from app.services.intel import display_name
 from app.services.officer_changes import change_dict
@@ -34,7 +36,10 @@ from app.services.sec_client import company_filings_url
 YEARS = 10
 RECENT_FILINGS = 25
 LEADERSHIP_YEARS = 3
-PEERS = 8
+PEERS = 6
+PEER_RECENT_DAYS = 730  # a peer must have filed an annual report in the last two years
+EVENT_DAYS = 730
+EVENTS = 30
 METRICS = ("revenue", "operating_income", "net_income", "total_assets", "operating_cash_flow")
 FORM_GROUPS = {
     "Annual reports": ("10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A", "10-KT"),
@@ -144,12 +149,14 @@ def _years(db: Session, cik: str, fye: str | None) -> list[dict]:
     return out
 
 
-def _filings(db: Session, cik: str) -> list[dict]:
+def _filings(db: Session, cik: str, as_of: date | None = None) -> list[dict]:
+    stmt = select(Filing).where(Filing.cik == cik)
+    if as_of:
+        stmt = stmt.where(Filing.filing_date <= as_of)
     rows = db.scalars(
-        select(Filing)
-        .where(Filing.cik == cik)
-        .order_by(Filing.filing_date.desc().nulls_last(), Filing.accession_number.desc())
-        .limit(RECENT_FILINGS)
+        stmt.order_by(Filing.filing_date.desc().nulls_last(), Filing.accession_number.desc()).limit(
+            RECENT_FILINGS
+        )
     ).all()
     return [
         {
@@ -172,7 +179,7 @@ def _activity(db: Session, cik: str, today: date) -> list[dict]:
             func.count(Filing.id),
             func.sum(case((Filing.filing_date >= since, 1), else_=0)),
         )
-        .where(Filing.cik == cik)
+        .where(Filing.cik == cik, Filing.filing_date <= today)
         .group_by(Filing.form_type)
     ).all()
     counts = {form: (int(total), int(recent or 0)) for form, total, recent in rows}
@@ -194,13 +201,20 @@ def _leadership(db: Session, cik: str, today: date) -> dict:
     since = today - timedelta(days=365 * LEADERSHIP_YEARS)
     changes = db.scalars(
         select(OfficerChange)
-        .where(OfficerChange.cik == cik, OfficerChange.filing_date >= since)
+        .where(
+            OfficerChange.cik == cik,
+            OfficerChange.filing_date >= since,
+            OfficerChange.filing_date <= today,
+        )
         .order_by(OfficerChange.filing_date.desc(), OfficerChange.seq)
         .limit(20)
     ).all()
     filings_502 = db.scalar(
         select(func.count(Filing.id)).where(
-            Filing.cik == cik, Filing.items.like("%5.02%"), Filing.filing_date >= since
+            Filing.cik == cik,
+            Filing.items.like("%5.02%"),
+            Filing.filing_date >= since,
+            Filing.filing_date <= today,
         )
     )
     return {
@@ -215,34 +229,43 @@ def _leadership(db: Session, cik: str, today: date) -> dict:
     }  # fmt: skip
 
 
-def _peers(db: Session, company: Company) -> dict | None:
+def _peers(db: Session, company: Company, today: date) -> dict | None:
+    """Same 4-digit SIC (3-digit when fewer than 4 peers), companies that filed an annual report
+    in the last two years, ranked by closeness to this company's latest annual revenue (U-02)."""
     code = company.sic_code
-    if not code:
+    if not code or len(code) < 3:
         return None
-    for width in (4, 2):
+    me = db.get(MartCompany, company.cik)
+    mine = float(me.latest_revenue) if me and me.latest_revenue else None
+    recent = today - timedelta(days=PEER_RECENT_DAYS)
+    for width in (4, 3):
         prefix = code[:width]
-        rows = (
-            db.execute(
-                select(MartCompany)
-                .join(Company, Company.cik == MartCompany.cik)
-                .where(
-                    func.substr(Company.sic_code, 1, width) == prefix,
-                    MartCompany.cik != company.cik,
-                    MartCompany.latest_revenue.is_not(None),
-                    MartCompany.active.is_(True),
-                )
-                .order_by(MartCompany.latest_revenue.desc())
-                .limit(PEERS)
+        rows = db.execute(
+            select(MartCompany, Company.fiscal_year_end)
+            .join(Company, Company.cik == MartCompany.cik)
+            .where(
+                func.substr(Company.sic_code, 1, width) == prefix,
+                MartCompany.cik != company.cik,
+                MartCompany.latest_revenue.is_not(None),
+                MartCompany.latest_revenue > 0,
+                MartCompany.latest_annual_report_date >= recent,
+                MartCompany.latest_revenue_period_end >= recent - timedelta(days=365),
             )
-            .scalars()
-            .all()
-        )
-        if len(rows) >= 3 or width == 2:
+        ).all()
+        if len(rows) >= 4 or width == 3:
             break
     if not rows:
         return None
+
+    def distance(m: MartCompany) -> float:
+        if not mine or mine <= 0:
+            return -float(m.latest_revenue)  # no revenue of our own: largest first
+        return abs(math.log(float(m.latest_revenue) / mine))
+
+    rows.sort(key=lambda r: distance(r[0]))
     return {
         "basis": f"SIC {prefix}" + (f" ({company.sic_description})" if width == 4 else ""),
+        "basis_width": width,
         "companies": [
             {
                 "cik": m.cik,
@@ -250,11 +273,48 @@ def _peers(db: Session, company: Company) -> dict | None:
                 "ticker": m.ticker,
                 "latest_revenue": float(m.latest_revenue),
                 "period_end": m.latest_revenue_period_end,
+                "fiscal_label": periods.label(m.latest_revenue_period_end, "annual", fye)
+                if m.latest_revenue_period_end
+                else None,
                 "filings_url": company_filings_url(m.cik),
             }
-            for m in rows
+            for m, fye in rows[:PEERS]
         ],
     }
+
+
+def _figures_as_of(db: Session, company: Company, as_of: date) -> tuple[list[dict], list[dict]]:
+    """key_figures and years as known on as_of, from the reported facts (not the marts)."""
+    cells, units, ends = statements.annual_cells(db, company, as_of, METRICS)
+    labels = sorted(ends, key=lambda lab: ends[lab])[-YEARS:]
+    key_figures = []
+    for metric in METRICS:
+        per = cells.get(metric, {})
+        if not per:
+            continue
+        lab = max(per, key=lambda x: per[x].period_end)
+        f = per[lab]
+        item = {"metric": metric, "value": float(f.value), "unit": f.unit,
+                "period_end": f.period_end, "fiscal_label": lab, "form_type": f.form_type,
+                "filed_date": f.filed_date, "source_url": f.source_url}  # fmt: skip
+        prev = sorted(per.values(), key=lambda x: x.period_end)
+        if metric == "revenue" and len(prev) > 1 and prev[-2].value:
+            item["change_pct"] = round(
+                float((prev[-1].value - prev[-2].value) / abs(prev[-2].value)) * 100, 1
+            )
+        key_figures.append(item)
+    years = []
+    for lab in labels:
+        values = {m: float(cells[m][lab].value) if lab in cells.get(m, {}) else None
+                  for m in METRICS}  # fmt: skip
+        rev, op = values["revenue"], values["operating_income"]
+        years.append({
+            "fiscal_year": int(lab[2:6]) if lab[2:6].isdigit() else None,
+            "fiscal_label": lab, "period_end": ends[lab], **values,
+            "operating_margin_pct": round(100 * op / rev, 1) if rev and op is not None else None,
+            "sources": {m: cells[m][lab].source_url for m in METRICS if lab in cells.get(m, {})},
+        })  # fmt: skip
+    return key_figures, years
 
 
 def _listings(db: Session, company: Company) -> list[dict]:
@@ -269,29 +329,57 @@ def _listings(db: Session, company: Company) -> list[dict]:
     ]  # fmt: skip
 
 
-def build(db: Session, cik: str, today: date | None = None) -> dict | None:
+POINT_IN_TIME = ("statements", "key_figures", "years", "cover", "filings", "filing_activity",
+                 "leadership", "events")  # fmt: skip
+CURRENT = ("summary", "history", "risk_factors", "peers", "listings")
+
+
+def first_filing_date(db: Session, cik: str) -> date | None:
+    return db.scalar(select(func.min(Filing.filing_date)).where(Filing.cik == cik))
+
+
+def build(
+    db: Session, cik: str, today: date | None = None, as_of: date | None = None
+) -> dict | None:
     today = today or date.today()
     company = db.scalar(select(Company).where(Company.cik == cik))
     if company is None:
         return None
+    anchor = as_of or today
     mart = db.get(MartCompany, cik)
     profile = documents.build_profile(db, cik, today=today)
     risk = documents.latest_risk(db, cik)
+    if as_of:
+        key_figures, years = _figures_as_of(db, company, as_of)
+    else:
+        key_figures = _key_figures(mart, company.fiscal_year_end)
+        years = _years(db, cik, company.fiscal_year_end)
     return {
         "company": _identity(db, company),
+        "as_of": as_of.isoformat() if as_of else None,
+        "as_of_scope": {"point_in_time": list(POINT_IN_TIME), "current": list(CURRENT)},
         "summary": {"text": profile.summary, "citations": profile.citations} if profile else None,
         "history": _history(mart),
-        "key_figures": _key_figures(mart, company.fiscal_year_end),
-        "years": _years(db, cik, company.fiscal_year_end),
-        "filings": _filings(db, cik),
-        "filing_activity": _activity(db, cik, today),
-        "leadership": _leadership(db, cik, today),
+        "key_figures": key_figures,
+        "years": years,
+        "statements": statements.build(db, company, as_of),
+        "cover": cover_service.cover(db, company, as_of),
+        "filings": _filings(db, cik, as_of),
+        "filing_activity": _activity(db, cik, anchor),
+        "leadership": _leadership(db, cik, anchor),
+        "events": live.event_rows(
+            db, anchor - timedelta(days=EVENT_DAYS), EVENTS, until=anchor, cik=cik
+        ),
         "risk_factors": risk,
-        "peers": _peers(db, company),
+        "peers": _peers(db, company, today),
         "listings": _listings(db, company),
         "notes": [
             "Figures are as reported in the company's annual reports; each links to its filing "
             "on sec.gov. Missing values mean no mappable figure was filed, not that there is none.",
+            "Ratios are derived here from two reported figures of the same fiscal year and list "
+            "their inputs.",
+            "Events say what a filing is, from its form and declared 8-K items: information, "
+            "not signals.",
             "Leadership changes are read from 8-K item 5.02 by a language model and checked "
             "against the filing text; unverified ones are marked.",
             "Data from SEC EDGAR. Independent service, not affiliated with the SEC. Not "

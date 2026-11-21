@@ -79,6 +79,42 @@ def test_overview_has_every_section_and_no_source_api_links(client, db, ingested
     assert client.get("/v1/public/companies/abc/overview").status_code == 422
 
 
+def test_overview_statements_ratios_cover_and_point_in_time(client, db, ingested_aapl):
+    from app.services import marts
+
+    marts.build_company_marts(db)
+    marts.build_financial_marts(db)
+    body = client.get("/v1/public/companies/320193/overview").json()
+    st = body["statements"]
+    assert st["fiscal_years"] and st["fiscal_years"][-1] == "FY2024"
+    sections = {s["key"]: s for s in st["sections"]}
+    assert {"income", "balance", "cash_flow", "ratios"} <= set(sections)
+    rev = next(r for r in sections["income"]["rows"] if r["metric"] == "revenue")
+    assert rev["unit"] == "USD" and rev["currency"] == "USD" and rev["derived"] is False
+    assert len(rev["cells"]) == len(st["fiscal_years"])
+    cell = rev["cells"][-1]
+    assert cell["value"] == 391035000000 and cell["form_type"] == "10-K"
+    assert cell["accession_number"] and cell["source_url"].startswith("https://www.sec.gov/")
+    om = next(r for r in sections["ratios"]["rows"] if r["metric"] == "operating_margin")
+    assert om["derived"] and om["inputs"] == ["operating_income", "revenue"] and om["formula"]
+    last = om["cells"][-1]
+    assert last["derived"] is True and 25 < last["value"] < 40
+    assert {i["metric"] for i in last["inputs"]} == {"operating_income", "revenue"}
+    assert body["cover"]["shares_outstanding"]["unit"] == "shares"
+    assert isinstance(body["events"], list) and body["as_of"] is None
+
+    # point in time: before the FY2024 10-K (filed 2024-11-01) the latest year is FY2023
+    pit = client.get("/v1/public/companies/320193/overview?as_of=2024-06-30").json()
+    assert pit["as_of"] == "2024-06-30" and "statements" in pit["as_of_scope"]["point_in_time"]
+    assert pit["statements"]["fiscal_years"][-1] == "FY2023"
+    assert all(f["filing_date"] <= "2024-06-30" for f in pit["filings"])
+    assert pit["key_figures"][0]["period_end"] <= "2024-06-30"
+    early = client.get("/v1/public/companies/320193/overview?as_of=1990-01-01")
+    assert early.status_code == 422 and "pick a later date" in early.json()["error"]["message"]
+    future = client.get("/v1/public/companies/320193/overview?as_of=2999-01-01")
+    assert future.status_code == 422
+
+
 def _layout(r):
     return r.text.split('aria-current="page">')[1].split("<")[0]
 

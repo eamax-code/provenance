@@ -123,66 +123,81 @@ def _exchange_filers(db: Session) -> set[str]:
     return cached("exchange_filers", build)
 
 
+def event_rows(
+    db: Session,
+    since: date,
+    limit: int,
+    until: date | None = None,
+    cik: str | None = None,
+) -> list[dict]:
+    """Notable filings filed in [since, until], newest first, one row per filing under its most
+    consequential type; officer changes from 8-K item 5.02 included."""
+    found: list[tuple[date, int, dict]] = []
+    stmt = (
+        select(Filing, Company.legal_name, Company.ticker)
+        .join(Company, Company.cik == Filing.cik)
+        .where(
+            Filing.filing_date >= since,
+            filing_events.condition(list(filing_events.FILING_EVENT_TYPES)),
+        )
+        .order_by(Filing.filing_date.desc(), Filing.accepted_at.desc().nulls_last())
+        .limit(max(200, limit * 4))
+    )
+    changes_stmt = (
+        select(OfficerChange, Company.legal_name, Company.ticker)
+        .join(Company, Company.cik == OfficerChange.cik)
+        .where(OfficerChange.filing_date >= since, OfficerChange.change_type != "compensation")
+        .order_by(OfficerChange.filing_date.desc())
+        .limit(max(50, limit * 2))
+    )
+    if until:
+        stmt = stmt.where(Filing.filing_date <= until)
+        changes_stmt = changes_stmt.where(OfficerChange.filing_date <= until)
+    if cik:
+        stmt = stmt.where(Filing.cik == cik)
+        changes_stmt = changes_stmt.where(OfficerChange.cik == cik)
+    exchanges = set() if cik else _exchange_filers(db)
+    for f, name, ticker in db.execute(stmt).all():
+        types = filing_events.types_for(f.form_type, f.items)
+        if not types or f.cik in exchanges:
+            continue  # an exchange files Form 25 for others; the issuer's own row counts
+        top = min(types, key=filing_events.PRIORITY.index)
+        found.append((f.filing_date, filing_events.PRIORITY.index(top), {
+            "type": top, "label": filing_events.FILING_EVENT_TYPES[top].label,
+            "short_label": filing_events.SHORT_LABELS[top],
+            "cik": f.cik, "company_name": name, "ticker": ticker,
+            "date": f.filing_date.isoformat(), "form_type": f.form_type,
+            "filing_url": f.source_url, "_accn": f.accession_number,
+        }))  # fmt: skip
+    for c, name, ticker in db.execute(changes_stmt).all():
+        found.append((c.filing_date, filing_events.OFFICER_CHANGE_RANK, {
+            "type": "sec.officer_change",
+            "label": f"{c.person or 'An officer'} {CHANGE_LABELS.get(c.change_type, '')}"
+                     f"{', ' + c.role if c.role else ''} (8-K item 5.02)",
+            "short_label": _officer_short(c),
+            "cik": c.cik, "company_name": name, "ticker": ticker,
+            "date": c.filing_date.isoformat(), "form_type": "8-K",
+            "filing_url": c.source_url, "_accn": c.accession_number,
+        }))  # fmt: skip
+    # newest first; on one day the more consequential first; one row per filing
+    found.sort(key=lambda r: (-r[0].toordinal(), r[1]))
+    rows, seen = [], set()
+    for _, _, row in found:
+        accn = row.pop("_accn")
+        if accn in seen:
+            continue
+        seen.add(accn)
+        rows.append(row)
+        if len(rows) == limit:
+            break
+    return rows
+
+
 def public_events(db: Session, limit: int = MAX_LIMIT, today: date | None = None) -> dict:
     limit = _limit(limit)
 
     def build():
         since = (today or date.today()) - timedelta(days=EVENT_DAYS)
-        found: list[tuple[date, int, dict]] = []
-        filings = db.execute(
-            select(Filing, Company.legal_name, Company.ticker)
-            .join(Company, Company.cik == Filing.cik)
-            .where(
-                Filing.filing_date >= since,
-                filing_events.condition(list(filing_events.FILING_EVENT_TYPES)),
-            )
-            .order_by(Filing.filing_date.desc(), Filing.accepted_at.desc().nulls_last())
-            .limit(200)
-        ).all()
-        exchanges = _exchange_filers(db)
-        for f, name, ticker in filings:
-            types = filing_events.types_for(f.form_type, f.items)
-            if not types or f.cik in exchanges:
-                continue  # an exchange files Form 25 for others; the issuer's own row counts
-            top = min(types, key=filing_events.PRIORITY.index)
-            found.append((f.filing_date, filing_events.PRIORITY.index(top), {
-                "type": top, "label": filing_events.FILING_EVENT_TYPES[top].label,
-                "short_label": filing_events.SHORT_LABELS[top],
-                "cik": f.cik, "company_name": name, "ticker": ticker,
-                "date": f.filing_date.isoformat(), "form_type": f.form_type,
-                "filing_url": f.source_url, "_accn": f.accession_number,
-            }))  # fmt: skip
-        changes = db.execute(
-            select(OfficerChange, Company.legal_name, Company.ticker)
-            .join(Company, Company.cik == OfficerChange.cik)
-            .where(
-                OfficerChange.filing_date >= since,
-                OfficerChange.change_type != "compensation",
-            )
-            .order_by(OfficerChange.filing_date.desc())
-            .limit(50)
-        ).all()
-        for c, name, ticker in changes:
-            found.append((c.filing_date, filing_events.OFFICER_CHANGE_RANK, {
-                "type": "sec.officer_change",
-                "label": f"{c.person or 'An officer'} {CHANGE_LABELS.get(c.change_type, '')}"
-                         f"{', ' + c.role if c.role else ''} (8-K item 5.02)",
-                "short_label": _officer_short(c),
-                "cik": c.cik, "company_name": name, "ticker": ticker,
-                "date": c.filing_date.isoformat(), "form_type": "8-K",
-                "filing_url": c.source_url, "_accn": c.accession_number,
-            }))  # fmt: skip
-        # newest first; on one day the more consequential first; one row per filing
-        found.sort(key=lambda r: (-r[0].toordinal(), r[1]))
-        rows, seen = [], set()
-        for _, _, row in found:
-            accn = row.pop("_accn")
-            if accn in seen:
-                continue
-            seen.add(accn)
-            rows.append(row)
-            if len(rows) == limit:
-                break
-        return {"data": rows, "as_of": _now_iso(), "notes": [EVENT_NOTE]}
+        return {"data": event_rows(db, since, limit), "as_of": _now_iso(), "notes": [EVENT_NOTE]}
 
     return cached(f"live_events:{limit}:{today}", build)

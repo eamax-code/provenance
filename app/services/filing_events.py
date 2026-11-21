@@ -51,7 +51,9 @@ FILING_EVENT_TYPES: dict[str, FilingEventType] = {
         forms=("15-12B", "15-12G", "15-15D", "15F-12B", "15F-12G", "15F-15D"),
     ),
     "sec.delisting": FilingEventType(
-        "Removal from listing on an exchange (Form 25)", forms=("25", "25-NSE", "25/A")
+        # often one class of securities (a note issue, preferred shares), not the common stock
+        "A class of securities removed from listing on an exchange (Form 25)",
+        forms=("25", "25-NSE", "25/A"),
     ),
     "sec.tender_offer": FilingEventType(
         "Third-party tender offer (Schedule TO-T)", forms=("SC TO-T", "SC14D1")
@@ -70,7 +72,7 @@ SHORT_LABELS = {
     "sec.restatement": "Restatement",
     "sec.change_in_control": "Change in control",
     "sec.auditor_change": "Auditor change",
-    "sec.delisting": "Delisting",
+    "sec.delisting": "Security delisted",
     "sec.deregistration": "Deregistration",
     "sec.tender_offer": "Tender offer",
     "sec.merger_proxy": "Merger vote",

@@ -1,0 +1,962 @@
+{
+  "_note": "Real response for JPMorgan (CIK 19617) from the local database on 2026-11-22, trimmed: 3 rows per section, 3 events, 3 peers; summary, filings, leadership and risk_factors omitted.",
+  "as_of": null,
+  "as_of_scope": {
+    "point_in_time": [
+      "statements",
+      "key_figures",
+      "years",
+      "cover",
+      "filings",
+      "filing_activity",
+      "leadership",
+      "events"
+    ],
+    "current": [
+      "summary",
+      "history",
+      "risk_factors",
+      "peers",
+      "listings"
+    ]
+  },
+  "statements": {
+    "fiscal_years": [
+      "FY2021",
+      "FY2022",
+      "FY2023",
+      "FY2024",
+      "FY2025"
+    ],
+    "sections": [
+      {
+        "key": "income",
+        "title": "Income statement",
+        "rows": [
+          {
+            "metric": "revenue",
+            "label": "Revenue",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 121649000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 128695000000.0,
+                "form_type": "10-K",
+                "filed_date": "2025-02-14",
+                "accession_number": "0000019617-25-000270",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 158104000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 177556000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 182447000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          },
+          {
+            "metric": "interest_expense",
+            "label": "Interest expense",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 5553000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 26097000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 81321000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 101350000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 97898000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          },
+          {
+            "metric": "net_interest_income",
+            "label": "Net interest income",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 52311000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 66710000000.0,
+                "form_type": "10-K",
+                "filed_date": "2025-02-14",
+                "accession_number": "0000019617-25-000270",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 89267000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 92583000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 95443000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "balance",
+        "title": "Balance sheet",
+        "rows": [
+          {
+            "metric": "total_assets",
+            "label": "Total assets",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 3743567000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 3665743000000.0,
+                "form_type": "10-K",
+                "filed_date": "2025-02-14",
+                "accession_number": "0000019617-25-000270",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 3875393000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 4002814000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 4424900000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          },
+          {
+            "metric": "total_liabilities",
+            "label": "Total liabilities",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 3449440000000.0,
+                "form_type": "10-K",
+                "filed_date": "2023-02-21",
+                "accession_number": "0000019617-23-000231",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961723000231/0000019617-23-000231-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 3373411000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 3547515000000.0,
+                "form_type": "10-K",
+                "filed_date": "2025-02-14",
+                "accession_number": "0000019617-25-000270",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 3658056000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 4062462000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          },
+          {
+            "metric": "stockholders_equity",
+            "label": "Stockholders' equity",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 294127000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 292332000000.0,
+                "form_type": "10-K",
+                "filed_date": "2025-02-14",
+                "accession_number": "0000019617-25-000270",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 327878000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 344758000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 362438000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "cash_flow",
+        "title": "Cash flow",
+        "rows": [
+          {
+            "metric": "operating_cash_flow",
+            "label": "Operating cash flow",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 78084000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 107119000000.0,
+                "form_type": "10-K",
+                "filed_date": "2025-02-14",
+                "accession_number": "0000019617-25-000270",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 12974000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": -42012000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": -147782000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          },
+          {
+            "metric": "dividends_paid",
+            "label": "Dividends paid",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 12858000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 13562000000.0,
+                "form_type": "10-K",
+                "filed_date": "2025-02-14",
+                "accession_number": "0000019617-25-000270",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 13463000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 14783000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 16625000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          },
+          {
+            "metric": "share_repurchases",
+            "label": "Share repurchases",
+            "unit": "USD",
+            "currency": "USD",
+            "derived": false,
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 18408000000.0,
+                "form_type": "10-K",
+                "filed_date": "2024-02-16",
+                "accession_number": "0000019617-24-000225",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 3162000000.0,
+                "form_type": "10-K",
+                "filed_date": "2025-02-14",
+                "accession_number": "0000019617-25-000270",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 9824000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 18830000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 31591000000.0,
+                "form_type": "10-K",
+                "filed_date": "2026-02-13",
+                "accession_number": "0001628280-26-008131",
+                "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html",
+                "quality_status": "ok",
+                "derived": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "ratios",
+        "title": "Ratios",
+        "rows": [
+          {
+            "metric": "net_margin",
+            "label": "Net margin",
+            "unit": "%",
+            "currency": null,
+            "derived": true,
+            "formula": "Net income / Revenue",
+            "inputs": [
+              "net_income",
+              "revenue"
+            ],
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 39.7,
+                "derived": true,
+                "accession_number": "0000019617-24-000225",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 48334000000.0,
+                    "accession_number": "0000019617-24-000225",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html"
+                  },
+                  {
+                    "metric": "revenue",
+                    "value": 121649000000.0,
+                    "accession_number": "0000019617-24-000225",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html"
+                  }
+                ]
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 29.3,
+                "derived": true,
+                "accession_number": "0000019617-25-000270",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 37676000000.0,
+                    "accession_number": "0000019617-25-000270",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html"
+                  },
+                  {
+                    "metric": "revenue",
+                    "value": 128695000000.0,
+                    "accession_number": "0000019617-25-000270",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html"
+                  }
+                ]
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 31.3,
+                "derived": true,
+                "accession_number": "0001628280-26-008131",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 49552000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  },
+                  {
+                    "metric": "revenue",
+                    "value": 158104000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  }
+                ]
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 32.9,
+                "derived": true,
+                "accession_number": "0001628280-26-008131",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 58471000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  },
+                  {
+                    "metric": "revenue",
+                    "value": 177556000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  }
+                ]
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 31.3,
+                "derived": true,
+                "accession_number": "0001628280-26-008131",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 57048000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  },
+                  {
+                    "metric": "revenue",
+                    "value": 182447000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "metric": "return_on_assets",
+            "label": "Return on assets",
+            "unit": "%",
+            "currency": null,
+            "derived": true,
+            "formula": "Net income / Total assets (year end)",
+            "inputs": [
+              "net_income",
+              "total_assets"
+            ],
+            "cells": [
+              {
+                "fiscal_label": "FY2021",
+                "period_end": "2021-12-31",
+                "value": 1.3,
+                "derived": true,
+                "accession_number": "0000019617-24-000225",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 48334000000.0,
+                    "accession_number": "0000019617-24-000225",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html"
+                  },
+                  {
+                    "metric": "total_assets",
+                    "value": 3743567000000.0,
+                    "accession_number": "0000019617-24-000225",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961724000225/0000019617-24-000225-index.html"
+                  }
+                ]
+              },
+              {
+                "fiscal_label": "FY2022",
+                "period_end": "2022-12-31",
+                "value": 1.0,
+                "derived": true,
+                "accession_number": "0000019617-25-000270",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 37676000000.0,
+                    "accession_number": "0000019617-25-000270",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html"
+                  },
+                  {
+                    "metric": "total_assets",
+                    "value": 3665743000000.0,
+                    "accession_number": "0000019617-25-000270",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961725000270/0000019617-25-000270-index.html"
+                  }
+                ]
+              },
+              {
+                "fiscal_label": "FY2023",
+                "period_end": "2023-12-31",
+                "value": 1.3,
+                "derived": true,
+                "accession_number": "0001628280-26-008131",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 49552000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  },
+                  {
+                    "metric": "total_assets",
+                    "value": 3875393000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  }
+                ]
+              },
+              {
+                "fiscal_label": "FY2024",
+                "period_end": "2024-12-31",
+                "value": 1.5,
+                "derived": true,
+                "accession_number": "0001628280-26-008131",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 58471000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  },
+                  {
+                    "metric": "total_assets",
+                    "value": 4002814000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  }
+                ]
+              },
+              {
+                "fiscal_label": "FY2025",
+                "period_end": "2025-12-31",
+                "value": 1.3,
+                "derived": true,
+                "accession_number": "0001628280-26-008131",
+                "inputs": [
+                  {
+                    "metric": "net_income",
+                    "value": 57048000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  },
+                  {
+                    "metric": "total_assets",
+                    "value": 4424900000000.0,
+                    "accession_number": "0001628280-26-008131",
+                    "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "cover": {
+    "filer_category": "Large accelerated filer",
+    "fiscal_year_end": "1231",
+    "shares_outstanding": {
+      "value": 2655609509.0,
+      "unit": "shares",
+      "as_of_date": "2026-09-30",
+      "form_type": "10-Q",
+      "filed_date": "2026-11-03",
+      "accession_number": "0001628280-26-069523",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026069523/0001628280-26-069523-index.html"
+    },
+    "public_float": {
+      "value": 794433813496.0,
+      "unit": "USD",
+      "as_of_date": "2025-06-30",
+      "form_type": "10-K",
+      "filed_date": "2026-02-13",
+      "accession_number": "0001628280-26-008131",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/0001628280-26-008131-index.html"
+    }
+  },
+  "peers": {
+    "basis": "SIC 6021 (National Commercial Banks)",
+    "basis_width": 4,
+    "companies": [
+      {
+        "cik": "0000070858",
+        "name": "Bank Of America Corp",
+        "ticker": "BAC",
+        "latest_revenue": 113097000000.0,
+        "period_end": "2025-12-31",
+        "fiscal_label": "FY2025",
+        "filings_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000070858"
+      },
+      {
+        "cik": "0000831001",
+        "name": "Citigroup Inc",
+        "ticker": "C",
+        "latest_revenue": 85225000000.0,
+        "period_end": "2025-12-31",
+        "fiscal_label": "FY2025",
+        "filings_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000831001"
+      },
+      {
+        "cik": "0000072971",
+        "name": "Wells Fargo & Company",
+        "ticker": "WFC",
+        "latest_revenue": 83699000000.0,
+        "period_end": "2025-12-31",
+        "fiscal_label": "FY2025",
+        "filings_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000072971"
+      }
+    ]
+  },
+  "events": [
+    {
+      "type": "sec.results",
+      "label": "Results of operations announced (8-K item 2.02)",
+      "short_label": "Results",
+      "cik": "0000019617",
+      "company_name": "JPMORGAN CHASE & CO",
+      "ticker": "JPM",
+      "date": "2026-10-13",
+      "form_type": "8-K",
+      "filing_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026065582/0001628280-26-065582-index.html"
+    },
+    {
+      "type": "sec.results",
+      "label": "Results of operations announced (8-K item 2.02)",
+      "short_label": "Results",
+      "cik": "0000019617",
+      "company_name": "JPMORGAN CHASE & CO",
+      "ticker": "JPM",
+      "date": "2026-07-14",
+      "form_type": "8-K",
+      "filing_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026048078/0001628280-26-048078-index.html"
+    },
+    {
+      "type": "sec.shareholder_vote",
+      "label": "Matters submitted to a shareholder vote (8-K item 5.07)",
+      "short_label": "Shareholder vote",
+      "cik": "0000019617",
+      "company_name": "JPMORGAN CHASE & CO",
+      "ticker": "JPM",
+      "date": "2026-05-21",
+      "form_type": "8-K",
+      "filing_url": "https://www.sec.gov/Archives/edgar/data/19617/000001961726000228/0000019617-26-000228-index.html"
+    }
+  ]
+}
