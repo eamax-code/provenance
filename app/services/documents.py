@@ -27,6 +27,8 @@ from app.db.models import (
 from app.services import cover as cover_service
 from app.services import periods
 from app.services.form8k import ITEM_TITLES, split_items
+from app.services.form_names import form_phrase, human_date
+from app.services.officer_changes import describe as describe_change
 
 PROFILE_METRICS = (
     ("revenue", "Revenue"),
@@ -165,9 +167,14 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
             )
         rev = latest.get("revenue")
         if rev:
-            n = cite(f"Revenue, {rev['form_type']} filed {rev['filed_date']}", rev.get("url"))
+            n = cite(
+                f"Revenue, {rev['form_type']} filed {human_date(rev['filed_date'])}", rev.get("url")
+            )
             end = date.fromisoformat(rev["period_end"])
-            s = f"{name} reported revenue of {_money(rev['value'])} for the fiscal year ended {end}"
+            s = (
+                f"{name} reported revenue of {_money(rev['value'])} for the fiscal year ended "
+                f"{human_date(end)}"
+            )
             if len(history) > 1 and history[1]["value"]:
                 change = (
                     (history[0]["value"] - history[1]["value"]) / abs(history[1]["value"]) * 100
@@ -180,7 +187,8 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
             parts = []
             for label, v in rest:
                 n = cite(
-                    f"{label.capitalize()}, {v['form_type']} filed {v['filed_date']}", v.get("url")
+                    f"{label.capitalize()}, {v['form_type']} filed {human_date(v['filed_date'])}",
+                    v.get("url"),
                 )
                 verb = "were" if label.endswith("assets") else "was"
                 parts.append(f"{label} {verb} {_money(v['value'])} [{n}]")
@@ -211,10 +219,11 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
             ),
         ]
         if mart.ipo_prospectus_date >= today - timedelta(days=365):
-            n = cite(f"424B4 filed {mart.ipo_prospectus_date}", mart.ipo_prospectus_url)
+            n = cite(f"424B4 filed {human_date(mart.ipo_prospectus_date)}", mart.ipo_prospectus_url)
             subject = "It" if sentences else name
             sentences.append(
-                f"{subject} filed its final IPO prospectus on {mart.ipo_prospectus_date} [{n}]."
+                f"{subject} filed its final IPO prospectus (424B4) on "
+                f"{human_date(mart.ipo_prospectus_date)} [{n}]."
             )
 
     # Leadership
@@ -234,12 +243,11 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
                 f"- {c.filing_date}: {who}: {what} ({_link('8-K item 5.02', c.source_url)})"
             )
         first = changes[0]
-        n = cite(f"8-K item 5.02 filed {first.filing_date}", first.source_url)
-        who = first.person or "an officer or director"
-        subject = "Its" if sentences else f"{name}'s"
-        sentences.append(
-            f"{subject} latest leadership change, filed {first.filing_date}, concerns {who} [{n}]."
-        )
+        when = human_date(first.filing_date)
+        n = cite(f"8-K item 5.02 filed {when}", first.source_url)
+        # what happened, in the words the stored fields allow (S-01)
+        happened = describe_change(first).rstrip(".")
+        sentences.append(f"{happened} (8-K filed {when}) [{n}].")
 
     # Risk factors, from the latest prospectus read here
     risk = latest_risk(db, cik)
@@ -266,10 +274,11 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
                 + (f" ({about})" if about else "")
             )
         top = recent[0]
-        n = cite(f"{top.form_type} filed {top.filing_date}", top.source_url)
+        when = human_date(top.filing_date)
+        n = cite(f"{top.form_type} filed {when}", top.source_url)
         subject = "Its" if sentences else f"{name}'s"
         sentences.append(
-            f"{subject} most recent filing is {article(top.form_type)} on {top.filing_date} [{n}]."
+            f"{subject} most recent filing is {form_phrase(top.form_type)}, {when} [{n}]."
         )
 
     lines += [

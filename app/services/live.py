@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Company, Filing, OfficerChange
 from app.services import filing_events, ipo_pipeline, ipo_terms
+from app.services.form_names import form_label
 from app.services.officer_changes import CHANGE_LABELS
 from app.services.public import _now_iso, cached
 
@@ -170,6 +171,7 @@ def event_rows(
             "short_label": filing_events.SHORT_LABELS[top],
             "cik": f.cik, "company_name": name, "ticker": ticker,
             "date": f.filing_date.isoformat(), "form_type": f.form_type,
+            "form_label": form_label(f.form_type),
             "filing_url": f.source_url, "_accn": f.accession_number,
         }))  # fmt: skip
     for c, name, ticker in db.execute(changes_stmt).all():
@@ -180,6 +182,7 @@ def event_rows(
             "short_label": _officer_short(c),
             "cik": c.cik, "company_name": name, "ticker": ticker,
             "date": c.filing_date.isoformat(), "form_type": "8-K",
+            "form_label": form_label("8-K"),
             "filing_url": c.source_url, "_accn": c.accession_number,
         }))  # fmt: skip
     # newest first; on one day the more consequential first; one row per filing

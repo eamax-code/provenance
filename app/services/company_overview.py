@@ -29,6 +29,7 @@ from app.schemas.companies import CompanyOut
 from app.services import cover as cover_service
 from app.services import documents, ipo_terms, live, periods, statements
 from app.services.form8k import ITEM_TITLES, split_items
+from app.services.form_names import form_label
 from app.services.intel import display_name
 from app.services.officer_changes import change_dict
 from app.services.sec_client import company_filings_url
@@ -161,6 +162,7 @@ def _filings(db: Session, cik: str, as_of: date | None = None) -> list[dict]:
     return [
         {
             "form_type": f.form_type,
+            "form_label": form_label(f.form_type),
             "filing_date": f.filing_date,
             "report_date": f.report_date,
             "accession_number": f.accession_number,
