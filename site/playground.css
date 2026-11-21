@@ -53,3 +53,4 @@
   .pg-resp .pg-json { max-height: calc(100vh - 260px); }
   .pg-params { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 }
+.pg-resp .badge, #pg-meta { font-size: .8rem; }

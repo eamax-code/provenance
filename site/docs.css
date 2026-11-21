@@ -63,13 +63,20 @@
 .ref-op[open] > summary { border-bottom: 1px solid var(--line); }
 .ref-path { font: 500 .92rem var(--mono); overflow-wrap: anywhere; }
 .ref-sum { color: var(--soft); font-size: var(--step-small); grid-column: 2; }
-.ref-auth { font: 600 .72rem var(--face); color: var(--soft); white-space: nowrap; grid-row: 1; grid-column: 3; }
+.ref-auth { font: 600 .8rem var(--face); color: var(--soft); white-space: nowrap; grid-row: 1; grid-column: 3; }
 .method { font: 700 .72rem var(--mono); letter-spacing: .04em; text-align: center; padding: 4px 0; border-radius: 4px; background: var(--surface-2); color: var(--ink); grid-row: span 2; align-self: start; }
 .method.get { background: var(--field); color: var(--field-ink); }
 .method.post { background: var(--good-soft); color: var(--good); }
 .method.delete { background: var(--bad-soft); color: var(--bad); }
 .method.patch, .method.put { background: var(--warn-soft); color: var(--warn); }
-.ref-detail { padding: 16px; display: grid; gap: 14px; min-width: 0; }
+.ref-detail { padding: 16px; display: grid; gap: 14px; min-width: 0; align-content: start; }
+.ref-two { display: grid; grid-template-columns: minmax(0, 1fr); }
+.ref-side { padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0; background: var(--bg-2); }
+.ref-side h3 { margin: 0; font: 600 .9rem var(--face); color: var(--soft); }
+.ref-out pre { max-height: 420px; overflow: auto; }
+@media (min-width: 1100px) { .ref-two { grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); align-items: start; } .ref-side { border-radius: 0 0 var(--radius) 0; position: sticky; top: calc(var(--bar-h) + 16px); } }
+.ref-side .code pre { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 18px; }
+.ref-detail .doc-table code { white-space: nowrap; }
 .ref-detail p { font-size: var(--step-small); }
 .ref-detail h3 { margin: 4px 0 0; font: 600 .9rem var(--face); color: var(--soft); }
 .ref-detail .doc-table { min-width: 520px; font-size: .84rem; }
@@ -84,3 +91,4 @@
 .lost form { display: flex; gap: 10px; flex-wrap: wrap; max-width: 620px; }
 .lost form input { flex: 1 1 260px; min-height: 48px; font-size: 1rem; }
 .lost form .btn { min-height: 48px; }
+#ref-body.doc-body { max-width: none; }

@@ -93,11 +93,38 @@
     if (sec.some((s) => s.AdminToken)) return "Admin token";
     return "API key";
   };
-  const curl = (method, path, op) => {
+  // reference paths that the playground has as an endpoint of its own
+  const PLAY = { "/v1/companies/search": "company-search", "/v1/companies": "company-list", "/v1/companies/{cik}": "company-profile", "/v1/companies/{cik}/filings": "company-filings", "/v1/companies/{cik}/facts": "company-facts", "/v1/companies/{cik}/freshness": "company-freshness", "/v1/facts/screen": "facts-screen", "/v1/events": "events", "/v1/markets/events": "listing-events", "/v1/markets/instruments": "listing-instruments", "/v1/markets/": "venues", "/v1/stats": "stats", "/v1/public/plans": "plans" };
+  const SAMPLE = { cik: "320193", metric: "revenue", q: "apple", year: "2024", period: "annual", limit: "3" };
+  const filled = (path, op) => {
+    let p = path.replace(/\{(\w+)\}/g, (m, k) => SAMPLE[k] || m);
+    const q = (op.parameters || []).filter((x) => x.in === "query" && (x.required || SAMPLE[x.name] && ["metric", "limit"].includes(x.name)))
+      .map((x) => `${x.name}=${SAMPLE[x.name] || "…"}`).join("&");
+    return p + (q ? `?${q}` : "");
+  };
+  const runnable = (method, path, op) => method === "get" && authOf(op) !== "Admin token" && !/\{(?!cik\})/.test(path) && !/stream|sessions|watches|usage|keys|profile|exports|developer/.test(path)
+    && (op.parameters || []).filter((x) => x.in === "query" && x.required).every((x) => SAMPLE[x.name]);
+  const sampleOf = (schema, depth = 0) => {
+    const s = resolve(schema);
+    if (s.anyOf) return sampleOf(s.anyOf.find((x) => resolve(x).type !== "null") || {}, depth);
+    if (s.allOf && s.allOf.length === 1) return sampleOf(s.allOf[0], depth);
+    if (s.enum) return s.enum[0];
+    if (s.type === "array") return depth > 3 ? [] : [sampleOf(s.items || {}, depth + 1)];
+    if (s.type === "object" || s.properties) {
+      if (depth > 3) return {};
+      const o = {};
+      Object.entries(s.properties || {}).slice(0, 14).forEach(([k, v]) => { o[k] = sampleOf(v, depth + 1); });
+      return o;
+    }
+    if (s.type === "integer" || s.type === "number") return 0;
+    if (s.type === "boolean") return false;
+    return s.format === "date" ? "2026-01-31" : s.format === "date-time" ? "2026-01-31T12:00:00Z" : "string";
+  };
+  const curl = (method, path, op, demo) => {
     const base = location.origin;
     const q = (op.parameters || []).filter((p) => p.in === "query" && p.required).map((p) => `${p.name}=…`).join("&");
-    let line = `curl -s${method === "get" ? "" : ` -X ${method.toUpperCase()}`} "${base}${path}${q ? `?${q}` : ""}"`;
-    if (authOf(op) === "API key") line += ' \\\n  -H "X-API-Key: $PROVENANCE_API_KEY"';
+    let line = `curl -s${method === "get" ? "" : ` -X ${method.toUpperCase()}`} "${base}${demo ? filled(path, op) : path + (q ? `?${q}` : "")}"`;
+    if (authOf(op) === "API key") line += demo ? ' \\\n  -H "X-API-Key: demo"' : ' \\\n  -H "X-API-Key: $PROVENANCE_API_KEY"';
     if (authOf(op) === "Admin token") line += ' \\\n  -H "X-Admin-Token: $ADMIN_TOKEN"';
     if (op.requestBody) line += ' \\\n  -H "Content-Type: application/json" -d \'{…}\'';
     return line;
@@ -107,7 +134,9 @@
     d.id = op.operationId;
     d.dataset.search = `${method} ${path} ${op.summary || ""} ${op.description || ""}`.toLowerCase();
     const s = el("summary");
-    s.append(el("span", `method ${method}`, method.toUpperCase()), el("span", "ref-path", path), el("span", "ref-auth", authOf(op)), el("span", "ref-sum", op.summary || ""));
+    const pathEl = el("span", "ref-path");
+    path.split("/").forEach((part, i) => { if (i) { pathEl.append("/"); pathEl.append(el("wbr")); } pathEl.append(part); });
+    s.append(el("span", `method ${method}`, method.toUpperCase()), pathEl, el("span", "ref-auth", authOf(op)), el("span", "ref-sum", op.summary || ""));
     d.append(s);
     const body = el("div", "ref-detail");
     if (op.description) op.description.split(/\n\n+/).forEach((para) => body.append(rich("p", para.trim())));
@@ -140,26 +169,57 @@
         body.append(table(["Field", "Type", "Notes"], rows));
       }
     }
-    body.append(el("h3", null, "Example"));
+    // beside the reference: the request, and a response (live with the demo key where it can run)
+    const side = el("div", "ref-side");
+    const canRun = runnable(method, path, op);
+    side.append(el("h3", null, "Request"));
     const code = el("div", "code");
     const pre = el("pre");
-    pre.append(el("code", null, curl(method, path, op)));
+    pre.append(el("code", null, curl(method, path, op, canRun)));
     code.append(pre);
-    body.append(code);
-    if (method === "get" && authOf(op) !== "Admin token") {
-      const actions = el("p", "ref-actions");
-      const a = el("a", "btn small", "Try it in the Playground");
-      a.href = "/playground/";
-      actions.append(a);
-      body.append(actions);
+    side.append(code);
+    side.append(el("h3", null, canRun ? "Response" : "Response shape"));
+    const out = el("div", "code ref-out");
+    const outPre = el("pre");
+    const okSchema = (op.responses?.["200"] || op.responses?.["201"])?.content?.["application/json"]?.schema;
+    outPre.append(el("code", null, okSchema ? JSON.stringify(sampleOf(okSchema), null, 2) : "(no JSON body)"));
+    out.append(outPre);
+    side.append(out);
+    const actions = el("p", "ref-actions");
+    if (canRun) {
+      const run = el("button", "btn small", "Run it with the demo key");
+      run.type = "button";
+      run.addEventListener("click", () => {
+        run.disabled = true; run.textContent = "Running…";
+        fetch(filled(path, op), { headers: { Accept: "application/json", "X-API-Key": "demo" } })
+          .then((r) => r.text().then((txt) => ({ r, txt })))
+          .then(({ r, txt }) => {
+            let shown = txt; try { shown = JSON.stringify(JSON.parse(txt), null, 2); } catch (e) {}
+            const lines = shown.split("\n");
+            outPre.replaceChildren(el("code", null, (lines.length > 80 ? lines.slice(0, 80).join("\n") + "\n…" : shown)));
+            side.querySelectorAll("h3")[1].textContent = `Response, ${r.status}, live`;
+          })
+          .catch(() => { outPre.replaceChildren(el("code", null, "The request did not reach the API.")); })
+          .then(() => { run.disabled = false; run.textContent = "Run it again"; });
+      });
+      actions.append(run);
     }
-    d.append(body);
+    if (method === "get" && authOf(op) !== "Admin token") {
+      const a = el("a", "btn small", "Open in the Playground");
+      a.href = "/playground/" + (PLAY[path] ? `#${PLAY[path]}` : "");
+      actions.append(a);
+    }
+    if (actions.childNodes.length) side.append(actions);
+    const two = el("div", "ref-two");
+    body.classList.add("ref-main");
+    two.append(body, side);
+    d.append(two);
     return d;
   };
   const render = () => {
     const root = document.getElementById("ref-body");
     const toc = document.getElementById("ref-toc");
-    document.getElementById("ref-version").textContent = `Version ${spec.info.version} · OpenAPI ${spec.openapi}`;
+    document.getElementById("ref-version").textContent = ` This is version ${spec.info.version} (OpenAPI ${spec.openapi}).`;
     const byTag = new Map();
     Object.entries(spec.paths).forEach(([path, methods]) => {
       Object.entries(methods).forEach(([method, op]) => {
