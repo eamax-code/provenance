@@ -77,3 +77,18 @@ def test_public_ipos_and_events(client, db, fake_sec):
 
     assert len(client.get("/v1/public/events?limit=1").json()["data"]) == 1
     assert client.get("/v1/public/events?limit=6").status_code == 422
+
+
+def test_exchanges_and_form_10s_stay_off_the_strip(client, db):
+    public_service.reset_cache()
+    _company(db, "0001354457", "Nasdaq Stock Market LLC")
+    _company(db, "0000000003", "Delisted Inc", "DLST")
+    _company(db, "0000000004", "Some Fund LP")
+    for n in range(live.EXCHANGE_FORM_25_MIN):
+        _filing(db, "0001354457", f"0001354457-26-{n:06d}", "25-NSE", 1)
+    _filing(db, "0000000003", "0001354457-26-000000", "25-NSE", 1)  # the same filing, issuer's row
+    _filing(db, "0000000004", "0000000004-26-000001", "10-12G", 1)
+    db.commit()
+    events = client.get("/v1/public/events").json()["data"]
+    assert [(e["company_name"], e["type"]) for e in events] == [("Delisted Inc", "sec.delisting")]
+    assert client.get("/v1/public/ipos").json()["data"] == []  # a Form 10 is not an IPO

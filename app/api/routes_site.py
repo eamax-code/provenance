@@ -25,6 +25,7 @@ SITEMAP_PAGES = (
     "/playground/",
     "/status/",
     "/changelog/",
+    "/contact/",
     "/legal/terms/",
     "/legal/privacy/",
     "/legal/acceptable-use/",

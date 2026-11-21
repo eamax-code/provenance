@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, Filing, OfficerChange
@@ -48,13 +48,29 @@ def public_ipos(db: Session, limit: int = MAX_LIMIT, today: date | None = None) 
     def build():
         since = (today or date.today()) - timedelta(days=IPO_DAYS)
         rows = []
-        for item in ipo_pipeline.companies(db, since=since)[:limit]:
-            m = item["milestones"][item["stage"]]
-            stage_label, label = STAGE_TEXT[item["stage"]]
+        # IPOs only: Form 10 registrations (funds, spin-offs) are not offerings to the public
+        for item in [i for i in ipo_pipeline.companies(db, since=since) if i["kind"] == "ipo"]:
+            if len(rows) == limit:
+                break
+            # the most recent milestone, so the date shown is the activity that put it here
+            shown = {
+                k: v
+                for k, v in item["milestones"].items()
+                if not v["form_type"].startswith("10-12")
+            }
+            if not shown:
+                continue
+            stage = max(
+                shown, key=lambda s: (shown[s]["filing_date"], ipo_pipeline.STAGES.index(s))
+            )
+            m = item["milestones"][stage]
+            if m["filing_date"] is None or m["filing_date"] < since:
+                continue
+            stage_label, label = STAGE_TEXT[stage]
             rows.append({
                 "cik": item["cik"], "company_name": item["name"], "ticker": item["ticker"],
-                "stage": item["stage"], "stage_label": stage_label,
-                "label": f"{label}" if item["stage"] != "filed" else f"{label} ({m['form_type']})",
+                "stage": stage, "stage_label": stage_label,
+                "label": f"{label}" if stage != "filed" else f"{label} ({m['form_type']})",
                 "date": m["filing_date"].isoformat() if m["filing_date"] else None,
                 "form_type": m["form_type"], "blank_check": item["blank_check"],
                 "filing_url": m["source_url"],
@@ -89,6 +105,24 @@ def _officer_short(c: OfficerChange) -> str:
     return text if len(text) <= SHORT_MAX else "Leadership change"
 
 
+EXCHANGE_FORM_25_MIN = 20  # an issuer files Form 25 once or twice; an exchange files hundreds
+
+
+def _exchange_filers(db: Session) -> set[str]:
+    """CIKs that file Form 25 for other companies (the exchanges themselves)."""
+
+    def build():
+        rows = db.execute(
+            select(Filing.cik)
+            .where(Filing.form_type.in_(("25-NSE", "25")))
+            .group_by(Filing.cik)
+            .having(func.count() >= EXCHANGE_FORM_25_MIN)
+        )
+        return {r[0] for r in rows}
+
+    return cached("exchange_filers", build)
+
+
 def public_events(db: Session, limit: int = MAX_LIMIT, today: date | None = None) -> dict:
     limit = _limit(limit)
 
@@ -105,10 +139,11 @@ def public_events(db: Session, limit: int = MAX_LIMIT, today: date | None = None
             .order_by(Filing.filing_date.desc(), Filing.accepted_at.desc().nulls_last())
             .limit(200)
         ).all()
+        exchanges = _exchange_filers(db)
         for f, name, ticker in filings:
             types = filing_events.types_for(f.form_type, f.items)
-            if not types:
-                continue
+            if not types or f.cik in exchanges:
+                continue  # an exchange files Form 25 for others; the issuer's own row counts
             top = min(types, key=filing_events.PRIORITY.index)
             found.append((f.filing_date, filing_events.PRIORITY.index(top), {
                 "type": top, "label": filing_events.FILING_EVENT_TYPES[top].label,
