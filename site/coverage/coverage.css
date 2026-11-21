@@ -30,3 +30,9 @@
   .cov-metrics { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) { .cov-nums, .cov-next { grid-template-columns: minmax(0, 1fr); } }
+.cov-forms .n { text-align: right; white-space: nowrap; }
+.cov-forms .small { font-size: 13px; font-weight: 400; }
+.cov-metrics > .tw { min-width: 0; overflow-x: auto; }
+.cov-metrics .cov-table { table-layout: auto; min-width: 0; }
+.cov-metrics .cov-table thead th { white-space: normal; }
+.cov-metrics .cov-table th[scope="row"] { white-space: normal; }

@@ -44,7 +44,7 @@
 - GET /v1/stats  (public, no key; coverage and health of this deployment, cached 30s)
 - GET /v1/public/plans  (public; plan limits and pilot pricing)
 - GET /v1/public/companies  (public; showcase companies with latest filing and latest annual revenue)
-- GET /v1/public/companies/{cik}  (public; profile, latest 10 filings, annual facts for 5 metrics, freshness; showcase only)
+- GET /v1/public/companies/{cik}  (public; profile, latest 10 filings, annual figures, freshness; showcase only)
 - GET /v1/public/listings/events  (public; recent new listings, delistings, suspensions on covered CA/EU/UK venues)
 - POST /v1/developer/key-requests {"email","use_case","plan"}  (public, rate limited; operator approves)
 - Accounts (browser, session cookie): /account/ to sign in by emailed one-time link, then create, name and revoke keys, see usage, pick the chat and Explorer theme. API: POST /v1/account/sign-in {email} ; POST /v1/account/verify {token} ; GET/PATCH /v1/account ; POST /v1/account/keys ; DELETE /v1/account/keys/{id} ; POST /v1/account/sign-out[-everywhere]
@@ -68,8 +68,8 @@
 - accepted_at is the SEC acceptance timestamp when available; source_published_at is always null.
 
 ## Limits
-- Free plan: 60 req/min, 10,000 req/month, 1,000 export rows per request.
-- Only the latest ~1,000 filings per company; standard us-gaap tags only; no IFRS or custom extensions.
+- Plan limits (requests a minute and a month, export rows, watches) are served live at GET /v1/public/plans; read them there rather than from this file.
+- Metrics come from us-gaap and ifrs-full tags as filed; company-specific extension tags are not mapped. The current metric list is the metric parameter of GET /v1/companies/{cik}/facts in /openapi.json, and coverage is described at /coverage/.
 - Freshness depends on a 5-minute poll interval and SEC propagation; no latency SLA.
 
 ## Attribution

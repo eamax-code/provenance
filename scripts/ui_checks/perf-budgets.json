@@ -1,0 +1,9 @@
+{
+  "_note": "Phone width, Fast 3G (150 ms, 1.6 Mbit/s), CPU 4x, cold cache. Set 2026-11-22 after fonts stopped blocking first paint (home LCP 3.9 s -> 0.95 s): / 106 KB, 0.95 s; company 104 KB, 1.0 s; chat 90 KB, 0.65 s; ipos 115 KB, 0.5 s. LCP on data pages depends on API speed.",
+  "pages": {
+    "/": { "transfer_kb": 120, "lcp_ms": 1500 },
+    "/companies/320193": { "transfer_kb": 120, "lcp_ms": 2000 },
+    "/chat/": { "transfer_kb": 100, "lcp_ms": 1200 },
+    "/ipos/": { "transfer_kb": 130, "lcp_ms": 1200 }
+  }
+}

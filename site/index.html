@@ -24,7 +24,7 @@
 <link rel="help" href="/llms.txt">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&display=swap" media="print" data-font>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -470,7 +470,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
         <a class="button" href="/account/">Get a free key</a>
         <a class="button quiet" href="/playground/">Try a call</a>
       </div>
-      <p class="hero-note">Using Claude or Cursor? <a href="/developers/#quickstart">Add Provenance as a tool in one line.</a></p>
+      <p class="hero-note">Using Claude or Cursor? <a href="/developers/#mcp">Add Provenance as a tool in one line.</a></p>
     </div>
     <figure class="hero-live">
       <figcaption id="live-cap">Latest annual revenue, with the filing behind it</figcaption>
@@ -533,7 +533,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     <div class="tabpanel" role="tabpanel" id="panel-explorer" aria-labelledby="tab-explorer" tabindex="0">
       <div class="panel-copy">
         <h3>Search a company and see where each figure came from.</h3>
-        <p>Identity, the five figures year by year, and the latest filings with their 8-K items. Every value links to its filing on sec.gov. To compare companies, ask the chat.</p>
+        <p>Identity, key figures year by year, and the latest filings with their 8-K items. Every value links to its filing on sec.gov. To compare companies, ask the chat.</p>
         <div class="actions">
           <a class="button" href="/app/">Open Explorer</a>
           <a class="button quiet" href="/companies/">Browse companies</a>
@@ -675,7 +675,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     </article>
 
     <article class="cell flip" data-reveal style="--i:1">
-      <div class="copy"><h3>Five financial figures</h3><p>Revenue, operating income, net income, total assets and operating cash flow, normalized from XBRL.</p></div>
+      <div class="copy"><h3>Financial statements</h3><p>Income statement, balance sheet, cash flow and cover-page figures from us-gaap and IFRS (<span data-metric-count>every mapped</span> metric), plus ratios worked out here, each linked to its filing.</p></div>
       <div class="dock"><div data-ui class="ui-card" aria-label="Apple, fiscal year 2025">
         <div class="ui-row"><strong>Apple, fiscal 2025</strong><span class="ui-muted">10-K filed 2025-10-31</span></div>
         <table class="ui-table">
@@ -785,7 +785,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
     <caption class="vh">Coverage by market</caption>
     <thead><tr><th scope="col">Market</th><th scope="col">Status</th><th scope="col">What you get</th></tr></thead>
     <tbody>
-      <tr><th scope="row">United States</th><td><span class="mstatus now">Available now</span></td><td>SEC filings, the five financial figures, company identity, 8-K events, leadership changes and IPOs, through the API, the chat and the explorer.</td></tr>
+      <tr><th scope="row">United States</th><td><span class="mstatus now">Available now</span></td><td>SEC filings, financial statements, company identity, 8-K events, leadership changes and IPOs, through the API, the chat and the explorer.</td></tr>
       <tr><th scope="row">Canada</th><td><span class="mstatus">Listings today</span></td><td>Listed instruments from the TMX and CSE lists. Filings and financials are not covered.</td></tr>
       <tr><th scope="row">United Kingdom</th><td><span class="mstatus">Listings today</span></td><td>Listings and issuer identity from FCA FIRDS and GLEIF. Filings and financials are planned.</td></tr>
       <tr><th scope="row">Europe and other markets</th><td><span class="mstatus">Listings today</span></td><td>Listings from ESMA FIRDS and GLEIF for the venues covered. More exchanges and filings later.</td></tr>
@@ -803,7 +803,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       <div class="ticks"><span>1</span><span>Builder 50</span><span>Team 500</span></div>
     </div>
     <p class="result" aria-live="polite"><span><output id="follow-n" for="follow">40</output> companies file about</span><b id="follow-figure">3,148</b><span>times a year between them</span></p>
-    <div class="working"><p id="follow-working">Worked out from the last 12 months: 813,416 filings by 10,335 companies, about 79 each, from annual reports to insider-trade forms. Each one can reach you as a signed alert.</p><a href="#pricing">Plans by watch-list size</a></div>
+    <div class="working"><p id="follow-working">Worked out from the last 12 months of filings, from annual reports to insider-trade forms. Each one can reach you as a signed alert.</p><a href="#pricing">Plans by watch-list size</a></div>
   </div>
 </section>
 
@@ -833,7 +833,7 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
       <details name="faq" open data-reveal><summary>Is this market data?<span class="plus" aria-hidden="true"></span></summary><p>No. There are no prices, quotes or trading signals anywhere in the product. It covers SEC filings and the financial figures companies report in them.</p></details>
       <details name="faq" data-reveal><summary>Where do the figures come from?<span class="plus" aria-hidden="true"></span></summary><p>From the XBRL financial data inside each company's 10-K and 10-Q filings. Every value keeps the filing's accession number and its XBRL tag, and links to the filing's page on sec.gov.</p></details>
       <details name="faq" data-reveal><summary>How fresh is fresh?<span class="plus" aria-hidden="true"></span></summary><p>Watched companies are checked every five minutes by default. The freshness endpoint reports the last successful fetch and when the latest filing was processed, and it only gives a latency figure when the SEC provides an exact acceptance time to compare against.</p></details>
-      <details name="faq" data-reveal><summary>Which companies and metrics are covered?<span class="plus" aria-hidden="true"></span></summary><p>Five metrics from standard us-gaap tags, for the companies loaded here. Looking up a CIK loads a new company on request. IFRS filers and custom extension tags are not covered yet, and a missing value means the filing did not report one we could map.</p></details>
+      <details name="faq" data-reveal><summary>Which companies and metrics are covered?<span class="plus" aria-hidden="true"></span></summary><p>Every US company that files with the SEC: its filings, financial statements from us-gaap and IFRS (<span data-metric-count>every mapped</span> metric, plus ratios), 8-K events, insiders, 5% holders and IPO terms. The counts, the quality of each metric and the forms read are on <a href="/coverage/">Coverage</a>.</p></details>
       <details name="faq" data-reveal><summary>What does the chat do?<span class="plus" aria-hidden="true"></span></summary><p>It answers questions from the filings stored here, cites every figure, and checks each number against the data before showing the answer. Lists across companies, such as recent IPOs, who filed a form or rankings, come back as tables. A model running on this server writes it; your question is not sent to an outside AI service.</p></details>
       <details name="faq" data-reveal><summary>Can I redistribute the data?<span class="plus" aria-hidden="true"></span></summary><p>Everything comes from SEC filings and each row links to its filing. Before building a bulk redistribution product on top, read our data-rights notes and get your own legal review; we document the open questions rather than pretend they are settled.</p></details>
       <details name="faq" data-reveal><summary>How do webhooks stay trustworthy?<span class="plus" aria-hidden="true"></span></summary><p>Each watch gets its own secret. Deliveries carry a timestamp and an HMAC-SHA256 signature over the body, plus a stable event ID for de-duplication. We never follow redirects or deliver to private network addresses.</p></details>

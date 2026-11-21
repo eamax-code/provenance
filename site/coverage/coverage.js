@@ -46,14 +46,51 @@
 
   // a busy server can take a while to count; say so instead of looking stuck
   var slow = setTimeout(function () { var m = $('cov-metrics'); if (m && /Loading/.test(m.textContent)) m.firstChild.textContent = 'Still counting; the service is busy re-reading filings. This fills in when it finishes.'; }, 8000);
+  var STATEMENT = { income: 'Income statement', balance: 'Balance sheet', cash_flow: 'Cash flow', cover: 'Cover page' };
+  var OUT = [
+    [/annual|quarterly/i, 'Financial statements and cover-page facts', '/docs'],
+    [/8-K|current/i, 'Events by item: results, restatements, auditor changes, mergers, officer changes', '/developers/#events'],
+    [/insider/i, 'Insiders, their roles and their trades', '/app/'],
+    [/13D|13G|holder/i, 'Holders above 5%', '/app/'],
+    [/registration|prospectus/i, 'IPO stages and deal terms, with their sentences', '/ipos/'],
+    [/exhibit 21|subsidiar/i, 'Subsidiaries, new and gone year on year', '/app/']
+  ];
+  function fromCoverage(c) {
+    var u = c.universe || {}, f = c.freshness || {};
+    set('filers', int(u.filers)); set('with_facts', int(u.with_facts)); set('facts', int(c.facts_total));
+    set('latency', dur(f.acceptance_to_here_median_seconds));
+    set('venues', int(c.listings && c.listings.venues)); set('instruments', int(c.listings && c.listings.instruments));
+    var box = $('cov-metrics'); box.textContent = '';
+    var by = {}; (c.metrics || []).forEach(function (m) { (by[m.statement] = by[m.statement] || []).push(m); });
+    Object.keys(STATEMENT).forEach(function (k) {
+      var rows = by[k]; if (!rows || !rows.length) return;
+      var head = el('tr', {}, [el('th', { scope: 'col', text: STATEMENT[k] }), el('th', { scope: 'col', class: 'n', text: 'Companies' }), el('th', { scope: 'col', class: 'n', text: 'Quality ok' }), el('th', { scope: 'col', class: 'n', text: 'From' })]);
+      var body = rows.map(function (m) {
+        return el('tr', {}, [el('th', { scope: 'row', text: m.label }), el('td', { class: 'n', text: int(m.companies) }),
+          el('td', { class: 'n', title: m.ambiguous_pct != null ? m.ambiguous_pct.toFixed(1) + '% have two tags in one filing (ambiguous)' : null, text: m.ok_pct != null ? m.ok_pct.toFixed(1) + '%' : '—' }),
+          el('td', { class: 'n', text: m.earliest_year && m.earliest_year >= 1993 ? String(m.earliest_year) : '—' })]);
+      });
+      box.appendChild(el('div', { class: 'tw' }, [el('table', { class: 'cov-table' }, [el('caption', { class: 'vh', text: STATEMENT[k] }), el('thead', {}, [head]), el('tbody', {}, body)])]));
+    });
+    if ((c.ratios || []).length) {
+      var rh = el('tr', {}, [el('th', { scope: 'col', text: 'Ratios, derived here' }), el('th', { scope: 'col', colspan: '3', text: 'Worked out as' })]);
+      var rb = c.ratios.map(function (r) { return el('tr', {}, [el('th', { scope: 'row', text: r.label }), el('td', { colspan: '3', class: 'muted', text: r.formula })]); });
+      box.appendChild(el('div', { class: 'tw' }, [el('table', { class: 'cov-table' }, [el('caption', { class: 'vh', text: 'Ratios' }), el('thead', {}, [rh]), el('tbody', {}, rb)])]));
+    }
+    if ((c.forms || []).length) {
+      var tb = document.querySelector('#cov-forms-body');
+      if (tb) tb.replaceChildren.apply(tb, c.forms.map(function (f) {
+        var o = OUT.filter(function (x) { return x[0].test(f.label + ' ' + (f.forms || []).join(' ')); })[0];
+        return el('tr', {}, [el('th', { scope: 'row' }, [f.label, el('br'), el('span', { class: 'muted small', text: (f.forms || []).join(', ') })]),
+          el('td', { class: 'n', text: int(f.filings) }),
+          el('td', {}, o ? [o[2] ? el('a', { href: o[2], text: o[1] }) : o[1]] : ['Listed with its form and acceptance time'])]);
+      }));
+      var th = document.querySelector('#cov-forms-head'); if (th) th.replaceChildren(el('tr', {}, [el('th', { scope: 'col', text: 'Forms' }), el('th', { scope: 'col', class: 'n', text: 'Filings loaded' }), el('th', { scope: 'col', text: 'What comes out' })]));
+    }
+    $('cov-note').textContent = (c.notes || []).join(' ') + ' Mapping version ' + (c.mapping_version || '') + ', counted ' + String(c.generated_at || '').slice(0, 10) + '.';
+  }
   fetch('/v1/public/coverage', { headers: { Accept: 'application/json' } }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function (c) {
-      var u = c.universe || {}, f = c.freshness || {};
-      set('filers', int(u.filers)); set('with_facts', int(u.with_facts)); set('facts', int(c.facts_total || (c.facts && c.facts.total)));
-      set('latency', dur(f.accept_to_here_p50_seconds)); set('venues', int(c.listings && c.listings.venues)); set('instruments', int(c.listings && c.listings.instruments));
-      clearTimeout(slow); metrics(c.metrics || {});
-      $('cov-note').textContent = (c.notes || []).join(' ');
-    })
+    .then(function (c) { clearTimeout(slow); fromCoverage(c); })
     .catch(function () {
       // until the coverage endpoint is on this server: the live stats
       fetch('/v1/stats', { headers: { Accept: 'application/json' } }).then(function (r) { return r.json(); }).then(function (d) {

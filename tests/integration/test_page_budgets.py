@@ -1,0 +1,61 @@
+"""Page weight budgets and stale copy (design pass, 2026-11-22).
+
+The heavy pages keep a compressed weight budget like the home page's 40 KB, set just above their
+size when added: what the page itself ships (HTML, its own CSS and JS), not the shared shell or the
+data it fetches. scripts/ui_checks/perf.mjs measures the full transfer and LCP in a throttled
+browser; this test keeps the part that grows with code from creeping up unnoticed.
+
+Counts in the copy (metrics, companies, figures) must come from data: a sentence like "the five
+financial figures" went stale when coverage grew, so the words are banned outside the changelog.
+"""
+
+from __future__ import annotations
+
+import gzip
+import re
+from pathlib import Path
+
+SITE = Path(__file__).resolve().parents[2] / "site"
+
+# page: (files it ships, budget in bytes compressed); measured 2026-11-22: company 24.8 KB,
+# chat 22.6 KB, ipos 10.3 KB, shell 9.1 KB
+BUDGETS = {
+    "company page": (
+        ["companies/page/snapshot.html", "companies/page/page.css", "companies/page/page.js",
+         "companies/page/company.js"],
+        28_000,
+    ),
+    "chat": (["chat/index.html", "chat.css", "chat.js"], 25_000),
+    "ipos": (["ipos/index.html", "ipos/ipos.css", "ipos/ipos.js"], 12_000),
+    "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
+}
+
+
+def test_heavy_pages_stay_in_their_compressed_budget():
+    for name, (files, budget) in BUDGETS.items():
+        size = sum(len(gzip.compress((SITE / f).read_bytes())) for f in files)
+        assert size < budget, f"{name} is {size} bytes compressed, over its {budget} budget"
+
+
+_N = r"\b(?:three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|\d+)\s+"
+# "five metrics", "32 normalized metrics", "the five financial figures"; not "two reported figures"
+# (how a ratio is defined) or a dated example such as "1,332 figures nobody had yet"
+STALE_COUNT = re.compile(
+    _N + r"(?:normali[sz]ed\s+|financial\s+)?metrics\b|" + _N + r"(?:normali[sz]ed\s+)?financial\s+figures\b",
+    re.I,
+)
+# dated changelog entries describe history; example strings are not claims about coverage
+ALLOWED = ("changelog/index.html",)
+
+
+def test_site_copy_never_hard_codes_how_many_metrics():
+    found = []
+    for path in SITE.rglob("*"):
+        if path.suffix not in {".html", ".js", ".txt"} or "poc" in path.parts or "vendor" in path.parts:
+            continue
+        rel = path.relative_to(SITE).as_posix()
+        if rel in ALLOWED:
+            continue
+        for m in STALE_COUNT.finditer(path.read_text(encoding="utf-8")):
+            found.append(f"{rel}: {m.group(0)!r}")
+    assert not found, "counts must come from data (stats, plans, coverage): " + "; ".join(found)

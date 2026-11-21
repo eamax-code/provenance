@@ -28,6 +28,8 @@
   document.addEventListener('shell:stats', function (e) {
     var d = e.detail; if (!d || !d.companies || !d.companies.ingested) return;
     document.querySelectorAll('[data-live-stat="companies"]').forEach(function (el) { el.textContent = d.companies.ingested.toLocaleString('en-US') + ' US public companies'; });
+    var n = d.facts && d.facts.by_metric ? Object.keys(d.facts.by_metric).length : 0;
+    if (n) document.querySelectorAll('[data-metric-count]').forEach(function (el) { el.textContent = n + ' reported'; });
   });
 
   /* ---- the figure and its record ---- */

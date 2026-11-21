@@ -21,7 +21,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <!-- /shell:meta -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" data-font>
 <!-- shell:head -->
 <link rel="stylesheet" href="/shell/shell.css">
 <script src="/shell/shell.js"></script>
@@ -98,8 +98,8 @@
     <div class="cov-sec-head"><h2 id="t-forms">Forms we read</h2><p>Every filing is listed with its form and acceptance time; these forms are also read for what they say.</p></div>
     <table class="cov-forms">
       <caption class="vh">Forms read and what comes out of them</caption>
-      <thead><tr><th scope="col">Form</th><th scope="col">What comes out</th><th scope="col">Where to find it</th></tr></thead>
-      <tbody>
+      <thead id="cov-forms-head"><tr><th scope="col">Form</th><th scope="col">What comes out</th><th scope="col">Where to find it</th></tr></thead>
+      <tbody id="cov-forms-body">
         <tr><th scope="row">10-K, 10-Q, 20-F, 40-F</th><td>Financial statements and cover-page facts, annual and quarterly</td><td><a href="/docs">Facts API</a>, company pages, Explorer</td></tr>
         <tr><th scope="row">8-K</th><td>Events by item: results, restatements, auditor changes, bankruptcy, mergers, officer and director changes</td><td><a href="/developers/#events">Event feed</a>, company Events</td></tr>
         <tr><th scope="row">Forms 3, 4 and 5</th><td>Insiders, their roles and their trades</td><td>Explorer Connections, company People</td></tr>

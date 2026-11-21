@@ -19,7 +19,7 @@
     { "path": "/account/", "allowConsole": ["status of 401"] },
     { "path": "/contact/" },
     { "path": "/ipos/" },
-    { "path": "/coverage/", "allowConsole": ["status of 404"] },
+    { "path": "/coverage/" },
     { "path": "/ipos/?cik=2130357" },
     { "path": "/legal/terms/" },
     { "path": "/legal/privacy/" },

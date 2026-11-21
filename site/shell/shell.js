@@ -3,6 +3,16 @@
 (function () {
   'use strict';
   var doc = document.documentElement;
+  /* Web fonts load without holding up the first paint: the page's font stylesheet arrives as
+     media="print" (not render-blocking) and turns on once loaded; text shows in the fallback first. */
+  var fonts = function () {
+    document.querySelectorAll('link[data-font]:not([data-font-on])').forEach(function (l) {
+      l.setAttribute('data-font-on', '');
+      var on = function () { l.media = 'all'; };
+      if (l.sheet) on(); else l.addEventListener('load', on);
+    });
+  };
+  fonts(); document.addEventListener('DOMContentLoaded', fonts);
   doc.classList.add('js');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var canHover = window.matchMedia('(hover: hover)').matches;
