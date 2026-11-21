@@ -58,7 +58,8 @@
     var q = f.quality_status || 'ok', chip = $('live-quality');
     chip.hidden = false; chip.textContent = 'quality ' + q.replace(/_/g, ' '); chip.classList.toggle('is-note', q !== 'ok');
     $('live-value').textContent = money(f.value, f.unit);
-    $('live-what').textContent = 'Revenue, ' + (f.unit || '') + ', ' + label;
+    var short = function (v) { var a = Math.abs(v); return a >= 1e9 ? '$' + (v / 1e9).toFixed(1) + ' billion' : a >= 1e6 ? '$' + (v / 1e6).toFixed(1) + ' million' : null; };
+    $('live-what').textContent = 'Revenue, ' + (f.unit || '') + ', ' + label + (f.unit === 'USD' && short(f.value) ? ' · ' + short(f.value) : '');
     var link = ARCHIVE.test(f.source_url || '') ? node('a', { class: 'ui-link', href: f.source_url, target: '_blank', rel: 'noopener', text: 'open on sec.gov' }) : null;
     $('live-rows').replaceChildren(
       row('filing', 'Filing', [f.form_type + ' filed ' + day(f.filed_date) + (link ? ' · ' : ''), link]),

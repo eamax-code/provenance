@@ -40,6 +40,8 @@
   P.pct = function (v, sign) { return v == null ? '—' : (sign && v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + '%'; };
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   P.date = function (iso) { if (!iso) return '—'; var p = iso.slice(0, 10).split('-'); return parseInt(p[2], 10) + ' ' + MON[parseInt(p[1], 10) - 1] + ' ' + p[0]; };
+  /* ISO dates inside service-written text read as "26 Sep 2026" on every layout */
+  P.humanDates = function (s) { return String(s || '').replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, function (m) { return P.date(m); }); };
   P.phone = function (p) { if (!p) return null; var d = p.replace(/\D/g, ''); return d.length === 10 ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : p; };
   P.title = function (s) { return s ? s.toLowerCase().replace(/\b([a-z])/g, function (m) { return m.toUpperCase(); }) : s; };
   P.address = function (a) {

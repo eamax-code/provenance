@@ -203,3 +203,9 @@ main:focus { outline: none; }
 .theme-pick .sw { display: inline-flex; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
 .theme-pick .sw i { width: 12px; height: 18px; }
 .theme-pick small { display: block; color: var(--muted); font-size: 12px; }
+
+/* Data pages (company, directory, status) close with a compact footer: the independence and
+   not-advice statement and the legal links stay; the marketing tiles go. */
+.data-page .site-foot .site-tile.photo, .data-page .site-foot .site-tile.mark, .data-page .site-foot .site-tile.go, .data-page .site-foot .site-tile.live, .data-page .site-foot .site-tile.links, .data-page .site-foot .site-credits { display: none; }
+.data-page .site-foot .site-board { display: block; }
+.data-page .site-foot .site-tile.statement { max-width: 90ch; }

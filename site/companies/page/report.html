@@ -67,7 +67,7 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
 @media (max-width: 520px) { .big { grid-template-columns: 1fr; gap: 18px; } .sheet div { grid-template-columns: 1fr; gap: 2px; } }
 </style>
 </head>
-<body>
+<body class="data-page">
 <!-- shell:header -->
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-bar">
@@ -112,7 +112,6 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
   </div>
 </header>
 <!-- /shell:header -->
-<div class="layout-bar"><span id="layout-label">Layout</span><span class="variants" aria-labelledby="layout-label"><a href="?layout=snapshot">Snapshot</a><a href="?layout=report" aria-current="page">Report</a><a href="?layout=dossier">Dossier</a></span></div>
 <main id="main">
 <p class="state" id="state">Loading the company…</p>
 <article class="doc" id="page" hidden>
@@ -178,7 +177,7 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
     $('eyebrow').textContent = [c.ticker && c.ticker + (c.exchange ? ' on ' + c.exchange : ''), c.sic_description, 'CIK ' + c.cik].filter(Boolean).join(' · ');
     $('name').textContent = c.display_name;
     var cites = (d.summary && d.summary.citations) || [];
-    ((d.summary && d.summary.text) || '').split(/(\[\d+\])/).forEach(function (part) {
+    P.humanDates((d.summary && d.summary.text) || '').split(/(\[\d+\])/).forEach(function (part) {
       var m = part.match(/^\[(\d+)\]$/);
       if (!m) { $('deck').appendChild(document.createTextNode(part)); return; }
       var ref = cites.filter(function (x) { return x.n === +m[1]; })[0];

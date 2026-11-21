@@ -116,7 +116,10 @@ def test_overview_statements_ratios_cover_and_point_in_time(client, db, ingested
 
 
 def _layout(r):
-    return r.text.split('aria-current="page">')[1].split("<")[0]
+    # the layout picker left the page (the merged page is the default); the script tells them apart
+    if "/companies/page/company.js" in r.text:
+        return "Snapshot"
+    return "Dossier" if "dossier" in r.text.split("<title>")[1].split("</title>")[0].lower() else "Report"
 
 
 def test_company_page_layouts(client):
@@ -142,7 +145,10 @@ def test_figure_view_is_wired_into_every_layout(client):
     assert "/v1/public/companies/" in js and "/overview" in js
     for hook in ("P.openFigure", "P.insights", "P.figureChart", "#figure=", "showModal"):
         assert hook in js, hook
-    for layout in ("snapshot", "report", "dossier"):
+    for layout in ("report", "dossier"):
         html = client.get(f"/companies/0000320193?layout={layout}").text
         assert "P.figureButton(d," in html and "P.openFromHash(d)" in html, layout
+    # the default page wires the same view from its own script
+    page = client.get("/companies/page/company.js").text
+    assert "P.figureButton(d," in page and "P.openFromHash(data)" in page
     client.cookies.clear()
