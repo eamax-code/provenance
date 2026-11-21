@@ -119,7 +119,11 @@ def _layout(r):
     # the layout picker left the page (the merged page is the default); the script tells them apart
     if "/companies/page/company.js" in r.text:
         return "Snapshot"
-    return "Dossier" if "dossier" in r.text.split("<title>")[1].split("</title>")[0].lower() else "Report"
+    return (
+        "Dossier"
+        if "dossier" in r.text.split("<title>")[1].split("</title>")[0].lower()
+        else "Report"
+    )
 
 
 def test_company_page_layouts(client):
@@ -152,3 +156,30 @@ def test_figure_view_is_wired_into_every_layout(client):
     page = client.get("/companies/page/company.js").text
     assert "P.figureButton(d," in page and "P.openFromHash(data)" in page
     client.cookies.clear()
+
+
+def test_company_page_head_is_rendered_from_stored_data(client, db, ingested_aapl):
+    import json as _json
+    import re
+
+    from app.services import marts
+    from app.services import public as public_service
+
+    marts.build_company_marts(db)
+    public_service.reset_cache()
+    page = client.get("/companies/320193").text
+    assert (
+        "<title>Apple Inc. (AAPL) revenue, financials and SEC filings · Provenance</title>" in page
+    )
+    desc = re.search(r'<meta name="description" content="([^"]*)">', page).group(1)
+    assert desc.startswith("Apple Inc. (AAPL") and "revenue of $391.0 billion in FY2024" in desc
+    assert len(desc) <= 160
+    assert '<link rel="canonical" href="' in page and "/companies/0000320193" in page
+    ld = _json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', page,
+                               re.S).group(1))  # fmt: skip
+    org, dataset = ld["@graph"]
+    assert org["@type"] == "Corporation" and org["identifier"][0]["value"] == "0000320193"
+    assert dataset["@type"] == "Dataset" and "Revenue" in dataset["variableMeasured"]
+    assert "data.sec.gov" not in page and "detected" not in page.lower()
+    other = client.get("/companies/789019").text  # not on the public pages
+    assert '<meta name="robots" content="noindex">' in other

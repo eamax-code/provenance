@@ -10,7 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -292,7 +292,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if site_dir.is_dir():
         layout_dir = site_dir / "companies" / "page"
 
-        @app.get("/companies/{cik}", include_in_schema=False, response_class=FileResponse)
+        @app.get("/companies/{cik}", include_in_schema=False, response_class=HTMLResponse)
         def public_company_page(request: Request, cik: str, layout: str | None = None):
             # Shareable URL; the page script reads the CIK from the path and calls the API.
             # Snapshot is the page; ?layout= picks Report or Dossier and is remembered.
@@ -301,7 +301,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             chosen = layout if layout in COMPANY_LAYOUTS else None
             remembered = request.cookies.get(COMPANY_LAYOUT_COOKIE)
             name = chosen or (remembered if remembered in COMPANY_LAYOUTS else COMPANY_LAYOUTS[0])
-            response = FileResponse(layout_dir / f"{name}.html", media_type="text/html")
+            page = (layout_dir / f"{name}.html").read_text(encoding="utf-8")
+            try:  # a server-rendered head from stored data, for search and link previews
+                from app.api.routes_site import origin as site_origin
+                from app.services import seo
+                from app.services.sec_client import normalize_cik as _norm
+
+                db = session_factory()()
+                try:
+                    head = seo.head_for(db, settings, _norm(cik), site_origin(request, settings))
+                finally:
+                    db.close()
+                page = seo.render(page, head)
+            except Exception:  # noqa: BLE001 - the page still works with its generic head
+                logger.exception("company page head failed")
+            response = HTMLResponse(page)
             response.headers["Vary"] = "Cookie"
             if chosen:
                 response.set_cookie(
