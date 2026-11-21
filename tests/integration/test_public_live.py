@@ -172,7 +172,21 @@ def test_public_pipeline_company_and_lockups(client, db, auth):
     assert one["terms"]["price_final"]["evidence"] == "The price is $83.00."
     assert one["milestones"]["priced"]["form_type"] == "424B4"
     assert client.get("/v1/public/ipos/320193").status_code == 404
+    assert body["window"] == {"activity_days": 90, "from": (TODAY - timedelta(days=90)).isoformat()}
+    assert client.get("/v1/public/ipos/pipeline?days=365").status_code == 422  # active only
+    assert client.get("/v1/public/ipos/pipeline?lockup_within_days=365").status_code == 422
     soon_list = client.get("/v1/public/ipos/pipeline?lockup_within_days=90").json()["data"]
     assert [r["cik"] for r in soon_list] == ["0002130357"]
     keyed = client.get("/v1/ipos?lockup_expiry_within_days=30", headers=auth).json()["data"]
     assert keyed == []  # 60 days away
+
+
+def test_older_ipos_need_a_key(client, db, auth):
+    public_service.reset_cache()
+    _company(db, "0000000007", "Old Listing Inc", "OLD")
+    _filing(db, "0000000007", "0000000007-26-000001", "S-1", 300)
+    _filing(db, "0000000007", "0000000007-26-000002", "424B4", 200)
+    db.commit()
+    r = client.get("/v1/public/ipos/7")
+    assert r.status_code == 403 and r.json()["error"]["code"] == "key_required"
+    assert client.get("/v1/ipos?days=365", headers=auth).json()["data"][0]["cik"] == "0000000007"

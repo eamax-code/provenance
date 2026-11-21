@@ -208,6 +208,9 @@ def public_events(db: Session, limit: int = MAX_LIMIT, today: date | None = None
 
 PIPELINE_MAX = 200
 LOOKBACK_DAYS = 730
+# Keyless covers the active pipeline only; the full IPO history needs a key (no free export).
+ACTIVE_DAYS = 120
+LOCKUP_WINDOW_DAYS = 180
 
 
 def _lockup_within(terms: dict | None, today: date, days: int) -> bool:
@@ -244,8 +247,11 @@ def public_pipeline(
                 **_ipo_row(i), "terms": {k: v["value"] for k, v in t.items()} or None,
                 "derived_terms": sorted(k for k, v in t.items() if v.get("derived")),
             })  # fmt: skip
-        return {"data": rows[:PIPELINE_MAX], "counts": counts, "total": len(rows),
-                "as_of": _now_iso(), "notes": [IPO_NOTE, TERMS_NOTE]}  # fmt: skip
+        window = ({"lockups_ending_within_days": lockup_within_days} if lockup_within_days
+                  else {"activity_days": days, "from": since.isoformat()})  # fmt: skip
+        return {"data": rows[:PIPELINE_MAX], "counts": counts, "total": min(len(rows),
+                PIPELINE_MAX), "window": window, "as_of": _now_iso(),
+                "notes": [IPO_NOTE, TERMS_NOTE, WINDOW_NOTE]}  # fmt: skip
 
     return cached(f"pipeline:{days}:{kind}:{lockup_within_days}:{today}", build)
 
@@ -258,12 +264,19 @@ def public_ipo(db: Session, cik: str, today: date | None = None) -> dict | None:
                  if i["cik"] == cik]  # fmt: skip
         if not items:
             return None
-        return {**_ipo_row(items[0]), "terms": ipo_terms.terms_by_cik(db, [cik]).get(cik),
-                "notes": [IPO_NOTE, TERMS_NOTE]}  # fmt: skip
+        terms = ipo_terms.terms_by_cik(db, [cik]).get(cik)
+        recent = items[0]["last_activity"] >= today - timedelta(days=ACTIVE_DAYS)
+        if not recent and not _lockup_within(terms, today, LOCKUP_WINDOW_DAYS):
+            return {"outside_window": True}
+        return {**_ipo_row(items[0]), "terms": terms, "notes": [IPO_NOTE, TERMS_NOTE]}
 
     return cached(f"ipo:{cik}:{today}", build)
 
 
+WINDOW_NOTE = (
+    "Without a key this covers the active pipeline: filings in the last 120 days and lock-ups "
+    "ending in the next 180 days. Older IPOs are on /v1/ipos with a key."
+)
 TERMS_NOTE = (
     "Deal terms are read from the prospectus by rules; each value on the company endpoint "
     "carries the sentence it came from. Lock-up expiry and quiet period end are derived dates."

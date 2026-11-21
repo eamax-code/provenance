@@ -168,16 +168,16 @@ def live_ipos(
     "/ipos/pipeline",
     responses=_ERRORS,
     summary="Companies going public by stage, with deal terms (public)",
-    description="Stored data only, never calls the SEC. Up to 200 companies, newest activity "
-    "first, with counts by stage. lockup_within_days lists IPOs whose lock-up (a derived date) "
-    "ends within that many days.",
+    description="Stored data only, never calls the SEC. The active pipeline only: activity in "
+    "the last 120 days (or lock-ups ending within 180 days with lockup_within_days), at most 200 "
+    "companies and no paging; the full history is on /v1/ipos with a key.",
 )
 def ipo_pipeline_public(
     request: Request,
     response: Response,
-    days: int = Query(90, ge=1, le=365),
+    days: int = Query(90, ge=1, le=live.ACTIVE_DAYS),
     kind: str | None = Query("ipo", pattern="^(ipo|spin_off)$"),
-    lockup_within_days: int | None = Query(None, ge=1, le=365),
+    lockup_within_days: int | None = Query(None, ge=1, le=live.LOCKUP_WINDOW_DAYS),
     db: Session = Depends(db_session),
 ):
     _guard(request, response)
@@ -203,6 +203,13 @@ def ipo_public(
     body = live.public_ipo(db, cik)
     if body is None:
         raise APIError(404, "not_going_public", "No IPO filings for this company in two years.")
+    if body.get("outside_window"):
+        raise APIError(
+            403,
+            "key_required",
+            "This IPO is older than the public window (filings in the last 120 days, lock-ups "
+            "ending in the next 180). Use GET /v1/ipos with an API key.",
+        )
     return body
 
 
