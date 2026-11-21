@@ -44,7 +44,7 @@ security pass, docs, legal drafts. That is more than most paid filings APIs ship
 | O-04 | Payments (GH #16) | **A merchant of record** (Paddle, Lemon Squeezy or Dodo Payments): handles global VAT/GST and pays out to an Indian individual. Stripe direct is harder to open for an individual in India and leaves tax with you. Check each one's current onboarding before choosing. |
 | O-05 | Model (GH #13) | `LLM_PROVIDER=openai` against a hosted provider that serves the same Qwen3 models (prompt parity), with a hard monthly spend cap (start at $30). Demo key: data-only answers, no model. |
 | O-06 | News (GH #14) | `NEWS_ENABLED=false` at launch. Forecasts from filings only. GDELT later if users ask. |
-| O-07 | Legal (05/GH #17) | Launch as "pilot" with the drafts finalised for commercial-use definition and attribution (G-03). No person view, no bulk export until counsel. |
+| O-07 | Legal (05/GH #17) | Launch as "pilot" with the drafts finalised for commercial-use definition and attribution (G-03). No person view, no bulk export until counsel. **Counsel confirms the ESMA/FCA FIRDS display terms before we sell commercial display of listings data.** SEC data and GLEIF (CC0) are clear; if counsel is slow, the Builder commercial right covers SEC-derived data first and listings carry their source attribution. |
 | O-08 | Pricing | Approve §4 (or edit it), because code, site and checkout all read from it. |
 | O-09 | Contact | SEC User-Agent uses the personal address already in `local/local.env`; never the work address. |
 
@@ -52,7 +52,7 @@ security pass, docs, legal drafts. That is more than most paid filings APIs ship
 
 ## 3. Tickets and schedule
 
-Two tracks run in parallel: **owner** (accounts, DNS, keys) and **agent** (code). Agent work
+**The 12-hour clock starts when the companyfacts download for the rebuild is done** (2026-11-22). Two tracks run in parallel: **owner** (accounts, DNS, keys) and **agent** (code). Agent work
 starts at hour 0 on branches that do not need the owner.
 
 ### Hours 0-4: data depth (agent) | accounts and VM (owner)
@@ -66,7 +66,7 @@ starts at hour 0 on branches that do not need the owner.
 | **D-05** | **8-K item events** on feed, SSE, webhooks and MCP: `sec.restatement` (4.02), `sec.auditor_change` (4.01), `sec.bankruptcy` (1.03), `sec.material_agreement` (1.01), `sec.acquisition_completed` (2.01), `sec.change_in_control` (5.01), `sec.results` (2.02), `sec.shareholder_vote` (5.07); plus `sec.late_filing` (NT 10-K/10-Q), `sec.deregistration` (Form 15), `sec.delisting` (Form 25), `sec.tender_offer` (SC TO-T), `sec.merger_proxy` (DEFM14A). Backfill never notifies (ADR 0004). | Watches can subscribe by type; webhook payload names the item and links the filing | S-M |
 | D-06 | **Calendar alignment**: `calendar_period` (e.g. `CY2025Q3`) on facts, so screens compare companies with different fiscal years | Screen accepts `calendar_period` | S |
 | I-01 | **VM, Compose, Caddy TLS, Cloudflare DNS**; Postgres on pgvector:pg16 with tuned memory (`shared_buffers` 2 GB, `effective_cache_size` 6 GB, `work_mem` 32 MB) | `/healthz` over HTTPS on the domain | S (owner + agent) |
-| I-02 | **Fix `docs/deployment.md` cost and sizing** to the real database size and the VM plan | Doc matches reality | S |
+| I-02 | **Fix `docs/deployment.md` cost and sizing** to the real database size and the VM plan, measured on the rebuilt local DB (not the old notes) | Doc matches reality | S |
 
 ### Hours 4-8: linkage, money, production data
 
@@ -76,18 +76,18 @@ starts at hour 0 on branches that do not need the owner.
 | K-02 | **Officer changes on insider edges** (connections.md #1): 8-K 5.02 appointed/departed dates end or start edges | "Current board" excludes departed people at once | S |
 | K-03 | **Co-registrants** (connections.md #5): companies filing under one accession | Graph shows them; a utility holding company shows its utilities | S |
 | K-04 | **Ticker and name history**: former names (stored) plus ticker changes seen in `company_tickers_exchange`; search finds a company by an old ticker | `search?q=FB` finds Meta with "formerly" | S |
-| **G-01** | **Pricing in code**: new `PLAN_LIMITS` + feature flags (`commercial_use`, `webhooks`, `exports`, `forecasts`, `seats`, `overage_per_1k`) per §4; `/v1/public/plans`, the pricing section, JSON-LD offers, `/developers/` limits table, quota error text | One source of truth; tests check site and API agree | S |
+| **G-01** | **Pricing in code** (approved 2026-11-22): one `PLANS` source of truth with every flag of §4. Enforce only what exists today: rate limit, quota, export rows, watches, event streams, chat per day, forecasts; `commercial_use` shown as a label. Seats, overage and agent credits are recorded as "with billing (G-02)" and stay hidden. `/v1/public/plans`, the pricing section, JSON-LD offers, the `/developers/` limits table and the quota error read from it. **New prices are not published until O-08.** | One source of truth; tests check site and API agree | S |
 | **G-02** | **Checkout via the merchant of record**: hosted checkout link per plan and term; signed webhook → set account plan, store subscription ID, downgrade to free on cancel or failed payment; "Manage billing" link on `/account/`; agent credit packs as one-off products | Test-mode purchase upgrades a real account end to end; replayed or unsigned webhooks rejected | M |
 | G-03 | **Legal pages**: plan-based commercial-use definition, attribution line ("Source: SEC EDGAR, via Provenance"), refund policy (the MoR requires one), data-sources page lists GLEIF/ESMA/FCA terms | Draft banner stays until the owner reads them; pages linked from checkout | S |
 | I-03 | **Production data**: `pg_dump -Fc` of the local DB after D-01/D-04 reload, copy to the VM, `pg_restore -j 4`, `alembic upgrade head`, build marts, start poller and filings tracker | `/readyz` = ready; status page shows filings from today | M (owner runs, agent scripts) |
 | I-04 | **Secrets and env**: new secrets per `docs/security.md`; `PUBLIC_BASE_URL`, `site/shell/site.json` origin, `sync_site_shell.py`; `MARKETS_DAILY_ENABLED`, `CONNECTIONS_DAILY_ENABLED`, `FILINGS_TRACKER_*` on | `readyz` lists no problems | S |
-| I-05 | **Search embeddings in production**: run bge-m3 on CPU in the Compose stack (Ollama or a small embedding server) *or* make `mode=semantic` answer 503 with a clear message and default to keyword | No 500s from `/v1/search` | S |
+| I-05 | **Search embeddings in production**: already safe: `mode=semantic` falls back to keyword results with a note when the embedding model is unreachable (`routes_search.py`). Add a regression test; bge-m3 on CPU later if users want semantic search | No 500s from `/v1/search` | S |
 
 ### Hours 8-11: production hardening and smoke
 
 | ID | Ticket | Acceptance | Effort |
 |---|---|---|---|
-| I-06 | **Backups**: nightly `pg_dump` to object storage (Backblaze B2 or Cloudflare R2), 14-day retention; one restore drill into a scratch DB | Drill restored and row counts match | S |
+| I-06 | **Backups (first, after the 2026-11-20 local data loss)**: local daily dump through launchd into `apps/provenance-backups` (keep 3), restore steps in `docs/operations.md`, a dump right after the rebuild; production nightly `pg_dump` to object storage (Backblaze B2 or Cloudflare R2), 14-day retention, one restore drill into a scratch DB | Drill restored and row counts match | S |
 | I-07 | **Monitoring**: uptime check on `/readyz` every minute (free tier of an uptime service), `ALERT_WEBHOOK_URL` to the owner's own Telegram/Discord, error tracking (Sentry free tier) | One forced alert received | S |
 | I-08 | **Load smoke**: 50 rps for 5 min on `/v1/companies/{cik}/facts`, `/v1/facts/screen`, `/v1/search`, `/mcp` | p95 < 500 ms on facts, < 2 s on screen; no errors | S |
 | I-09 | **Production smoke script** `scripts/smoke_prod.py`: sign-up email arrives, key works, facts with `as_of`, webhook delivered to a receiver, SSE stream, MCP from Claude Code, checkout in test mode, demo limits | All green, output saved to `docs/pilot-report.md` | S |
@@ -137,16 +137,16 @@ overage; the design-partner deal gives 60 days free with no path to a price.
 | Use | personal, non-commercial | personal | **commercial display with attribution** | commercial, internal + display | redistribution and resale |
 | Requests a month | 10,000 | 50,000 | 500,000 | 3,000,000 | custom |
 | Rate limit | 60/min | 120/min | 300/min | 1,000/min | custom |
-| Overage | hard stop | hard stop | $0.50 per 1,000 | $0.30 per 1,000 | contract |
+| Overage | hard stop | hard stop | $0.50 per 1,000 (launches with billing) | $0.30 per 1,000 (launches with billing) | contract |
 | All metrics, `as_of`, full history, MCP | yes | yes | yes | yes | yes |
 | Chat questions a day | 20 | 200 | 500 | 2,000 | custom |
 | Forecasts | no | yes | yes | yes | yes |
-| Watches | 3, email only | 25, email | 100, **webhooks + SSE (3)** | 1,000, webhooks + SSE (10) | custom |
-| CSV export (bounded rows) | no | yes | yes | yes + graph export | bulk snapshots after legal review |
-| Seats / keys | 1 / 2 | 1 / 2 | 2 / 5 | 5 / 20 | SSO, custom |
+| Watches | 3, webhook (email with O-03) | 25, webhook (email with O-03) | 100, **webhooks + SSE (3)** | 1,000, webhooks + SSE (10) | custom |
+| CSV export (bounded rows) | 100 rows | yes | yes | yes + graph export | bulk snapshots after legal review |
+| Keys (seats with billing) | 2 | 2 | 5 | 20 | SSO, custom |
 | Support | docs | email | email, 2 business days | priority, 1 business day | SLA |
 
-**Agent credits (no subscription):** $10 for 20,000 calls, valid 12 months, commercial use with
+**Agent credits (no subscription; launches with billing):** $10 for 20,000 calls, valid 12 months, commercial use with
 attribution, at most 120/min. For MCP and agent builders who will not subscribe; sold as one-off
 products through the merchant of record. Pay-per-call (x402) later.
 

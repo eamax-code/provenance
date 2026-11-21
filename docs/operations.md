@@ -60,11 +60,41 @@ The Dockerfile serves the API by default; override the command for the poller.
 
 ## Backups and recovery
 
-- Use the managed database's automated snapshots. Test a restore into a scratch database:
-  `pg_restore` / provider console, then `alembic current` should report the head revision.
-- Everything except API keys, watches and usage can be rebuilt from the SEC by re-ingesting;
-  the `.sec_cache` directory is disposable.
-- After restore, re-run `alembic upgrade head` and `scripts/poll_sec.py --once`.
+Backups live outside the database host's disk. On 2026-11-20 Docker Desktop's disk image was
+lost with the local database in it; the only copy was a hand-made dump from 15 days earlier.
+
+- **Dump:** `scripts/backup_db.sh` writes `provenance-<UTC stamp>.dump` (`pg_dump -Fc`), checks
+  that `pg_restore --list` can read it, then keeps the newest `KEEP` (default 3). With
+  `PG_CONTAINER` set it dumps through `docker exec`; otherwise it uses `DATABASE_URL`.
+  About 75 seconds and 1.4 GB for the local database (November 2026).
+- **Local schedule:** launchd job `com.eamax.provenance.backup-db` runs it daily at 04:15 into
+  `apps/provenance-backups/` (log `~/Library/Logs/provenance-backup-db.log`). Remove with
+  `launchctl bootout gui/$(id -u)/com.eamax.provenance.backup-db`.
+- **Production:** nightly dump to object storage with 14-day retention, plus the provider's
+  snapshots; one restore drill before launch (launch plan I-06).
+
+### Restore
+
+```bash
+# 1. an empty database (local: a fresh container on a named volume)
+docker run -d --name provenance-local-pg -e POSTGRES_USER=provenance \
+  -e POSTGRES_PASSWORD=... -e POSTGRES_DB=provenance -p 127.0.0.1:5433:5432 \
+  -v provenance-local-pgdata-v2:/var/lib/postgresql/data pgvector/pgvector:pg16
+docker exec provenance-local-pg psql -U provenance -c "create database provenance_test"
+# 2. restore (about 75 s locally; add -j 4 when restoring from a file on the host)
+docker exec -i provenance-local-pg pg_restore -U provenance -d provenance --no-owner \
+  < ../provenance-backups/provenance-<stamp>.dump
+# 3. schema to head, then catch up on what was filed since the dump
+alembic upgrade head
+python scripts/sec_bulk.py --download && python scripts/sec_bulk.py --scope facts
+python scripts/ingest_connections.py --insider-quarters 20 && python scripts/ingest_connections.py --showcase
+python scripts/track_filings.py --days 7
+python scripts/build_marts.py
+```
+
+Check afterwards: `alembic current` reports head, `/readyz` is ready, and the status page shows
+filings from today. Everything except accounts, API keys, watches, deliveries and usage can be
+rebuilt from public sources; the `.sec_cache` directory is disposable.
 
 ## Monitoring
 

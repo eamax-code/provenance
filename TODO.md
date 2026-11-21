@@ -4,6 +4,22 @@ Pending work as of 2026-11-15. GitHub Issues (GH #) and older tickets in `.scrat
 conventions in `docs/agents/issue-tracker.md`. Labels: **ready-for-human** needs an owner
 decision or account; **ready-for-agent** can be built now; **needs-triage** is an idea.
 
+## 12-hour launch: agent track (started 2026-11-22)
+Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-handover.md](docs/pm-handover.md). Status is updated as each ticket lands.
+
+| Ticket | Item | Status |
+| --- | --- | --- |
+| I-06 | Backups after the 2026-11-20 local data loss | local part done 2026-11-22: `scripts/backup_db.sh`, daily launchd dump (keep 3), restore steps in docs/operations.md; local DB restored from the 11-05 dump, rebuild from SEC archives running; production object storage waits on the host |
+| D-01 | Core statements 5 → 30 metrics (mapping 1.3.0) | in progress |
+| D-05 | 8-K item and form events on feed, webhooks, MCP | next |
+| D-02, D-03 | Cover facts (dei), derived ratios | queued |
+| D-04 | IFRS mapping | queued |
+| I-05, I-02 | Semantic search regression test; deployment sizing from the rebuilt DB | queued |
+| K-01 to K-04 | CIK-LEI-ISIN, officer dates on edges, co-registrants, ticker history | queued |
+| G-01 | Pricing in code, one source of truth (not published until O-08) | queued |
+| I-09, F-01 | Production smoke script, Sheets function | queued |
+| Owner | O-01 to O-09 (host, domain, email, merchant of record, model, news, legal, pricing) | waiting on you; G-02, I-01, I-03 wait on them |
+
 ## Pilot launch: working list (started 2026-11-15)
 Status 2026-11-15 06:20 IST: everything an agent can build is done. What is left needs you; see "Decisions that block launch" in [docs/launch-plan.md](docs/launch-plan.md).
 Also built beyond the list: `LLM_PROVIDER=openai` (GH #13 is now a settings choice), `NEWS_PROVIDER=gdelt` for production (GH #14), `scripts/pilot_metrics.py`, `examples/point_in_time.py`, acceptance-to-availability on the status page, and the measured local refresh in docs/pilot-report.md.
