@@ -258,3 +258,12 @@
 .cx-brandmark{display:none;align-items:center;gap:8px;color:inherit;font:800 16px var(--font-body);letter-spacing:-.02em;text-decoration:none}
 .cx-brandmark i{width:8px;height:8px;border-radius:50%;background:var(--red)}
 @media (max-width:860px){body[data-state="home"] .cx-brandmark{display:inline-flex}}
+.cx-ipo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:12px}
+.cx-ipo-item{background:color-mix(in srgb,var(--fg) 6%,transparent);border-radius:12px;padding:10px 12px}
+.cx-ipo-item summary{list-style:none;cursor:pointer;display:grid;gap:2px;color:var(--fg)}
+.cx-ipo-item summary .cx-tag{justify-self:start}
+.cx-ipo-item summary::-webkit-details-marker{display:none}
+.cx-ipo-item summary:focus-visible{outline:2px solid var(--accent-hi);outline-offset:2px;border-radius:6px}
+.cx-ipo-value{font:700 18px var(--font-body);letter-spacing:-.02em}
+.cx-ipo-item[open]{grid-column:1/-1}
+.cx-ipo-item blockquote{margin:8px 0 4px;padding-left:10px;border-left:3px solid var(--red);font-size:14px}

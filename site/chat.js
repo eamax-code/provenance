@@ -157,12 +157,6 @@
       }
     });
     target.appendChild(box);
-    if (unread.length) {
-      var also = el('p', 'cx-note');
-      also.appendChild(document.createTextNode('Also filed, not read yet: '));
-      unread.forEach(function (f, i) { if (i) also.appendChild(document.createTextNode('; ')); inline('8-K item 5.02, ' + f.filing_date + ' [' + f.citation + ']', byN, also); });
-      target.appendChild(also);
-    }
     var foot = lines.filter(function (l) { return l && !/^\s*•/.test(l); }).slice(1).join(' ');
     if (foot) target.appendChild(el('p', 'cx-note', foot));
   }
@@ -421,7 +415,40 @@
       else if (w.type === 'chart' && w.points && w.points.length) target.appendChild(chartWidget(w, byN));
       else if (w.type === 'stats' && w.items && w.items.length) target.appendChild(statsWidget(w, byN));
       else if (w.type === 'table' && w.rows && w.rows.length) target.appendChild(tableWidget(w));
+      else if (w.type === 'ipo_terms' && w.terms) target.appendChild(ipoWidget(w));
     });
+  }
+  // IPO deal terms: each value opens the prospectus sentence it came from; derived dates say so.
+  function ipoWidget(w) {
+    var T = w.terms || {}, v = function (k) { return T[k] && T[k].value; };
+    var money = function (x) { var a = Math.abs(x); return a >= 1e9 ? '$' + (x / 1e9).toFixed(2) + 'B' : a >= 1e6 ? '$' + (x / 1e6).toFixed(1) + 'M' : '$' + x.toFixed(2); };
+    var count = function (x) { var a = Math.abs(x); return a >= 1e9 ? (x / 1e9).toFixed(2) + 'B' : a >= 1e6 ? (x / 1e6).toFixed(1) + 'M' : x.toLocaleString('en-US'); };
+    var box = el('section', 'cx-widget cx-ipo');
+    var head = el('div', 'cx-widget-head'); head.appendChild(el('h3', null, 'Deal terms')); head.appendChild(el('span', 'cx-widget-sub', 'from the prospectus · open a value for its sentence')); box.appendChild(head);
+    var grid = el('div', 'cx-ipo-grid');
+    var item = function (label, key, shown) {
+      var t = T[key]; if (!t || shown == null) return;
+      var d = el('details', 'cx-ipo-item'), s = el('summary');
+      s.appendChild(el('span', 'cx-tile-label', label)); s.appendChild(el('span', 'cx-ipo-value', shown));
+      if (t.derived) s.appendChild(el('span', 'cx-tag plain', 'derived'));
+      d.appendChild(s);
+      d.appendChild(el('blockquote', null, t.evidence || ''));
+      var src = el('p', 'cx-note'); src.appendChild(document.createTextNode((t.derived ? 'Worked out from the ' : 'From the ') + t.form_type + ' filed ' + human(t.filing_date) + ': '));
+      src.appendChild(link(t.source_url, 'open it on sec.gov')); d.appendChild(src);
+      grid.appendChild(d);
+    };
+    item('Priced at', 'price_final', v('price_final') != null ? money(v('price_final')) : null);
+    if (v('price_low') != null) item('Price range', 'price_low', money(v('price_low')) + ' to ' + money(v('price_high')));
+    item('Gross proceeds', 'gross_proceeds', v('gross_proceeds') != null ? money(v('gross_proceeds')) : null);
+    item('Shares offered', 'shares_offered', v('shares_offered') != null ? count(v('shares_offered')) : null);
+    item('Underwriting discount', 'underwriting_discount_total', v('underwriting_discount_total') != null ? money(v('underwriting_discount_total')) : null);
+    item('Exchange', 'exchange', v('exchange') ? v('exchange') + (v('ticker') ? ', ' + v('ticker') : '') : null);
+    item('Leads', 'lead_underwriters', v('lead_underwriters') ? v('lead_underwriters').join(' and ') : null);
+    item('Lock-up ends', 'lockup_expiry', v('lockup_expiry') ? human(v('lockup_expiry')) : null);
+    item('Quiet period ends', 'quiet_period_end', v('quiet_period_end') ? human(v('quiet_period_end')) : null);
+    box.appendChild(grid);
+    box.appendChild(el('p', 'cx-note', 'Read from the prospectus by rules. A final prospectus means the offering priced, not that shares trade. Information, not investment advice.'));
+    return box;
   }
   // A list answered from the data: companies with their filings, each cell linking to its filing.
   function tableWidget(w) {
