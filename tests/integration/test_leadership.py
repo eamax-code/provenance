@@ -65,6 +65,38 @@ def test_departure_ends_the_role_and_leadership_is_by_person(db):
     assert cur["cfo"]["name"] == "Kevan Parekh" and cur["cfo"]["basis"] == "8-K item 5.02"
     assert cur["chair"] is None
     people = {p["name"]: p for p in out["people"]}
-    assert people["Jeff Williams"]["status"] == "leaving"
+    # the Form 4 (legal) name, with the 8-K spelling as an alias
+    assert people["Jeffrey E Williams"]["status"] == "leaving"
+    assert people["Jeffrey E Williams"]["aliases"] == ["Jeff Williams"]
+    assert people["Jeffrey E Williams"]["match"]["method"] == "name_nickname"
     assert people["Luca Maestri"]["status"] == "departed" and not people["Luca Maestri"]["current"]
-    assert out["people"][0]["name"] == "Jeff Williams"  # newest event first
+    assert out["people"][0]["name"] == "Jeffrey E Williams"  # newest event first
+
+
+def test_apple_cook_and_ternus(db):
+    """Cook moves to Executive Chair and Ternus becomes CEO on 1 Sep 2026 (8-K 5.02); their
+    Forms 4 say only since when each reports. The role start comes from the 8-K."""
+    db.add(Company(cik=CIK, legal_name="Apple Inc.", quality_status="ok",
+                   source_url="https://www.sec.gov/", first_detected_at=utcnow()))  # fmt: skip
+    _filing(db, 1, 1, "COOK TIMOTHY D", "Chief Executive Officer", date(2022, 9, 27),
+            director=True)  # fmt: skip
+    _filing(db, 2, 2, "TERNUS JOHN", "SVP, Hardware Engineering", TODAY - timedelta(days=40))
+    _change(db, 1, "Tim Cook", "Executive Chair", "role_change", date(2026, 4, 20),
+            "effective September 1, 2026")  # fmt: skip
+    _change(db, 2, "John Ternus", "Chief Executive Officer", "appointment", date(2026, 4, 20),
+            "effective September 1, 2026")  # fmt: skip
+    db.commit()
+    owners = insiders.roles(db, CIK)
+    leadership.apply_to_roles(db, CIK, owners)
+    out = leadership.overview(db, CIK, owners)
+    cur = out["current_leadership"]
+    assert (cur["ceo"]["name"], cur["ceo"]["since"], cur["ceo"]["basis"]) == (
+        "John Ternus", "2026-09-01", "8-K item 5.02"
+    )  # fmt: skip
+    assert (cur["chair"]["name"], cur["chair"]["since"]) == ("Timothy D Cook", "2026-09-01")
+    assert cur["chair"]["reporting_since"] == "2022-09-27"  # Form 4: reporting, not the role
+    cook = next(p for p in out["people"] if p["name"] == "Timothy D Cook")
+    assert cook["aliases"] == ["Tim Cook"] and cook["match"]["confidence"] == "high"
+    assert leadership.match_people("COOK TIMOTHY D", "Tim Cook") == ("name_nickname", "high")
+    assert leadership.match_people("COOK T", "Tim Cook") == ("name_initial", "medium")
+    assert leadership.match_people("COOK THOMAS", "Tim Cook") is None

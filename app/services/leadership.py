@@ -20,6 +20,7 @@ from app.services.sec_client import filing_index_url
 
 DEPARTING = ("departure", "retirement", "not_standing_for_reelection")
 ARRIVING = ("appointment", "election")
+STARTS_ROLE = ARRIVING + ("role_change",)  # a role change also starts the new role
 ROLES = {
     "ceo": re.compile(r"chief executive|\bceo\b", re.I),
     "cfo": re.compile(r"chief financial|\bcfo\b|principal financial", re.I),
@@ -35,21 +36,63 @@ _DATE = re.compile(r"([A-Z][a-z]+ \d{1,2}, \d{4})")
 PEOPLE_MAX = 12
 
 
+_NICK_GROUPS = (
+    "timothy tim", "william bill will billy", "robert bob rob bobby", "james jim jimmy jamie",
+    "michael mike mick", "thomas tom tommy", "david dave", "daniel dan danny",
+    "christopher chris", "jeffrey jeff geoffrey", "benjamin ben", "arthur art", "steven steve",
+    "stephen steve", "edward ed eddie ted", "joseph joe joey", "samuel sam", "matthew matt",
+    "andrew andy drew", "nicholas nick", "anthony tony", "patrick pat", "richard rick rich dick",
+    "kenneth ken kenny", "lawrence larry", "elizabeth liz beth betsy", "katherine kate kathy",
+    "catherine cathy kate", "jennifer jen jenny", "susan sue", "margaret meg maggie peggy",
+    "alexander alex", "alexandra alex", "gregory greg", "jonathan jon", "john jack",
+    "charles charlie chuck", "frederick fred", "raymond ray", "ronald ron", "donald don",
+    "douglas doug", "gerald jerry", "kimberly kim", "deborah deb debbie", "rebecca becky",
+    "victoria vicki", "theodore ted", "philip phil", "bradford brad", "bradley brad",
+)  # fmt: skip
+NICKNAMES = {n: g.split()[0] for g in _NICK_GROUPS for n in g.split()}
+
+
 def _tokens(name: str) -> list[str]:
     words = re.sub(r"[^A-Za-z\s\-']", " ", name or "").lower().split()
     return [w for w in words if w not in _SUFFIX and len(w) > 0]
 
 
+def _parts_filed(name: str) -> tuple[str, str] | None:
+    t = _tokens(name)
+    return (t[0], t[1]) if len(t) >= 2 else None  # "COOK TIMOTHY D": last name first
+
+
+def _parts_text(name: str | None) -> tuple[str, str] | None:
+    t = _tokens(name or "")
+    return (t[-1], t[0]) if len(t) >= 2 else None  # "Timothy D. Cook": first name first
+
+
 def key_from_filed(name_as_filed: str) -> tuple[str, str] | None:
-    """Forms 3/4 write names last name first: "COOK TIMOTHY D" -> ("cook", "t")."""
-    t = _tokens(name_as_filed)
-    return (t[0], t[1][0]) if len(t) >= 2 else None
+    """Forms 3/4: "COOK TIMOTHY D" -> ("cook", "t")."""
+    p = _parts_filed(name_as_filed)
+    return (p[0], p[1][0]) if p else None
 
 
 def key_from_text(name: str | None) -> tuple[str, str] | None:
-    """8-K text writes them first name first: "Timothy D. Cook" -> ("cook", "t")."""
-    t = _tokens(name or "")
-    return (t[-1], t[0][0]) if len(t) >= 2 else None
+    """8-K text: "Tim Cook" -> ("cook", "t")."""
+    p = _parts_text(name)
+    return (p[0], p[1][0]) if p else None
+
+
+def match_people(owner_name_as_filed: str, person: str | None) -> tuple[str, str] | None:
+    """How a Form 4 reporting owner and an 8-K person are the same: (method, confidence), or
+    None. Same last name and first name -> name_exact/high; a known nickname (Tim, Timothy)
+    -> name_nickname/high; the same first initial only -> name_initial/medium."""
+    a, b = _parts_filed(owner_name_as_filed), _parts_text(person)
+    if not a or not b or a[0] != b[0]:
+        return None
+    if a[1] == b[1]:
+        return "name_exact", "high"
+    if NICKNAMES.get(a[1], a[1]) == NICKNAMES.get(b[1], b[1]):
+        return "name_nickname", "high"
+    if a[1][0] == b[1][0] and (len(a[1]) == 1 or len(b[1]) == 1):
+        return "name_initial", "medium"
+    return None
 
 
 def effective_date(text: str | None) -> date | None:
@@ -112,24 +155,33 @@ def overview(db: Session, cik: str, owners: list[dict], as_of: date | None = Non
     """U-03: people grouped with their 8-K events newest first, and the current CEO, CFO and
     chair. `owners` is insiders.roles() output after apply_to_roles()."""
     today = as_of or date.today()
-    owner_by_key = {
-        key_from_filed(o["name_as_filed"]): o for o in owners if o.get("kind") == "person"
-    }
+    owner_list = [o for o in owners if o.get("kind") == "person"]
     groups: dict[tuple, list[OfficerChange]] = {}
     for c in changes(db, cik, as_of):
         k = key_from_text(c.person)
         if k:
             groups.setdefault(k, []).append(c)
     people = []
+    owner_for: dict[tuple, dict] = {}
     for k, events in groups.items():
         status, leaving, ev = _status(events, today)
-        o = owner_by_key.get(k)
+        found = [(o, m) for o in owner_list if (m := match_people(o["name_as_filed"],
+                                                                 events[-1].person))]  # fmt: skip
+        o, match = found[0] if len(found) == 1 else (None, None)  # ambiguous stays unmatched
+        if o is not None:
+            owner_for[k] = o
         current = status in ("appointed", "leaving", "in office") or bool(o and o["current"])
         if status == "departed":
             current = False
+        spelled = sorted({e.person for e in events if e.person})
         people.append({
-            "name": events[-1].person, "current": current,
+            "name": o["name"] if o else events[-1].person,
+            "aliases": [n for n in spelled if not o or n != o["name"]],
+            "match": {"method": match[0], "confidence": match[1],
+                      "reporting_owner_cik": o["owner_cik"]} if o else None,
+            "current": current,
             "role": (o["role"] if o else None) or events[-1].role, "status": status,
+            "reporting_since": o["first_filed"].isoformat() if o and o["first_filed"] else None,
             "leaving_on": leaving.isoformat() if leaving else None,
             "events": [{
                 "filing_date": e.filing_date.isoformat() if e.filing_date else None,
@@ -144,14 +196,17 @@ def overview(db: Session, cik: str, owners: list[dict], as_of: date | None = Non
     current: dict[str, dict | None] = {}
     for role, pattern in ROLES.items():
         pick = None
-        appointed = [e for k, ev in groups.items() if k not in departed for e in ev
-                     if e.change_type in ARRIVING and pattern.search(e.role or "")]  # fmt: skip
+        appointed = [(k, e) for k, ev in groups.items() if k not in departed for e in ev
+                     if e.change_type in STARTS_ROLE and pattern.search(e.role or "")]  # fmt: skip
         if appointed:
-            e = max(appointed, key=lambda x: (x.filing_date or date.min, x.seq))
-            pick = {"name": e.person, "title": e.role,
+            k, e = max(appointed, key=lambda x: (x[1].filing_date or date.min, x[1].seq))
+            o = owner_for.get(k)
+            pick = {"name": o["name"] if o else e.person, "title": e.role,
                     "since": (effective_date(e.effective) or e.filing_date).isoformat()
                     if (e.effective or e.filing_date) else None,
                     "basis": "8-K item 5.02",
+                    "reporting_since": o["first_filed"].isoformat()
+                    if o and o["first_filed"] else None,
                     "filing_date": e.filing_date.isoformat() if e.filing_date else None,
                     "source_url": e.source_url}  # fmt: skip
         holders = [o for o in owners if o["current"] and o.get("kind") == "person"
@@ -159,14 +214,17 @@ def overview(db: Session, cik: str, owners: list[dict], as_of: date | None = Non
                    and key_from_filed(o["name_as_filed"]) not in departed]  # fmt: skip
         if holders:
             o = max(holders, key=lambda x: x["last_filed"])
-            same = pick is not None and key_from_filed(o["name_as_filed"]) == key_from_text(
-                pick["name"])  # fmt: skip
+            same = pick is not None and (
+                pick["name"] == o["name"] or match_people(o["name_as_filed"], pick["name"])
+            )
             # a Form 4 wins only when someone else took the role after the 8-K appointment
             newer = pick is None or (not same and o["first_filed"] and o["first_filed"].isoformat()
                                      > (pick["filing_date"] or ""))  # fmt: skip
             if newer:
                 pick = {"name": o["name"], "title": o.get("officer_title") or o["role"],
-                        "since": o["first_filed"].isoformat() if o["first_filed"] else None,
+                        "since": None,  # Form 4 says only since when the person reports
+                        "reporting_since": o["first_filed"].isoformat()
+                        if o["first_filed"] else None,
                         "basis": "Form 4 officer title",
                         "filing_date": o["last_filed"].isoformat(),
                         "source_url": filing_index_url(cik, o["last_accession"])}  # fmt: skip
