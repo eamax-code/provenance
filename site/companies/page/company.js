@@ -106,7 +106,12 @@
     pick.forEach(function (m) {
       var f = d.key_figures.filter(function (x) { return x.metric === m; })[0];
       var sub = f ? [f.fiscal_label + DOT, srcLink(f.form_type + ' filed ' + P.date(f.filed_date), f.source_url)] : ['not reported'];
-      var change = f && f.change_pct != null ? el('span', { class: 'kpi-ch', text: P.pct(f.change_pct, true) + ' on the year' }) : null;
+      var pct = f ? f.change_pct : null;
+      if (f && pct == null) { // same rule as the server: only between two positive consecutive years
+        var ys = d.years.filter(function (y) { return y[m] != null; }), a = ys[ys.length - 1], b = ys[ys.length - 2];
+        if (a && b && a.fiscal_year - b.fiscal_year === 1 && b[m] > 0 && a[m] >= 0) pct = 100 * (a[m] - b[m]) / b[m];
+      }
+      var change = pct != null ? el('span', { class: 'kpi-ch', text: P.pct(pct, true) + ' on the year' }) : null;
       k.appendChild(el('div', { class: 'kpi' }, [
         el('p', { class: 'kpi-label' }, [P.figureButton(d, m, [P.LABELS[m]], 'fv-name')]),
         el('p', { class: 'kpi-value' }, [f ? srcLink(P.money(f.value), f.source_url, 'Opens the filing') : 'not reported']),
@@ -304,6 +309,14 @@
   function render(d) {
     header(d); story(d); statements(d); events(d); people(d); filings(d); peers(d); identity(d);
     $('asof').value = d.as_of || '';
+    var picks = $('asof-picks'); picks.textContent = '';
+    var ends = d.years.map(function (y) { return y; }).filter(function (y) { return y.period_end; });
+    var iso = function (dt) { return dt.toISOString().slice(0, 10); }, now = new Date();
+    var options = [];
+    if (ends.length > 1) { var prev = ends[ends.length - 2]; options.push(['End of ' + prev.fiscal_label, prev.period_end]); }
+    var y1 = new Date(now); y1.setFullYear(now.getFullYear() - 1); options.push(['A year ago', iso(y1)]);
+    var y3 = new Date(now); y3.setFullYear(now.getFullYear() - 3); options.push(['Three years ago', iso(y3)]);
+    options.forEach(function (o) { var b = el('button', { type: 'button', class: 'linkish', text: o[0] }); b.addEventListener('click', function () { loadAt(o[1]); }); picks.appendChild(b); });
     $('asof-latest').hidden = !d.as_of;
     var cur = d.as_of_scope && d.as_of && d.as_of_scope.current ? 'Point in time applies to figures, filings, events and leadership; ' + d.as_of_scope.current.join(', ').replace(/_/g, ' ') + ' stay current.' : '';
     $('asof-note').textContent = cur;

@@ -173,7 +173,13 @@ for (const page of config.pages) {
       const loaded = new Promise((r) => listeners.push({ session: sessionId, method: 'Page.loadEventFired', fn: r }));
       await send('Page.navigate', { url: base + page.path }, sessionId);
       await Promise.race([loaded, sleep(20000)]);
-      await sleep(1800); // live fetches and reveals
+      // live fetches and reveals: wait until a visible h1 is on the page (up to 8 s), then settle
+      for (let t = 0; t < 32; t++) {
+        const r0 = await send('Runtime.evaluate', { expression: `[...document.querySelectorAll('h1')].some(h => h.getBoundingClientRect().height > 0 && getComputedStyle(h).visibility !== 'hidden')`, returnByValue: true }, sessionId);
+        if (r0.result?.value) break;
+        await sleep(250);
+      }
+      await sleep(900);
       const r = await send('Runtime.evaluate', { expression: `(${audit})()`, returnByValue: true }, sessionId);
       const res = r.result?.value || { fail: ['audit crashed: ' + (r.exceptionDetails?.exception?.description || '?')], warn: [] };
       const want = page.status || 200;

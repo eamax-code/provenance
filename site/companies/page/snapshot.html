@@ -45,6 +45,7 @@ body { font-size: 16px; }
 .asof label { font-weight: 600; }
 .asof input { min-height: 40px; padding: 0 10px; border: 0; border-radius: 4px; background: var(--surface); color: var(--ink); font: inherit; color-scheme: dark; }
 .asof .btn { min-height: 40px; }
+.asof-picks { display: inline-flex; gap: 4px 12px; flex-wrap: wrap; }
 .asof-note { color: var(--muted); flex-basis: 100%; }
 .asof-note:empty, .asof-error:empty { display: none; }
 .asof-error { color: var(--accent-text); flex-basis: 100%; font-weight: 600; }
@@ -180,7 +181,7 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
       <p class="co-meta" id="meta"></p>
     </div>
     <div class="co-actions">
-      <a class="btn primary" id="ask" href="/chat/">Ask about this company</a>
+      <a class="btn" id="ask" href="/chat/">Ask about this company</a>
       <button type="button" class="btn" id="api-btn" aria-expanded="false" aria-controls="api-panel">Get this via API</button>
       <a class="btn" id="edgar" target="_blank" rel="noopener">EDGAR filings</a>
     </div>
@@ -189,6 +190,7 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
       <input type="date" id="asof" name="as_of">
       <button type="submit" class="btn">Show</button>
       <button type="button" class="linkish" id="asof-latest" hidden>Back to latest</button>
+      <span class="asof-picks" id="asof-picks" aria-label="Quick dates"></span>
       <p class="asof-note" id="asof-note"></p>
       <p class="asof-error" id="asof-error" role="alert"></p>
     </form>
