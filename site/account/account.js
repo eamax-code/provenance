@@ -20,6 +20,12 @@
 
   function showSignIn() {
     $('acct-state').hidden = true; $('acct').hidden = true; $('acct-signin').hidden = false;
+    var fc = $('first-call'); if (fc) fc.textContent = fc.textContent.split('{{BASE}}').join(location.origin);
+    fetch('/plans.json').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      var free = d && (d.data || []).filter(function (p) { return p.name === 'free'; })[0], ul = $('free-gets');
+      if (!free || !ul) return;
+      ul.replaceChildren.apply(ul, (free.features || []).map(function (f) { var li = document.createElement('li'); li.textContent = f; return li; }));
+    }).catch(function () {});
   }
 
   function render(a) {

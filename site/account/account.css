@@ -1,6 +1,11 @@
 /* The account page (GH #15). Colours come from the shell tokens. */
 .acct { display: grid; gap: 16px; }
-.acct-gate { max-width: 720px; }
+.acct-start { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.acct-start[hidden] { display: none; }
+.acct-gets { display: grid; gap: 12px; }
+.acct-gets ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.acct-gets h3 { margin: 6px 0 0; font-size: 1rem; }
+@media (max-width: 900px) { .acct-start { grid-template-columns: minmax(0, 1fr); } }
 .acct-form { display: grid; gap: 10px; }
 .acct-form label { font-weight: 600; }
 .acct-form input { flex: 1 1 280px; min-height: 46px; font-size: 1rem; }

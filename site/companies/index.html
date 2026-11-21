@@ -77,10 +77,19 @@
 <!-- /shell:header -->
 <main class="app" id="main">
   <div class="pub-head">
-    <h1>Companies in this deployment</h1>
-    <p class="muted">Every card links to a public page with filings, the five normalized metrics and freshness, each row pointing back to the SEC filing it came from.</p>
-    <p class="breadcrumb" id="dir-meta">loading…</p>
+    <h1>Find a company</h1>
+    <p class="muted">Every US company that files with the SEC, by name, ticker, former name or CIK. Each page shows its filings and <span id="dir-metrics">its</span> financial figures, every one linked to the filing it came from.</p>
   </div>
+  <div class="cs">
+    <form class="cs-form" data-company-search role="search">
+      <label class="sr-only" for="cs-q">Company name, ticker, former name or CIK</label>
+      <input id="cs-q" type="search" placeholder="Apple, AAPL, Facebook or 320193" autocomplete="off" spellcheck="false">
+      <button class="btn primary" type="submit">Open</button>
+    </form>
+    <ul class="cs-results" data-results aria-live="polite"></ul>
+  </div>
+  <h2 class="dir-h">Try these</h2>
+  <p class="muted" id="dir-meta"></p>
   <p class="state" id="dir-state">Loading live data…</p>
   <div class="cards" id="dir-grid" aria-live="polite"></div>
   <div class="cta-bar"><strong>Need every company, quarterly data, exports or filing alerts?</strong><a class="btn primary small" href="/account/">Get a free key</a><a class="btn small" href="/app/">Open the Explorer</a></div>
@@ -122,5 +131,6 @@
 </footer>
 <!-- /shell:footer -->
 <script src="/public.js"></script>
+<script src="/company-search.js" defer></script>
 </body>
 </html>

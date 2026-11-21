@@ -29,14 +29,19 @@
     var rev = c.latest_annual_revenue, lf = c.latest_filing;
     var a = el('a', { class: 'card', href: '/companies/' + c.cik });
     a.appendChild(el('div', { class: 'ticker', text: (c.ticker || '—') + ' · ' + (c.exchange || '—') + ' · CIK ' + c.cik }));
-    a.appendChild(el('div', { class: 'name', text: c.legal_name }));
-    a.appendChild(el('div', { class: 'big', text: rev ? fmtNum(rev.value) + ' ' + rev.unit : 'revenue n/a' }));
-    a.appendChild(el('div', { class: 'fine', text: rev ? 'annual revenue, ' + (rev.period_label || ('period ended ' + rev.period_end)) + ' · ' + rev.source_tag : 'no unambiguous annual revenue tag' }));
-    a.appendChild(el('div', { class: 'fine', text: lf ? 'latest filing ' + lf.form_type + ' ' + (lf.filing_date || '') : 'no filings' }));
+    a.appendChild(el('div', { class: 'name', text: c.display_name || c.legal_name }));
+    a.appendChild(el('div', { class: 'big', text: rev ? (rev.unit === 'USD' ? '$' + fmtNum(rev.value) : fmtNum(rev.value) + ' ' + rev.unit) : 'Revenue not reported' }));
+    a.appendChild(el('div', { class: 'fine', text: rev ? 'Revenue, ' + (rev.period_label || humanDay(rev.period_end)) : 'No single annual revenue figure mapped' }));
+    a.appendChild(el('div', { class: 'fine', text: lf ? 'Latest filing ' + lf.form_type + ', ' + humanDay(lf.filing_date) : 'No filings yet' }));
     a.appendChild(el('div', { class: 'fine', text: fmtInt(c.filings_count) + ' filings · ' + fmtInt(c.facts_count) + ' facts' }));
     return a;
   }
 
+  /* the number of metrics comes from the live stats, so the sentence never goes stale */
+  document.addEventListener('shell:stats', function (e) {
+    var d = e.detail, n = d && d.facts && d.facts.by_metric ? Object.keys(d.facts.by_metric).length : 0, s = $('dir-metrics');
+    if (s && n) s.textContent = n + ' reported';
+  });
   /* ---- directory ---- */
   function directory() {
     var grid = $('dir-grid'); if (!grid) return;
@@ -46,7 +51,7 @@
       if (!res.body.data.length) { setState('dir-state', 'Nothing has been ingested yet. Once the operator seeds a universe, companies appear here.'); return; }
       setState('dir-state', '');
       res.body.data.forEach(function (c) { grid.appendChild(companyCard(c)); });
-      var m = $('dir-meta'); if (m) m.textContent = res.body.meta.count + ' companies · showcase: ' + res.body.meta.showcase_source + ' · generated ' + fmtTs(res.body.generated_at);
+      var m = $('dir-meta'); if (m) m.textContent = 'Public pages, no key needed. A free key opens every company the same way.';
     }).catch(function () { setState('dir-state', 'Live data unavailable right now.'); });
   }
 
