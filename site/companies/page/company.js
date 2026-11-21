@@ -93,7 +93,7 @@
     s.hidden = !!current;
     if (d.summary && d.summary.text && !current) {
       var cites = {}; (d.summary.citations || []).forEach(function (c) { cites[c.n] = c; });
-      humanDates(d.summary.text).replace(/an? 4 on/, 'an insider trade report (Form 4) on').split(/(\[\d+\])/).forEach(function (part) {
+      humanDates(d.summary.text).split(/(\[\d+\])/).forEach(function (part) {
         var m = /^\[(\d+)\]$/.exec(part);
         if (m && cites[m[1]]) s.appendChild(el('sup', {}, [srcLink('[' + m[1] + ']', cites[m[1]].url, humanDates(cites[m[1]].label))]));
         else if (part) s.appendChild(document.createTextNode(part));
@@ -238,7 +238,7 @@
       var about = f.items && f.items.length ? 'Items ' + f.items.map(function (i) { return i.label || i.code; }).join(', ') : (f.report_date ? 'period ' + P.date(f.report_date) : '');
       tb.appendChild(el('tr', {}, [
         el('td', { class: 'nw', text: P.date(f.filing_date) }),
-        el('td', {}, [srcLink(f.form_type, f.source_url, 'Opens the filing'), el('span', { class: 'muted', text: FORMS[f.form_type] ? DOT + FORMS[f.form_type] : '' })]),
+        el('td', {}, [srcLink(f.form_type, f.source_url, 'Opens the filing'), el('span', { class: 'muted', text: f.form_label ? DOT + f.form_label : (FORMS[f.form_type] ? DOT + FORMS[f.form_type] : '') })]),
         el('td', { class: 'muted', text: about })
       ]));
     });

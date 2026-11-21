@@ -1,0 +1,80 @@
+/* Companies going public: the stages read left to right like the process, the deal card holds one
+   company's terms (each opens its sentence), the table below lists the rest. */
+.ipos { max-width: 1440px; margin: 0 auto; padding: 24px clamp(16px, 2.3vw, 32px) 56px; display: grid; gap: clamp(32px, 4vw, 56px); }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ipo-head { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: 16px clamp(24px, 4vw, 64px); align-items: end; }
+.ipo-head h1 { font-size: clamp(2.5rem, 5vw, 4.75rem); font-weight: 800; letter-spacing: -0.045em; line-height: .95; }
+.ipo-head p { font-size: var(--step-body); max-width: 56ch; }
+/* stages */
+.stages { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.st-flow { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.stages button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; gap: 2px; padding: 14px 16px; background: var(--surface); border-radius: 4px; min-height: 76px; transition: background-color .15s ease; }
+.st-flow li { position: relative; }
+.st-flow li:not(:last-child)::after { content: ""; position: absolute; right: -6px; top: 50%; width: 8px; height: 8px; background: var(--bg); transform: translateY(-50%) rotate(45deg); z-index: 1; }
+.stages button:hover { background: var(--surface-2); }
+.stages button:focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 2px; }
+.stages button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.st-n { font-size: clamp(1.5rem, 2.4vw, 2.25rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.st-name { font-size: 14px; font-weight: 600; }
+.st-side { display: grid; min-width: 150px; }
+/* deal card */
+.deal { background: var(--field); color: var(--field-ink); border-radius: 4px; padding: clamp(20px, 3vw, 40px); display: grid; gap: 28px; scroll-margin-top: 88px; }
+.deal-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: start; }
+.deal h2 { font-size: clamp(2rem, 3.6vw, 3.25rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--field-ink); }
+.deal-meta { color: var(--field-soft); margin-top: 8px; font-size: 16px; }
+.deal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.deal-actions .btn { background: var(--field-ink); color: var(--field); border: 0; min-height: 44px; }
+.deal-figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.deal-figures > .ev { background: color-mix(in srgb, var(--field) 70%, #000); border-radius: 4px; padding: 16px 18px; }
+.deal-figures .ev-value { font-size: clamp(1.75rem, 3vw, 2.75rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; }
+.deal-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+.deal-cols h3 { font-size: 16px; color: var(--field-ink); margin-bottom: 10px; }
+.deal-kv { display: grid; gap: 10px; margin: 0; }
+.deal-note { color: var(--field-soft); font-size: 14px; max-width: 90ch; }
+.ev summary { list-style: none; cursor: pointer; display: grid; gap: 2px; }
+.ev summary::-webkit-details-marker { display: none; }
+.ev summary:focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 3px; border-radius: 2px; }
+.ev-label { color: var(--field-soft); font-size: 14px; font-weight: 600; }
+.ev-label::after { content: " ▸"; font-size: 11px; }
+.ev[open] .ev-label::after { content: " ▾"; }
+.ev-value { font-weight: 700; font-size: 17px; }
+.ev-extra { color: var(--field-soft); font-size: 14px; }
+.ev-body { margin-top: 10px; display: grid; gap: 6px; font-size: 14px; }
+.ev-body blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--accent-hi); font-style: normal; color: var(--field-ink); }
+.ev-body p { color: var(--field-soft); }
+.ev-body a, .steps-list a { color: var(--field-ink); }
+.deal .tag, .pipe .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 3px; background: var(--surface-2); color: var(--ink); font-size: 12px; font-weight: 600; justify-self: start; }
+.uw-all { margin-top: 10px; font-size: 14px; }
+.uw-all summary { cursor: pointer; color: var(--field-soft); font-weight: 600; }
+.uw-all ul { margin: 8px 0 0; padding-left: 1.1em; display: grid; gap: 2px; color: var(--field-ink); }
+.steps-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 15px; }
+.steps-list .muted { color: var(--field-soft); }
+/* table */
+.pipe { display: grid; gap: 12px; }
+.pipe-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px 24px; }
+.pipe-head h2 { font-size: clamp(1.5rem, 2.2vw, 2rem); font-weight: 800; letter-spacing: -0.035em; }
+.pipe-filters { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 15px; }
+.pipe-filters label { display: flex; gap: 8px; align-items: center; min-height: 32px; cursor: pointer; max-width: 100%; }
+.pipe-filters input { flex: none; }
+.pipe-filters input { width: 18px; height: 18px; accent-color: var(--accent); }
+.pipe-table { font-size: 15px; }
+.pipe-table th[scope="row"] { font-weight: 600; text-align: left; color: var(--ink); }
+.row-open { all: unset; cursor: pointer; text-decoration: underline; text-decoration-color: var(--mist); text-underline-offset: 3px; }
+.row-open:hover { color: var(--accent-text); text-decoration-color: currentColor; }
+.row-open:focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 2px; }
+.pipe-table tr.is-chosen th, .pipe-table tr.is-chosen td { background: var(--surface); }
+.pipe-table .nw { white-space: nowrap; }
+@media (max-width: 1000px) {
+  .ipo-head { grid-template-columns: minmax(0, 1fr); }
+  .stages { grid-template-columns: minmax(0, 1fr); }
+  .st-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .st-flow li::after { display: none; }
+  .deal-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deal-cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) { .pipe-filters { display: grid; width: 100%; } .pipe-filters label { display: grid; grid-template-columns: auto minmax(0, 1fr); } .deal-figures { grid-template-columns: minmax(0, 1fr); } .st-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .stages button { transition: none; } }
+.pipe-more { justify-self: start; min-height: 44px; padding: 0 16px; border: 0; border-radius: 4px; background: var(--surface-2); color: var(--ink); font: 600 15px var(--face); cursor: pointer; }
+@media (max-width: 560px) { .pipe-table .opt { display: none; } .pipe-table { font-size: 14px; } }
+.deal.is-waiting { min-height: 420px; }
+.deal.is-waiting .deal-cols, .deal.is-waiting .deal-note { visibility: hidden; }

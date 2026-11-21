@@ -18,6 +18,8 @@
     { "path": "/chat/", "themes": ["dark", "light", "ledger", "terminal"] },
     { "path": "/account/", "allowConsole": ["status of 401"] },
     { "path": "/contact/" },
+    { "path": "/ipos/" },
+    { "path": "/ipos/?cik=2130357" },
     { "path": "/legal/terms/" },
     { "path": "/legal/privacy/" },
     { "path": "/legal/acceptable-use/" },
