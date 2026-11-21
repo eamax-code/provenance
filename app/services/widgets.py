@@ -13,9 +13,36 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.services import intel, periods
+from app.services.fact_normalizer import default_unit
 
+# First match wins, so specific phrases come before the generic words they contain.
 _METRIC_WORDS = [
+    ("eps_diluted", r"diluted (?:eps|earnings per share)|eps|earnings per share"),
+    ("eps_basic", r"basic (?:eps|earnings per share)"),
+    ("shares_diluted_weighted", r"diluted (?:share count|shares)"),
+    ("shares_basic_weighted", r"share count|shares outstanding|weighted (?:average )?shares"),
+    ("net_interest_income", r"net interest income|nii"),
+    ("interest_expense", r"interest expenses?|interest costs?"),
+    ("pretax_income", r"pre-?tax (?:income|profits?)|income before (?:income )?taxes"),
+    ("income_tax", r"income tax(?:es| expense)?|tax expense"),
+    ("gross_profit", r"gross profits?"),
+    ("cost_of_revenue", r"cost of (?:revenues?|sales|goods sold)|cogs"),
+    ("r_and_d", r"r ?& ?d|research and development|research spend\w*"),
+    ("sga", r"sg ?& ?a|selling,? general and administrative"),
+    ("d_and_a", r"d ?& ?a|depreciation(?: and amortization)?"),
+    ("sbc", r"stock[- ]based comp\w*|share[- ]based comp\w*|sbc"),
+    ("capex", r"capex|capital expenditures?|capital spending"),
+    ("dividends_paid", r"dividends?(?: paid)?"),
+    ("share_repurchases", r"buybacks?|share repurchases?|stock repurchases?"),
     ("operating_cash_flow", r"operating cash ?flows?|cash ?flows? from operations|cash ?flows?"),
+    ("cash_and_equivalents", r"cash (?:and (?:cash )?equivalents|on hand|balance)|cash pile"),
+    ("long_term_debt_current", r"debt due (?:within a year|this year)|current portion of debt"),
+    ("long_term_debt", r"long[- ]term debt|debt"),
+    ("current_liabilities", r"current liabilities"),
+    ("total_liabilities", r"(?:total )?liabilities"),
+    ("current_assets", r"current assets"),
+    ("retained_earnings", r"retained earnings|accumulated deficit"),
+    ("stockholders_equity", r"(?:stockholders'?|shareholders'?) equity|book value|equity"),
     ("operating_income", r"operating (?:income|profits?|loss)|ebit"),
     ("net_income", r"net (?:income|profits?|loss|earnings)|profits?|earnings|bottom line"),
     ("total_assets", r"(?:total )?assets"),
@@ -112,7 +139,7 @@ def add_trend(b: intel.Brief, db: Session, metric: str, years: int) -> dict | No
                 "label": names[i],
                 "period_end": f.period_end.isoformat(),
                 "value": float(f.value),
-                "display": intel.money(f.value),
+                "display": intel.display(f.value, metric),
                 "change_pct": _pct(float(f.value), prev),
                 "form_type": f.form_type,
                 "filed_date": f.filed_date.isoformat() if f.filed_date else None,
@@ -197,7 +224,7 @@ def add_trend(b: intel.Brief, db: Session, metric: str, years: int) -> dict | No
         "type": "chart",
         "metric": metric,
         "title": f"{label} by fiscal year",
-        "unit": "USD",
+        "unit": default_unit(metric),
         "points": points,
         "stats": stats,
         "summary": {

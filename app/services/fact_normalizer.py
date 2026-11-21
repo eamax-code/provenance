@@ -23,34 +23,224 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-MAPPING_VERSION = "1.2.0"  # 1.2.0: twelve months in a quarterly report is "ttm", not annual
+MAPPING_VERSION = "1.3.0"
+# 1.2.0: twelve months in a quarterly report is "ttm", not annual.
+# 1.3.0: thirty metrics across the income statement, balance sheet and cash flow; industry
+#        fallback tags (banks, utilities, REITs); each metric's unit kind is checked.
 
-# Ordered by precedence (first wins when several tags cover the same period).
+
+def _m(label, statement, period_type, unit, candidates, fallbacks=()):
+    return {
+        "label": label,
+        "statement": statement,
+        "period_type": period_type,
+        "unit": unit,  # currency | per_share | shares
+        "candidates": list(candidates),
+        "fallbacks": list(fallbacks),
+    }
+
+
+# For each metric, `candidates` are ordered by precedence (first wins when several cover the
+# same period, and disagreement between them inside one filing is flagged). `fallbacks` are
+# industry formats used only for a period no candidate covers; they never mark a candidate as
+# conflicting. Different concepts are not substituted: attributable-to-parent net income,
+# cash including restricted cash, or general-and-administrative alone for SG&A stay out.
 CONCEPT_MAP: dict[str, dict[str, Any]] = {
-    "revenue": {
-        "period_type": "duration",
-        "candidates": [
+    # Income statement
+    "revenue": _m(
+        "Revenue",
+        "income",
+        "duration",
+        "currency",
+        [
             "RevenueFromContractWithCustomerExcludingAssessedTax",
             "Revenues",
             "SalesRevenueNet",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
         ],
-    },
-    "operating_income": {"period_type": "duration", "candidates": ["OperatingIncomeLoss"]},
-    "net_income": {
-        "period_type": "duration",
-        # NetIncomeLoss is the only candidate on purpose: attributable-to-parent and
-        # available-to-common variants are different concepts and are not substituted.
-        "candidates": ["NetIncomeLoss"],
-    },
-    "total_assets": {"period_type": "instant", "candidates": ["Assets"]},
-    "operating_cash_flow": {
-        "period_type": "duration",
-        "candidates": ["NetCashProvidedByUsedInOperatingActivities"],
-    },
+        # banks report total net revenue; utilities report regulated plus unregulated revenue
+        ["RevenuesNetOfInterestExpense", "RegulatedAndUnregulatedOperatingRevenue"],
+    ),
+    "cost_of_revenue": _m(
+        "Cost of revenue",
+        "income",
+        "duration",
+        "currency",
+        ["CostOfRevenue", "CostOfGoodsAndServicesSold"],
+        ["CostOfGoodsSold"],
+    ),
+    "gross_profit": _m("Gross profit", "income", "duration", "currency", ["GrossProfit"]),
+    "r_and_d": _m(
+        "Research and development",
+        "income",
+        "duration",
+        "currency",
+        ["ResearchAndDevelopmentExpense"],
+        ["ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"],
+    ),
+    "sga": _m(
+        "Selling, general and administrative",
+        "income",
+        "duration",
+        "currency",
+        ["SellingGeneralAndAdministrativeExpense"],
+    ),
+    "operating_income": _m(
+        "Operating income", "income", "duration", "currency", ["OperatingIncomeLoss"]
+    ),
+    "interest_expense": _m(
+        "Interest expense",
+        "income",
+        "duration",
+        "currency",
+        ["InterestExpense", "InterestExpenseNonoperating"],
+        # the 2024 taxonomy's tag for banks and REITs, whose interest is an operating cost
+        ["InterestExpenseOperating", "InterestExpenseDebt"],
+    ),
+    "net_interest_income": _m(
+        "Net interest income", "income", "duration", "currency", ["InterestIncomeExpenseNet"]
+    ),
+    "pretax_income": _m(
+        "Income before taxes",
+        "income",
+        "duration",
+        "currency",
+        [
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+        ],
+        [
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments"
+        ],
+    ),
+    "income_tax": _m("Income tax", "income", "duration", "currency", ["IncomeTaxExpenseBenefit"]),
+    # NetIncomeLoss is the only candidate on purpose: attributable-to-parent and
+    # available-to-common variants are different concepts and are not substituted.
+    "net_income": _m("Net income", "income", "duration", "currency", ["NetIncomeLoss"]),
+    "eps_basic": _m(
+        "EPS, basic",
+        "income",
+        "duration",
+        "per_share",
+        ["EarningsPerShareBasic"],
+        ["EarningsPerShareBasicAndDiluted"],
+    ),
+    "eps_diluted": _m(
+        "EPS, diluted",
+        "income",
+        "duration",
+        "per_share",
+        ["EarningsPerShareDiluted"],
+        ["EarningsPerShareBasicAndDiluted"],
+    ),
+    "shares_basic_weighted": _m(
+        "Weighted average shares, basic",
+        "income",
+        "duration",
+        "shares",
+        ["WeightedAverageNumberOfSharesOutstandingBasic"],
+        ["WeightedAverageNumberOfShareOutstandingBasicAndDiluted"],
+    ),
+    "shares_diluted_weighted": _m(
+        "Weighted average shares, diluted",
+        "income",
+        "duration",
+        "shares",
+        ["WeightedAverageNumberOfDilutedSharesOutstanding"],
+        ["WeightedAverageNumberOfShareOutstandingBasicAndDiluted"],
+    ),
+    "d_and_a": _m(
+        "Depreciation and amortization",
+        "income",
+        "duration",
+        "currency",
+        ["DepreciationDepletionAndAmortization"],
+        ["DepreciationAndAmortization"],
+    ),
+    # Balance sheet
+    "cash_and_equivalents": _m(
+        "Cash and equivalents",
+        "balance",
+        "instant",
+        "currency",
+        ["CashAndCashEquivalentsAtCarryingValue"],
+    ),
+    "current_assets": _m("Current assets", "balance", "instant", "currency", ["AssetsCurrent"]),
+    "total_assets": _m("Total assets", "balance", "instant", "currency", ["Assets"]),
+    "current_liabilities": _m(
+        "Current liabilities", "balance", "instant", "currency", ["LiabilitiesCurrent"]
+    ),
+    "total_liabilities": _m("Total liabilities", "balance", "instant", "currency", ["Liabilities"]),
+    "long_term_debt": _m(
+        "Long-term debt",
+        "balance",
+        "instant",
+        "currency",
+        ["LongTermDebtNoncurrent"],
+        # noncurrent debt reported together with finance leases (Exxon and others)
+        ["LongTermDebtAndCapitalLeaseObligations"],
+    ),
+    "long_term_debt_current": _m(
+        "Long-term debt due within a year",
+        "balance",
+        "instant",
+        "currency",
+        ["LongTermDebtCurrent"],
+    ),
+    "stockholders_equity": _m(
+        "Stockholders' equity", "balance", "instant", "currency", ["StockholdersEquity"]
+    ),
+    "retained_earnings": _m(
+        "Retained earnings",
+        "balance",
+        "instant",
+        "currency",
+        ["RetainedEarningsAccumulatedDeficit"],
+    ),
+    # Cash flow statement (payments are positive as reported)
+    "operating_cash_flow": _m(
+        "Operating cash flow",
+        "cash_flow",
+        "duration",
+        "currency",
+        ["NetCashProvidedByUsedInOperatingActivities"],
+    ),
+    "capex": _m(
+        "Capital expenditure",
+        "cash_flow",
+        "duration",
+        "currency",
+        ["PaymentsToAcquirePropertyPlantAndEquipment"],
+        ["PaymentsToAcquireProductiveAssets"],
+    ),
+    "dividends_paid": _m(
+        "Dividends paid",
+        "cash_flow",
+        "duration",
+        "currency",
+        ["PaymentsOfDividends"],
+        ["PaymentsOfDividendsCommonStock"],
+    ),
+    "share_repurchases": _m(
+        "Share repurchases",
+        "cash_flow",
+        "duration",
+        "currency",
+        ["PaymentsForRepurchaseOfCommonStock"],
+    ),
+    "sbc": _m(
+        "Stock-based compensation",
+        "cash_flow",
+        "duration",
+        "currency",
+        ["ShareBasedCompensation"],
+        ["AllocatedShareBasedCompensationExpense"],
+    ),
 }
 
 SUPPORTED_METRICS = tuple(CONCEPT_MAP.keys())
+METRIC_LABELS = {m: spec["label"] for m, spec in CONCEPT_MAP.items()}
+METRIC_UNIT_KIND = {m: spec["unit"] for m, spec in CONCEPT_MAP.items()}
+DEFAULT_UNIT = {"currency": "USD", "per_share": "USD/shares", "shares": "shares"}
 TAXONOMIES = ("us-gaap",)
 
 ANNUAL_FORMS = {"10-K", "10-K/A", "10-KT", "10-KT/A", "20-F", "20-F/A", "40-F", "40-F/A"}
@@ -144,11 +334,54 @@ def parse_value(value: Any) -> tuple[Decimal | None, bool]:
     return d, True
 
 
+def _is_currency(code: str) -> bool:
+    return len(code) == 3 and code.isalpha() and code.isupper()
+
+
 def currency_from_unit(unit: str) -> str | None:
-    """Map an XBRL unit to an ISO currency code only when the unit is a plain currency."""
-    if unit and len(unit) == 3 and unit.isalpha() and unit.isupper():
+    """The ISO currency of a plain currency unit ("USD") or a per-share one ("USD/shares")."""
+    if not unit:
+        return None
+    if _is_currency(unit):
         return unit
+    head, sep, tail = unit.partition("/")
+    if sep and tail == "shares" and _is_currency(head):
+        return head
     return None
+
+
+def unit_kind(unit: str) -> str | None:
+    """currency, per_share or shares; None for anything else (pure numbers, other ratios)."""
+    if not unit:
+        return None
+    if _is_currency(unit):
+        return "currency"
+    if unit == "shares":
+        return "shares"
+    head, sep, tail = unit.partition("/")
+    if sep and tail == "shares" and _is_currency(head):
+        return "per_share"
+    return None
+
+
+def default_unit(metric: str) -> str:
+    return DEFAULT_UNIT[METRIC_UNIT_KIND.get(metric, "currency")]
+
+
+def display_value(value: Decimal | float, metric: str) -> str:
+    """A figure as a reader says it: $391.0 billion, $6.08 per share, 15.4 billion shares."""
+    x = float(value)
+    kind = METRIC_UNIT_KIND.get(metric, "currency")
+    if kind == "per_share":
+        return f"-${abs(x):,.2f} per share" if x < 0 else f"${x:,.2f} per share"
+    sign, a = ("-" if x < 0 else ""), abs(x)
+    for div, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
+        if a >= div:
+            n = f"{a / div:,.1f} {word}"
+            break
+    else:
+        n = f"{a:,.0f}"
+    return f"{sign}{n} shares" if kind == "shares" else f"{sign}${n}"
 
 
 def classify_duration(start: date, end: date) -> str:
@@ -198,7 +431,8 @@ def normalize_company_facts(
             tax = facts_root.get(taxonomy)
             if not isinstance(tax, dict):
                 continue
-            for precedence, tag in enumerate(spec["candidates"]):
+            tags = spec["candidates"] + spec.get("fallbacks", [])
+            for precedence, tag in enumerate(tags):
                 concept = tax.get(tag)
                 if not isinstance(concept, dict):
                     continue
@@ -210,11 +444,19 @@ def normalize_company_facts(
                         continue
                     for obs in observations:
                         nf = _normalize_observation(
-                            metric, expected_ptype, taxonomy, tag, unit, obs, cik, www_base
+                            metric,
+                            expected_ptype,
+                            taxonomy,
+                            tag,
+                            unit,
+                            obs,
+                            cik,
+                            www_base,
+                            spec.get("unit"),
                         )
                         if nf is not None:
                             candidate_facts.append((precedence, nf))
-        _apply_precedence(candidate_facts)
+        _apply_precedence(candidate_facts, len(spec["candidates"]))
         results.extend(nf for _, nf in candidate_facts)
     return results
 
@@ -228,6 +470,7 @@ def _normalize_observation(
     obs: Any,
     cik: str,
     www_base: str,
+    expected_unit: str | None = None,
 ) -> NormalizedFact | None:
     if not isinstance(obs, dict):
         return None
@@ -259,10 +502,13 @@ def _normalize_observation(
 
     if period_type != expected_ptype:
         notes.append(f"source period type {period_type} differs from expected {expected_ptype}")
+    wrong_unit = expected_unit is not None and unit_kind(str(unit)) != expected_unit
+    if wrong_unit:
+        notes.append(f"unit {unit} is not the {expected_unit} unit this metric is reported in")
 
     if not ok:
         quality = "invalid_source_value"
-    elif period_type != expected_ptype:
+    elif period_type != expected_ptype or wrong_unit:
         quality = "ambiguous_mapping"
     elif not (accession and form and filed and fy is not None and fp):
         quality = "partial"
@@ -297,13 +543,24 @@ def _filing_key(nf: NormalizedFact) -> str:
     return nf.accession_number or f"filed:{nf.filed_date}"
 
 
-def _apply_precedence(candidates: list[tuple[int, NormalizedFact]]) -> None:
-    """Mark non-preferred and conflicting candidate tags as ambiguous_mapping (in place)."""
+def _apply_precedence(
+    candidates: list[tuple[int, NormalizedFact]], primary_count: int | None = None
+) -> None:
+    """Mark non-preferred and conflicting candidate tags as ambiguous_mapping (in place).
+
+    Tags with precedence >= primary_count are fallbacks: used only for a period no primary tag
+    covers, and never compared with the primary tags for conflicts."""
     by_period: dict[tuple, list[tuple[int, NormalizedFact]]] = {}
     for prec, nf in candidates:
         key = (nf.unit, nf.period_start, nf.period_end)
         by_period.setdefault(key, []).append((prec, nf))
     for group in by_period.values():
+        if primary_count is not None and any(prec < primary_count for prec, _ in group):
+            for prec, nf in group:
+                if prec >= primary_count and nf.quality_status != "invalid_source_value":
+                    nf.quality_status = "ambiguous_mapping"
+                    nf.notes.append("industry fallback tag; a primary tag covers this period")
+            group = [(prec, nf) for prec, nf in group if prec < primary_count]
         tags_present = {nf.source_tag for _, nf in group}
         if len(tags_present) <= 1:
             continue

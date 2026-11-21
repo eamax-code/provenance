@@ -15,7 +15,7 @@ from app.core.errors import APIError
 from app.db.models import Company, FinancialFact, MartFinancial
 from app.schemas.common import ErrorEnvelope, PageMeta
 from app.schemas.public import LatestRevenueCard
-from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS
+from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS, default_unit
 from app.services.intel import ANNUAL_FORMS
 from app.services.point_in_time import as_of_note, known_by
 
@@ -183,7 +183,11 @@ def reset_periods_cache() -> None:
 def screen_periods(
     metric: str = Query(..., description=", ".join(SUPPORTED_METRICS)),
     period: str = Query("annual", pattern="^(annual|quarterly)$"),
-    unit: str = Query("USD", max_length=20),
+    unit: str | None = Query(
+        None,
+        max_length=20,
+        description="Default: the metric's unit (USD; USD/shares for EPS; shares)",
+    ),
     db: Session = Depends(db_session),
     _key=Depends(require_reader),
 ):
@@ -191,6 +195,7 @@ def screen_periods(
         raise APIError(
             422, "invalid_parameter", f"metric must be one of: {', '.join(SUPPORTED_METRICS)}."
         )
+    unit = unit or default_unit(metric)
     key = (metric, period, unit)
     hit = _periods_cache.get(key)
     if hit and time.monotonic() - hit[0] < PERIODS_CACHE_SECONDS:
@@ -252,7 +257,11 @@ def screen(
         description="Quarterly only: calendar quarter of period_end (1 = Jan to Mar). "
         "Omit for each company's latest quarter in the year.",
     ),
-    unit: str = Query("USD", max_length=20),
+    unit: str | None = Query(
+        None,
+        max_length=20,
+        description="Default: the metric's unit (USD; USD/shares for EPS; shares)",
+    ),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0, le=1_000_000),
@@ -266,6 +275,7 @@ def screen(
         raise APIError(
             422, "invalid_parameter", f"metric must be one of: {', '.join(SUPPORTED_METRICS)}."
         )
+    unit = unit or default_unit(metric)
     if quarter is not None and period != "quarterly":
         raise APIError(422, "invalid_parameter", "quarter needs period=quarterly.")
     first_month, last_month = (1, 12) if quarter is None else (3 * quarter - 2, 3 * quarter)

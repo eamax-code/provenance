@@ -22,17 +22,14 @@ from app.services.company_lookup import (
     normalize_name,
     search_companies,
 )
+from app.services.fact_normalizer import METRIC_LABELS, default_unit, display_value
 from app.services.form8k import ITEM_TITLES, LEADERSHIP_ITEM, split_items
 from app.services.point_in_time import known_by
 from app.services.sec_client import company_filings_url
 
-METRIC_LABELS = {
-    "revenue": "Revenue",
-    "operating_income": "Operating income",
-    "net_income": "Net income",
-    "total_assets": "Total assets",
-    "operating_cash_flow": "Operating cash flow",
-}
+# Every mapped metric can be asked for; the brief's headline list stays short so the model's
+# context does not fill with thirty series.
+BRIEF_METRICS = ("revenue", "operating_income", "net_income", "total_assets", "operating_cash_flow")
 _STOP = {
     "the", "a", "an", "of", "for", "and", "or", "in", "on", "is", "are", "was", "what", "how",
     "who", "tell", "me", "about", "show", "give", "company", "inc", "corp", "its", "their",
@@ -255,6 +252,10 @@ def display_name(legal_name: str) -> str:
     return " ".join(words)
 
 
+def display(v: Decimal | float, metric: str) -> str:
+    return display_value(v, metric)
+
+
 def money(v: Decimal | float) -> str:
     x = float(v)
     for div, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
@@ -272,7 +273,7 @@ def annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> lis
         FinancialFact.derived.is_(False),
         FinancialFact.quality_status.in_(["ok", "partial"]),
         FinancialFact.value.is_not(None),
-        FinancialFact.unit == "USD",
+        FinancialFact.unit == default_unit(metric),
     )
     if as_of:
         stmt = known_by(stmt, as_of)
@@ -316,7 +317,8 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
     else:
         b.context_lines.append(f"[{n}] No filings are loaded in this service for the company.")
 
-    for metric, label in METRIC_LABELS.items():
+    for metric in BRIEF_METRICS:
+        label = METRIC_LABELS[metric]
         series = annual_series(db, company.cik, metric, as_of)
         if not series:
             continue

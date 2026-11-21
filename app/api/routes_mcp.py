@@ -17,6 +17,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
 from app.api.dependencies import DEMO_KEY, client_ip
+from app.services.fact_normalizer import SUPPORTED_METRICS
 
 router = APIRouter(include_in_schema=False)
 
@@ -32,10 +33,7 @@ INSTRUCTIONS = (
 MAX_TEXT = 60_000  # characters per tool result, so one call cannot flood the agent's context
 
 _CIK = {"type": "string", "description": "SEC CIK, with or without leading zeros, e.g. 320193"}
-_METRIC = {
-    "type": "string",
-    "enum": ["revenue", "operating_income", "net_income", "total_assets", "operating_cash_flow"],
-}
+_METRIC = {"type": "string", "enum": list(SUPPORTED_METRICS)}
 _LIMIT = {"type": "integer", "minimum": 1, "maximum": 50, "default": 10}
 _DATE = {"type": "string", "description": "YYYY-MM-DD"}
 
@@ -133,8 +131,13 @@ TOOLS: dict[str, dict[str, Any]] = {
         "8-A/CERT, priced 424B4, withdrawn) and the filing behind each milestone. EDGAR is read "
         "every hour.",
         "path": "/v1/ipos",
-        "params": {"days": "days", "since": "since", "stage": "stage", "kind": "kind",
-                   "limit": "limit"},  # fmt: skip
+        "params": {
+            "days": "days",
+            "since": "since",
+            "stage": "stage",
+            "kind": "kind",
+            "limit": "limit",
+        },  # fmt: skip
         "schema": {
             "type": "object",
             "properties": {

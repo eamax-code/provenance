@@ -71,10 +71,10 @@ from later filings are additional rows, never overwrites.
 
 | Column | Meaning |
 | --- | --- |
-| `metric` | `revenue`, `operating_income`, `net_income`, `total_assets`, `operating_cash_flow` |
+| `metric` | one of the thirty metrics in the concept mapping below |
 | `value` | Numeric as reported (sign preserved). `null` if unparseable. |
 | `unit` | XBRL unit (`USD`, `shares`, ...) |
-| `currency` | ISO code when the unit is a plain currency; otherwise `null` |
+| `currency` | ISO code when the unit is a currency or a currency per share; otherwise `null` |
 | `period_start`, `period_end` | Duration bounds; `period_start` is `null` for instants |
 | `period_type` | `duration` or `instant` |
 | `period_class` | `annual` (350-380 days, from an annual report or another non-quarterly form), `ttm` (350-380 days in a 10-Q: trailing twelve months to a quarter end, since mapping 1.2.0), `quarterly` (80-100 days), `ytd` (160-290 days), `other`. For instants: by form (`10-K`=annual, `10-Q`=quarterly). Derived from the reported dates, **not** from the SEC `fp` label. |
@@ -83,21 +83,69 @@ from later filings are additional rows, never overwrites.
 | `form_type`, `filed_date`, `accession_number` | Filing that reported the observation |
 | `source_tag`, `source_taxonomy` | XBRL concept and taxonomy (`us-gaap`) |
 | `source_url` | Filing index URL of the reporting filing |
-| `mapping_version` | Version of the concept mapping (`1.0.0`) |
+| `mapping_version` | Version of the concept mapping (`1.3.0`) |
 | `quality_status` | See table above |
 | `derived`, `derivation` | Derived quarter values are only produced at query time (`include_derived=true`) and are not stored |
 | `observation_key` | SHA-256 over metric, taxonomy, tag, unit, period, accession, derived flag; unique |
 | `first_detected_at`, `processed_at` | Provenance timestamps |
 
-### Concept mapping v1.0.0 (now 1.2.0)
+### Concept mapping 1.3.0 (thirty metrics)
 
-| Metric | Candidate tags, in precedence order | Period |
-| --- | --- | --- |
-| `revenue` | `RevenueFromContractWithCustomerExcludingAssessedTax`, `Revenues`, `SalesRevenueNet`, `RevenueFromContractWithCustomerIncludingAssessedTax` | duration |
-| `operating_income` | `OperatingIncomeLoss` | duration |
-| `net_income` | `NetIncomeLoss` only (parent/common-shareholder variants are not substituted) | duration |
-| `total_assets` | `Assets` | instant |
-| `operating_cash_flow` | `NetCashProvidedByUsedInOperatingActivities` | duration |
+Generated from `CONCEPT_MAP` in `app/services/fact_normalizer.py`. 1.0.0 to 1.2.0 had the first
+five metrics; 1.3.0 (2026-11-22, launch plan D-01) added the rest, industry fallback tags and the
+unit check.
+
+| Metric | Statement | Candidate tags, in precedence order | Industry fallbacks | Unit | Period |
+| --- | --- | --- | --- | --- | --- |
+| `revenue` | Income statement | `RevenueFromContractWithCustomerExcludingAssessedTax`, `Revenues`, `SalesRevenueNet`, `RevenueFromContractWithCustomerIncludingAssessedTax` | `RevenuesNetOfInterestExpense`, `RegulatedAndUnregulatedOperatingRevenue` | USD (as reported) | duration |
+| `cost_of_revenue` | Income statement | `CostOfRevenue`, `CostOfGoodsAndServicesSold` | `CostOfGoodsSold` | USD (as reported) | duration |
+| `gross_profit` | Income statement | `GrossProfit` | none | USD (as reported) | duration |
+| `r_and_d` | Income statement | `ResearchAndDevelopmentExpense` | `ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost` | USD (as reported) | duration |
+| `sga` | Income statement | `SellingGeneralAndAdministrativeExpense` | none | USD (as reported) | duration |
+| `operating_income` | Income statement | `OperatingIncomeLoss` | none | USD (as reported) | duration |
+| `interest_expense` | Income statement | `InterestExpense`, `InterestExpenseNonoperating` | `InterestExpenseOperating`, `InterestExpenseDebt` | USD (as reported) | duration |
+| `net_interest_income` | Income statement | `InterestIncomeExpenseNet` | none | USD (as reported) | duration |
+| `pretax_income` | Income statement | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` | USD (as reported) | duration |
+| `income_tax` | Income statement | `IncomeTaxExpenseBenefit` | none | USD (as reported) | duration |
+| `net_income` | Income statement | `NetIncomeLoss` | none | USD (as reported) | duration |
+| `eps_basic` | Income statement | `EarningsPerShareBasic` | `EarningsPerShareBasicAndDiluted` | USD/shares | duration |
+| `eps_diluted` | Income statement | `EarningsPerShareDiluted` | `EarningsPerShareBasicAndDiluted` | USD/shares | duration |
+| `shares_basic_weighted` | Income statement | `WeightedAverageNumberOfSharesOutstandingBasic` | `WeightedAverageNumberOfShareOutstandingBasicAndDiluted` | shares | duration |
+| `shares_diluted_weighted` | Income statement | `WeightedAverageNumberOfDilutedSharesOutstanding` | `WeightedAverageNumberOfShareOutstandingBasicAndDiluted` | shares | duration |
+| `d_and_a` | Income statement | `DepreciationDepletionAndAmortization` | `DepreciationAndAmortization` | USD (as reported) | duration |
+| `cash_and_equivalents` | Balance sheet | `CashAndCashEquivalentsAtCarryingValue` | none | USD (as reported) | instant |
+| `current_assets` | Balance sheet | `AssetsCurrent` | none | USD (as reported) | instant |
+| `total_assets` | Balance sheet | `Assets` | none | USD (as reported) | instant |
+| `current_liabilities` | Balance sheet | `LiabilitiesCurrent` | none | USD (as reported) | instant |
+| `total_liabilities` | Balance sheet | `Liabilities` | none | USD (as reported) | instant |
+| `long_term_debt` | Balance sheet | `LongTermDebtNoncurrent` | `LongTermDebtAndCapitalLeaseObligations` | USD (as reported) | instant |
+| `long_term_debt_current` | Balance sheet | `LongTermDebtCurrent` | none | USD (as reported) | instant |
+| `stockholders_equity` | Balance sheet | `StockholdersEquity` | none | USD (as reported) | instant |
+| `retained_earnings` | Balance sheet | `RetainedEarningsAccumulatedDeficit` | none | USD (as reported) | instant |
+| `operating_cash_flow` | Cash flow | `NetCashProvidedByUsedInOperatingActivities` | none | USD (as reported) | duration |
+| `capex` | Cash flow | `PaymentsToAcquirePropertyPlantAndEquipment` | `PaymentsToAcquireProductiveAssets` | USD (as reported) | duration |
+| `dividends_paid` | Cash flow | `PaymentsOfDividends` | `PaymentsOfDividendsCommonStock` | USD (as reported) | duration |
+| `share_repurchases` | Cash flow | `PaymentsForRepurchaseOfCommonStock` | none | USD (as reported) | duration |
+| `sbc` | Cash flow | `ShareBasedCompensation` | `AllocatedShareBasedCompensationExpense` | USD (as reported) | duration |
+
+Not substituted, on purpose: net income attributable to the parent or to common shareholders,
+cash including restricted cash, general and administrative alone for SG&A, short-term borrowings
+for long-term debt due within a year. A company that does not report a concept has no value for
+it: utilities often report no total liabilities, banks no gross profit or cash and equivalents.
+
+**Banks:** revenue is `Revenues` when the bank reports it (JPMorgan does), otherwise
+`RevenuesNetOfInterestExpense` (total net revenue); `net_interest_income` is
+`InterestIncomeExpenseNet`; interest expense since the 2024 taxonomy is
+`InterestExpenseOperating`. **Utilities:** revenue falls back to
+`RegulatedAndUnregulatedOperatingRevenue` only for years no contract-revenue tag covers.
+
+**Fallbacks** are used only for a (unit, period) no candidate tag covers. Where a candidate
+covers it, the fallback observation is stored as `ambiguous_mapping` with the note "industry
+fallback tag", and it is never compared with the candidates for conflicts.
+
+**Unit check:** each metric has one unit kind (currency, per share, shares). An observation in
+another kind (EPS tagged in `USD`) is `ambiguous_mapping`. `currency` is also set for per-share
+units (`USD/shares` gives `USD`). The screen's default `unit` is the metric's own.
 
 Precedence rule: for each (unit, period), the first tag in the list that has observations is
 *preferred*. Preferred observations are `ok`; alternates are `ambiguous_mapping`. If the

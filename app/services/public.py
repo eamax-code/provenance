@@ -24,7 +24,8 @@ from app.schemas.public import (
     ShowcaseCompany,
     ShowcaseList,
 )
-from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS
+from app.services.fact_normalizer import MAPPING_VERSION
+from app.services.fact_normalizer import METRIC_LABELS as _ALL_LABELS
 from app.services.freshness import company_freshness
 from app.services.intel import ANNUAL_FORMS
 from app.services.sec_client import normalize_cik
@@ -35,13 +36,15 @@ DISCLAIMER = (
     "the SEC. Missing values mean the SEC endpoint did not expose a mappable fact. "
     "Not investment advice."
 )
-METRIC_LABELS = {
-    "revenue": "Revenue",
-    "operating_income": "Operating income",
-    "net_income": "Net income",
-    "total_assets": "Total assets",
-    "operating_cash_flow": "Operating cash flow",
-}
+# The showcase bundle keeps its five headline series; every metric is in /v1 for keyed callers.
+PUBLIC_METRICS = (
+    "revenue",
+    "operating_income",
+    "net_income",
+    "total_assets",
+    "operating_cash_flow",
+)
+METRIC_LABELS = {m: _ALL_LABELS[m] for m in PUBLIC_METRICS}
 PERIODS_PER_METRIC = 8
 FILINGS_PER_BUNDLE = 10
 
@@ -270,7 +273,7 @@ def company_bundle(db: Session, settings: Settings, cik: str) -> PublicCompanyBu
             .limit(FILINGS_PER_BUNDLE)
         ).all()
         series = []
-        for metric in SUPPORTED_METRICS:
+        for metric in PUBLIC_METRICS:
             facts = _annual_series(db, cik, metric, PERIODS_PER_METRIC)
             if facts:
                 status, note = "ok", "Latest-filed annual observation per period."

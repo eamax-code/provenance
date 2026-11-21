@@ -2,11 +2,16 @@ from datetime import date
 from decimal import Decimal
 
 from app.services.fact_normalizer import (
+    CONCEPT_MAP,
     MAPPING_VERSION,
+    METRIC_LABELS,
+    SUPPORTED_METRICS,
     classify_duration,
     currency_from_unit,
+    default_unit,
     derive_quarters,
     normalize_company_facts,
+    unit_kind,
 )
 
 
@@ -146,7 +151,9 @@ def test_malformed_payload_returns_empty():
 
 def test_currency_from_unit():
     assert currency_from_unit("USD") == "USD" and currency_from_unit("EUR") == "EUR"
-    assert currency_from_unit("shares") is None and currency_from_unit("USD/shares") is None
+    assert currency_from_unit("shares") is None and currency_from_unit("pure") is None
+    # a per-share figure carries its currency (1.3.0)
+    assert currency_from_unit("USD/shares") == "USD" and currency_from_unit("EUR/shares") == "EUR"
 
 
 def test_derive_quarters_by_subtraction(facts_aapl):
@@ -223,3 +230,92 @@ def test_twelve_months_in_a_quarterly_report_is_ttm_not_annual():
     facts = {f.period_end: f for f in normalize_company_facts(payload, "0001018724")}
     assert facts[date(2026, 9, 30)].period_class == "ttm"
     assert facts[date(2025, 12, 31)].period_class == "annual"
+
+
+def _obs(val, end, start=None, accn="0000320193-25-000001", form="10-K", fp="FY"):
+    o = {"val": val, "end": end, "accn": accn, "fy": 2025, "fp": fp, "form": form,
+         "filed": "2025-11-01"}  # fmt: skip
+    if start:
+        o["start"] = start
+    return o
+
+
+def _payload(tags):
+    return {"facts": {"us-gaap": {t: {"units": u} for t, u in tags.items()}}}
+
+
+def test_thirty_metrics_each_with_label_unit_and_statement():
+    assert len(SUPPORTED_METRICS) == 30 and MAPPING_VERSION == "1.3.0"
+    for metric, spec in CONCEPT_MAP.items():
+        assert METRIC_LABELS[metric] and spec["statement"] in ("income", "balance", "cash_flow")
+        assert spec["unit"] in ("currency", "per_share", "shares")
+        assert spec["period_type"] == ("instant" if spec["statement"] == "balance" else "duration")
+        tags = spec["candidates"] + spec["fallbacks"]
+        assert len(tags) == len(set(tags)), metric
+    assert default_unit("eps_diluted") == "USD/shares" and default_unit("revenue") == "USD"
+    assert default_unit("shares_basic_weighted") == "shares"
+    assert unit_kind("USD/shares") == "per_share" and unit_kind("pure") is None
+
+
+def test_eps_and_shares_are_mapped_with_their_units():
+    year = {"start": "2024-09-29"}
+    facts = normalize_company_facts(
+        _payload({
+            "EarningsPerShareDiluted": {"USD/shares": [_obs(8.98, "2025-09-27", **year)]},
+            "WeightedAverageNumberOfSharesOutstandingBasic": {
+                "shares": [_obs(14661935000, "2025-09-27", **year)]
+            },
+        }),
+        "320193",
+    )  # fmt: skip
+    eps = _by(facts, "eps_diluted")[0]
+    assert eps.value == Decimal("8.98") and eps.currency == "USD" and eps.quality_status == "ok"
+    shares = _by(facts, "shares_basic_weighted")[0]
+    assert shares.unit == "shares" and shares.currency is None and shares.quality_status == "ok"
+
+
+def test_a_metric_reported_in_the_wrong_unit_kind_is_ambiguous():
+    facts = normalize_company_facts(
+        _payload({"EarningsPerShareBasic": {"USD": [_obs(9.01, "2025-09-27", "2024-09-29")]}}),
+        "320193",
+    )
+    eps = _by(facts, "eps_basic")[0]
+    assert eps.quality_status == "ambiguous_mapping"
+    assert any("not the per_share unit" in n for n in eps.notes)
+
+
+def test_industry_fallback_fills_a_gap_but_never_overrides_or_conflicts():
+    # A utility: contract revenue (primary) and regulated-plus-unregulated revenue (fallback)
+    # disagree in the same filing; the primary stays ok, the fallback is the alternate.
+    start, end = "2025-01-01", "2025-12-31"
+    facts = normalize_company_facts(
+        _payload({
+            "RevenueFromContractWithCustomerIncludingAssessedTax": {
+                "USD": [_obs(31741000000, end, start)]
+            },
+            "RegulatedAndUnregulatedOperatingRevenue": {
+                "USD": [_obs(32237000000, end, start), _obs(29060000000, "2024-12-31",
+                                                           "2024-01-01")]
+            },
+        }),
+        "1326160",
+    )  # fmt: skip
+    rev = _by(facts, "revenue", period_end=date(2025, 12, 31))
+    primary = next(f for f in rev if f.source_tag.startswith("RevenueFromContract"))
+    fallback = next(f for f in rev if f.source_tag.startswith("Regulated"))
+    assert primary.quality_status == "ok"
+    assert fallback.quality_status == "ambiguous_mapping"
+    assert any("industry fallback" in n for n in fallback.notes)
+    # a year only the fallback covers is used as reported
+    gap = _by(facts, "revenue", period_end=date(2024, 12, 31))
+    assert len(gap) == 1 and gap[0].quality_status == "ok"
+
+
+def test_bank_interest_expense_uses_the_2024_operating_tag_when_alone():
+    facts = normalize_company_facts(
+        _payload({"InterestExpenseOperating": {"USD": [_obs(97898000000, "2025-12-31",
+                                                            "2025-01-01")]}}),
+        "19617",
+    )  # fmt: skip
+    f = _by(facts, "interest_expense")[0]
+    assert f.quality_status == "ok" and f.source_tag == "InterestExpenseOperating"
