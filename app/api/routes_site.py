@@ -26,6 +26,7 @@ SITEMAP_PAGES = (
     "/status/",
     "/changelog/",
     "/contact/",
+    "/ipos/",
     "/legal/terms/",
     "/legal/privacy/",
     "/legal/acceptable-use/",

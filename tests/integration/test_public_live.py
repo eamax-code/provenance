@@ -172,7 +172,9 @@ def test_public_pipeline_company_and_lockups(client, db, auth):
     assert one["terms"]["price_final"]["evidence"] == "The price is $83.00."
     assert one["milestones"]["priced"]["form_type"] == "424B4"
     assert client.get("/v1/public/ipos/320193").status_code == 404
-    assert body["window"] == {"activity_days": 90, "from": (TODAY - timedelta(days=90)).isoformat()}
+    assert body["window"] == {
+        "activity_days": 120, "from": (TODAY - timedelta(days=120)).isoformat()
+    }  # fmt: skip
     assert client.get("/v1/public/ipos/pipeline?days=365").status_code == 422  # active only
     assert client.get("/v1/public/ipos/pipeline?lockup_within_days=365").status_code == 422
     soon_list = client.get("/v1/public/ipos/pipeline?lockup_within_days=90").json()["data"]
@@ -190,3 +192,21 @@ def test_older_ipos_need_a_key(client, db, auth):
     r = client.get("/v1/public/ipos/7")
     assert r.status_code == 403 and r.json()["error"]["code"] == "key_required"
     assert client.get("/v1/ipos?days=365", headers=auth).json()["data"][0]["cik"] == "0000000007"
+
+
+def test_funds_and_form_10s_are_not_company_ipos(client, db):
+    from app.services import ipo_pipeline
+
+    public_service.reset_cache()
+    _company(db, "0000000011", "Bitwise Dogecoin ETF", sic="6221")
+    _company(db, "0000000012", "Canary PEPE Trust")  # fund-like name, no revenue
+    _company(db, "0000000013", "Pacaso Inc.")
+    for cik in ("0000000011", "0000000012"):
+        _filing(db, cik, f"{cik}-26-000001", "S-1", 10)
+        _filing(db, cik, f"{cik}-26-000002", "424B4", 2)
+    _filing(db, "0000000013", "0000000013-26-000001", "DRS", 30)
+    _filing(db, "0000000013", "0000000013-26-000002", "10-12G", 2)
+    db.commit()
+    assert ipo_pipeline.tag_all_priced(db) == 0  # no fund pricing is an IPO pricing
+    rows = client.get("/v1/public/ipos/pipeline").json()["data"]
+    assert [(r["name"], r["stage"]) for r in rows] == [("Pacaso Inc.", "confidential")]

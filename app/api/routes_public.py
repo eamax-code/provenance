@@ -175,13 +175,12 @@ def live_ipos(
 def ipo_pipeline_public(
     request: Request,
     response: Response,
-    days: int = Query(90, ge=1, le=live.ACTIVE_DAYS),
-    kind: str | None = Query("ipo", pattern="^(ipo|spin_off)$"),
+    days: int = Query(live.ACTIVE_DAYS, ge=1, le=live.ACTIVE_DAYS),
     lockup_within_days: int | None = Query(None, ge=1, le=live.LOCKUP_WINDOW_DAYS),
     db: Session = Depends(db_session),
 ):
     _guard(request, response)
-    return live.public_pipeline(db, days, kind, lockup_within_days)
+    return live.public_pipeline(db, days, "ipo", lockup_within_days)
 
 
 @router.get(

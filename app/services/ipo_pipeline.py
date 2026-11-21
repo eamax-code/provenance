@@ -19,6 +19,7 @@ amendments) are not going public and are not counted. Each milestone links its f
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -41,6 +42,32 @@ FORMS = tuple(f for forms in MILESTONE_FORMS.values() for f in forms)
 REGISTRATION = MILESTONE_FORMS["confidential"] + MILESTONE_FORMS["filed"] + ("S-1/A", "F-1/A")
 REPORTS = ("10-K", "10-Q", "20-F", "40-F")
 BLANK_CHECK_SIC = "6770"  # SPACs
+COMMODITY_TRUST_SIC = "6221"  # commodity and crypto trusts, ETFs: not company IPOs
+FUND_NAME = re.compile(r"\b(ETF|ETFs|Trust|Fund|Funds)\b", re.IGNORECASE)
+
+
+def is_fund(company, has_revenue: bool) -> bool:
+    """An exchange-traded fund or commodity trust: SIC 6221, or a fund-like name and no
+    operating revenue in its filings. Its filings stay; it is just not a company going public."""
+    if company is None:
+        return False
+    if company.sic_code == COMMODITY_TRUST_SIC:
+        return True
+    return bool(FUND_NAME.search(company.legal_name or "")) and not has_revenue
+
+
+def _with_revenue(db: Session, ciks) -> set[str]:
+    from app.db.models import FinancialFact
+
+    if not ciks:
+        return set()
+    return set(db.scalars(
+        select(FinancialFact.cik)
+        .where(FinancialFact.cik.in_(list(ciks)), FinancialFact.metric == "revenue")
+        .distinct()
+    ))  # fmt: skip
+
+
 LOOKBACK = timedelta(days=730)  # a registration this old or older starts no IPO
 
 
@@ -71,8 +98,11 @@ def companies(
     for f in rows:
         by_cik[f.cik].append(f)
     names = {c.cik: c for c in db.scalars(select(Company).where(Company.cik.in_(ciks)))}
+    earning = _with_revenue(db, ciks)
     out = []
     for cik, filings in by_cik.items():
+        if is_fund(names.get(cik), cik in earning):
+            continue
         item = _track(filings)
         if item is None or item["last_activity"] < since:
             continue
@@ -98,6 +128,8 @@ def _track(filings: list[Filing]) -> dict | None:
     for f in filings:
         if f.filing_date < first_reg.filing_date:
             continue
+        if kind == "ipo" and f.form_type.startswith("10-12"):
+            continue  # a Form 10 registration is not a step of an IPO
         if "priced" in milestones:
             break  # the IPO is done; later filings are follow-ons
         for name, forms in MILESTONE_FORMS.items():
@@ -130,6 +162,9 @@ def priced_accession(db: Session, cik: str) -> str | None:
     track = _track(list(rows))
     if not track or track["kind"] != "ipo" or "priced" not in track["milestones"]:
         return None
+    company = db.scalar(select(Company).where(Company.cik == cik))
+    if is_fund(company, bool(_with_revenue(db, [cik]))):
+        return None
     return track["milestones"]["priced"]["accession_number"]
 
 
@@ -150,8 +185,15 @@ def tag_priced(db: Session, ciks: list[str]) -> int:
 
 
 def tag_all_priced(db: Session) -> int:
-    """Backfill: every company with a 424B4 on record."""
+    """Backfill: every company with a 424B4 on record. Also removes the tag where the rules no
+    longer call a filing an IPO pricing (a fund or trust, for example)."""
     ciks = list(db.scalars(select(Filing.cik).where(Filing.form_type == "424B4").distinct()))
     n = tag_priced(db, ciks)
+    tagged = select(Filing.cik).where(Filing.event_tags.like(f"%{IPO_PRICED}%")).distinct()
+    keep = {priced_accession(db, c) for c in set(db.scalars(tagged))}
+    for f in db.scalars(select(Filing).where(Filing.event_tags.like(f"%{IPO_PRICED}%"))):
+        if f.accession_number not in keep:
+            tags = [t for t in (f.event_tags or "").split(",") if t and t != IPO_PRICED]
+            f.event_tags = ",".join(tags) or None
     db.commit()
     return n

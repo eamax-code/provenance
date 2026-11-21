@@ -223,7 +223,7 @@ def _lockup_within(terms: dict | None, today: date, days: int) -> bool:
 
 def public_pipeline(
     db: Session,
-    days: int = 90,
+    days: int = ACTIVE_DAYS,
     kind: str | None = "ipo",
     lockup_within_days: int | None = None,
     today: date | None = None,
