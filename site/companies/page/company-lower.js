@@ -204,7 +204,9 @@
         x.first_report ? srcLink('FY' + x.fiscal_year, x.first_report.source_url, x.first_report.form_type + ' filed ' + P.date(x.first_report.filed_date)) : null,
         x.item_401 ? [' (', srcLink('8-K item 4.01', x.item_401.source_url, 'filed ' + P.date(x.item_401.filing_date)), ')'] : null].flat().filter(Boolean));
     })));
-    kv('Incorporated', P.state(c.state_of_incorporation));
+    // the company's own cover tag where it states one (HubSpot: Delaware, though the SEC record says New York)
+    var inc = c.incorporation, incName = P.state(inc ? inc.code : c.state_of_incorporation);
+    kv('Incorporated', !incName ? null : inc && inc.source_url ? [el('span', {}, [incName + ' · from the ', srcLink('filing\u2019s cover', inc.source_url, 'accession ' + (inc.accession_number || ''))])] : incName);
     kv('Address', P.address(c.business_address));
     kv('Phone', P.phone(c.phone));
     kv('EIN', c.ein ? c.ein.slice(0, 2) + '-' + c.ein.slice(2) : null);
