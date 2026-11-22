@@ -143,7 +143,7 @@ def _archive_cites(reply: dict) -> set[int]:
 
 
 def _sentences(text: str) -> list[str]:
-    return [s for s in re.split(r"(?<=[.!?])\s+|\n+", text or "") if s.strip()]
+    return [s for s in re.split(r"(?<=[.!?])\s+(?!\[)|\n+", text or "") if s.strip()]
 
 
 def uncited_figures(reply: dict) -> list[str]:

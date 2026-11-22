@@ -612,6 +612,19 @@ _FIGURE_REASONING = re.compile(
 )
 _MARGIN_Q = re.compile(r"\b(gross|operating|net|profit)?\s*margins?\b", re.IGNORECASE)
 _MARGIN_PARTS = {"gross": "gross_profit", "operating": "operating_income", "net": "net_income"}
+# labels read as plurals: "total assets were", not "was"
+PLURAL_METRICS = {
+    "total_assets",
+    "current_assets",
+    "total_liabilities",
+    "current_liabilities",
+    "cash_and_equivalents",
+    "dividends_paid",
+    "share_repurchases",
+    "shares_outstanding",
+    "shares_basic_weighted",
+    "shares_diluted_weighted",
+}
 
 
 def asked_year(text: str) -> int | None:
@@ -654,13 +667,16 @@ def annual_fact(db: Session, company: Company, metric: str, year: int | None,
 def figure_for(db: Session, b: Brief, metric: str, year: int | None, as_of: date | None) -> str:
     from app.services.fact_normalizer import METRIC_LABELS
 
-    name, label = display_name(b.company.legal_name), METRIC_LABELS.get(metric, metric).lower()
+    c = b.company
+    name = display_name(c.legal_name, c.ticker, c.registrant_name)
+    label = METRIC_LABELS.get(metric, metric).lower()
     f = annual_fact(db, b.company, metric, year, as_of)
     if f is None:
         when = f" for fiscal {year}" if year else ""
         return f"{name}'s {label}{when} is not in the filings loaded here."
     n = _cite_fact(b, f)
-    text = (f"{name}'s {label} was {display(f.value, metric, f.unit)} in the fiscal year ended "
+    verb = "were" if metric in PLURAL_METRICS else "was"
+    text = (f"{name}'s {label} {verb} {display(f.value, metric, f.unit)} in the fiscal year ended "
             f"{f.period_end} [{n}]")  # fmt: skip
     rows = annual_series(db, b.company.cik, metric, as_of)
     older = [r for r in rows if r.period_end < f.period_end and r.unit == f.unit]
@@ -668,7 +684,7 @@ def figure_for(db: Session, b: Brief, metric: str, year: int | None, as_of: date
     if prior is not None and prior.value and (f.period_end - prior.period_end).days < 400:
         g = (float(f.value) - float(prior.value)) / abs(float(prior.value)) * 100
         way = "up" if g > 0 else "down" if g < 0 else "unchanged"
-        change = f"{way} {abs(g):.1f}%" if round(g, 1) else "unchanged"
+        change = f"{way} {abs(g):.1f}%" if round(g, 1) else "little changed"
         text += (f", {change} from {display(prior.value, metric, prior.unit)} the year before "
                  f"[{_cite_fact(b, prior)}]")  # fmt: skip
     return text + "."
@@ -676,7 +692,8 @@ def figure_for(db: Session, b: Brief, metric: str, year: int | None, as_of: date
 
 def margin_for(db: Session, b: Brief, kind: str, year: int | None, as_of: date | None) -> str:
     """A margin derived from two reported figures of the same fiscal year and currency."""
-    name, part = display_name(b.company.legal_name), _MARGIN_PARTS[kind]
+    c = b.company
+    name, part = display_name(c.legal_name, c.ticker, c.registrant_name), _MARGIN_PARTS[kind]
     top = annual_fact(db, b.company, "revenue", year, as_of)
     num = None
     if top is not None:

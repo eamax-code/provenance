@@ -452,7 +452,7 @@ def _compare(db: Session, p: Plan) -> DataAnswer:
         c = comps.get(cik)
         if c is None:
             continue
-        name = intel.display_name(c.legal_name, c.ticker)
+        name = intel.display_name(c.legal_name, c.ticker, c.registrant_name)
         if margin:
             top = intel.annual_fact(db, c, "revenue", None, None)
             part = intel._MARGIN_PARTS[margin]

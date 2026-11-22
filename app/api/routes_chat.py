@@ -501,7 +501,7 @@ _MONEY = re.compile(r"(?:\$|\b[A-Z]{3} )-?[\d,]+(?:\.\d+)? (?:trillion|billion|m
 def _uncited_money(answer: str, citations: list[dict]) -> bool:
     """A sentence states a money figure without citing a filing (C-07: never shipped)."""
     ok = {c["n"] for c in citations if "sec.gov/Archives" in (c.get("url") or "")}
-    for sentence in re.split(r"(?<=[.!?])\s+|\n+", answer or ""):
+    for sentence in re.split(r"(?<=[.!?])\s+(?!\[)|\n+", answer or ""):
         cited = {int(n) for n in re.findall(r"\[(\d+)\]", sentence)}
         if _MONEY.search(sentence) and not cited & ok:
             return True

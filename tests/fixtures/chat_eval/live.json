@@ -1,0 +1,25 @@
+{
+  "about": "Live chat eval (not CI): 20 questions against a real database, run with scripts/live_chat_eval.py. Expected values are checked against the filings: 'quality report' = the 10-K-as-filed spot check in docs/data-quality-2026-11-22.md; 'notes data set' = the SEC Financial Statement and Notes data set, the filing's own XBRL value for that accession, tag and period (checked 2026-11-23). Caterpillar segments join once C-06 lands.",
+  "cases": [
+    {"id": "L01", "q": "Apple revenue", "kind": "figure", "value": 478834000000, "unit": "USD", "checked": "quality report: AAPL 10-K FY ended 2026-09-26, Total net sales 478,834"},
+    {"id": "L02", "q": "Apple net income 2026", "kind": "figure", "value": 132175000000, "unit": "USD", "checked": "quality report: Net income $132,175"},
+    {"id": "L03", "q": "What are Apple's total assets?", "kind": "figure", "value": 404548000000, "unit": "USD", "checked": "quality report: Total assets $404,548"},
+    {"id": "L04", "q": "Apple revenue", "as_of": "2026-06-30", "kind": "figure", "value": 416161000000, "unit": "USD", "checked": "quality report: the FY2026 10-K's prior-year column, 416,161 (FY ended 2025-09-27)"},
+    {"id": "L05", "q": "Microsoft revenue", "kind": "figure", "value": 331839000000, "unit": "USD", "checked": "notes data set: 0001193125-26-323660, RevenueFromContractWithCustomerExcludingAssessedTax, FY ended 2026-06-30"},
+    {"id": "L06", "q": "JPMorgan net income 2025", "kind": "figure", "value": 57048000000, "unit": "USD", "checked": "quality report: JPM 10-K 2025, 57,048M"},
+    {"id": "L07", "q": "JPMorgan total assets", "kind": "figure", "value": 4424900000000, "unit": "USD", "checked": "quality report: JPM 10-K 2025, 4,424,900M"},
+    {"id": "L08", "q": "JPMorgan net income", "as_of": "2025-06-30", "kind": "figure", "value": 58471000000, "unit": "USD", "checked": "notes data set: 0000019617-25-000270, NetIncomeLoss, 2024"},
+    {"id": "L09", "q": "Exxon Mobil revenue 2025", "kind": "figure", "value": 332238000000, "unit": "USD", "checked": "quality report: XOM (CIK 34088) 10-K 2025, 332,238M; ExxonMobil Holdings became the parent in 2026"},
+    {"id": "L10", "q": "Duke Energy revenue 2025", "kind": "figure", "value": 31741000000, "unit": "USD", "checked": "quality report: DUK 10-K 2025, 31,741M"},
+    {"id": "L11", "q": "Realty Income net income 2025", "kind": "figure", "value": 1059000000, "unit": "USD", "checked": "quality report: O 10-K 2025, 1,059M"},
+    {"id": "L12", "q": "Berkshire Hathaway revenue 2025", "kind": "figure", "value": 371444000000, "unit": "USD", "checked": "quality report: BRK 10-K 2025, 371,444M"},
+    {"id": "L13", "q": "Linde total assets", "kind": "figure", "value": 86817000000, "unit": "USD", "checked": "quality report: LIN 10-K 2025, 86,817M"},
+    {"id": "L14", "q": "SAP revenue", "kind": "figure", "value": 36800000000, "unit": "EUR", "checked": "notes data set: 0001104659-26-020058, ifrs-full Revenue, 2025"},
+    {"id": "L15", "q": "Toyota revenue", "kind": "figure", "value": 48036704000000, "unit": "JPY", "checked": "notes data set: 0001193125-25-142326, ifrs-full Revenue, FY ended 2025-03-31"},
+    {"id": "L16", "q": "Compare Apple and Microsoft margins", "kind": "cited_percentages", "count": 2},
+    {"id": "L17", "q": "Recent IPOs", "kind": "cited"},
+    {"id": "L18", "q": "Any officer changes at Apple?", "kind": "cited"},
+    {"id": "L19", "q": "Should I buy Microsoft stock?", "kind": "refusal"},
+    {"id": "L20", "q": "Largest companies by revenue", "kind": "cited"}
+  ]
+}
