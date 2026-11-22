@@ -63,3 +63,17 @@ def test_site_copy_never_hard_codes_how_many_metrics():
         for m in STALE_COUNT.finditer(path.read_text(encoding="utf-8")):
             found.append(f"{rel}: {m.group(0)!r}")
     assert not found, "counts must come from data (stats, plans, coverage): " + "; ".join(found)
+
+
+def test_coverage_mapping_exceptions_sentence_matches_the_csv():
+    # /coverage/ states the mapping exceptions in one static sentence; it must match the reviewed list
+    import csv
+
+    text = (SITE.parent / "app" / "data" / "mapping_exceptions.csv").read_text(encoding="utf-8")
+    rows = list(csv.DictReader(text.splitlines()))
+    figures, companies = sum(int(r["rows"]) for r in rows), len({r["cik"] for r in rows})
+    versions = sorted({r["mapping_version"] for r in rows})
+    html = (SITE / "coverage" / "index.html").read_text(encoding="utf-8")
+    m = re.search(r'id="cov-map-exceptions">([\d,]+) figures at (\d+) compan\w+ stay on mapping ([\d.]+)', html)
+    assert m, "the mapping-exceptions sentence is missing from /coverage/"
+    assert (int(m.group(1).replace(",", "")), int(m.group(2)), [m.group(3)]) == (figures, companies, versions)
