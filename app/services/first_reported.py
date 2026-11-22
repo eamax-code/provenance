@@ -38,9 +38,12 @@ LABELS = {
     "net_income": (r"net (?:income|earnings|loss)", r"per share|%|margin"),
     "eps_diluted": (r"diluted", r"weighted|shares used|shares outstanding"),
     "eps_basic": (r"basic", r"weighted|shares used|shares outstanding"),
+    # E-2 (b), 2026-11-22: "Operating cash flow was $129.4 million", "Cash flow from operations"
+    # also name it (58 more matches, a 30-match check all right); adjusted and free cash flow never
     "operating_cash_flow": (
-        r"operating activities|cash (?:provided |generated )?(?:by|from) operations",
-        r"used in investing|financing",
+        r"operating activities|cash (?:provided |generated )?(?:by|from) operations"
+        r"|operating cash flows?|cash flows? (?:provided |generated )?(?:by|from) operations",
+        r"used in investing|financing|free cash|adjusted",
     ),
     "total_assets": (r"total assets", r""),
     "cash_and_equivalents": (r"cash and cash equivalents", r"restricted|beginning"),
@@ -146,9 +149,12 @@ def candidates(db: Session, cik: str, since: date | None = None) -> list[Financi
     return list(db.scalars(stmt))
 
 
-def match_company(db: Session, cik: str, since: date | None = None) -> int:
+def match_company(
+    db: Session, cik: str, since: date | None = None, metrics: set[str] | None = None
+) -> int:
     """Record first-reported releases for a company's figures from the releases already stored
-    (releases.ensure_read fetches them). Returns the number of figures matched."""
+    (releases.ensure_read fetches them). `metrics` limits it to some metrics (a label change is
+    written for its own metric only). Returns the number of figures matched."""
     from app.db.models import Filing
 
     rel = db.scalars(
@@ -173,6 +179,8 @@ def match_company(db: Session, cik: str, since: date | None = None) -> int:
     n = 0
     for fact in candidates(db, cik, since):
         key = (fact.metric, fact.unit, fact.period_start, fact.period_end, fact.accession_number)
+        if metrics is not None and fact.metric not in metrics:
+            continue
         if key in have or not original(fact, covers.get(fact.accession_number)):
             continue
         for f, row in texts:

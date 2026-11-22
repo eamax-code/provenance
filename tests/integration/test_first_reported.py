@@ -38,6 +38,14 @@ def test_renderings_and_line_rules():
     assert fr.stated(far, "eps_diluted", Decimal("1.64")) is None
     assert fr.stated("Net cash from operations | 35,758 | 22,291", "operating_cash_flow",
                      Decimal("35758000000"))[0] == "millions"  # fmt: skip
+    # E-2 (b): operating cash flow and cash flow from operations name it; adjusted and free never
+    ocf = Decimal("129400000")
+    assert fr.stated("Operating cash flow was $129.4 million, up 9.5%.", "operating_cash_flow", ocf)
+    assert fr.stated("Cash flow from operations | $70.4 | $129.4", "operating_cash_flow", ocf)
+    assert fr.stated("Cash flows provided by operations | 129,400", "operating_cash_flow", ocf)
+    for line in ("Adjusted operating cash flow was $129.4 million", "Free cash flow | $129.4",
+                 "Cash flow from operations less financing | 129.4"):  # fmt: skip
+        assert fr.stated(line, "operating_cash_flow", ocf) is None, line
     # a long table row: the evidence still shows the number
     row = ("Cash and cash equivalents | " + " | ".join(["  9,999  "] * 60) + " | $  3,369 | x")
     found = fr.stated(row, "cash_and_equivalents", Decimal("3369000000"))
