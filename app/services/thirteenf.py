@@ -357,11 +357,15 @@ def ownership(
     pct = None
     if single and out_value:
         pct = round(float(held) / float(out_value) * 100, 1)
-    flows = {"new": 0, "added": 0, "reduced": 0, "exited": 0}
+    # holders_count_change == new - exited - not_filed (new includes managers that filed no 13F
+    # for the previous quarter; not_filed are last quarter's holders with no 13F yet this quarter)
+    flows = {"new": 0, "added": 0, "reduced": 0, "exited": 0, "not_filed": 0}
     for filer in set(cur) | set(prev):
         ch = _change(prev.get(filer), cur.get(filer), filer in filed_now)
         if ch in flows:
             flows[ch] += 1
+        elif ch is None and filer in prev and filer not in cur:
+            flows["not_filed"] += 1
     filed_through = db.scalar(
         select(func.max(Filing13F.filing_date)).where(
             Filing13F.report_period == q,

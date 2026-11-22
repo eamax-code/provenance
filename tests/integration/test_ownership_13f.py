@@ -138,7 +138,10 @@ def test_ownership_api_amendments_flows_and_holders(client, auth, loaded_13f):
     assert b["filed_through"] == "2026-08-25" and "45 days" in b["lag_note"]
     # Alpha 150, Beta restated to 50, Gamma 70 + 10 new holdings; Delta exited; Echo not filed
     assert b["holders_count"] == 3 and b["holders_count_change"] == -1
-    assert b["flows"] == {"new": 1, "added": 1, "reduced": 1, "exited": 1}
+    # Echo held it last quarter and has filed nothing for this one: not an exit, but not a holder
+    assert b["flows"] == {"new": 1, "added": 1, "reduced": 1, "exited": 1, "not_filed": 1}
+    f = b["flows"]
+    assert b["holders_count_change"] == f["new"] - f["exited"] - f["not_filed"]
     assert b["shares_held"] == 280 and b["value_usd"] == 56000
     so = b["shares_outstanding"]["value"]
     assert b["institutional_pct"] == round(280 / so * 100, 1)
@@ -159,7 +162,7 @@ def test_ownership_point_in_time(client, auth, loaded_13f):
     b = client.get("/v1/companies/320193/ownership?as_of=2026-08-15", headers=auth).json()
     assert b["quarter"] == "2026-06-30" and b["filed_through"] == "2026-08-04"
     assert b["shares_held"] == 150 + 200 + 70
-    assert b["flows"] == {"new": 1, "added": 1, "reduced": 0, "exited": 1}
+    assert b["flows"] == {"new": 1, "added": 1, "reduced": 0, "exited": 1, "not_filed": 1}
     early = client.get("/v1/companies/320193/ownership?as_of=2026-08-01", headers=auth).json()
     assert early["quarter"] == "2026-03-31" and early["holders_count"] == 4
 
@@ -245,7 +248,7 @@ def test_reorganisation_counts_both_cusips_as_one_class(db, ingested_aapl):
         company = db.get(Company, db.scalar(select(Company.id).where(Company.cik == cik)))
         b = thirteenf.for_company(db, company, today=date(2026, 11, 22))
         assert b["holders_count"] == 2 and b["flows"] == {"new": 0, "added": 1, "reduced": 0,
-                                                          "exited": 0}  # fmt: skip
+                                                          "exited": 0, "not_filed": 0}  # fmt: skip
         assert b["shares_held"] == 320 and any("holding company reorganisation" in n
                                                for n in b["notes"])  # fmt: skip
         assert b["flows_note"].startswith("This quarter spans the change of share identifier "

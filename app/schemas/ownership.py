@@ -35,6 +35,10 @@ class Flows(BaseModel):
     added: int
     reduced: int
     exited: int = Field(description="Managers that filed for the quarter without a position")
+    not_filed: int = Field(
+        0, description="Last quarter's holders that have filed no 13F for this quarter yet; "
+        "holders_count_change = new - exited - not_filed",
+    )
 
 
 class Holder(BaseModel):
