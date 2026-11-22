@@ -4,7 +4,7 @@
 Gates: every case outside KNOWN_FAILURES passes; no reply states a money figure in a sentence
 without a citation to a filing (sec.gov/Archives); exact-figure accuracy (figure and ratio
 cases) at least 95% once KNOWN_FAILURES holds no figure case. A known failure that starts passing
-fails the test too, so the list only shrinks. c06 cases are intents that land with C-06.
+fails the test too, so the list only shrinks. c06 cases (the C-06 intents) are gated too.
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ def _company(db, cik: str, name: str, ticker: str | None, sic: str = "3570") -> 
 
 
 @pytest.fixture
-def eval_db(db, items_aapl, sec_client):
+def eval_db(db, items_aapl, sec_client, tmp_path):
     from app.services.ingestion import ingest_company
 
     ingest_company(db, sec_client, "789019")
@@ -120,9 +120,70 @@ def eval_db(db, items_aapl, sec_client):
         db.add(_filing(cik, 1, "S-1", today - timedelta(days=70)))
         db.add(_filing(cik, 2, "424B4", today - timedelta(days=ipo_days)))
     db.commit()
+    _c06_data(db, tmp_path)
     marts.build_company_marts(db)
     marts.build_filing_activity(db)
     return db
+
+
+def _c06_data(db, tmp_path) -> None:
+    """Test data for the C-06 intents: Apple's 13F holders, 5% holder, insider signal and LEI;
+    Caterpillar's segments; Microsoft's auditor."""
+    from app.db.models import (
+        BeneficialOwner,
+        CompanyAuditor,
+        CompanyLei,
+        CompanySegment,
+        InsiderActivity,
+    )
+    from app.services import cusips, thirteenf
+    from tests.integration.test_ownership_13f import FIXTURES as F13
+    from tests.integration.test_ownership_13f import make_zip
+
+    text = (F13 / "schedule13g.xml").read_text()
+    cusips.record_schedule(db, text, "0000000000-26-000001", date(2026, 2, 1))
+    db.commit()
+    thirteenf.load_dataset(db, make_zip(tmp_path))
+    today = date.today()
+    arch = "https://www.sec.gov/Archives/edgar/data/{}/{}/{}-index.html"
+    db.add(BeneficialOwner(
+        subject_cik="0000320193", accession_number="0000102909-26-000001", form_type="SC 13G/A",
+        filing_date=today - timedelta(days=40), filer_cik="0000102909", position=0,
+        holder_name="The Vanguard Group", holder_cik="0000102909", holder_type="IA",
+        shares=1_300_000_000, percent=8.7,
+        source_url=arch.format(102909, "000010290926000001", "0000102909-26-000001"),
+    ))  # fmt: skip
+    db.add(InsiderActivity(
+        cik="0000320193", activity_type="sec.insider_first_buy",
+        activity_date=today - timedelta(days=21), filing_date=today - timedelta(days=20),
+        accession_number="0001111111-26-000001",
+        owners=json.dumps([{"owner_cik": "1111111", "name": "J. Example", "role": "Director"}]),
+        detail=json.dumps({"shares": 1000, "value_usd": 200000}),
+        source_url=arch.format(1111111, "000111111126000001", "0001111111-26-000001"),
+    ))  # fmt: skip
+    db.add(CompanyLei(cik="0000320193", lei="HWUPKR0MPOU8FGXBT394", match_method="sec",
+                      confidence="high", evidence="test"))  # fmt: skip
+    db.add(CompanyAuditor(
+        accession_number="0000950170-25-100235", auditor_key="34", cik="0000789019",
+        form_type="10-K", fiscal_year=2025, period_end=date(2025, 6, 30),
+        filed_date=date(2025, 7, 30), auditor_name="Deloitte & Touche LLP",
+        pcaob_firm_id="34", auditor_location="Seattle, Washington", source="test",
+    ))  # fmt: skip
+    _company(db, "0000018230", "CATERPILLAR INC", "CAT", "3531")
+    db.flush()
+    for member, label, role, v in (
+        ("ConstructionIndustriesMember", "Construction Industries", "segment", 26e9),
+        ("ResourceIndustriesMember", "Resource Industries", "segment", 12e9),
+        ("EnergyTransportationMember", "Energy & Transportation", "segment", 30e9),
+        ("consolidated", "Total", "consolidated", 68e9),
+    ):
+        db.add(CompanySegment(
+            accession_number="0000018230-26-000010", kind="business", member=member,
+            metric="revenue", period_end=date(2025, 12, 31), cik="0000018230", form_type="10-K",
+            filed_date=date(2026, 2, 14), label=label, label_source="filing_label", role=role,
+            tag="Revenues", unit="USD", value=v, status="ok", source="test",
+        ))  # fmt: skip
+    db.commit()
 
 
 def _ask(client, auth, case: dict) -> dict:
@@ -186,7 +247,9 @@ def score(case: dict, reply: dict) -> tuple[bool, str]:
         )
         return not MONEY.search(answer) and asks, "wants no figure and a request to name one"
     if kind == "c06":
-        return bool(answer) and bool(_archive_cites(reply)), "C-06: wants a cited answer"
+        cites = {c["n"] for c in reply.get("citations") or [] if c.get("url")}
+        cited = {int(n) for n in CITE.findall(answer)} & cites
+        return bool(answer) and bool(cited), "C-06: wants a cited answer"
     raise AssertionError(kind)
 
 
@@ -203,11 +266,11 @@ def test_chat_eval(app, client, auth, eval_db, capsys):
 
     figure = [r for r in results if r[0]["kind"] in FIGURE_KINDS]
     exact = sum(r[1] for r in figure) / len(figure)
-    core = [r for r in results if r[0]["kind"] != "c06"]
+    core = results
     uncited = [(r[0]["id"], s) for r in results for s in r[4]]
     with capsys.disabled():
         print(f"\nC-07: exact figures {sum(r[1] for r in figure)}/{len(figure)} ({exact:.1%}); "
-              f"all non-C-06 {sum(r[1] for r in core)}/{len(core)}; "
+              f"all {sum(r[1] for r in core)}/{len(core)}; "
               f"C-06 {sum(r[1] for r in results if r[0]['kind'] == 'c06')}/6; "
               f"uncited figure sentences {len(uncited)}")  # fmt: skip
         for case, passed, why, reply, _ in results:

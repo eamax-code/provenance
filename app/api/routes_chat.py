@@ -26,6 +26,7 @@ from app.core.rate_limits import FixedWindowRateLimiter
 from app.db.models import Company
 from app.schemas.common import ErrorEnvelope
 from app.services import (
+    chat_intents,
     chat_sessions,
     conversation,
     documents,
@@ -770,6 +771,20 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     # C-07: margins and figures for any metric and fiscal year come from the stored facts, cited,
     # without a model; a figure the filings do not hold is said to be missing, never guessed.
     fresh = not body.history  # a follow-up in a conversation goes to the model, as before
+    # C-06: holders, 5% holders, auditor, segments, insiders and the LEI from stored data
+    c06 = chat_intents.detect(body.message) if fresh and not quoted else None
+    if c06:
+        answer = chat_intents.answer(db, brief, c06, body.as_of)
+        how = [
+            {
+                "endpoint": f"/v1/companies/{int(company.cik)}/{chat_intents.HOW[c06]}",
+                "parameters": {},
+                "as_of": body.as_of.isoformat() if body.as_of else None,
+            }
+        ]
+        reply = _figure_reply(company, brief, brief_out, answer, notes, how)
+        reply.intent = c06
+        return reply
     margin = intel.asked_margin(body.message) if fresh else None
     if margin and not quoted and intel.is_figure_question(body.message.replace("margin", "")):
         answer = intel.margin_for(db, brief, margin, intel.asked_year(body.message), body.as_of)
