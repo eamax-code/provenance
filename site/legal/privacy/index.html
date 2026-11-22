@@ -104,10 +104,12 @@
           <li><strong>Account:</strong> your email, when the account was made and when you last signed in, and the theme you chose.</li>
           <li><strong>API keys:</strong> a hash of each key, its prefix, the name you gave it, its plan and when it was last used. We cannot see or recover a key after showing it once.</li>
           <li><strong>Usage:</strong> for each request made with a key, the time, the endpoint, the response status and size. Query strings and response bodies are not stored.</li>
-          <li><strong>Key requests:</strong> the email, intended use and plan you enter in the request form.</li>
+          <li><strong>Key requests:</strong> the email, intended use and plan you enter in the request form, and a salted hash of your network address (not the address itself) to limit abuse.</li>
           <li><strong>Watches:</strong> the webhook address or email you ask us to deliver to, and a record of each delivery.</li>
+          <li><strong>Watchlists:</strong> with your key, the name, companies and columns of each list you save. Deleting a list removes it; revoking the key removes all of that key&rsquo;s lists.</li>
           <li><strong>Chat:</strong> with your own key, the questions and answers of conversations you keep, so you can return to them. With the demo key, nothing is saved on our side.</li>
-          <li><strong>Server logs:</strong> request id, path, status, timing and the network address, used for security and rate limits.</li>
+          <li><strong>Server logs:</strong> request id, path, status and timing. The web server&rsquo;s access log also records your network address, for security. How long it is kept depends on our hosting provider and will be stated here before launch.</li>
+          <li><strong>Rate limits:</strong> a salted hash of your network address (and, when you sign in, of your email), never the address or email itself. Deleted after 2 days.</li>
         </ul>
       </section>
       <section id="browser" aria-labelledby="browser-h">
