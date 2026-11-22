@@ -1,4 +1,4 @@
-# Data quality, mapping 1.4.0 (2026-11-22)
+# Data quality, mapping 1.4.1 (2026-11-22)
 
 ## Per metric
 
@@ -19,7 +19,7 @@ Periods with an ok figure: for each company and period, is there an ok figure (w
 | income_tax | 100.0% | 99.6% | 0.0 | 0.00 | 1,000,083 | 13,521 | 2001 |
 | interest_expense | 99.8% | 92.9% | 6.7 | 0.00 | 939,162 | 12,904 | 1999 |
 | long_term_debt | 100.0% | 93.5% | 6.0 | 0.00 | 307,334 | 6,798 | 2003 |
-| long_term_debt_current | 100.0% | 99.6% | 0.0 | 0.01 | 178,559 | 5,560 | 2007 |
+| long_term_debt_current | 100.0% | 99.5% | 0.0 | 0.01 | 178,559 | 5,560 | 2007 |
 | net_income | 100.0% | 99.0% | 0.0 | 0.01 | 1,607,660 | 16,370 | 1993 |
 | net_interest_income | 100.0% | 99.7% | 0.0 | 0.00 | 243,515 | 3,904 | 2007 |
 | operating_cash_flow | 100.0% | 99.5% | 0.0 | 0.00 | 810,151 | 16,616 | 1999 |
@@ -28,7 +28,7 @@ Periods with an ok figure: for each company and period, is there an ok figure (w
 | public_float | 100.0% | 100.0% | 0.0 | 0.01 | 117,628 | 14,311 | 2000 |
 | r_and_d | 100.0% | 98.9% | 0.6 | 0.00 | 426,683 | 6,224 | 2003 |
 | retained_earnings | 100.0% | 99.5% | 0.0 | 0.00 | 788,016 | 15,650 | 1994 |
-| revenue | 99.6% | 89.7% | 9.9 | 0.00 | 1,287,479 | 13,268 | 2003 |
+| revenue | 99.6% | 89.6% | 10.0 | 0.00 | 1,290,299 | 13,271 | 2003 |
 | sbc | 99.9% | 75.2% | 24.4 | 0.00 | 1,050,353 | 12,592 | 1995 |
 | sga | 100.0% | 99.6% | 0.0 | 0.00 | 443,398 | 5,492 | 2003 |
 | share_repurchases | 99.9% | 99.4% | 0.2 | 0.00 | 281,609 | 6,995 | 1999 |
@@ -41,18 +41,18 @@ Periods with an ok figure: for each company and period, is there an ok figure (w
 
 Metrics under 93% ok by row: cost_of_revenue, d_and_a, interest_expense, revenue, sbc. Their periods with an ok figure: cost_of_revenue 99.2%, d_and_a 100.0%, interest_expense 99.8%, revenue 99.6%, sbc 99.9%. The rest are alternate tags in the same filing (for example AllocatedShareBasedCompensationExpense beside ShareBasedCompensation).
 
-Facts on an older mapping: 122 rows at 5 companies (registrants not yet in the companyfacts archive; scripts/check_mapping.py must report 0 after the next pass).
+Facts on an older mapping: 122 rows at 5 companies (observations the SEC's company facts no longer publish, so no pass can re-read them; kept as reported, on the mapping that read them; listed by scripts/check_mapping.py).
 
 ## Revenue tag conflicts
 
-Revenue periods where the tags one filing reports disagree: 57,872 periods at 2,075 companies before the total-first rule, 2,351 at 473 now.
+Revenue periods where the tags one filing reports disagree: 57,872 periods at 2,075 companies before the total-first rule, 2,239 at 452 now.
 
 ## Large filers whose revenue stopped
 
 Values are compared as reported, without exchange rates, so the $1B threshold applies to USD reporters only; other reporting currencies are listed without a threshold.
 
-- USD reporters with $1B+ revenue at some point, an annual report in the last two years, but no annual revenue mapped in the last three years: 43.
-- Non-USD reporters (any size) in the same position: 25.
+- USD reporters with $1B+ revenue at some point, an annual report in the last two years, but no annual revenue mapped in the last three years: 41.
+- Non-USD reporters (any size) in the same position: 23.
 
 - — DOW CHEMICAL CO /DE/: last 2018-12-31, peak $60.3B
 - CTA-PB EIDP, Inc.: last 2016-12-31, peak $38.0B
@@ -70,26 +70,64 @@ Values are compared as reported, without exchange rates, so the $1B threshold ap
 - — SOUTHERN CO GAS: last 2015-12-31, peak $5.4B
 - — DTE Electric Co: last 2014-12-31, peak $5.3B
 - HMY HARMONY GOLD MINING CO LTD (ZAR): last 2023-06-30
-- VNET VNET Group, Inc. (CNY): last 2019-12-31
 - ONCY ONCOLYTICS BIOTECH INC (CAD): last 2021-12-31
-- CHNR CHINA NATURAL RESOURCES INC (CNY): last 2022-12-31
+- OBE OBSIDIAN ENERGY LTD. (CAD): last 2020-12-31
+- BCH BANK OF CHILE (CLP): last 2022-12-31
 - — HSBC BANK PLC (GBP): last 2022-12-31
-- ATHE ALTERITY THERAPEUTICS LTD (AUD): last 2018-06-30
+- AEG AEGON LTD. (EUR): last 2022-12-31
 - AZUL AZUL SA (BRL): last 2019-12-31
+- ATHE ALTERITY THERAPEUTICS LTD (AUD): last 2018-06-30
 - — BANCOLOMBIA SA (COP): last 2020-12-31
-- SAN Banco Santander, S.A. (EUR): last 2017-12-31
 - CRDL Cardiol Therapeutics Inc. (CAD): last 2021-12-31
+
+Known causes (mapping 1.4.1 notes): banks reporting in IFRS (21, such as HSBC, Santander, BBVA, UBS, SMFG) tag their total operating income only in company-specific extension tags, which companyfacts leaves out, and ifrs-full has no standard total; adding net interest and net fee income would leave out trading and other income, so their revenue stays absent rather than built. Williams' total and contract revenue disagree in the same 10-K (eliminations); the income-statement line would decide it, measured for a later mapping.
 
 ## LEI coverage
 
-- USD reporters with $1B+ revenue (active; the marts keep USD revenue only): 1,584 of 1,950 (81.2%)
-- Non-USD reporters (active, any size): 221 of 387 (57.1%)
+- USD reporters with $1B+ revenue (active): 1,542 of 1,898 (81.2%)
+- Non-USD reporters (active, any size): 296 of 529 (56.0%)
 - All active reporters: 3,881 of 7,501 (51.7%)
 - The rest: SEC records give the home state, not the state of incorporation, for some filers, and GLEIF does not hold some entities under these names (Chevron).
 
 ## Successor registrants (K-05)
 
-23 pairs found in ten years, all hand-checked against the successor's first periodic report: 12 stored (holding company reorganisations and accounting predecessors, each with the sentence quoted), 11 rejected (mergers whose accounting acquirer was another company, or no sentence).
+33 pairs found in ten years, all hand-checked against the successor's first periodic report: 16 stored (holding company reorganisations and accounting predecessors, each with the sentence quoted), 17 rejected (mergers whose accounting acquirer was another company, or no sentence).
+
+## Unreconciled segments (E-4)
+
+Segment figures are shown with status unreconciled when they do not add up to the consolidated figure within 1% and no reconciling item is tagged. Causes, per filing, kind, metric and year:
+
+- segments above the total (overlapping breakdowns, subtotals): 11,620 (43%)
+- no consolidated figure under the same tag: 7,667 (28%)
+- segments far above the total (several breakdowns mixed): 3,053 (11%)
+- a single segment tagged: 3,047 (11%)
+- segments below the total (partial disclosure): 1,739 (6%)
+- other (signs, zero or negative totals): 43 (0%)
+
+### Two-axis segments and single-member blocks (E-4c, 2026-11-22)
+
+Segments tagged on two axes (XOM: each segment by US and non-US) are now summed over the other axis when no member of that axis holds others and the segments then add up to the consolidated figure within 1%; one-axis figures win member by member. The revenue tag whose segments add up (and are finer than an all-segments total) is preferred, and the all-segments total is never shown beside real segments. A kind with one member that never adds up is hidden, with its reason in the API.
+
+Dry run against every company's latest report before the reload: 417 of 4,174 blocks changed: 206 kinds added, 108 moved from unreconciled to ok, 140 changed values or members within an ok block; none removed and none from ok to unreconciled. Hand-check: a first sample of 30 found 2 wrong (an all-segments total counted twice, an intersegment line shown as a product); after tightening, a fresh seeded random sample of 30 found 1 (a company-named total, then fixed).
+
+The 358 companies whose latest block had at most one member per kind: 21 now show segments that add up; 210 are single-segment companies (the one segment is the consolidated figure); 75 had a single unreconciled member, now hidden; 52 report segment profit only, no revenue by segment. XOM: Energy Products $291.6B, Upstream $107.2B, Chemical Products $33.0B, Specialty Products $20.5B; with corporate and eliminations, $332.2B, the consolidated figure exactly.
+
+## First reported in earnings releases (E-2)
+
+Figures an 8-K item 2.02 release stated with the same value, of those it could have stated (the period's own 10-Q or 10-K, a stored release in its window): 76,370 of 103,827 (73.6%). Balance-sheet and cash-flow figures are often not printed in releases.
+
+| Metric | Matched | Eligible | Rate |
+|---|---|---|---|
+| cash_and_equivalents | 7,207 | 10,873 | 66% |
+| eps_basic | 9,138 | 11,756 | 78% |
+| eps_diluted | 10,437 | 11,759 | 89% |
+| gross_profit | 4,469 | 5,613 | 80% |
+| net_income | 7,362 | 11,675 | 63% |
+| operating_cash_flow | 3,214 | 5,999 | 54% |
+| operating_income | 6,292 | 10,211 | 62% |
+| revenue | 10,865 | 12,329 | 88% |
+| stockholders_equity | 7,493 | 11,293 | 66% |
+| total_assets | 9,893 | 12,319 | 80% |
 
 ## Spot check against the 10-K as filed
 

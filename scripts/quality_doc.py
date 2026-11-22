@@ -246,8 +246,9 @@ def main() -> int:
     old_sql = "select count(*), count(distinct cik) from financial_facts where mapping_version<>:v"
     old_rows = db.execute(text(old_sql), {"v": MAPPING_VERSION}).one()
     lines += [f"Facts on an older mapping: {old_rows[0]:,} rows at {old_rows[1]:,} companies "
-              "(registrants not yet in the companyfacts archive; scripts/check_mapping.py must "
-              "report 0 after the next pass).", ""]  # fmt: skip
+              "(observations the SEC's company facts no longer publish, so no pass can re-read "
+              "them; kept as reported, on the mapping that read them; listed by "
+              "scripts/check_mapping.py).", ""]  # fmt: skip
 
     n, c = db.execute(text(CONFLICTS)).one()
     lines += ["## Revenue tag conflicts", "",
