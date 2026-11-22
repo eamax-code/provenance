@@ -532,20 +532,43 @@ def _filing_url(cik: str, accession: str | None, base: str) -> str:
     return company_facts_url(cik)
 
 
+def rules_1_5_0() -> bool:
+    """Mapping 1.5.0's rules (the income-statement tie-breaker, IFRS bank total income) run only
+    when the mapping version says so, so code on disk before the pass never writes them under an
+    older version."""
+    return tuple(int(x) for x in MAPPING_VERSION.split(".")) >= (1, 5, 0)
+
+
+# 1.5.0: an IFRS bank's total income line, after interest expense, as the bank labels it; only
+# where the filing's own income statement shows the tag under a total-income label
+BANK_REVENUE_TAGS = ("RevenueAndOperatingIncome", "GrossProfit")
+
+
 def normalize_company_facts(
     payload: dict,
     cik: str,
     www_base: str = "https://www.sec.gov",
+    statement: dict | None = None,
 ) -> list[NormalizedFact]:
-    """Normalize the SEC companyfacts payload for one company into canonical facts."""
+    """Normalize the SEC companyfacts payload for one company into canonical facts.
+
+    `statement` (mapping 1.5.0): {"tags": {accession: {tag: label}}, "bank": bool}, the revenue
+    tags each filing shows on its income statement with its labels (app.services.statement_tags)
+    and whether the company is a bank or financial holding company by SIC."""
     facts_root = payload.get("facts") if isinstance(payload, dict) else None
     if not isinstance(facts_root, dict):
         return []
+    v150 = rules_1_5_0() and statement is not None
+    shown = (statement or {}).get("tags") or {}
 
     results: list[NormalizedFact] = []
     for metric, spec in CONCEPT_MAP.items():
         expected_ptype = spec["period_type"]
         tags = _ordered_tags(metric, spec)
+        if v150 and metric == "revenue":
+            bank = [("ifrs-full", t, True) for t in BANK_REVENUE_TAGS
+                    if t != "GrossProfit" or (statement or {}).get("bank")]  # fmt: skip
+            tags = tags + bank
         primary = sum(1 for _, _, fallback in tags if not fallback)
         candidate_facts: list[tuple[int, NormalizedFact]] = []
         for precedence, (taxonomy, tag, _) in enumerate(tags):
@@ -571,9 +594,18 @@ def normalize_company_facts(
                         www_base,
                         spec.get("unit"),
                     )
-                    if nf is not None:
-                        candidate_facts.append((precedence, nf))
-        _apply_precedence(candidate_facts, primary, spec.get("components"))
+                    if nf is None:
+                        continue
+                    if v150 and metric == "revenue" and tag in BANK_REVENUE_TAGS:
+                        from app.services.statement_tags import is_total_income
+
+                        if not is_total_income((shown.get(nf.accession_number) or {}).get(tag)):
+                            continue  # not this filing's total income line
+                        nf.notes.append("bank total income line, as labelled on the income "
+                                        "statement")  # fmt: skip
+                    candidate_facts.append((precedence, nf))
+        _apply_precedence(candidate_facts, primary, spec.get("components"),
+                          shown if v150 and metric == "revenue" else None)  # fmt: skip
         results.extend(nf for _, nf in candidate_facts)
     for nf in results:
         if nf.quality_status != "invalid_source_value" and is_suspicious_period(
@@ -686,6 +718,7 @@ def _apply_precedence(
     candidates: list[tuple[int, NormalizedFact]],
     primary_count: int | None = None,
     components: dict | None = None,
+    shown: dict | None = None,
 ) -> None:
     """Mark non-preferred and conflicting candidate tags as ambiguous_mapping (in place).
 
@@ -746,6 +779,22 @@ def _apply_precedence(
                 if any(nf.value > total for prec, nf in items
                        if prec != top and nf.source_tag not in may_exceed):  # fmt: skip
                     conflicting.add(k)
+        if shown:
+            # 1.5.0: the line the filing shows on its income statement settles its tags, when it
+            # is the only revenue candidate there (under any label) and reads as a total
+            from app.services.statement_tags import is_total
+
+            by_tag: dict[str, dict[str, int]] = {}
+            for prec, nf in group:
+                by_tag.setdefault(_filing_key(nf), {})[nf.source_tag] = prec
+            for k, tags in by_tag.items():
+                on = [t for t in tags if t in (shown.get(k) or {})]
+                if len(tags) > 1 and len(on) == 1 and is_total(shown[k][on[0]]):
+                    best_in_filing[k] = tags[on[0]]
+                    conflicting.discard(k)
+                    for _p, nf in group:
+                        if _filing_key(nf) == k and nf.source_tag == on[0]:
+                            nf.notes.append("the line the filing shows on its income statement")
         for prec, nf in group:
             if nf.quality_status == "invalid_source_value":
                 continue

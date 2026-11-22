@@ -493,6 +493,22 @@ class CompanyLei(Base):
     matched_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class FilingStatementTag(Base):
+    """A revenue tag a filing places on its income statement, with the filing's own label
+    (Notes data sets pre.tsv, stmt=IS, not parenthetical). Mapping 1.5.0 reads it to settle
+    revenue tags that disagree within a filing, and to admit an IFRS bank's total income line."""
+
+    __tablename__ = "filing_statement_tags"
+    __table_args__ = (Index("ix_filing_statement_tags_cik", "cik"),)
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    tag: Mapped[str] = mapped_column(Text, primary_key=True)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    line: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class GleifEntity(Base):
     """A legal entity from the GLEIF golden copy (CC0) whose exact legal name matches an SEC
     filer's (launch plan K-01b); only those are kept, not the 3.5 million records."""

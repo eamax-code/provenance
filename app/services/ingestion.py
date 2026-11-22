@@ -447,6 +447,18 @@ def import_ticker_mapping(db: Session, payload: dict, now: datetime | None = Non
     return {"rows": len(rows), "companies": len(by_cik), "inserted": inserted, "updated": updated}
 
 
+def _statement_context(db: Session, cik: str) -> dict | None:
+    """Mapping 1.5.0's inputs: the revenue lines each filing shows on its income statement, and
+    whether the company is a bank or financial holding company (SIC 6000-6299)."""
+    from app.services import statement_tags
+    from app.services.fact_normalizer import rules_1_5_0
+
+    if not rules_1_5_0():
+        return None
+    sic = db.scalar(select(Company.sic_code).where(Company.cik == cik)) or ""
+    return {"tags": statement_tags.for_company(db, cik), "bank": "6000" <= sic <= "6299"}
+
+
 def upsert_company(db: Session, rec: CompanyRecord, now: datetime, source_updated_at=None):
     company = db.scalar(select(Company).where(Company.cik == rec.cik))
     if company is None:
@@ -788,7 +800,8 @@ def _ingest_company(
     if include_facts:
         try:
             facts_resp = client.fetch_company_facts(cik)
-            facts = normalize_company_facts(facts_resp.data, cik, www_base)
+            facts = normalize_company_facts(facts_resp.data, cik, www_base,
+                                            _statement_context(db, cik))  # fmt: skip
             fi, fu = upsert_facts(db, cik, facts, now)
             result.facts_seen = len(facts)
             result.facts_inserted, result.facts_updated = fi, fu

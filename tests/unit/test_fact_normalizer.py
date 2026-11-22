@@ -455,3 +455,68 @@ def test_1_4_1_impossible_periods_are_stored_as_suspicious():
     assert by_end[1927].quality_status == "suspicious_period"
     assert by_end[2029].quality_status == "suspicious_period"
     assert by_end[2025].quality_status == "ok"
+
+
+def _v150(monkeypatch):
+    from app.services import fact_normalizer
+
+    monkeypatch.setattr(fact_normalizer, "MAPPING_VERSION", "1.5.0")
+
+
+def _williams(acc="0000107263-26-000006"):
+    start, end = "2025-01-01", "2025-12-31"
+    return _payload({
+        "Revenues": {"USD": [_obs(11950000000, end, start, accn=acc)]},
+        "RevenueFromContractWithCustomerExcludingAssessedTax": {
+            "USD": [_obs(14899000000, end, start, accn=acc)]},
+    })  # fmt: skip
+
+
+def test_1_5_0_the_income_statement_line_settles_disagreeing_tags(monkeypatch):
+    """Williams' 10-K shows only Revenues on its income statement, labelled "Revenues": $11.95B
+    is the figure, where 1.4.1 left both tags ambiguous."""
+    acc = "0000107263-26-000006"
+    before = {f.source_tag: f.quality_status for f in _by(
+        normalize_company_facts(_williams(), "107263"), "revenue")}  # fmt: skip
+    assert set(before.values()) == {"ambiguous_mapping"}
+    _v150(monkeypatch)
+    ctx = {"tags": {acc: {"Revenues": "Revenues"}}, "bank": False}
+    facts = normalize_company_facts(_williams(), "107263", statement=ctx)
+    rev = {f.source_tag: f for f in _by(facts, "revenue")}
+    assert rev["Revenues"].quality_status == "ok"
+    assert rev["Revenues"].value == Decimal("11950000000")
+    assert rev["RevenueFromContractWithCustomerExcludingAssessedTax"].quality_status == (
+        "ambiguous_mapping"
+    )
+    # a component line on the statement (banks) or two candidates there settle nothing
+    for shown in ({"RevenueFromContractWithCustomerExcludingAssessedTax":
+                   "Service charges on deposit accounts"},
+                  {"Revenues": "Total revenues",
+                   "RevenueFromContractWithCustomerExcludingAssessedTax": "Revenues"}):  # fmt: skip
+        ctx = {"tags": {acc: shown}, "bank": False}
+        got = {f.quality_status for f in _by(normalize_company_facts(
+            _williams(), "107263", statement=ctx), "revenue")}  # fmt: skip
+        assert got == {"ambiguous_mapping"}
+
+
+def test_1_5_0_ifrs_bank_total_income_only_under_its_label(monkeypatch):
+    """HSBC's total operating income (ifrs-full RevenueAndOperatingIncome) is its revenue where
+    the income statement shows it so; BBVA's unrelated RevenueAndOperatingIncome is not, and
+    GrossProfit counts only for a bank."""
+    acc, start, end = "0001089113-26-000010", "2025-01-01", "2025-12-31"
+    payload = {"facts": {"ifrs-full": {
+        "RevenueAndOperatingIncome": {"units": {"USD": [_obs(68274000000, end, start, accn=acc,
+                                                             form="20-F")]}},
+        "GrossProfit": {"units": {"USD": [_obs(1, end, start, accn=acc,
+                                               form="20-F")]}}}}}  # fmt: skip
+    assert not _by(normalize_company_facts(payload, "1089113"), "revenue")  # 1.4.1: none
+    _v150(monkeypatch)
+    ok = {"tags": {acc: {"RevenueAndOperatingIncome": "Total operating income"}}, "bank": True}
+    rev = _by(normalize_company_facts(payload, "1089113", statement=ok), "revenue")
+    assert (
+        len(rev) == 1 and rev[0].value == Decimal("68274000000") and rev[0].quality_status == "ok"
+    )
+    off = {"tags": {acc: {}}, "bank": True}  # not on the income statement: no revenue
+    assert not _by(normalize_company_facts(payload, "1089113", statement=off), "revenue")
+    gp = {"tags": {acc: {"GrossProfit": "Total income"}}, "bank": False}  # not a bank
+    assert not _by(normalize_company_facts(payload, "1089113", statement=gp), "revenue")
