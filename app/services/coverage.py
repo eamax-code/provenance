@@ -108,7 +108,7 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
                   "filings": int(db.scalar(select(func.count(distinct(
                       Subsidiary.accession_number)))) or 0),
                   "basis": f"read on demand; {subs_cos} companies so far"})  # fmt: skip
-    forms.append(thirteenf_row(db))
+    forms.insert(len(forms) - 1, thirteenf_row(db))  # before the exhibit 21 row
     snap = latest_snapshot(db)
     return {
         "universe": {"filers": filers, "with_facts": with_facts, "ifrs_filers": ifrs},
