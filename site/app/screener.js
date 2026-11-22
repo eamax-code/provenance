@@ -64,8 +64,8 @@
       if (my !== seq) return;
       var main = res[0];
       if (!main || main.error) {
-        var demoOut = !X.hasKey() && main && main.body && main.body.error && /demo key daily limit/i.test(main.body.error.message || '');
-        $('scr-out').replaceChildren(el('p', { class: 'muted' }, demoOut ? ['Without a key the screener runs on the shared demo key, which has reached today\u2019s limit. ', el('a', { href: '/account/', text: 'Connect a free key' }), ' to rank every company.'] : [main && main.error === 429 ? 'Too many requests just now. Try again in a minute.' : 'The screen is unavailable right now.']));
+        var dm = !X.hasKey() && main && main.body && main.body.error ? main.body.error.message || '' : '', demoOut = /demo key daily limit/i.test(dm), demoBusy = /demo key is busy/i.test(dm);
+        $('scr-out').replaceChildren(el('p', { class: 'muted' }, demoBusy ? ['Without a key the screener runs on the shared demo key, which is busy right now. Try again in a minute, or ', el('a', { href: '/account/', text: 'connect a free key' }), '.'] : demoOut ? ['Without a key the screener runs on the shared demo key, which has reached today\u2019s limit. ', el('a', { href: '/account/', text: 'Connect a free key' }), ' to rank every company.'] : [main && main.error === 429 ? 'Too many requests just now. Try again in a minute.' : 'The screen is unavailable right now.']));
         return;
       }
       var by = {}; need.forEach(function (m, i) { var b = res[i + 1]; by[m] = {}; ((b && b.data) || []).forEach(function (r) { by[m][r.cik] = r; }); });

@@ -557,8 +557,9 @@
   // the keyed endpoints, or the public demo key on a showcase company (no SEC fetch; ten rows)
   function keyedOrDemo(path) { return X.raw(path, X.hasKey() ? null : 'demo'); }
   // when the shared demo key is spent, say so and offer a key: never a dead end
-  function demoSpent(r) { return !X.hasKey() && r && r.status === 429 && r.body && r.body.error && /demo key daily limit/i.test(r.body.error.message || ''); }
-  function demoNote(what) { return el('p', { class: 'muted' }, [what + ' use the shared demo key without a key, and it has reached today\u2019s limit. ', el('a', { href: '/account/', text: 'Connect a free key' }), ' to see them.']); }
+  // without a key, insiders and 5% holders use the shared demo key: 'spent' (today's limit) or 'busy' (everyone's traffic this minute)
+  function demoSpent(r) { var m = !X.hasKey() && r && r.status === 429 && r.body && r.body.error && (r.body.error.message || ''); return !m ? false : /demo key daily limit/i.test(m) ? 'spent' : /demo key is busy/i.test(m) ? 'busy' : false; }
+  function demoNote(what, kind) { return el('p', { class: 'muted' }, kind === 'busy' ? [what + ' use the shared demo key without a key, and it is busy right now. Try again in a minute, or ', el('a', { href: '/account/', text: 'connect a free key' }), '.'] : [what + ' use the shared demo key without a key, and it has reached today\u2019s limit. ', el('a', { href: '/account/', text: 'Connect a free key' }), ' to see them.']); }
 
   /* ---- X-04 ownership: 13F, insiders (Forms 3/4/5), 5% holders ---- */
   function ownershipTab() {
@@ -597,7 +598,7 @@
       body.forEach(function (tr, i) { if (i >= 8) { tr.hidden = true; tr.classList.add('more-row'); } });
       var allIns = body.length > 8 ? el('button', { type: 'button', class: 'linkish', text: 'Show all ' + body.length, on: { click: function () { body.forEach(function (tr) { tr.hidden = false; }); allIns.remove(); } } }) : null;
       ins.replaceChildren(ins.firstChild, ins.children[1], rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table ins-table' }, [el('thead', {}, [el('tr', {}, ['Date', 'Insider', 'Transaction', 'Shares', 'Price', 'Value', 'Held after', 'Filing'].map(function (h, i) { return el('th', { scope: 'col', class: (i >= 3 && i <= 6 ? 'n' : '') + (i === 4 || i === 6 ? ' opt2' : ''), text: h }); }))]), el('tbody', {}, body)])])
-        : demoSpent(r) ? demoNote('Insider transactions') : el('p', { class: 'muted', text: r.ok ? 'No insider transactions in the filings loaded.' : 'Insider transactions are unavailable right now.' }),
+        : demoSpent(r) ? demoNote('Insider transactions', demoSpent(r)) : el('p', { class: 'muted', text: r.ok ? 'No insider transactions in the filings loaded.' : 'Insider transactions are unavailable right now.' }),
         allIns, !X.hasKey() && rows.length ? el('p', { class: 'muted small', text: 'The ten most recent; a free key shows more.' }) : null);
     });
     keyedOrDemo('/v1/companies/' + cik + '/holders?limit=' + (X.hasKey() ? 25 : 10) + asq).then(function (r) {
@@ -605,7 +606,7 @@
       var rows = r.ok && r.body && r.body.data || [];
       big.replaceChildren(big.firstChild, rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table' }, [el('thead', {}, [el('tr', {}, ['Holder', 'Type', '% of class', 'Shares', 'Schedule', 'As of', 'Filing'].map(function (h, i) { return el('th', { scope: 'col', class: i >= 2 && i <= 3 ? 'n' : '', text: h }); }))]),
         el('tbody', {}, rows.map(function (h) { var f = h.filing || {}; return el('tr', {}, [el('th', { scope: 'row', text: orgName(h.name) }), el('td', { class: 'muted', text: h.holder_type_label || '' }), el('td', { class: 'n', text: h.percent != null ? pct(h.percent) : '—' }), el('td', { class: 'n', text: h.shares != null ? count(h.shares) : '—' }), el('td', { text: h.schedule || '' }), el('td', { text: day(h.event_date) }), el('td', {}, [ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: (f.form_type || 'Filing').replace(/^SCHEDULE /, '') + ' ↗' }) : null])]); }))])])
-        : demoSpent(r) ? demoNote('Holders above 5%') : el('p', { class: 'muted', text: r.ok ? 'No 13D or 13G filings above 5% in the filings loaded.' : '5% holders are unavailable right now.' }));
+        : demoSpent(r) ? demoNote('Holders above 5%', demoSpent(r)) : el('p', { class: 'muted', text: r.ok ? 'No 13D or 13G filings above 5% in the filings loaded.' : '5% holders are unavailable right now.' }));
     });
   }
 
