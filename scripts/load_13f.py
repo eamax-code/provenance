@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import zipfile
+from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 from xml.etree import ElementTree
@@ -106,13 +107,17 @@ def remove_reviewed(db, folder: Path, apply: bool) -> dict:
                 if c in prefixed:
                     names.setdefault(c, set()).add(" ".join((r.get("NAMEOFISSUER") or "").split()))
     reviewed = cusips.reviewed_removals()
-    gone = cusips.remove_reviewed(db, names, reviewed)
-    if apply:
+    gone = Counter(cusips.remove_reviewed(db, names, reviewed))
+    # a row found with other than its checked number of links stops the write; a row with none
+    # left was removed by an earlier run
+    off = {"|".join(k): [n, gone[k]] for k, n in reviewed.items() if 0 < gone[k] != n}
+    if apply and not off:
         db.commit()
     else:
         db.rollback()
-    return {"applied": apply, "reviewed": len(reviewed), "removed": len(gone),
-            "not_found": sorted(reviewed - set(gone))}  # fmt: skip
+    return {"applied": apply and not off, "reviewed_rows": len(reviewed),
+            "removed": sum(gone.values()), "count_mismatch": off,
+            "rows_already_removed": sum(1 for k in reviewed if not gone[k])}  # fmt: skip
 
 
 def main() -> int:

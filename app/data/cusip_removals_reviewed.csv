@@ -1,24 +1,72 @@
-cik,company,issuer_name_13f,title_of_class_13f,reason,checked
-0000070858,BANK OF AMERICA CORP /DE/,BANK OF AMERICA CORP PFD,Common Stock,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
-0001341317,Bridgewater Bancshares Inc,BRIDGEWATER BANCSHARES INC DEP SHS REPSTG 1/100TH INT PERP PFD SER A QTLY PERP CLLB 08/17/26@25 PERP MTY,COM,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
-0001666244,"Cantor Fitzgerald Income Trust, Inc.",CANTOR FITZGERALD INC TR PFD,COM,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
-0000927628,CAPITAL ONE FINANCIAL CORP,CAPITAL ONE FI 4.8 PFD,Common Stock,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
-0001734750,"Corvex, Inc.",MOVANO INCORPORATED WARRANT EXP 013128,COM,warrants filed under a common-stock title; not the company's common stock,2026-11-22
-0001681682,ENDRA Life Sciences Inc.,ENDRA LIFE SCIENCES INC WT EXP 05/02/28,COM,warrants filed under a common-stock title; not the company's common stock,2026-11-22
-0001828318,Enovix Corp,ENOVIX CORPORATION WT EXP 100126,COM,warrants filed under a common-stock title; not the company's common stock,2026-11-22
-0001805077,"Eos Energy Enterprises, Inc.",EOS ENERGY ENTERPRISES INCORPORATED RIGHT EXP 072126,COM,rights filed under a common-stock title; not the company's common stock,2026-11-22
-0000091576,KEYCORP /NEW/,KEYCORP 5.65 5.65 PFD,Common Stock,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
-0000091576,KEYCORP /NEW/,KEYCORP NEW DEP SHS,Common Stock,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
-0000091576,KEYCORP /NEW/,KEYCORP PERP PFD,Common Stock,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
-0000879101,KIMCO REALTY CORP,KIMCO RLTY CORP DEP,Common Stock,depositary shares of a preferred (two series: 5.125% and 5.25%) filed under a common-stock title; not the company's common stock,2026-11-22
-0000036270,M&T BANK CORP,M &T BK CORP DEP,Common Stock,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
-0001099219,METLIFE INC,METLIFE INC DP PFD,Common Stock,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
-0001074871,"Modular Medical, Inc.",MODULAR MED INC WT EXP 05/15/28,COM,warrants filed under a common-stock title; not the company's common stock,2026-11-22
-0001456772,OFFICE PROPERTIES INCOME TRUST,OFFICE PPTYS INCOME - WARRANT,Com,warrants filed under a common-stock title; not the company's common stock,2026-11-22
-0001859807,"Profusa, Inc.",WTS/NORTHVIEW ACQUISITION CORPORATION 11.5000EXP08,COM,warrants filed under a common-stock title; not the company's common stock,2026-11-22
-0000930236,REDWOOD TRUST INC,"REDWOOD TRUST, INC. CUM RED PFD REGISTERED SHS A SERIES A",COM,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
-0001281761,REGIONS FINANCIAL CORP,REGIONS FINANCIAL CORPORATION DEP SH PFD SER E,Common Stock,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
-0001126956,SPIRE INC,SPIRE INC 5.9 DEP RP,Common Stock,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
-0000720672,STIFEL FINANCIAL CORP,STIFEL FINL CORP DEP,Common Stock,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
-0001144800,TRANSALTA CORP,TRANSALTA CORPORATION 1ST PFD SER G,COMMON,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
-0000101382,UMB FINANCIAL CORP,UMB FINANCIAL VAR PFD,Common Stock,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+cik,company,issuer_name_13f,title_of_class_13f,rule,links,reason,checked
+0000070858,BANK OF AMERICA CORP /DE/,BANK OF AMERICA CORP PFD,Common Stock,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0001341317,Bridgewater Bancshares Inc,BRIDGEWATER BANCSHARES INC DEP SHS REPSTG 1/100TH INT PERP PFD SER A QTLY PERP CLLB 08/17/26@25 PERP MTY,COM,issuer_name,1,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
+0001666244,"Cantor Fitzgerald Income Trust, Inc.",CANTOR FITZGERALD INC TR PFD,COM,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0000927628,CAPITAL ONE FINANCIAL CORP,CAPITAL ONE FI 4.8 PFD,Common Stock,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0001734750,"Corvex, Inc.",MOVANO INCORPORATED WARRANT EXP 013128,COM,issuer_name,1,warrants filed under a common-stock title; not the company's common stock,2026-11-22
+0001681682,ENDRA Life Sciences Inc.,ENDRA LIFE SCIENCES INC WT EXP 05/02/28,COM,issuer_name,1,warrants filed under a common-stock title; not the company's common stock,2026-11-22
+0001828318,Enovix Corp,ENOVIX CORPORATION WT EXP 100126,COM,issuer_name,1,warrants filed under a common-stock title; not the company's common stock,2026-11-22
+0001805077,"Eos Energy Enterprises, Inc.",EOS ENERGY ENTERPRISES INCORPORATED RIGHT EXP 072126,COM,issuer_name,1,rights filed under a common-stock title; not the company's common stock,2026-11-22
+0000091576,KEYCORP /NEW/,KEYCORP 5.65 5.65 PFD,Common Stock,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0000091576,KEYCORP /NEW/,KEYCORP NEW DEP SHS,Common Stock,issuer_name,1,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
+0000091576,KEYCORP /NEW/,KEYCORP PERP PFD,Common Stock,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0000879101,KIMCO REALTY CORP,KIMCO RLTY CORP DEP,Common Stock,issuer_name,2,depositary shares of a preferred (two series: 5.125% and 5.25%) filed under a common-stock title; not the company's common stock,2026-11-22
+0000036270,M&T BANK CORP,M &T BK CORP DEP,Common Stock,issuer_name,1,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
+0001099219,METLIFE INC,METLIFE INC DP PFD,Common Stock,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0001074871,"Modular Medical, Inc.",MODULAR MED INC WT EXP 05/15/28,COM,issuer_name,1,warrants filed under a common-stock title; not the company's common stock,2026-11-22
+0001456772,OFFICE PROPERTIES INCOME TRUST,OFFICE PPTYS INCOME - WARRANT,Com,issuer_name,1,warrants filed under a common-stock title; not the company's common stock,2026-11-22
+0001859807,"Profusa, Inc.",WTS/NORTHVIEW ACQUISITION CORPORATION 11.5000EXP08,COM,issuer_name,1,warrants filed under a common-stock title; not the company's common stock,2026-11-22
+0000930236,REDWOOD TRUST INC,"REDWOOD TRUST, INC. CUM RED PFD REGISTERED SHS A SERIES A",COM,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0001281761,REGIONS FINANCIAL CORP,REGIONS FINANCIAL CORPORATION DEP SH PFD SER E,Common Stock,issuer_name,1,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
+0001126956,SPIRE INC,SPIRE INC 5.9 DEP RP,Common Stock,issuer_name,1,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
+0000720672,STIFEL FINANCIAL CORP,STIFEL FINL CORP DEP,Common Stock,issuer_name,1,depositary shares of a preferred filed under a common-stock title; not the company's common stock,2026-11-22
+0001144800,TRANSALTA CORP,TRANSALTA CORPORATION 1ST PFD SER G,COMMON,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0000101382,UMB FINANCIAL CORP,UMB FINANCIAL VAR PFD,Common Stock,issuer_name,1,preferred stock filed under a common-stock title; not the company's common stock,2026-11-22
+0000002488,ADVANCED MICRO DEVICES INC,ADVANCED MICRO DEVICES INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0001820953,"Affirm Holdings, Inc.",AFFIRM HLDGS INC,COM CL A,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0000002969,"Air Products & Chemicals, Inc.","AIR PRODUCTS AND CHEMICALS, INC.",Common,debt_issue_number,1,"letter in the issue number (a debt issue): bond: value per unit about 1 (par), filed as shares",2026-11-22
+0001559720,"Airbnb, Inc.",AIRBNB INC,CLASS A,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001820721,"Array Technologies, Inc.",ARRAY TECHNOLOGIES INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001612042,Ascendis Pharma A/S,ASCENDIS PHARMA A/S,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001655210,"BEYOND MEAT, INC.",BEYOND MEAT INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001664703,Bloom Energy Corp,BLOOM ENERGY CORP,COM CL A,debt_issue_number,2,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0001075531,Booking Holdings Inc.,BOOKING HOLDINGS INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001075531,Booking Holdings Inc.,BOOKING HOLDINGS INC.,Common,debt_issue_number,2,"letter in the issue number (a debt issue): bond: value per unit about 1 (par), filed as shares",2026-11-22
+0001140859,"Cencora, Inc.",CENCORA INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0001819989,Cipher Digital Inc.,CIPHER MINING INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001166691,COMCAST CORP,COMCAST CORPORATION,Common,debt_issue_number,1,"letter in the issue number (a debt issue): bond: value per unit about 1 (par), filed as shares",2026-11-22
+0000032604,EMERSON ELECTRIC CO,EMERSON ELECTRIC CO.,Common,debt_issue_number,1,"letter in the issue number (a debt issue): bond: value per unit about 1 (par), filed as shares",2026-11-22
+0001756607,Equinox Gold Corp.,EQUINOX GOLD CORP,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001136893,"Fidelity National Information Services, Inc.","FIDELITY NATIONAL INFORMATION SERVICES, INC.",Common,debt_issue_number,1,"letter in the issue number (a debt issue): bond: value per unit about 1 (par), filed as shares",2026-11-22
+0001124198,FLUOR CORP,FLUOR CORP,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001123360,GLOBAL PAYMENTS INC,GLOBAL PAYMENTS INC,Common Stock,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0000921582,IMAX CORP,IMAX CORP,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0000780571,"ITRON, INC.",ITRON INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001633978,Lumentum Holdings Inc.,LUMENTUM HLDGS INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001510295,Marathon Petroleum Corp,MARATHON PETROLEUM CORP,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0000062709,"MARSH & MCLENNAN COMPANIES, INC.",MARSH & MCLENNAN COS INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0000723125,MICRON TECHNOLOGY INC,MICRON TECHNOLOGY INC.,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0000829365,NAM TAI PROPERTY INC.,NAM TAI G63907-10-2 PRIVATE,Com,debt_issue_number,1,"letter in the issue number (a debt issue): private-placement CUSIP; the line is the common stock, which is mapped under its own CUSIP; here it showed as a false second class",2026-11-22
+0001164727,NEWMONT Corp /DE/,NEWMONT CORP,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0000888491,OMEGA HEALTHCARE INVESTORS INC,OMEGA HEALTHCARE INVESTORS INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0001327567,Palo Alto Networks Inc,PALO ALTO NETWORKS INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0000079879,PPG INDUSTRIES INC,"PPG INDUSTRIES, INC.",Common,debt_issue_number,1,"letter in the issue number (a debt issue): bond: value per unit about 1 (par), filed as shares",2026-11-22
+0001070081,"PTC THERAPEUTICS, INC.",PTC THERAPEUTICS INC,Common,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0002058873,"Qnity Electronics, Inc.",QNITY ELECTRONICS INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001050915,"QUANTA SERVICES, INC.",QUANTA SVCS INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0000101829,RTX Corp,RTX CORPORATION,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0001703399,Sea Ltd,SEA LTD,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0000004127,"SKYWORKS SOLUTIONS, INC.",SKYWORKS SOLUTION,COM,debt_issue_number,1,"letter in the issue number (a debt issue): bond: value per unit about 1 (par), filed as shares",2026-11-22
+0000092122,SOUTHERN CO,SOUTHERN CO,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001177394,TD SYNNEX CORP,TD SYNNEX CORP,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0000086312,"TRAVELERS COMPANIES, INC.",TRAVELERS COMPANIES INC,COM,debt_issue_number,2,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0001627475,"UPWORK, INC",UPWORK INC,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0000732712,VERIZON COMMUNICATIONS INC,VERIZON COMMUNICATIONS INC.,Common,debt_issue_number,1,"letter in the issue number (a debt issue): bond: value per unit about 1 (par), filed as shares",2026-11-22
+0001744489,Walt Disney Co,WALT DISNEY CO,COM,debt_issue_number,1,letter in the issue number (a debt issue): bond CUSIP under which a few managers filed the common stock (valued at the share price); it showed as a false second class,2026-11-22
+0000106040,WESTERN DIGITAL CORP,WESTERN DIGITAL CORP,COM,debt_issue_number,1,letter in the issue number (a debt issue): convertible note (most 13F lines are principal amounts); a few managers filed it as shares,2026-11-22
+0001881741,Arogo Capital Acquisition Corp.,AROGO CAP -CW23 EQUITY,COM,issuer_name,1,SPAC warrant (CW) filed under a common-stock title; not the company's common stock,2026-11-22
+0001896212,CDT Equity Inc.,MUROHY CAN-CW27 EQUITY,COM,issuer_name,1,SPAC warrant (CW) filed under a common-stock title; not the company's common stock,2026-11-22
+0001844417,"Estrella Immunopharma, Inc.",TRADEUP ACQUI-CW EQUITY,COM,issuer_name,1,SPAC warrant (CW) filed under a common-stock title; not the company's common stock,2026-11-22
+0001903145,Gorilla Technology Group Inc.,GORILLA TECHNOLOGY GROUP-CW,COM,issuer_name,1,SPAC warrant (CW) filed under a common-stock title; not the company's common stock,2026-11-22
+0001849380,OneMedNet Corp,DATA KNIGH-CW28,COM,issuer_name,1,SPAC warrant (CW) filed under a common-stock title; not the company's common stock,2026-11-22
+0001844505,"QT IMAGING HOLDINGS, INC.",GIGCAPITAL5 INC -CW28,COM,issuer_name,1,SPAC warrant (CW) filed under a common-stock title; not the company's common stock,2026-11-22

@@ -201,11 +201,14 @@ def test_prefix_rule_maps_other_share_classes_only(db, loaded_13f):
 def test_a_13f_name_saying_preferred_warrant_or_depositary_is_never_a_share_class():
     for name in ("STIFEL FINL CORP DEP", "BANK OF AMERICA CORP PFD", "ENDRA LIFE SCIENCES INC WT",
                  "MOVANO INCORPORATED WARRANT EXP 013128", "EOS ENERGY RIGHT EXP 072126",
-                 "KIMCO REALTY CORP DEP SHS REP", "ACME UNITS", "ACME 5.5% NOTES"):  # fmt: skip
+                 "KIMCO REALTY CORP DEP SHS REP", "ACME UNITS", "ACME 5.5% NOTES",
+                 "AROGO CAP -CW23 EQUITY", "DATA KNIGH-CW28", "TRADEUP ACQUI-CW EQUITY",
+                 "NEW PROVIDENCE ACQ A CW28", "CODERE ONLINE LUXEMBOU CW"):  # fmt: skip
         assert cusips.names_other_security(name), name
     # whole words only: these are ordinary issuer names
     for name in ("UNITEDHEALTH GROUP INC", "UNITED RENTALS INC", "NOTEWORTHY AI INC",
-                 "HOME DEPOT INC", "DEPOMED INC", "WTW PLC", "RIGHTSIDE GROUP", None):  # fmt: skip
+                 "HOME DEPOT INC", "DEPOMED INC", "WTW PLC", "RIGHTSIDE GROUP", None,
+                 "LEARN CW INVESTMENT COR", "CW ETF TRUST", "CW", "CWBR INC"):  # fmt: skip
         assert not cusips.names_other_security(name), name
 
 
@@ -223,20 +226,34 @@ def test_reviewed_removals_delete_only_the_listed_links(db, ingested_aapl, tmp_p
         cusips.record(db, "0000320193", c, "issuer_prefix", "COM")
     cusips.record(db, "0000320193", AAPL, "schedule_13dg", "Common Stock")
     listed = tmp_path / "reviewed.csv"
-    header = "cik,company,issuer_name_13f,title_of_class_13f,reason,checked\n"
-    listed.write_text(header + "320193,Apple Inc.,Apple  Inc dep sh pfd,COM,preferred,2026-11-22\n")
+    cusips.record(db, "0000320193", "037833AB6", "issuer_prefix", "CLASS A")  # a 0% note
+    listed = tmp_path / "reviewed.csv"
+    listed.write_text(
+        "cik,company,issuer_name_13f,title_of_class_13f,rule,links,reason,checked\n"
+        "320193,Apple Inc.,Apple  Inc dep sh pfd,COM,issuer_name,1,preferred,2026-11-22\n"
+        "320193,Apple Inc.,APPLE INC,CLASS A,debt_issue_number,1,note,2026-11-22\n"
+    )
     reviewed = cusips.reviewed_removals(listed)
     names = {"037833407": {"APPLE INC DEP SH PFD"}, "037833506": {"APPLE INC"},
-             AAPL: {"APPLE INC DEP SH PFD"}}  # fmt: skip
+             AAPL: {"APPLE INC DEP SH PFD"}, "037833AB6": {"APPLE INC"}}  # fmt: skip
     gone = cusips.remove_reviewed(db, names, reviewed)
-    assert gone == [("0000320193", "APPLE INC DEP SH PFD")]
-    assert db.get(IssuerCusip, "037833407") is None
-    assert db.get(IssuerCusip, "037833506") and db.get(IssuerCusip, AAPL)  # untouched
+    assert sorted(gone) == [("0000320193", "APPLE INC", "debt_issue_number"),
+                            ("0000320193", "APPLE INC DEP SH PFD", "issuer_name")]  # fmt: skip
+    assert db.get(IssuerCusip, "037833407") is None and db.get(IssuerCusip, "037833AB6") is None
+    # the debt row never reaches a share class of the same name; the 13D/G CUSIP is untouched
+    assert db.get(IssuerCusip, "037833506") and db.get(IssuerCusip, AAPL)
+
+
+def test_a_letter_in_the_issue_number_is_debt_and_never_a_share_class(db, loaded_13f):
+    assert cusips.debt_issue_number("037833AB6") and not cusips.debt_issue_number(AAPL)
+    assert cusips.map_prefixes(db, {"037833AB6": "CLASS A", "037833506": "CL C"}) == 1
+    assert db.get(IssuerCusip, "037833AB6") is None and db.get(IssuerCusip, "037833506")
 
 
 def test_the_reviewed_removal_list_names_no_cusip():
     text = cusips.REVIEWED_REMOVALS.read_text()
-    assert len(cusips.reviewed_removals()) == 23
+    reviewed = cusips.reviewed_removals()
+    assert len(reviewed) == 71 and sum(reviewed.values()) == 75
     assert not any(cusips.valid(w) for w in text.replace(",", " ").split())
 
 

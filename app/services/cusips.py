@@ -164,45 +164,69 @@ def map_isins(db: Session) -> int:
 
 # a 13F issuer name that names another kind of security, whatever the managers' title says
 # (STIFEL FINL CORP DEP: depositary shares of a preferred; MOVANO ... WARRANT): whole words only,
-# so UNITED or NOTEWORTHY never trigger it
+# so UNITED or NOTEWORTHY never trigger it. CW marks a SPAC warrant (AROGO CAP -CW23, DATA
+# KNIGH-CW28) only after a hyphen, with a two-digit year or at the end, so LEARN CW INVESTMENT
+# and CW ETF TRUST stay ordinary names
 _NOT_COMMON = re.compile(
-    r"\b(DEP|DEPOSITARY|PFD|PREFERRED|WARRANTS?|WTS?|RIGHTS?|UNITS?|NOTES?)\b", re.I
+    r"\b(DEP|DEPOSITARY|PFD|PREFERRED|WARRANTS?|WTS?|RIGHTS?|UNITS?|NOTES?)\b"
+    r"|(?:-\s?CW\d*|\bCW\d{2})\b|(?<=\S)\s+CW$",
+    re.I,
 )
 
 
 def names_other_security(issuer_name: str | None) -> bool:
-    return bool(_NOT_COMMON.search(issuer_name or ""))
+    return bool(_NOT_COMMON.search(" ".join((issuer_name or "").split())))
+
+
+def debt_issue_number(cusip: str) -> bool:
+    """CUSIP's own convention: an issue number (characters 7-8) with a letter is a debt issue."""
+    return not cusip[6:8].isdigit()
 
 
 REVIEWED_REMOVALS = Path(__file__).resolve().parents[1] / "data" / "cusip_removals_reviewed.csv"
+RULES = ("issuer_name", "debt_issue_number")
 
 
 def _issuer(name: str) -> str:
     return " ".join(name.upper().split())
 
 
-def reviewed_removals(path: Path = REVIEWED_REMOVALS) -> set[tuple[str, str]]:
-    """(cik, 13F issuer name) of each issuer_prefix link checked by hand and to be removed."""
+def _rule(cusip: str) -> str:
+    return "debt_issue_number" if debt_issue_number(cusip) else "issuer_name"
+
+
+def reviewed_removals(path: Path = REVIEWED_REMOVALS) -> dict[tuple[str, str, str], int]:
+    """{(cik, 13F issuer name, rule): number of links} for each issuer_prefix removal checked by
+    hand. rule is issuer_name (the name says preferred, warrant ...) or debt_issue_number."""
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
-    return {(normalize_cik(r["cik"]), _issuer(r["issuer_name_13f"])) for r in rows}
+    out = {}
+    for r in rows:
+        if r["rule"] not in RULES:
+            raise ValueError(f"unknown rule {r['rule']!r}")
+        out[(normalize_cik(r["cik"]), _issuer(r["issuer_name_13f"]), r["rule"])] = int(r["links"])
+    return out
 
 
 def remove_reviewed(
-    db: Session, names: dict[str, set[str]], reviewed: set[tuple[str, str]]
-) -> list[tuple[str, str]]:
-    """Delete the issuer_prefix links whose company and 13F issuer name are on the reviewed list.
-    `names` is {cusip: issuer names the 13Fs give}. Returns (cik, issuer name) per removal; no
+    db: Session, names: dict[str, set[str]], reviewed: dict[tuple[str, str, str], int]
+) -> list[tuple[str, str, str]]:
+    """Delete the issuer_prefix links whose company, 13F issuer name and rule are on the reviewed
+    list (a debt_issue_number row only reaches a CUSIP with a letter in its issue number).
+    `names` is {cusip: issuer names the 13Fs give}. Returns the reviewed key per removal; no
     other link is touched."""
     rows = db.execute(
         select(IssuerCusip.cusip, IssuerCusip.cik).where(IssuerCusip.method == "issuer_prefix")
     ).all()
-    gone: list[tuple[str, str]] = []
+    gone: list[tuple[str, str, str]] = []
     for cusip, cik in rows:
-        hit = next((n for n in sorted(names.get(cusip, ())) if (cik, _issuer(n)) in reviewed), None)
+        rule = _rule(cusip)
+        hit = next(
+            (n for n in sorted(names.get(cusip, ())) if (cik, _issuer(n), rule) in reviewed), None
+        )
         if hit:
             db.execute(delete(IssuerCusip).where(IssuerCusip.cusip == cusip))
-            gone.append((cik, _issuer(hit)))
+            gone.append((cik, _issuer(hit), rule))
     return gone
 
 
@@ -219,6 +243,8 @@ def map_prefixes(db: Session, classes: dict[str, str]) -> int:
         ciks = by_prefix.get(c[:6])
         if c in known or not ciks or len(ciks) != 1 or not is_share_class(title):
             continue
+        if debt_issue_number(c):
+            continue  # a bond some managers filed as shares (Airbnb's 0% notes, titled CLASS A)
         n += record(db, next(iter(ciks)), c, "issuer_prefix", title)
     return n
 
