@@ -344,3 +344,30 @@ td.up { color: var(--good); } td.down { color: var(--bad); }
   .ch-acts { margin-left: 0; }
   .ws-tip { position: static; width: auto; margin-top: 8px; }
 }
+
+/* ownership and segments: the company page's renderers, styled for the workspace */
+.ws-sec { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 12px 14px; display: grid; gap: 8px; margin-bottom: 14px; min-width: 0; }
+.ws-sec h3 { font-family: var(--font-body); font-size: .88rem; font-weight: 600; color: var(--muted); } .ws-sec p { margin: 0; }
+.own-nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.own-nums > div { background: var(--bg-2); border-radius: 4px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; }
+.own-nums b { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; } .own-nums span { color: var(--muted); font-size: .8rem; }
+.own-nums b .own-na { font-size: 1.1rem; font-weight: 700; color: var(--fg); }
+.own-flows { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); } .own-flows strong { font-size: 1.35rem; font-weight: 800; color: var(--fg); margin-right: 4px; }
+.own-flag, .seg-warn { padding: 8px 12px; border-left: 3px solid var(--accent-hi); background: var(--bg-2); font-size: .9rem; max-width: 72ch; } .seg-warn { border-left-color: var(--muted); margin-bottom: 8px; }
+table.fin.seg { display: table; border: 0; border-radius: 0; padding: 0; background: transparent; } /* .seg is a toggle style elsewhere in the Explorer */
+table.fin td a { color: inherit; }
+.own-table, table.fin { min-width: 0; width: 100%; font-size: .9rem; } .own-table td.n, .own-table th.n, table.fin .n { text-align: right; }
+.own-table tbody th { white-space: normal; font-weight: 500; }
+table.fin .fin-name { position: sticky; left: 0; background: var(--panel); text-align: left; font-weight: 500; white-space: normal; min-width: 10rem; }
+table.fin td.na { color: var(--muted); } table.seg tr.recon th, table.seg tr.recon td { color: var(--muted); } table.seg tr.derived td { font-style: italic; }
+table.seg tr.total th, table.seg tr.total td { font-weight: 700; border-top: 2px solid var(--line); } table.seg th.member-name { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
+.seg-bar { display: inline-block; height: 8px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 75%, transparent); vertical-align: middle; margin-right: 8px; }
+#seg-kinds button, #seg-metrics button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .85rem; padding: 6px 10px; cursor: pointer; }
+#seg-kinds button[aria-selected="true"], #seg-metrics button[aria-pressed="true"] { background: var(--bg-2); color: var(--fg); }
+#seg-metrics:empty { display: none; }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ws-chart .stk.k0 { fill: color-mix(in srgb, var(--fg) 70%, transparent); } .ws-chart .stk.k1 { fill: color-mix(in srgb, var(--muted) 80%, transparent); } .ws-chart .stk.k2 { fill: color-mix(in srgb, var(--accent-text) 60%, transparent); }
+.ws-chart .stk.k3 { fill: color-mix(in srgb, var(--good) 55%, transparent); } .ws-chart .stk.k4 { fill: color-mix(in srgb, var(--warn) 55%, transparent); } .ws-chart .stk.k5 { fill: color-mix(in srgb, var(--fg) 30%, transparent); }
+.ws-chart .stk { stroke: var(--panel); stroke-width: 1; } .ws-chart .lg { fill: var(--fg); }
+.ins-table th[scope="row"] { white-space: normal; font-weight: 500; }
+@media (max-width: 760px) { .own-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); } .own-table .opt { display: none; } }

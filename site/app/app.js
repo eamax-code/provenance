@@ -64,8 +64,8 @@
     toast: function (m, k) { toast(m, k); },
     hasKey: function () { return !!state.key; },
     // a plain read for the workspace: no toast or sign-out, the caller words its own message
-    raw: function (path) {
-      var headers = { Accept: 'application/json' }; if (state.key) headers['X-API-Key'] = state.key;
+    raw: function (path, key) {
+      var headers = { Accept: 'application/json' }; if (key || state.key) headers['X-API-Key'] = key || state.key;
       return fetch(path, { headers: headers }).then(function (r) { return r.text().then(function (t) { var b = null; try { b = t ? JSON.parse(t) : null; } catch (e) {} return { ok: r.ok, status: r.status, body: b }; }); });
     },
     // the keyed tabs (filings, connections, freshness, observations) read the keyed company record
