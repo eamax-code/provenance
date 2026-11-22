@@ -502,6 +502,10 @@ class GleifEntity(Base):
     jurisdiction: Mapped[str | None] = mapped_column(Text, nullable=True)
     entity_status: Mapped[str | None] = mapped_column(Text, nullable=True)
     registration_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # K-01d: address evidence (a US state that differs between the SEC and GLEIF)
+    hq_city: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hq_region: Mapped[str | None] = mapped_column(Text, nullable=True)
+    legal_city: Mapped[str | None] = mapped_column(Text, nullable=True)
     loaded_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 

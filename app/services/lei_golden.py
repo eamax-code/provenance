@@ -114,6 +114,9 @@ def load(db: Session, path, keys: set[str] | None = None, norms: set[str] | None
                     jurisdiction=row.get("Entity.LegalJurisdiction") or None,
                     entity_status=row.get("Entity.EntityStatus") or None,
                     registration_status=row.get("Registration.RegistrationStatus") or None,
+                    hq_city=row.get("Entity.HeadquartersAddress.City") or None,
+                    hq_region=row.get("Entity.HeadquartersAddress.Region") or None,
+                    legal_city=row.get("Entity.LegalAddress.City") or None,
                     loaded_at=now,
                 ))  # fmt: skip
                 kept += 1

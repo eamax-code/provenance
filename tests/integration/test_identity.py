@@ -57,7 +57,8 @@ def test_matching_rules_and_listings(db, client, auth):
     counts = identity.match_all(db)
     assert counts == {"override": 1, "sec": 1, "name_jurisdiction": 1, "name_unique": 1,
                       "gleif_name_jurisdiction": 0, "gleif_name_unique": 0,
-                      "gleif_normalised_name": 0, "unmatched": 1}  # fmt: skip
+                      "gleif_normalised_name": 0, "gleif_name_us_state_differs": 0,
+                      "unmatched": 1}  # fmt: skip
     apple = identity.for_company(db, "0000320193")
     assert apple["lei"] == "HWUPKR0MPOU8FGXBT394" and apple["confidence"] == "high"
     # a US ISIN wraps the licensed CUSIP: the listing shows its venue, never the ISIN
@@ -129,3 +130,35 @@ def test_normalised_names_match_with_the_same_jurisdiction(db, tmp_path):
     assert intel["lei"] == "KNX4USFCNGPY45LOCE31" and intel["confidence"] == "high"
     widget = identity.for_company(db, "0000001800")  # matched through GLEIF's other name
     assert widget["match_method"] == "gleif_normalised_name"
+
+
+def test_k01d_us_state_differs_needs_the_business_city_and_an_unshared_lei(db):
+    """Rule (a): the SEC records a home state, GLEIF the state of incorporation. Matched at medium
+    only when GLEIF's address is in the filer's business city and no other filer has the LEI."""
+    import json
+
+    from app.db.models import Company, GleifEntity, utcnow
+    from app.services import identity
+
+    def co(cik, name, state, city):
+        db.add(Company(cik=cik, legal_name=name, state_of_incorporation=state,
+                       business_address=json.dumps({"city": city, "stateOrCountry": state}),
+                       source_url="https://www.sec.gov/", quality_status="ok",
+                       first_detected_at=utcnow()))  # fmt: skip
+
+    def ge(lei, name, jur, city):
+        db.add(GleifEntity(lei=lei, legal_name=name, name_key=identity.strict_key(name),
+                           norm_keys=identity.norm_key(name), jurisdiction=jur,
+                           entity_status="ACTIVE", hq_city=city, legal_city=city,
+                           loaded_at=utcnow()))  # fmt: skip
+
+    co("0000000101", "Mondelez Like Inc", "IL", "Chicago")
+    ge("LEI00000000000000101", "MONDELEZ LIKE INC.", "US-VA", "Chicago")
+    co("0000000102", "Faraway Holdings Inc", "NY", "New York")
+    ge("LEI00000000000000102", "FARAWAY HOLDINGS INC.", "US-DE", "Wilmington")
+    db.commit()
+    counts = identity.match_all(db)
+    assert counts["gleif_name_us_state_differs"] == 1
+    m = identity.for_company(db, "0000000101")
+    assert m["match_method"] == "gleif_name_us_state_differs" and m["confidence"] == "medium"
+    assert identity.for_company(db, "0000000102") is None  # another city: not matched

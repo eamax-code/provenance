@@ -105,6 +105,27 @@ def load_overrides(db: Session, path=OVERRIDES_FILE) -> int:
     return n
 
 
+def _business_city(company: Company) -> str:
+    """The city of the filer's business address as the SEC records it, upper case."""
+    import json
+
+    try:
+        addr = json.loads(company.business_address or "{}") or {}
+    except ValueError:
+        return ""
+    return (addr.get("city") or "").strip().upper()
+
+
+def _cities(g) -> set[str]:
+    return {x for x in ((g.hq_city or "").strip().upper(), (g.legal_city or "").strip().upper())
+            if x}  # fmt: skip
+
+
+def _us_candidates(by_current: dict, company: Company) -> list:
+    return [g for g in by_current.get(norm_key(company.legal_name), [])
+            if (g.jurisdiction or "").upper().startswith("US")]  # fmt: skip
+
+
 def match_all(db: Session) -> dict:
     """Rebuild company_lei from the overrides, SEC LEIs and GLEIF names. Returns counts."""
     load_overrides(db)
@@ -132,7 +153,7 @@ def match_all(db: Session) -> dict:
     rows: list[CompanyLei] = []
     counts = {"override": 0, "sec": 0, "name_jurisdiction": 0, "gleif_name_jurisdiction": 0,
               "name_unique": 0, "gleif_name_unique": 0, "gleif_normalised_name": 0,
-              "unmatched": 0}  # fmt: skip
+              "gleif_name_us_state_differs": 0, "unmatched": 0}  # fmt: skip
     for c in db.scalars(select(Company)):
         o = overrides.get(c.cik)
         if o is not None:
@@ -228,7 +249,38 @@ def match_all(db: Session) -> dict:
                 matched_at=now,
             ))  # fmt: skip
             counts["gleif_normalised_name"] += 1
+        elif (
+            (here or "").upper().startswith("US-")
+            and not re.search(r"/OLD\b", c.legal_name or "", re.I)
+            and len(cands := _us_candidates(by_current, c)) == 1
+            and (city := _business_city(c))
+            and city in _cities(cands[0])
+        ):
+            # K-01d rule (a): the SEC often records a filer's home state where GLEIF records its
+            # state of incorporation (Mondelez: IL and VA). One active US entity with the name,
+            # in another state, whose headquarters or legal address is in the filer's business
+            # city: medium, both states and the city in the evidence
+            g = cands[0]
+            rows.append(CompanyLei(
+                cik=c.cik, lei=g.lei, match_method="gleif_name_us_state_differs",
+                confidence="medium",
+                evidence=f"GLEIF name {g.legal_name!r} matches the SEC name {c.legal_name!r} "
+                f"after normalising and is the only active US entity with it; GLEIF's "
+                f"jurisdiction {g.jurisdiction} differs from the SEC's {here}, and its address "
+                f"is in {city.title()}, the filer's business city",
+                matched_at=now,
+            ))  # fmt: skip
+            counts["gleif_name_us_state_differs"] += 1
         else:
+            counts["unmatched"] += 1
+    # a K-01d match never takes an LEI another company holds, nor one two filers would share
+    seen: dict[str, int] = {}
+    for r in rows:
+        seen[r.lei] = seen.get(r.lei, 0) + 1
+    for r in [r for r in rows if r.match_method == "gleif_name_us_state_differs"]:
+        if seen[r.lei] > 1:
+            rows.remove(r)
+            counts["gleif_name_us_state_differs"] -= 1
             counts["unmatched"] += 1
     db.execute(delete(CompanyLei))
     db.add_all(rows)
