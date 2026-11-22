@@ -105,3 +105,18 @@ def test_chat_series_and_figures_use_the_reporting_unit(db, three_currencies):
     assert intel.money(36.8e9, "EUR") == "EUR 36.8 billion"
     assert display_value(Decimal("2.10"), "eps_diluted", "EUR/shares") == "EUR 2.10 per share"
     assert display_value(Decimal("6.08"), "eps_diluted", "USD/shares") == "$6.08 per share"
+
+
+def test_profile_keeps_the_currency_code_in_capitals(db, three_currencies):
+    from app.services import documents
+
+    db.execute(__import__("sqlalchemy").text(
+        "UPDATE mart_company SET latest_annual = :j WHERE cik = :c"),
+        {"c": EUR_CO, "j": '{"revenue": {"value": 36800000000.0, "unit": "EUR", "period_end": '
+         '"2025-12-31", "form_type": "20-F", "filed_date": "2026-03-01", "url": null}, '
+         '"operating_income": {"value": 9600000000.0, "unit": "EUR", "period_end": "2025-12-31",'
+         ' "form_type": "20-F", "filed_date": "2026-03-01", "url": null}}'})  # fmt: skip
+    db.commit()
+    p = documents.build_profile(db, EUR_CO, today=date(2026, 11, 22))
+    assert "Operating income was EUR 9.6 billion" in p.summary
+    assert "eur " not in p.summary

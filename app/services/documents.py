@@ -211,7 +211,8 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
                 )
                 verb = "were" if label.endswith("assets") else "was"
                 parts.append(f"{label} {verb} {_money(v['value'], v.get('unit'))} [{n}]")
-            sentences.append(" and ".join(parts).capitalize() + ".")
+            joined = " and ".join(parts)  # str.capitalize() would lowercase "EUR"
+            sentences.append(joined[:1].upper() + joined[1:] + ".")
     if len(history) > 1:
         lines += ["", "## Revenue by fiscal year", ""]
         ends = [date.fromisoformat(h["period_end"]) for h in history]
