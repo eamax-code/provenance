@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import random
+import re
 import threading
 import time
 import uuid
@@ -195,6 +196,59 @@ class _IntervalLimiter:
             self._next_allowed = now + self.min_interval
 
 
+_ARCHIVE_DOC = re.compile(r"^https://www\.sec\.gov/Archives/edgar/data/\d+/\d{18}/[^/]+$")
+
+
+def _immutable(url: str) -> bool:
+    """A document inside one filing's folder (its index page included): fixed once filed."""
+    return bool(_ARCHIVE_DOC.match(url))
+
+
+class MachineLimiter:
+    """One request budget for every process on this machine that uses the SEC contact UA (SEC
+    fair access: at most 10 requests a second). The next allowed time is kept in a small file
+    under an exclusive lock; a 429 or 403 from SEC pauses every process, not only the one that
+    got it."""
+
+    def __init__(self, path: str | Path, max_per_second: float) -> None:
+        self.path = Path(path).expanduser()
+        self.interval = 1.0 / max_per_second
+
+    def _locked(self, update) -> None:
+        import fcntl
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.path, "a+") as fh:
+            fcntl.flock(fh, fcntl.LOCK_EX)
+            try:
+                fh.seek(0)
+                raw = fh.read().strip()
+                try:
+                    nxt = float(raw) if raw else 0.0
+                except ValueError:
+                    nxt = 0.0
+                new = update(nxt)
+                fh.seek(0)
+                fh.truncate()
+                fh.write(repr(new))
+                fh.flush()
+            finally:
+                fcntl.flock(fh, fcntl.LOCK_UN)
+
+    def wait(self) -> None:
+        def take(nxt: float) -> float:
+            now = time.time()
+            if nxt > now:
+                time.sleep(min(nxt - now, 900))
+                now = time.time()
+            return now + self.interval
+
+        self._locked(take)
+
+    def pause(self, seconds: float) -> None:
+        self._locked(lambda nxt: max(nxt, time.time() + seconds))
+
+
 _limiters: dict[float, _IntervalLimiter] = {}
 _limiters_lock = threading.Lock()
 
@@ -220,6 +274,11 @@ class SecClient:
         self.settings = settings
         self._sleep = sleep
         self._limiter = _shared_limiter(settings.sec_min_request_interval_seconds)
+        self._machine = (
+            MachineLimiter(settings.sec_rate_file, settings.sec_max_requests_per_second)
+            if settings.sec_max_requests_per_second > 0
+            else None
+        )
         self._cache_dir = Path(cache_dir or settings.sec_cache_dir)
         self.metrics = SecMetrics()
         self._own_http = http is None
@@ -284,10 +343,25 @@ class SecClient:
             if cached.get("last_modified_raw"):
                 headers["If-Modified-Since"] = cached["last_modified_raw"]
 
+        if cached and _immutable(url):  # a filed document never changes: no request at all
+            self.metrics.cached += 1
+            return SecResponse(
+                url=url,
+                status_code=304,
+                data=cached["body"],
+                fetched_at=datetime.now(UTC),
+                from_cache=True,
+                etag=cached.get("etag"),
+                last_modified=_parse_http_date(cached.get("last_modified_raw")),
+                payload_hash=cached["payload_hash"],
+                retries=0,
+            )
         correlation_id = f"sec_{uuid.uuid4().hex[:12]}"
         attempt = 0
         while True:
             self._limiter.wait()
+            if self._machine:
+                self._machine.wait()
             started = time.monotonic()
             self.metrics.requests += 1
             if attempt > 0:
@@ -342,6 +416,9 @@ class SecClient:
                     payload_hash=cached["payload_hash"],
                     retries=attempt,
                 )
+            if resp.status_code in (403, 429) and self._machine:
+                # SEC answers 403 when the rate threshold is exceeded: every process backs off
+                self._machine.pause(600 if resp.status_code == 403 else 30)
             if resp.status_code in RETRY_STATUSES:
                 if attempt >= self.settings.sec_max_retries:
                     self.metrics.errors += 1
@@ -437,6 +514,8 @@ class SecClient:
         attempt = 0
         while True:
             self._limiter.wait()
+            if self._machine:
+                self._machine.wait()
             self.metrics.requests += 1
             if attempt:
                 self.metrics.retries += 1

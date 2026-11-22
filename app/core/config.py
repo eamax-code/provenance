@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # SEC fair-access settings
     sec_user_agent: str = ""
     sec_min_request_interval_seconds: float = 0.25
+    # one budget for every process on this machine that uses the contact UA (SEC allows 10/s)
+    sec_max_requests_per_second: float = 8.0  # 0 turns the machine-wide limit off
+    sec_rate_file: str = "~/.cache/provenance/sec-rate"
     sec_timeout_seconds: float = 20.0
     sec_max_retries: int = 5
     sec_max_response_bytes: int = 50 * 1024 * 1024

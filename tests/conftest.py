@@ -18,6 +18,7 @@ TEST_ENV = {
     "WEBHOOK_SIGNING_SECRET": "test-webhook-master-0123456789abcdef",
     "ADMIN_TOKEN": "test-admin-token-0123456789",
     "SEC_MIN_REQUEST_INTERVAL_SECONDS": "0",
+    "SEC_MAX_REQUESTS_PER_SECOND": "0",
     "SEC_MAX_RETRIES": "2",
     "LOG_JSON": "false",
     "LOG_LEVEL": "WARNING",
