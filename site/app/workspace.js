@@ -571,8 +571,9 @@
       var curs = cos.filter(function (c) { return c.d; }).map(function (c) { return c.d.company.reporting_currency || 'USD'; }), mixed = curs.some(function (c) { return c !== curs[0]; });
       var head = el('tr', {}, [el('th', { scope: 'col', text: '' })].concat(cos.map(function (c, i) {
         var nm = c.d ? (c.d.company.display_name || c.d.company.legal_name) : 'CIK ' + c.cik + ' (not available' + (X.hasKey() ? ')' : ' without a key)');
+        var fye = c.d && c.d.company.fiscal_year_end_month ? 'FY ends ' + String(c.d.company.fiscal_year_end_month).slice(0, 3) : null;
         return el('th', { scope: 'col', class: 'n cmp-h' }, [el('a', { href: '/app/?c=' + c.cik, text: c.d && c.d.company.ticker || nm, title: nm }), c.d ? el('span', { class: 'chip', text: c.d.company.reporting_currency || 'USD' }) : null,
-          i ? el('button', { type: 'button', class: 'x', 'aria-label': 'Remove ' + nm, text: '×', on: { click: function () { S.cmp = S.cmp.filter(function (x) { return x !== c.cik; }); go('compare'); } } }) : null]);
+          i ? el('button', { type: 'button', class: 'x', 'aria-label': 'Remove ' + nm, text: '×', on: { click: function () { S.cmp = S.cmp.filter(function (x) { return x !== c.cik; }); go('compare'); } } }) : null, fye ? el('span', { class: 'muted small cmp-fye', text: fye }) : null]);
       })));
       var body = CMP.map(function (row) {
         return el('tr', {}, [el('th', { scope: 'row', text: row[1] })].concat(cos.map(function (c) {
@@ -591,11 +592,21 @@
       pane.replaceChildren(pane.firstChild,
         mixed ? el('p', { class: 'ws-note cmp-banner', role: 'note', text: 'These companies report in different currencies (' + curs.filter(function (c, i, a) { return a.indexOf(c) === i; }).join(', ') + '). Each figure is in its company’s own currency; only growth and margins are compared, and nothing is summed or converted.' }) : null,
         table, el('div', { class: 'cmp-charts' }, [el('section', { class: 'ws-sec' }, [el('h3', { text: 'Revenue, indexed to 100 at the first year shown' }), g]), el('section', { class: 'ws-sec' }, [el('h3', { text: 'Operating margin' }), m])]),
-        el('p', { class: 'muted small', text: 'Fiscal years as each company defines them, aligned by fiscal-year number. Click any figure for its filing.' }));
+        el('p', { class: 'muted small', text: 'Fiscal years as each company defines them, aligned by fiscal-year number. Click any figure for its filing.' + fyGap(cos) }));
       multiLine(g, cos, 'revenue', true); multiLine(m, cos, 'operating_margin', false);
     });
   }
   var seq2 = 0;
+  // when fiscal years end more than three months apart, say so with the real nearest example
+  function fyGap(cos) {
+    var ends = cos.filter(function (c) { return c.d && (c.d.years || []).length; }).map(function (c) { var y = c.d.years[c.d.years.length - 1]; return { c: c, y: y, m: +String(y.period_end).slice(5, 7) }; });
+    if (ends.length < 2) return '';
+    var base = ends[0], far = null, gap = 0;
+    ends.slice(1).forEach(function (e) { var d = Math.abs(e.m - base.m); d = Math.min(d, 12 - d); if (d > gap) { gap = d; far = e; } });
+    if (!far || gap <= 3) return '';
+    var nm = far.c.d.company.display_name || far.c.d.company.legal_name;
+    return ' Fiscal years end in different months: ' + nm + '\u2019s ' + far.y.fiscal_label + ' ended ' + day(far.y.period_end).replace(/^\d+ /, '') + ', ' + (base.c.d.company.display_name || '') + '\u2019s ' + base.y.fiscal_label + ' ended ' + day(base.y.period_end).replace(/^\d+ /, '') + '.';
+  }
   function multiLine(host, cos, metric, indexed) {
     var lines = cos.filter(function (c) { return c.d; }).map(function (c, i) {
       var saved = S.d; S.d = c.d; var sr = series(metric); S.d = saved; if (!sr || !sr.pts.length) return null;

@@ -374,7 +374,7 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 700; border-top: 2px
 
 /* compare */
 .cmp-table th.cmp-h { white-space: nowrap; } .cmp-table th.cmp-h a { font-weight: 700; margin-right: 6px; } .cmp-table th.cmp-h .x { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; }
-.cmp-table td .small { font-size: .74rem; }
+.cmp-table td .small { font-size: .74rem; } .cmp-fye { display: block; font-weight: 400; }
 .cmp-banner { border-left: 3px solid var(--warn); padding: 6px 10px; background: var(--bg-2); color: var(--fg); margin-bottom: 10px; }
 .cmp-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; } .cmp-charts .ws-sec { margin: 0; }
 .ws-chart .line.c0 { stroke: var(--accent-hi); } .ws-chart .line.c1 { stroke: var(--fg); } .ws-chart .line.c2 { stroke: var(--good); } .ws-chart .line.c3 { stroke: var(--warn); } .ws-chart .line.c4 { stroke: color-mix(in srgb, var(--muted) 90%, transparent); stroke-dasharray: 4 3; }
