@@ -27,6 +27,12 @@ def main() -> int:
     db = Session()
     for p in sorted(Path(args.folder).glob("*_notes.zip")):
         print(json.dumps({"file": p.name, **auditors.load(db, p)}), flush=True)
+    from app.services import dated_events, notifications
+
+    events = dated_events.emit_auditor_changes(db)
+    alerts = notifications.create_dated_deliveries(db, events)
+    db.commit()
+    print(json.dumps({"auditor_change_events": len(events), "alerts": alerts}))
     db.close()
     return 0
 

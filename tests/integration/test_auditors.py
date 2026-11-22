@@ -64,7 +64,8 @@ def test_overview_block_current_history_changes_and_as_of(db, client, ingested_a
     db.commit()
     b = auditors.for_company(db, "0000320193")
     assert b["current"]["name"] == "KPMG LLP" and b["current"]["pcaob_firm_id"] == "185"
-    assert b["current"]["since_fiscal_year"] == 2025
+    # the change from EY is in our data: a real first year
+    assert b["current"]["since"] == 2025 and b["current"]["since_basis"] == "observed_change"
     assert b["current"]["latest_report"]["source_url"].endswith(f"{A25}-index.html")
     assert [h["name"] for h in b["history"]] == ["KPMG LLP", "Ernst & Young LLP"]
     assert b["changes"][0]["item"] == "4.01" and b["changes"][0]["filing_date"] == "2025-06-02"
@@ -93,3 +94,48 @@ def test_a_401_filed_a_year_ahead_still_links(db, ingested_aapl, tmp_path):
     db.commit()
     fc = auditors.for_company(db, "0000320193")["firm_changes"]
     assert fc[0]["item_401"]["filing_date"] == "2025-01-15"  # before FY2024's report, still linked
+
+
+def test_auditor_change_events_backfill_is_silent_and_401_is_linked(db, ingested_aapl, tmp_path):
+    from app.db.models import DatedEvent, JobState
+    from app.services import dated_events
+
+    auditors.load(db, make_zip(tmp_path))
+    first = dated_events.emit_auditor_changes(db, today=date(2026, 3, 2))
+    assert len(first) == 1 and first[0].stream_status == "skipped"  # backfill (ADR 0004)
+    assert db.get(JobState, dated_events.AUDITOR_WATERMARK).value == "2026-03-02"
+    assert dated_events.emit_auditor_changes(db) == []  # idempotent
+    # a change reported after the watermark alerts, unless an 8-K 4.01 already announced it
+    db.query(DatedEvent).delete()
+    db.get(JobState, dated_events.AUDITOR_WATERMARK).value = "2026-02-01"
+    db.commit()
+    fresh = dated_events.emit_auditor_changes(db, today=date(2026, 3, 2))
+    assert fresh[0].stream_status == "pending"
+    d = dated_events.as_dict(fresh[0])
+    assert d["label"].startswith("KPMG LLP replaces Ernst & Young LLP")
+    assert d["linked_event"] is None
+    db.query(DatedEvent).delete()
+    db.get(JobState, dated_events.AUDITOR_WATERMARK).value = "2026-02-01"
+    db.add(Filing(cik="0000320193", accession_number="0000320193-25-000888", form_type="8-K",
+                  filing_date=date(2025, 6, 2), items="4.01",
+                  source_url="https://www.sec.gov/Archives/edgar/data/320193/z-index.html",
+                  first_detected_at=utcnow(), quality_status="ok"))  # fmt: skip
+    db.commit()
+    linked = dated_events.emit_auditor_changes(db, today=date(2026, 3, 2))
+    assert linked[0].stream_status == "skipped"  # the 4.01 event (D-05) already alerted
+    assert dated_events.as_dict(linked[0])["linked_event"]["type"] == "sec.auditor_change"
+
+
+def test_since_is_null_when_no_change_is_observed(db, ingested_aapl, tmp_path):
+    """Apple has used one firm since before our window: the earliest report we hold is not when
+    it hired the firm."""
+    rows, _ = auditors.parse_notes_zip(make_zip(tmp_path))
+    from sqlalchemy import insert
+
+    from app.db.models import CompanyAuditor
+
+    db.execute(insert(CompanyAuditor), [r for r in rows if r["accession_number"] == A24])
+    db.commit()
+    c = auditors.for_company(db, "0000320193")["current"]
+    assert c["since"] is None and c["since_basis"] == "not_observed"
+    assert c["observed_from"] == "FY2024"

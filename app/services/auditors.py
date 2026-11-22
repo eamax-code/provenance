@@ -237,7 +237,13 @@ def for_company(db: Session, cik: str, as_of: date | None = None) -> dict | None
             "name": last.auditor_name,
             "pcaob_firm_id": last.pcaob_firm_id,
             "location": last.auditor_location,
-            "since_fiscal_year": history[-1]["from_fiscal_year"],
+            # a first year only when the change is in our data (the previous firm differs);
+            # otherwise the earliest report we hold naming this firm, which is not a start date
+            "since": history[-1]["from_fiscal_year"] if len(history) > 1 else None,
+            "since_basis": "observed_change" if len(history) > 1 else "not_observed",
+            "observed_from": f"FY{history[-1]['from_fiscal_year']}"
+            if history[-1]["from_fiscal_year"]
+            else None,
             "latest_report": {
                 "form_type": last.form_type,
                 "fiscal_year": last.fiscal_year,
