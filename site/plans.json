@@ -19,6 +19,9 @@
       "forecasts": false,
       "support": "Docs",
       "type_watches": false,
+      "max_watchlists": 3,
+      "max_watchlist_companies": 50,
+      "max_watchlist_columns": 8,
       "featured": false,
       "features": [
         "All metrics with citations",
@@ -49,6 +52,9 @@
       "forecasts": true,
       "support": "Email",
       "type_watches": false,
+      "max_watchlists": 25,
+      "max_watchlist_companies": 50,
+      "max_watchlist_columns": 8,
       "featured": false,
       "features": [
         "Everything in Free",
@@ -78,6 +84,9 @@
       "forecasts": true,
       "support": "Email within two business days",
       "type_watches": true,
+      "max_watchlists": 25,
+      "max_watchlist_companies": 50,
+      "max_watchlist_columns": 8,
       "featured": true,
       "features": [
         "Commercial use in your product",
@@ -107,6 +116,9 @@
       "forecasts": true,
       "support": "Priority, one business day",
       "type_watches": true,
+      "max_watchlists": 25,
+      "max_watchlist_companies": 50,
+      "max_watchlist_columns": 8,
       "featured": false,
       "features": [
         "Everything in Builder",
@@ -136,6 +148,9 @@
       "forecasts": true,
       "support": "SLA",
       "type_watches": true,
+      "max_watchlists": 25,
+      "max_watchlist_companies": 50,
+      "max_watchlist_columns": 8,
       "featured": false,
       "features": [
         "Custom limits and terms",

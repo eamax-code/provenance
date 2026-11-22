@@ -1,6 +1,6 @@
 # API contracts for the Explorer (X-01a, X-02, X-05, X-07)
 
-Status: **contract**; built: X-05 (7919122), X-02 (5d6db75), X-01a (published 2026-11-23 for provenance-ui). Built after the mapping
+Status: **contract**; built: X-05 (7919122), X-02 (5d6db75), X-01a (1406041), X-07 (published 2026-11-23 for provenance-ui). Built after the mapping
 1.5.0 pass in this order: X-05, X-02, X-01a, X-07. Each lands with tests, an OpenAPI entry and an
 R-2 line. Changes to a published contract are additive only (`docs/api-versioning.md`).
 

@@ -36,6 +36,11 @@ class Plan:
     max_keys: int
     support: str
     type_watches: bool = False  # watches on event types across companies (T-01)
+    # X-07 watchlists (PM, 2026-11-23): lists per key, companies and columns per list; the
+    # pricing page does not list them until the copy is approved
+    max_watchlists: int = 3
+    max_watchlist_companies: int = 50
+    max_watchlist_columns: int = 8
     featured: bool = False
     public: bool = True  # shown on the pricing page and /v1/public/plans
     features: tuple[str, ...] = ()
@@ -86,6 +91,7 @@ PLANS: dict[str, Plan] = {
         max_watches=25,
         max_active_watches=50,
         max_event_streams=1,
+        max_watchlists=25,
         chat_questions_per_day=200,
         forecasts=True,
         max_keys=2,
@@ -113,6 +119,7 @@ PLANS: dict[str, Plan] = {
         max_watches=100,
         max_active_watches=200,
         max_event_streams=3,
+        max_watchlists=25,
         chat_questions_per_day=500,
         forecasts=True,
         max_keys=5,
@@ -143,6 +150,7 @@ PLANS: dict[str, Plan] = {
         max_watches=1000,
         max_active_watches=2000,
         max_event_streams=10,
+        max_watchlists=25,
         chat_questions_per_day=2000,
         forecasts=True,
         max_keys=20,
@@ -172,6 +180,7 @@ PLANS: dict[str, Plan] = {
         max_watches=5000,
         max_active_watches=10_000,
         max_event_streams=50,
+        max_watchlists=25,
         chat_questions_per_day=5000,
         forecasts=True,
         max_keys=100,
@@ -201,6 +210,7 @@ PLANS: dict[str, Plan] = {
         max_watches=5000,
         max_active_watches=10_000,
         max_event_streams=50,
+        max_watchlists=25,
         chat_questions_per_day=5000,
         forecasts=True,
         max_keys=100,

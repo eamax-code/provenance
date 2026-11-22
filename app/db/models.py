@@ -1407,3 +1407,27 @@ class JobState(Base):
     name: Mapped[str] = mapped_column(Text, primary_key=True)
     value: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class Watchlist(Base):
+    """X-07: a named list of companies with chosen columns, stored per API key."""
+
+    __tablename__ = "watchlists"
+    __table_args__ = (Index("ix_watchlists_api_key_id", "api_key_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    api_key_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("api_keys.id"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    columns: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class WatchlistCompany(Base):
+    __tablename__ = "watchlist_companies"
+
+    watchlist_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("watchlists.id", ondelete="CASCADE"), primary_key=True
+    )
+    cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)

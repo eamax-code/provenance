@@ -40,6 +40,7 @@ from app.api import (
     routes_stats,
     routes_timeline,
     routes_type_watches,
+    routes_watchlists,
 )
 from app.core import rate_limits
 from app.core.config import Settings, get_settings
@@ -227,6 +228,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_graph.router)
     app.include_router(routes_ownership.router)
     app.include_router(routes_timeline.router)
+    app.include_router(routes_watchlists.router)
     app.include_router(routes_ipos.router)
     app.include_router(routes_notifications.router)
     app.include_router(routes_listing_watches.router)
