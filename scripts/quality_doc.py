@@ -44,6 +44,12 @@ select metric, count(*) n,
   extract(year from min(period_end) filter (where quality_status = 'ok'
     and period_end >= date '1993-01-01'))::int earliest
 from financial_facts where not derived group by metric order by metric"""
+PERIOD_OK = """
+with g as (
+  select metric, cik, unit, period_start, period_end,
+         bool_or(quality_status in ('ok', 'partial')) has_ok
+  from financial_facts where not derived group by 1, 2, 3, 4, 5)
+select metric, round(100.0 * avg(has_ok::int), 1) from g group by 1"""
 CONFLICTS = """
 select count(*), count(distinct cik) from (
   select cik, unit, period_start, period_end from financial_facts
@@ -196,14 +202,23 @@ def main() -> int:
         return 0
 
     per = db.execute(text(PER_METRIC)).all()
+    period_ok = dict(db.execute(text(PERIOD_OK)).all())
     lines += ["## Per metric", "",
-              "| Metric | Facts | % ok | % ambiguous | % suspicious period | Companies (ok) | "
-              "Earliest ok year |", "|---|---|---|---|---|---|---|"]  # fmt: skip
+              "% ok counts stored rows; an alternate tag a filing reports beside the preferred "
+              "one is stored as ambiguous_mapping by design. Periods with ok counts each company, "
+              "unit and period once.", "",
+              "| Metric | Facts | % ok | % ambiguous | % suspicious period | Periods with ok | "
+              "Companies (ok) | Earliest ok year |",
+              "|---|---|---|---|---|---|---|---|"]  # fmt: skip
     for m in per:
         lines.append(f"| {m.metric} | {m.n:,} | {m.ok} | {m.ambiguous} | {m.suspicious} | "
-                     f"{m.companies:,} | {m.earliest} |")  # fmt: skip
+                     f"{period_ok.get(m.metric)}% | {m.companies:,} | {m.earliest} |")  # fmt: skip
     low = [m.metric for m in per if m.ok is not None and float(m.ok) < 93]
-    lines += ["", f"Metrics under 93% ok: {', '.join(low) if low else 'none'}.", ""]
+    lines += ["", f"Metrics under 93% ok by row: {', '.join(low) if low else 'none'}. Their "
+              "periods with an ok figure: " + ", ".join(f"{m} {period_ok.get(m)}%" for m in low)
+              + ". The rest are alternate tags in the same filing (for example "
+              "AllocatedShareBasedCompensationExpense beside ShareBasedCompensation).",
+              ""]  # fmt: skip
 
     n, c = db.execute(text(CONFLICTS)).one()
     lines += ["## Revenue tag conflicts", "",
