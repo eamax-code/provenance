@@ -299,8 +299,28 @@ def main() -> int:
               "consolidated figure within 1% and no reconciling item is tagged. Causes, per "
               "filing, kind, metric and year:", ""]  # fmt: skip
     lines += [f"- {cause}: {n:,} ({100 * n / total:.0f}%)" for cause, n in causes]
-    lines += ["", "A rule comparing segments with the consolidated figure under any revenue tag "
-              "(not only the segments' own) would address the second cause.", ""]  # fmt: skip
+    lines += ["", "### Two-axis segments and single-member blocks (E-4c, 2026-11-22)", "",
+              "Segments tagged on two axes (XOM: each segment by US and non-US) are now summed "
+              "over the other axis when no member of that axis holds others and the segments "
+              "then add up to the consolidated figure within 1%; one-axis figures win member by "
+              "member. The revenue tag whose segments add up (and are finer than an "
+              "all-segments total) is preferred, and the all-segments total is never shown "
+              "beside real segments. A kind with one member that never adds up is hidden, with "
+              "its reason in the API.", "",
+              "Dry run against every company's latest report before the reload: 417 of 4,174 "
+              "blocks changed: 206 kinds added, 108 moved from unreconciled to ok, 140 changed "
+              "values or members within an ok block; none removed and none from ok to "
+              "unreconciled. Hand-check: a first sample of 30 found 2 wrong (an all-segments "
+              "total counted twice, an intersegment line shown as a product); after tightening, "
+              "a fresh seeded random sample of 30 found 1 (a company-named total, then fixed).",
+              "",
+              "The 358 companies whose latest block had at most one member per kind: 21 now "
+              "show segments that add up; 210 are single-segment companies (the one segment is "
+              "the consolidated figure); 75 had a single unreconciled member, now hidden; 52 "
+              "report segment profit only, no revenue by segment. XOM: Energy Products $291.6B, "
+              "Upstream $107.2B, Chemical Products $33.0B, Specialty Products $20.5B; with "
+              "corporate and eliminations, $332.2B, the consolidated figure exactly.",
+              ""]  # fmt: skip
 
     rates = first_reported.match_rates(db)
     matched = sum(m for m, _ in rates.values())
