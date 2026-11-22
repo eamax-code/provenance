@@ -88,7 +88,13 @@
   }
   function renderList(l, main, srv) {
     var cols = (l.columns || DEFAULT_COLS).filter(function (c) { return COLS[c]; });
-    var rowsP = srv ? send('GET', '/v1/watchlists/' + encodeURIComponent(l.id) + '/rows').then(function (r) { return r.ok ? (r.body.data || r.body.rows || []) : []; }) : Promise.all(l.ciks.map(function (c) { return localRow(String(parseInt(c, 10))); }));
+    // server rows nest cells by column (X-07); flatten them to the same shape as local rows
+    var flat = function (x) {
+      var c = x.cells || {}, o = { cik: x.cik, name: x.display_name, ticker: x.ticker, currency: c.reporting_currency || 'USD' };
+      Object.keys(c).forEach(function (k) { var v = c[k]; o[k] = v && typeof v === 'object' && v.yoy ? Object.assign({}, v, { yoy: v.yoy.value_pct }) : v; });
+      return o;
+    };
+    var rowsP = srv ? send('GET', '/v1/watchlists/' + encodeURIComponent(l.id) + '/rows').then(function (r) { return r.ok ? (r.body.data || []).map(flat) : []; }) : Promise.all(l.ciks.map(function (c) { return localRow(String(parseInt(c, 10))); }));
     rowsP.then(function (rows) {
       var head = el('tr', {}, [el('th', { scope: 'col', text: 'Company' })].concat(cols.map(function (c) { return el('th', { scope: 'col', class: /revenue|margin|income|assets|holders/.test(c) ? 'n' : '', text: COLS[c] }); })).concat([el('th', { scope: 'col', text: '' })]));
       var body = rows.map(function (r) {
@@ -130,7 +136,7 @@
       items.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
       box.appendChild(items.length ? el('ol', { class: 'tl' }, items.slice(0, 40).map(function (i) { return el('li', {}, [el('time', { datetime: i.date, text: day(i.date) }), el('span', { class: 'tag', text: i.who }), el('span', { class: 'tl-t', text: i.title }), ARCHIVE.test(i.url || '') ? el('a', { href: i.url, target: '_blank', rel: 'noopener', text: (i.form || 'Filing') + ' ↗' }) : el('span')]); })) : el('p', { class: 'muted', text: 'No events for these companies in the filings loaded.' }));
     };
-    if (srv) send('GET', '/v1/watchlists/' + encodeURIComponent(l.id) + '/events?limit=40').then(function (r) { draw(((r.ok && r.body && r.body.data) || []).map(function (i) { return { date: i.date, who: i.display_name || i.cik, title: i.title, url: i.filing_url, form: i.form_type }; })); });
+    if (srv) send('GET', '/v1/watchlists/' + encodeURIComponent(l.id) + '/events?limit=40&types=8k_item,officer_change,auditor_change,ipo,insider,13f_quarter').then(function (r) { draw(((r.ok && r.body && r.body.data) || []).map(function (i) { return { date: i.date, who: i.display_name || i.cik, title: i.title, url: i.filing_url, form: i.form_type }; })); });
     else { var items = []; rows.forEach(function (r) { (r.events || []).forEach(function (e) { items.push({ date: e.date, who: r.ticker || r.name, title: e.short_label || e.label, url: e.filing_url, form: e.form_type }); }); }); draw(items); }
     return box;
   }
