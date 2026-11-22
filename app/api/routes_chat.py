@@ -177,7 +177,7 @@ def _blocks(answer: str | None, citations: list[dict], widgets: list[dict], fact
         cited = sorted({int(n) for n in re.findall(r"\[(\d+)\]", answer)})
         blocks.append({"type": "text", "text": answer, "citations": cited})
     blocks += [_chip(f, n) for f, n in facts]
-    blocks += [w for w in widgets if w.get("type") in ("table", "chart", "stats")]
+    blocks += [w for w in widgets if w.get("type") in ("screen", "table", "chart", "stats")]
     return blocks
 
 
@@ -604,7 +604,7 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     # follow-ups on the previous answer's list come straight from the marts, without the model.
     market = conversation.plan(body.message, body.context, db)
     if market and (
-        market.kind in ("out_of_scope", "list_followup", "compare")
+        market.kind in ("out_of_scope", "list_followup", "compare", "screen")
         or conversation.strongly_named(db, body.message) is None
     ):
         return _data_reply(

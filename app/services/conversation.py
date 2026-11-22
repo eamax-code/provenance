@@ -52,6 +52,7 @@ class Plan:
     limit: int = 10
     order: str = "desc"
     ciks: list[str] = field(default_factory=list)
+    filters: dict = field(default_factory=dict)  # C-04: a screen's parsed criteria
 
 
 @dataclass
@@ -127,6 +128,51 @@ METRIC_LABELS = {
 }
 
 
+# C-04: screens in words ("software companies over $1B revenue with operating margin above
+# 20%"). Industries map to SEC SIC code ranges; sizes and margins come from each company's
+# latest annual figures (US-dollar reporters: sizes compare in one currency).
+INDUSTRIES = {
+    "software": ("7370", "7379"), "semiconductor": ("3674", "3674"), "bank": ("6020", "6199"),
+    "insurance": ("6300", "6411"), "insurer": ("6300", "6411"), "pharma": ("2833", "2836"),
+    "biotech": ("2833", "2836"), "oil": ("1311", "1389"), "utilit": ("4900", "4991"),
+    "reit": ("6798", "6798"), "retail": ("5200", "5999"), "airline": ("4512", "4513"),
+    "automaker": ("3711", "3711"), "restaurant": ("5812", "5812"), "telecom": ("4812", "4899"),
+}  # fmt: skip
+_INDUSTRY = re.compile(r"\b(" + "|".join(INDUSTRIES) + r")\w*", re.IGNORECASE)
+_SIZE = re.compile(
+    r"\b(?:over|above|more than|at least|exceeding|>)\s*\$?\s*(\d+(?:\.\d+)?)\s*"
+    r"(trillion|billion|bn|b|million|mn|m)\b(?:\s+(?:in|of))?\s*(?:annual\s+)?"
+    r"(revenue|sales|net income|profit)?",
+    re.IGNORECASE,
+)
+_MARGIN_MIN = re.compile(
+    r"\b(gross|operating|net|profit)\s+margins?\s*(?:of\s+)?(?:above|over|more than|at least|"
+    r"greater than|>|exceeding)\s*(\d+(?:\.\d+)?)\s*%",
+    re.IGNORECASE,
+)
+_SCALE = {"trillion": 1e12, "billion": 1e9, "bn": 1e9, "b": 1e9, "million": 1e6, "mn": 1e6,
+          "m": 1e6}  # fmt: skip
+
+
+def screen_filters(text: str) -> dict:
+    """The criteria a screen question names; empty when it names none."""
+    f: dict = {}
+    ind = _INDUSTRY.search(text)
+    if ind:
+        key = next(k for k in INDUSTRIES if ind.group(1).lower().startswith(k))
+        f["industry"], f["sic_range"] = key, list(INDUSTRIES[key])
+    size = _SIZE.search(text)
+    if size:
+        what = (size.group(3) or "revenue").lower()
+        metric = "net_income" if what in ("net income", "profit") else "revenue"
+        f[f"min_{metric}_usd"] = float(size.group(1)) * _SCALE[size.group(2).lower()]
+    m = _MARGIN_MIN.search(text)
+    if m:
+        kind = "net" if m.group(1).lower() == "profit" else m.group(1).lower()
+        f[f"min_{kind}_margin_pct"] = float(m.group(2))
+    return f
+
+
 def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) -> Plan | None:
     """The cross-company intent a question names, or None for the company flow."""
     if _OUT_OF_SCOPE.search(text):
@@ -143,6 +189,10 @@ def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) 
                 years=_years(text) or 3,
                 ciks=[c.cik for c in named],
             )
+    filters = screen_filters(text)
+    if len(filters) >= 2 or (filters and re.search(r"\bcompan(y|ies)\b|\bwhich\b|\blist\b",
+                                                   text, re.IGNORECASE)):  # fmt: skip
+        return Plan("screen", filters=filters)
     days, window_label = _window(text)
     metric = _metric(text)
     years = _years(text)
@@ -183,6 +233,8 @@ def answer(db: Session, p: Plan, ctx: ConversationContext | None, today: date) -
         return _list_table(db, p, ctx)
     if p.kind == "compare":
         return _compare(db, p)
+    if p.kind == "screen":
+        return _screen(db, p)
     raise ValueError(p.kind)
 
 
@@ -518,6 +570,91 @@ def _compare(db: Session, p: Plan) -> DataAnswer:
             for cik in p.ciks
         ],
     )
+
+
+def _screen(db: Session, p: Plan) -> DataAnswer:
+    """C-04: the companies matching a screen's criteria, from each one's latest annual figures,
+    every figure cited to its filing; the parsed criteria are returned to show and edit."""
+    from app.services.intel import money
+
+    f = p.filters
+    q = select(MartCompany).where(MartCompany.reporting_currency == "USD",
+                                  MartCompany.latest_annual.is_not(None))  # fmt: skip
+    if "sic_range" in f:
+        lo, hi = f["sic_range"]
+        q = q.where(MartCompany.sic_code >= lo, MartCompany.sic_code <= hi)
+    rows = []
+    for r in db.scalars(q):
+        latest = loads(r.latest_annual) or {}
+        rev, op = latest.get("revenue"), latest.get("operating_income")
+        gp, ni = latest.get("gross_profit"), latest.get("net_income")
+        if not rev or not rev.get("value"):
+            continue
+        margins = {}
+        for kind, part in (("operating", op), ("gross", gp), ("net", ni)):
+            if (
+                part
+                and part.get("value") is not None
+                and part.get("period_end") == rev["period_end"]
+            ):
+                margins[kind] = part["value"] / rev["value"] * 100
+        ok = True
+        if rev["value"] < f.get("min_revenue_usd", float("-inf")):
+            ok = False
+        if f.get("min_net_income_usd") is not None and (
+            not ni or ni.get("value") is None or ni["value"] < f["min_net_income_usd"]
+        ):
+            ok = False
+        for kind in ("operating", "gross", "net"):
+            need = f.get(f"min_{kind}_margin_pct")
+            if need is not None and (kind not in margins or margins[kind] <= need):
+                ok = False
+        if ok:
+            rows.append((r, rev, margins))
+    rows.sort(key=lambda x: -x[1]["value"])
+    crit = []
+    if "industry" in f:
+        crit.append(f"{f['industry']} (SIC {f['sic_range'][0]}-{f['sic_range'][1]})")
+    if "min_revenue_usd" in f:
+        crit.append(f"revenue over {money(f['min_revenue_usd'], 'USD')}")
+    if "min_net_income_usd" in f:
+        crit.append(f"net income over {money(f['min_net_income_usd'], 'USD')}")
+    for kind in ("operating", "gross", "net"):
+        if f"min_{kind}_margin_pct" in f:
+            crit.append(f"{kind} margin above {f[f'min_{kind}_margin_pct']:g}%")
+    scope = ("US-dollar reporters by their latest annual report; the country of the company "
+             "is not filtered")  # fmt: skip
+    cites: list[dict] = []
+    if not rows:
+        text = f"No company matches {', '.join(crit)} ({scope})."
+    else:
+        parts = []
+        for r, rev, margins in rows[:3]:
+            n = _cite(cites, f"{_name(r)}, annual report", rev.get("url"))
+            m = f", operating margin {margins['operating']:.1f}%" if "operating" in margins else ""
+            parts.append(f"{_name(r)} {money(rev['value'], 'USD')} revenue{m} [{n}]" if n
+                         else _name(r))  # fmt: skip
+        text = (f"{len(rows)} {_plural(len(rows), 'company matches', 'companies match')} "
+                f"{', '.join(crit)} ({scope}). The largest by revenue: " + "; ".join(parts)
+                + ".")  # fmt: skip
+    widget = _table(
+        f"Screen: {', '.join(crit)}",
+        ["Company", "Ticker", "Revenue", "Operating margin", "Year ended"],
+        [[_cell(_name(r)), _cell(r.ticker or "—"),
+          _cell(money(rev["value"], "USD"), rev.get("url")),
+          _cell(f"{margins['operating']:.1f}%" if "operating" in margins else "—"),
+          _cell(rev["period_end"])] for r, rev, margins in rows[:TABLE_ROWS]],
+        note=_more(len(rows)),
+    )  # fmt: skip
+    screen = {"type": "screen", "parameters": f, "matches": len(rows), "scope": scope}
+    return DataAnswer(
+        text, "screen", [screen, widget],
+        ConversationContext(intent="screen", ciks=[r.cik for r, _, _ in rows[:MAX_LIST]],
+                            label="the companies in the screen"),
+        citations=cites,
+        how=[{"endpoint": "/v1/facts/screen", "parameters": {"metric": "revenue"},
+              "filters": f, "note": "filters applied to each company's latest annual figures"}],
+    )  # fmt: skip
 
 
 def compared_companies(db: Session, text: str) -> list[Company]:

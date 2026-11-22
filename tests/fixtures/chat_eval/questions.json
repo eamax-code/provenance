@@ -1,65 +1,435 @@
 {
-  "about": "C-07 chat accuracy eval: 60 questions over the test fixtures (Apple and Microsoft as fixtured, an IFRS company in EUR, a second USD company, two recent IPOs). kind: figure (the expected value must be stated, rendered as the chat renders money, with a citation), ratio (a percentage to one decimal, cited), refusal (no figure; out of scope), clarify (no company found; no figure), no_data (no figure for something not reported; never empty), list (each expected name, with a filing link), leadership (an answer with a citation), c06 (the C-06 intents, landed 2026-11-23: holders, segments, auditor, insiders, 5% holders, LEI; a cited answer, figures citing their filing).",
-  "cases": [
-    {"id": "fig-01", "q": "What was Apple's revenue in fiscal 2024?", "kind": "figure", "value": 391035000000, "unit": "USD"},
-    {"id": "fig-02", "q": "Apple revenue 2023", "kind": "figure", "value": 383285000000, "unit": "USD"},
-    {"id": "fig-03", "q": "What was Apple's net income in fiscal 2024?", "kind": "figure", "value": 93736000000, "unit": "USD"},
-    {"id": "fig-04", "q": "Apple net income 2023", "kind": "figure", "value": 96995000000, "unit": "USD"},
-    {"id": "fig-05", "q": "What was Apple's operating income last year?", "kind": "figure", "value": 123216000000, "unit": "USD"},
-    {"id": "fig-06", "q": "Apple operating income FY2023", "kind": "figure", "value": 114301000000, "unit": "USD"},
-    {"id": "fig-07", "q": "What are Apple's total assets?", "kind": "figure", "value": 364980000000, "unit": "USD"},
-    {"id": "fig-08", "q": "Apple total assets in 2023", "kind": "figure", "value": 352583000000, "unit": "USD"},
-    {"id": "fig-09", "q": "Apple operating cash flow 2024", "kind": "figure", "value": 118254000000, "unit": "USD"},
-    {"id": "fig-10", "q": "What was Apple's operating cash flow in fiscal 2023?", "kind": "figure", "value": 110543000000, "unit": "USD"},
-    {"id": "fig-11", "q": "AAPL revenue", "kind": "figure", "value": 391035000000, "unit": "USD"},
-    {"id": "fig-12", "q": "How much did Apple earn in 2024?", "kind": "figure", "value": 93736000000, "unit": "USD"},
-    {"id": "fig-13", "q": "Apple's sales in fiscal 2024", "kind": "figure", "value": 391035000000, "unit": "USD"},
-    {"id": "fig-14", "q": "What was Apple's profit in 2023?", "kind": "figure", "value": 96995000000, "unit": "USD"},
-    {"id": "fig-15", "q": "Microsoft total assets", "kind": "figure", "value": 512163000000, "unit": "USD"},
-    {"id": "fig-16", "q": "Microsoft operating income 2024", "kind": "figure", "value": -1000000, "unit": "USD", "note": "a negative amount reads −$1.0 million (minus before the currency)"},
-    {"id": "fig-17", "q": "Northwind Example revenue 2024", "kind": "figure", "value": 50000000000, "unit": "USD"},
-    {"id": "fig-18", "q": "What was Northwind Example's operating income in 2024?", "kind": "figure", "value": 7500000000, "unit": "USD"},
-    {"id": "fig-19", "q": "Northwind Example net income 2023", "kind": "figure", "value": 4200000000, "unit": "USD"},
-    {"id": "fig-20", "q": "Northwind Example total assets", "kind": "figure", "value": 80000000000, "unit": "USD"},
-    {"id": "ifrs-01", "q": "What was Exemplar Industrie's revenue in 2024?", "kind": "figure", "value": 36800000000, "unit": "EUR"},
-    {"id": "ifrs-02", "q": "Exemplar Industrie revenue 2023", "kind": "figure", "value": 31200000000, "unit": "EUR"},
-    {"id": "ifrs-03", "q": "Exemplar Industrie net income 2024", "kind": "figure", "value": 6100000000, "unit": "EUR"},
-    {"id": "ifrs-04", "q": "What are Exemplar Industrie's total assets?", "kind": "figure", "value": 70000000000, "unit": "EUR"},
-    {"id": "asof-01", "q": "Apple revenue", "as_of": "2023-12-31", "kind": "figure", "value": 383285000000, "unit": "USD"},
-    {"id": "asof-02", "q": "Apple net income", "as_of": "2023-12-31", "kind": "figure", "value": 96995000000, "unit": "USD"},
-    {"id": "asof-03", "q": "Apple total assets", "as_of": "2024-06-30", "kind": "figure", "value": 352583000000, "unit": "USD"},
-    {"id": "asof-04", "q": "Northwind Example revenue", "as_of": "2024-12-31", "kind": "figure", "value": 46000000000, "unit": "USD"},
-    {"id": "trend-01", "q": "Apple revenue growth over 5 years", "kind": "figure", "value": 391035000000, "unit": "USD"},
-    {"id": "trend-02", "q": "How has Apple's net income changed?", "kind": "figure", "value": 93736000000, "unit": "USD"},
-    {"id": "ratio-01", "q": "Compare Apple and Microsoft margins", "kind": "ratio", "value": 31.5},
-    {"id": "ratio-02", "q": "Compare Apple and Northwind Example margins", "kind": "ratio", "value": 15.0},
-    {"id": "ratio-03", "q": "What is Apple's operating margin?", "kind": "ratio", "value": 31.5},
-    {"id": "cmp-01", "q": "Compare Apple and Northwind Example revenue", "kind": "figure", "value": 50000000000, "unit": "USD"},
-    {"id": "cmp-02", "q": "Apple vs Microsoft total assets", "kind": "figure", "value": 512163000000, "unit": "USD"},
-    {"id": "rank-01", "q": "Largest companies by revenue", "kind": "list", "names": ["Apple"]},
-    {"id": "rank-02", "q": "Top 3 companies by total assets", "kind": "list", "names": ["Microsoft", "Apple"]},
-    {"id": "list-01", "q": "Recent IPOs", "kind": "list", "names": ["Aspen Example Neuro", "Example Acquisition Corp II"]},
-    {"id": "list-02", "q": "Which companies went public in the last 3 months?", "kind": "list", "names": ["Aspen Example Neuro"]},
-    {"id": "lead-01", "q": "Who runs Apple?", "kind": "leadership"},
-    {"id": "lead-02", "q": "Any officer changes at Apple?", "kind": "leadership"},
-    {"id": "sum-01", "q": "Summarize Apple", "kind": "figure", "value": 391035000000, "unit": "USD"},
-    {"id": "nd-01", "q": "Apple capex 2024", "kind": "no_data"},
-    {"id": "nd-02", "q": "What was Apple's gross profit in 2024?", "kind": "no_data"},
-    {"id": "nd-03", "q": "Apple EPS 2024", "kind": "no_data"},
-    {"id": "nd-04", "q": "Apple revenue in 2015", "kind": "no_data"},
-    {"id": "nd-05", "q": "Microsoft net income", "kind": "no_data"},
-    {"id": "ref-01", "q": "Should I buy Apple stock?", "kind": "refusal"},
-    {"id": "ref-02", "q": "What is Apple's stock price?", "kind": "refusal"},
-    {"id": "ref-03", "q": "What is Apple's market cap?", "kind": "refusal"},
-    {"id": "ref-04", "q": "Apple dividend yield", "kind": "refusal"},
-    {"id": "ref-05", "q": "Give me a stock tip", "kind": "refusal"},
-    {"id": "cl-01", "q": "What was Acme Widgets Holdings' revenue?", "kind": "clarify"},
-    {"id": "cl-02", "q": "Tell me a joke", "kind": "clarify"},
-    {"id": "c06-01", "q": "Who are Apple's largest institutional holders?", "kind": "c06"},
-    {"id": "c06-02", "q": "Caterpillar's revenue by segment", "kind": "c06"},
-    {"id": "c06-03", "q": "Who audits Microsoft?", "kind": "c06"},
-    {"id": "c06-04", "q": "Which insiders bought Apple shares recently?", "kind": "c06"},
-    {"id": "c06-05", "q": "Who owns more than 5% of Apple?", "kind": "c06"},
-    {"id": "c06-06", "q": "What is Apple's LEI?", "kind": "c06"}
-  ]
+ "about": "C-07 chat accuracy eval: 63 questions (60, plus 3 C-04 screens) over the test fixtures (Apple and Microsoft as fixtured, an IFRS company in EUR, a second USD company, two recent IPOs). kind: figure (the expected value must be stated, rendered as the chat renders money, with a citation), ratio (a percentage to one decimal, cited), refusal (no figure; out of scope), clarify (no company found; no figure), no_data (no figure for something not reported; never empty), list (each expected name, with a filing link), leadership (an answer with a citation), c06 (the C-06 intents, landed 2026-11-23: holders, segments, auditor, insiders, 5% holders, LEI; a cited answer, figures citing their filing). screen (C-04: the parsed criteria in a screen block, every expected company named and none of the absent ones, figures cited).",
+ "cases": [
+  {
+   "id": "fig-01",
+   "q": "What was Apple's revenue in fiscal 2024?",
+   "kind": "figure",
+   "value": 391035000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-02",
+   "q": "Apple revenue 2023",
+   "kind": "figure",
+   "value": 383285000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-03",
+   "q": "What was Apple's net income in fiscal 2024?",
+   "kind": "figure",
+   "value": 93736000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-04",
+   "q": "Apple net income 2023",
+   "kind": "figure",
+   "value": 96995000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-05",
+   "q": "What was Apple's operating income last year?",
+   "kind": "figure",
+   "value": 123216000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-06",
+   "q": "Apple operating income FY2023",
+   "kind": "figure",
+   "value": 114301000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-07",
+   "q": "What are Apple's total assets?",
+   "kind": "figure",
+   "value": 364980000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-08",
+   "q": "Apple total assets in 2023",
+   "kind": "figure",
+   "value": 352583000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-09",
+   "q": "Apple operating cash flow 2024",
+   "kind": "figure",
+   "value": 118254000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-10",
+   "q": "What was Apple's operating cash flow in fiscal 2023?",
+   "kind": "figure",
+   "value": 110543000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-11",
+   "q": "AAPL revenue",
+   "kind": "figure",
+   "value": 391035000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-12",
+   "q": "How much did Apple earn in 2024?",
+   "kind": "figure",
+   "value": 93736000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-13",
+   "q": "Apple's sales in fiscal 2024",
+   "kind": "figure",
+   "value": 391035000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-14",
+   "q": "What was Apple's profit in 2023?",
+   "kind": "figure",
+   "value": 96995000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-15",
+   "q": "Microsoft total assets",
+   "kind": "figure",
+   "value": 512163000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-16",
+   "q": "Microsoft operating income 2024",
+   "kind": "figure",
+   "value": -1000000,
+   "unit": "USD",
+   "note": "a negative amount reads −$1.0 million (minus before the currency)"
+  },
+  {
+   "id": "fig-17",
+   "q": "Northwind Example revenue 2024",
+   "kind": "figure",
+   "value": 50000000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-18",
+   "q": "What was Northwind Example's operating income in 2024?",
+   "kind": "figure",
+   "value": 7500000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-19",
+   "q": "Northwind Example net income 2023",
+   "kind": "figure",
+   "value": 4200000000,
+   "unit": "USD"
+  },
+  {
+   "id": "fig-20",
+   "q": "Northwind Example total assets",
+   "kind": "figure",
+   "value": 80000000000,
+   "unit": "USD"
+  },
+  {
+   "id": "ifrs-01",
+   "q": "What was Exemplar Industrie's revenue in 2024?",
+   "kind": "figure",
+   "value": 36800000000,
+   "unit": "EUR"
+  },
+  {
+   "id": "ifrs-02",
+   "q": "Exemplar Industrie revenue 2023",
+   "kind": "figure",
+   "value": 31200000000,
+   "unit": "EUR"
+  },
+  {
+   "id": "ifrs-03",
+   "q": "Exemplar Industrie net income 2024",
+   "kind": "figure",
+   "value": 6100000000,
+   "unit": "EUR"
+  },
+  {
+   "id": "ifrs-04",
+   "q": "What are Exemplar Industrie's total assets?",
+   "kind": "figure",
+   "value": 70000000000,
+   "unit": "EUR"
+  },
+  {
+   "id": "asof-01",
+   "q": "Apple revenue",
+   "as_of": "2023-12-31",
+   "kind": "figure",
+   "value": 383285000000,
+   "unit": "USD"
+  },
+  {
+   "id": "asof-02",
+   "q": "Apple net income",
+   "as_of": "2023-12-31",
+   "kind": "figure",
+   "value": 96995000000,
+   "unit": "USD"
+  },
+  {
+   "id": "asof-03",
+   "q": "Apple total assets",
+   "as_of": "2024-06-30",
+   "kind": "figure",
+   "value": 352583000000,
+   "unit": "USD"
+  },
+  {
+   "id": "asof-04",
+   "q": "Northwind Example revenue",
+   "as_of": "2024-12-31",
+   "kind": "figure",
+   "value": 46000000000,
+   "unit": "USD"
+  },
+  {
+   "id": "trend-01",
+   "q": "Apple revenue growth over 5 years",
+   "kind": "figure",
+   "value": 391035000000,
+   "unit": "USD"
+  },
+  {
+   "id": "trend-02",
+   "q": "How has Apple's net income changed?",
+   "kind": "figure",
+   "value": 93736000000,
+   "unit": "USD"
+  },
+  {
+   "id": "ratio-01",
+   "q": "Compare Apple and Microsoft margins",
+   "kind": "ratio",
+   "value": 31.5
+  },
+  {
+   "id": "ratio-02",
+   "q": "Compare Apple and Northwind Example margins",
+   "kind": "ratio",
+   "value": 15.0
+  },
+  {
+   "id": "ratio-03",
+   "q": "What is Apple's operating margin?",
+   "kind": "ratio",
+   "value": 31.5
+  },
+  {
+   "id": "cmp-01",
+   "q": "Compare Apple and Northwind Example revenue",
+   "kind": "figure",
+   "value": 50000000000,
+   "unit": "USD"
+  },
+  {
+   "id": "cmp-02",
+   "q": "Apple vs Microsoft total assets",
+   "kind": "figure",
+   "value": 512163000000,
+   "unit": "USD"
+  },
+  {
+   "id": "rank-01",
+   "q": "Largest companies by revenue",
+   "kind": "list",
+   "names": [
+    "Apple"
+   ]
+  },
+  {
+   "id": "rank-02",
+   "q": "Top 3 companies by total assets",
+   "kind": "list",
+   "names": [
+    "Microsoft",
+    "Apple"
+   ]
+  },
+  {
+   "id": "list-01",
+   "q": "Recent IPOs",
+   "kind": "list",
+   "names": [
+    "Aspen Example Neuro",
+    "Example Acquisition Corp II"
+   ]
+  },
+  {
+   "id": "list-02",
+   "q": "Which companies went public in the last 3 months?",
+   "kind": "list",
+   "names": [
+    "Aspen Example Neuro"
+   ]
+  },
+  {
+   "id": "lead-01",
+   "q": "Who runs Apple?",
+   "kind": "leadership"
+  },
+  {
+   "id": "lead-02",
+   "q": "Any officer changes at Apple?",
+   "kind": "leadership"
+  },
+  {
+   "id": "sum-01",
+   "q": "Summarize Apple",
+   "kind": "figure",
+   "value": 391035000000,
+   "unit": "USD"
+  },
+  {
+   "id": "nd-01",
+   "q": "Apple capex 2024",
+   "kind": "no_data"
+  },
+  {
+   "id": "nd-02",
+   "q": "What was Apple's gross profit in 2024?",
+   "kind": "no_data"
+  },
+  {
+   "id": "nd-03",
+   "q": "Apple EPS 2024",
+   "kind": "no_data"
+  },
+  {
+   "id": "nd-04",
+   "q": "Apple revenue in 2015",
+   "kind": "no_data"
+  },
+  {
+   "id": "nd-05",
+   "q": "Microsoft net income",
+   "kind": "no_data"
+  },
+  {
+   "id": "ref-01",
+   "q": "Should I buy Apple stock?",
+   "kind": "refusal"
+  },
+  {
+   "id": "ref-02",
+   "q": "What is Apple's stock price?",
+   "kind": "refusal"
+  },
+  {
+   "id": "ref-03",
+   "q": "What is Apple's market cap?",
+   "kind": "refusal"
+  },
+  {
+   "id": "ref-04",
+   "q": "Apple dividend yield",
+   "kind": "refusal"
+  },
+  {
+   "id": "ref-05",
+   "q": "Give me a stock tip",
+   "kind": "refusal"
+  },
+  {
+   "id": "cl-01",
+   "q": "What was Acme Widgets Holdings' revenue?",
+   "kind": "clarify"
+  },
+  {
+   "id": "cl-02",
+   "q": "Tell me a joke",
+   "kind": "clarify"
+  },
+  {
+   "id": "c06-01",
+   "q": "Who are Apple's largest institutional holders?",
+   "kind": "c06"
+  },
+  {
+   "id": "c06-02",
+   "q": "Caterpillar's revenue by segment",
+   "kind": "c06"
+  },
+  {
+   "id": "c06-03",
+   "q": "Who audits Microsoft?",
+   "kind": "c06"
+  },
+  {
+   "id": "c06-04",
+   "q": "Which insiders bought Apple shares recently?",
+   "kind": "c06"
+  },
+  {
+   "id": "c06-05",
+   "q": "Who owns more than 5% of Apple?",
+   "kind": "c06"
+  },
+  {
+   "id": "c06-06",
+   "q": "What is Apple's LEI?",
+   "kind": "c06"
+  },
+  {
+   "id": "scr-01",
+   "q": "Companies with revenue over $100 billion",
+   "kind": "screen",
+   "names": [
+    "Apple"
+   ],
+   "absent": [
+    "Northwind"
+   ],
+   "filters": {
+    "min_revenue_usd": 100000000000.0
+   }
+  },
+  {
+   "id": "scr-02",
+   "q": "Which companies have an operating margin above 20%?",
+   "kind": "screen",
+   "names": [
+    "Apple"
+   ],
+   "absent": [
+    "Northwind"
+   ],
+   "filters": {
+    "min_operating_margin_pct": 20.0
+   }
+  },
+  {
+   "id": "scr-03",
+   "q": "Software companies over $1B revenue",
+   "kind": "screen",
+   "names": [],
+   "absent": [
+    "Apple",
+    "Northwind"
+   ],
+   "filters": {
+    "industry": "software",
+    "min_revenue_usd": 1000000000.0
+   }
+  }
+ ]
 }

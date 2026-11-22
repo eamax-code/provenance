@@ -187,8 +187,11 @@ def _c06_data(db, tmp_path) -> None:
 
 
 def _ask(client, auth, case: dict) -> dict:
+    from app.api.dependencies import rate_limiter
+
     routes_chat.chat_limiter.reset()
     routes_chat.chat_day_limiter.reset()
+    rate_limiter.reset()  # the test key's per-minute limit: more questions than it allows
     body = {"message": case["q"]}
     if case.get("as_of"):
         body["as_of"] = case["as_of"]
@@ -246,6 +249,14 @@ def score(case: dict, reply: dict) -> tuple[bool, str]:
             "company" in n.lower() for n in reply.get("notes") or []
         )
         return not MONEY.search(answer) and asks, "wants no figure and a request to name one"
+    if kind == "screen":
+        block = next((b for b in reply.get("widgets") or [] if b.get("type") == "screen"), None)
+        blob = answer + json.dumps(reply.get("widgets") or [])
+        ok = (block is not None and all(block["parameters"].get(k) == v
+                                        for k, v in case["filters"].items())
+              and all(n in blob for n in case["names"])
+              and not any(n in blob for n in case["absent"]) and bool(answer))  # fmt: skip
+        return ok, "wants the parsed criteria, the expected companies only, an answer"
     if kind == "c06":
         cites = {c["n"] for c in reply.get("citations") or [] if c.get("url")}
         cited = {int(n) for n in CITE.findall(answer)} & cites
