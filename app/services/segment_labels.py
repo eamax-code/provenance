@@ -111,7 +111,10 @@ def apply_filing(db: Session, sec: SecClient, cik: str, accession: str) -> int:
         if not text:
             continue
         source = "filing_label"
-        if member.startswith("ConsolidationItems=") and _TAXONOMY_LABEL.match(text):
+        if segments.is_total(member):
+            # the all-segments total: our plain name, whatever wording the filing copied
+            text, source = segments.member_label(member), "member_name"
+        elif member.startswith("ConsolidationItems=") and _TAXONOMY_LABEL.match(text):
             # the taxonomy's wording, not the company's: our plain name reads better
             text, source = segments.member_label(member), "member_name"
         if ";ConsolidationItems=" in member:  # a segment's own eliminations

@@ -433,3 +433,92 @@ def test_the_all_segments_total_never_sits_beside_real_segments(tmp_path):
         "Resource",
         "Financial",
     }
+
+
+def test_e4d_two_breakdowns_in_one_kind_keep_the_finer_and_excluding_items_are_not_reconciling():
+    """Caterpillar tags four regions and US/non-US on one geography axis, each making the total;
+    its OperatingSegmentsExcludingIntersegmentElimination figures are segment figures, not
+    reconciling items."""
+    D = Decimal
+    geo = {"Geographical=NorthAmerica": D(36609), "Geographical=LatinAmerica": D(6988),
+           "Geographical=EMEA": D(12793), "Geographical=AsiaPacific": D(11199),
+           "Geographical=US": D(32880), "Geographical=NonUs": D(34709)}  # fmt: skip
+    kept = segments.one_breakdown(geo, D(67589))
+    assert set(kept) == {"Geographical=NorthAmerica", "Geographical=LatinAmerica",
+                         "Geographical=EMEA", "Geographical=AsiaPacific"}  # fmt: skip
+    # members that do not split into two whole breakdowns stay as they are
+    odd = {"Geographical=US": D(30), "Geographical=CA": D(20), "Geographical=EU": D(10),
+           "Geographical=JP": D(5)}  # fmt: skip
+    assert segments.one_breakdown(odd, D(100)) == odd
+    # a near miss (within 1%, not 0.1%) is a mix of totals and their parts: left as it is
+    spok = {"ProductOrService=Wireless": D(72.5), "ProductOrService=Paging": D(68.6),
+            "ProductOrService=Software": D(67.2), "ProductOrService=Maintenance": D(36.4),
+            "ProductOrService=Services": D(35.4)}  # fmt: skip
+    assert segments.one_breakdown(spok, D(139.7)) == spok
+    # a side with one region twice, or a negative revenue member, is not a whole breakdown
+    twice = {"Geographical=InsideUSA": D(29.5), "Geographical=US": D(29.5),
+             "Geographical=CN": D(16.2), "Geographical=BR": D(6.6), "Geographical=JV": D(2.4),
+             "Geographical=IN": D(22.6), "Geographical=Other": D(9.3),
+             "Geographical=Outside": D(52.3)}  # fmt: skip
+    # the side with "US" twice is never kept; the countries make a whole breakdown
+    assert set(segments.one_breakdown(twice, D(84.2))) == {
+        "Geographical=US",
+        "Geographical=CN",
+        "Geographical=BR",
+        "Geographical=IN",
+        "Geographical=Other",
+    }
+    neg = {"Geographical=NY": D(45.7), "Geographical=CA": D(21.7), "Geographical=US": D(-4.2),
+           "Geographical=A": D(57.7), "Geographical=B": D(5.5)}  # fmt: skip
+    assert segments.one_breakdown(neg, D(63.2)) == neg
+    assert (
+        segments.classify(
+            {
+                "BusinessSegments": "PowerEnergy",
+                "ConsolidationItems": "OperatingSegmentsExcludingIntersegmentElimination",
+            }
+        )
+        is None
+    )
+
+
+def test_e4d_reconciling_rows_that_cancel_beside_segments_that_add_up_are_left_out():
+    """Chevron: +$145M and -$145M of eliminations beside segments that make the total."""
+    metrics = {"revenue": {"consolidated": {"2025-12-31": 189031.0, "2024-12-31": 193414.0}}}
+    segs = {"A": {"values": {"revenue": {"2025-12-31": 189031.0, "2024-12-31": 193414.0}}}}
+    recon = {
+        "X": {"values": {"revenue": {"2025-12-31": 145.0, "2024-12-31": 150.0}}},
+        "Y": {"values": {"revenue": {"2025-12-31": -145.0, "2024-12-31": -150.0}}},
+    }
+    segments._drop_cancelling(metrics, segs, recon)
+    assert recon == {}
+    # a reconciling row that does not cancel stays (segments alone above the total)
+    recon = {"X": {"values": {"revenue": {"2025-12-31": -5000.0, "2024-12-31": -5000.0}}}}
+    segs = {"A": {"values": {"revenue": {"2025-12-31": 194031.0, "2024-12-31": 198414.0}}}}
+    segments._drop_cancelling(metrics, segs, recon)
+    assert "X" in recon
+    assert (
+        segments.member_label(
+            "BusinessSegments=ReportableSegmentAggregationBeforeOtherOperatingSegment;"
+            "ConsolidationItems=IntersegmentElimination"
+        )
+        == "Reportable segments (combined): intersegment eliminations"
+    )
+
+
+def test_e4d_one_basis_for_all_segments_and_no_reconciling_subtotals():
+    """Caterpillar: Power & Energy has its own total (external sales) while every segment has
+    an operating-segments figure (gross of intersegment sales); all segments take the gross
+    figure. Its eliminations come per segment, as their total, and with corporate items."""
+    D = Decimal
+    recon = {"BusinessSegments=PowerEnergy;ConsolidationItems=IntersegmentElimination": D(-5058),
+             "BusinessSegments=Construction;ConsolidationItems=IntersegmentElimination": D(-260),
+             "BusinessSegments=Resource;ConsolidationItems=IntersegmentElimination": D(-289),
+             "BusinessSegments=AllOther;ConsolidationItems=IntersegmentElimination": D(-281),
+             "ConsolidationItems=IntersegmentElimination": D(-5888),
+             "ConsolidationItems=CorporateNonSegment": D(-805),
+             "ConsolidationItems=EliminationsAndReconcilingItems": D(-6693)}  # fmt: skip
+    kept = segments.drop_reconciling_subtotals(recon)
+    assert "ConsolidationItems=IntersegmentElimination" not in kept
+    assert "ConsolidationItems=EliminationsAndReconcilingItems" not in kept
+    assert sum(kept.values()) == D(-6693)

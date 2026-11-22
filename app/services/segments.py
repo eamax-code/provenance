@@ -82,6 +82,7 @@ RECONCILING = re.compile(
     r"Corporate|Elimination|Reconcil|Unallocated|NonSegment|Intersegment", re.I
 )
 TOLERANCE = Decimal("0.01")
+BREAKDOWN_TOLERANCE = Decimal("0.001")  # two whole breakdowns in one kind add up exactly
 COUNTRIES = {"US": "United States", "CN": "China", "JP": "Japan", "GB": "United Kingdom",
              "DE": "Germany", "FR": "France", "CA": "Canada", "IN": "India", "IE": "Ireland",
              "NL": "Netherlands", "CH": "Switzerland", "KR": "South Korea", "TW": "Taiwan",
@@ -159,6 +160,10 @@ def classify(d: dict[str, str]) -> tuple[str, str, str] | None:
     kind = KIND_AXIS.get(axis)
     if kind is None:
         return None
+    if items and "Excluding" in items:
+        # OperatingSegmentsExcludingIntersegmentElimination (Caterpillar): the segment's figure
+        # before eliminations, not a reconciling item; the segment's own figure is read elsewhere
+        return None
     if items and items != OPERATING:
         # a segment's own eliminations: keyed apart from the segment itself
         key = f"{axis}={member};ConsolidationItems={items}"
@@ -222,6 +227,63 @@ def summed_over(
         if adds_up(summed, total, recon):
             return summed
     return None
+
+
+def drop_reconciling_subtotals(recon: dict[str, Decimal]) -> dict[str, Decimal]:
+    """Reconciling items whose value is the sum of two or more others of the same sign (a total
+    of per-segment eliminations; eliminations plus corporate items) are dropped."""
+    if len(recon) < 3:
+        return recon
+    parents: set[str] = set()
+    for sign in (1, -1):
+        same = {k: v * sign for k, v in recon.items() if v * sign > 0}
+        parents |= subtotals(same)
+    return {k: v for k, v in recon.items() if k not in parents}
+
+
+def _whole(part: list[str], members: dict[str, Decimal], signed: bool) -> bool:
+    """A set of members that can be one whole breakdown: no two members with the same value (one
+    region tagged twice, Northern Technologies' "Inside the USA" and "US"), and for revenue no
+    negative member (an elimination, not a region: Frequency Electronics' US -4.2M)."""
+    values = [members[k] for k in part if members[k]]
+    if len(values) != len(set(values)):
+        return False
+    return signed or all(members[k] >= 0 for k in part)
+
+
+def one_breakdown(
+    members: dict[str, Decimal], total: Decimal | None, signed: bool = False
+) -> dict[str, Decimal]:
+    """Members of one kind that hold two whole breakdowns (Caterpillar's geography: four regions,
+    and US with non-US, each making the total) are split, and the finer one kept. Only when the
+    members split into two sets that each make the total within 0.1%: two whole breakdowns add
+    up exactly, while a near miss is a mix of totals and their parts (Spok, Vertex); otherwise
+    as they are."""
+    if total is None or not total or len(members) < 4 or len(members) > 16:
+        return members
+    if _close(sum(members.values(), Decimal(0)), total):
+        return members
+    keys = sorted(members)
+    best = None
+    for n in range(2, len(keys) - 1):
+        for combo in combinations(keys, n):
+            part = set(combo)
+            rest = [k for k in keys if k not in part]
+            if len(rest) < 2:
+                continue
+            exact = abs(total) * BREAKDOWN_TOLERANCE
+            if (
+                abs(sum(members[k] for k in part) - total) <= exact
+                and abs(sum(members[k] for k in rest) - total) <= exact
+                and _whole(list(part), members, signed)
+                and _whole(rest, members, signed)
+            ):
+                finer = max((sorted(part), sorted(rest)), key=lambda x: (len(x), x))
+                if best is None or len(finer) > len(best):
+                    best = finer
+        if best:
+            break
+    return {k: members[k] for k in best} if best else members
 
 
 def _close(a: Decimal, b: Decimal) -> bool:
@@ -317,6 +379,10 @@ def parse_notes_zip(path: str | Path) -> list[dict]:
                 operating.setdefault(k, {})[member] = value
                 continue
             g[role][member] = value
+    # reconciling rows that are the sum of others (Caterpillar tags eliminations per segment,
+    # their total, and eliminations with corporate items) would count twice
+    for g in groups.values():
+        g["reconciling"] = drop_reconciling_subtotals(g["reconciling"])
     # where a filing tags both, the member's own total wins unless only the operating-segments
     # parts add up (XOM's product lines add up with the totals; some filers' only with the parts)
     for k, parts in operating.items():
@@ -325,6 +391,16 @@ def parse_notes_zip(path: str | Path) -> list[dict]:
         total = consolidated.get((adsh, tag, ddate, unit))
         recon = g["reconciling"] if kind == "business" else {}
         own, other = {**parts, **g["segment"]}, {**g["segment"], **parts}
+        # members with an operating figure and no own total; an all-segments total or a zero
+        # does not make two bases (California Resources, Watts)
+        extra = {m for m in set(parts) - set(g["segment"]) if parts[m] and not is_total(m)}
+        if extra and set(parts) & set(g["segment"]):
+            # own totals for only some members would mix two bases (Caterpillar: Power & Energy
+            # external, the others gross of intersegment sales): the parts, unless only the
+            # own totals add up
+            only_own = adds_up(own, total, recon) and not adds_up(other, total, recon)
+            g["segment"] = own if only_own else other
+            continue
         g["segment"] = (
             other if adds_up(other, total, recon) and not adds_up(own, total, recon) else own
         )
@@ -399,6 +475,8 @@ def parse_notes_zip(path: str | Path) -> list[dict]:
         total = consolidated.get((adsh, tag, ddate, unit))
         recon = g["reconciling"] if kind == "business" else {}
         segs = drop_subtotals(g["segment"], total, sum(recon.values(), Decimal(0)))
+        if kind != "business":
+            segs = one_breakdown(segs, total, signed=metric != "revenue")
         ok = total is not None and (_close(sum(segs.values()), total) or bool(recon))
         status = "ok" if ok else "unreconciled"
         base = {"accession_number": adsh, "kind": kind, "metric": metric, "period_end": end,
@@ -429,6 +507,28 @@ def load(db: Session, path: str | Path) -> dict:
                  if r["status"] != "ok"})  # fmt: skip
     groups = len({(r["accession_number"], r["kind"], r["metric"]) for r in rows})
     return {"rows": len(rows), "reports": len(accs), "groups": groups, "unreconciled": unrec}
+
+
+def _drop_cancelling(metrics: dict, segs: dict, recon: dict) -> None:
+    """Reconciling rows that net to zero beside segments that add up on their own, in every shown
+    year, are left out for that metric (Chevron: +$145M and -$145M of eliminations)."""
+    for metric, m in metrics.items():
+        cons = m["consolidated"]
+        if not cons:
+            continue
+        cancel = True
+        for p, total in cons.items():
+            seg = sum(s["values"].get(metric, {}).get(p) or 0 for s in segs.values())
+            rec = sum(r["values"].get(metric, {}).get(p) or 0 for r in recon.values())
+            tol = abs(total) * float(TOLERANCE)
+            if abs(seg - total) > tol or abs(rec) > tol / 2:
+                cancel = False
+                break
+        if cancel:
+            for r in recon.values():
+                r["values"].pop(metric, None)
+    for key in [k for k, r in recon.items() if not r["values"]]:
+        del recon[key]
 
 
 def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3) -> dict | None:
@@ -488,6 +588,7 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
             hidden.append({"kind": kind, "reason": SINGLE_UNRECONCILED,
                            "member": ordered[0]["label"]})  # fmt: skip
             continue
+        _drop_cancelling(metrics, segs, recon)
         kinds.append({"kind": kind, "periods": [p.isoformat() for p in periods],
                       "metrics": metrics, "segments": ordered,
                       "reconciling": list(recon.values())})  # fmt: skip
