@@ -308,7 +308,8 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
                 m["consolidated"][p] = float(r.value)
                 continue
             target = segs if r.role == "segment" else recon
-            new = {"key": r.member, "label": r.label, "label_source": LABEL_SOURCE, "values": {}}
+            source = r.label_source or LABEL_SOURCE
+            new = {"key": r.member, "label": r.label, "label_source": source, "values": {}}
             item = target.setdefault(r.member, new)
             item["values"].setdefault(r.metric, {})[p] = float(r.value)
         latest_p = periods[0].isoformat()

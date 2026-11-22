@@ -399,6 +399,8 @@ class CompanySegment(Base):
     fiscal_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     filed_date: Mapped[date] = mapped_column(Date, nullable=False)
     label: Mapped[str] = mapped_column(Text, nullable=False)
+    # E-4b: "filing_label" (the filing's own label linkbase) or "member_name" (made from it)
+    label_source: Mapped[str] = mapped_column(Text, nullable=False, default="member_name")
     role: Mapped[str] = mapped_column(Text, nullable=False)  # segment | reconciling | consolidated
     tag: Mapped[str] = mapped_column(Text, nullable=False)
     unit: Mapped[str] = mapped_column(Text, nullable=False)

@@ -106,3 +106,37 @@ def test_no_share_of_revenue_when_the_latest_year_is_unreconciled(db, ingested_a
     kinds = {k["kind"]: k for k in segments.for_company(db, "0000320193")["kinds"]}
     assert all(s["share_of_revenue_pct"] is None for s in kinds["product"]["segments"])
     assert kinds["business"]["segments"][0]["share_of_revenue_pct"] == 42.9  # ok stays
+
+
+LAB = """<?xml version="1.0"?>
+<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase"
+  xmlns:xlink="http://www.w3.org/1999/xlink">
+ <link:labelLink xlink:type="extended">
+  <link:loc xlink:type="locator" xlink:href="aapl.xsd#aapl_IPhoneMember" xlink:label="loc1"/>
+  <link:labelArc xlink:type="arc" xlink:from="loc1" xlink:to="lab1"/>
+  <link:label xlink:type="resource" xlink:label="lab1"
+    xlink:role="http://www.xbrl.org/2003/role/terseLabel">iPhone</link:label>
+  <link:label xlink:type="resource" xlink:label="lab1"
+    xlink:role="http://www.xbrl.org/2003/role/label">iPhone [Member]</link:label>
+  <link:loc xlink:type="locator" xlink:href="aapl.xsd#aapl_RestOfAsiaPacificSegmentMember"
+    xlink:label="loc2"/>
+  <link:labelArc xlink:type="arc" xlink:from="loc2" xlink:to="lab2"/>
+  <link:label xlink:type="resource" xlink:label="lab2"
+    xlink:role="http://www.xbrl.org/2003/role/label">Rest of Asia Pacific [Member]</link:label>
+  <link:loc xlink:type="locator" xlink:href="aapl.xsd#aapl_NetSales" xlink:label="loc3"/>
+  <link:labelArc xlink:type="arc" xlink:from="loc3" xlink:to="lab3"/>
+  <link:label xlink:type="resource" xlink:label="lab3"
+    xlink:role="http://www.xbrl.org/2003/role/label">Net sales</link:label>
+ </link:labelLink>
+</link:linkbase>"""
+
+
+def test_labels_come_from_the_filings_own_linkbase():
+    from app.services import segment_labels
+
+    labels = segment_labels.parse_labels(LAB)
+    assert labels == {"IPhone": "iPhone", "RestOfAsiaPacificSegment": "Rest of Asia Pacific"}
+    idx = '<a href="/Archives/edgar/data/1/000000000126000001/x-20260630.xsd">x</a>'
+    assert segment_labels.lab_url(idx).endswith(".xsd")  # linkbase embedded in the schema
+    idx += '<a href="/Archives/edgar/data/1/000000000126000001/x-20260630_lab.xml">l</a>'
+    assert segment_labels.lab_url(idx).endswith("_lab.xml")
