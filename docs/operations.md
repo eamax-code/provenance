@@ -233,3 +233,25 @@ wait on something are written here, not remembered.
    (`scripts/read_releases.py`), E-3 auditors (`scripts/load_auditors.py`), K-04b tickers
    (`scripts/load_ticker_history.py`), E-4 segments (`scripts/load_segments.py`).
 8. Restart long-running processes (API, poller) only after step 1.
+
+## Load smoke (R-2), 2026-11-22
+
+`scripts/load_smoke.py` against a local 2-worker API (`uvicorn --workers 2`, mapping 1.4.0,
+25.7M facts, PostgreSQL in Docker), 50 requests a second open-loop for 300 s (15,000 requests),
+one Enterprise test key (revoked afterwards); the per-address limits on the keyless endpoints
+were raised on that instance only (`PUBLIC_RATE_LIMIT_PER_MINUTE`,
+`STATS_RATE_LIMIT_PER_MINUTE`), since every request came from one address.
+
+| Endpoint | p50 ms | p95 ms | p99 ms | Errors | Target p95 |
+|---|---|---|---|---|---|
+| facts | 17.3 | 23.8 | 29.9 | 0 | < 500 ms, pass |
+| screen | 31.5 | 40.1 | 48.9 | 0 | < 2 s, pass |
+| search | 30.5 | 38.7 | 49.5 | 0 | |
+| MCP get_figures | 17.9 | 26.9 | 33.6 | 0 | |
+| stats | 4.3 | 7.0 | 8.9 | 0 | < 100 ms, pass |
+| coverage | 7.3 | 10.3 | 12.1 | 0 | < 100 ms, pass |
+| public overview (showcase, 20 req/s, 60 s) | 16.4 | 20.9 | 24.8 | 0 | |
+
+A point-in-time overview that misses the cache took 68-72 ms. The 50 req/s run's overview row
+counted companies outside the showcase (404s), so the overview is reported from the separate
+showcase run.
