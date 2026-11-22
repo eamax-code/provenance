@@ -78,6 +78,22 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
         ).group_by(FinancialFact.metric)
     ).all()
     by = {r[0]: r for r in rows}
+    # what a user meets: for each company, unit and period, is there an ok figure?
+    has = func.max(case((usable, 1), else_=0)).label("has")
+    per_period = (
+        select(FinancialFact.metric.label("metric"), has)
+        .where(FinancialFact.derived.is_(False))
+        .group_by(FinancialFact.metric, FinancialFact.cik, FinancialFact.unit,
+                  FinancialFact.period_start, FinancialFact.period_end)
+        .subquery()
+    )  # fmt: skip
+    periods_ok = {
+        m: round(100 * float(v), 1)
+        for m, v in db.execute(
+            select(per_period.c.metric, func.avg(per_period.c.has)).group_by(per_period.c.metric)
+        ).all()
+        if v is not None
+    }
     metrics = []
     for m, spec in CONCEPT_MAP.items():
         r = by.get(m)
@@ -85,6 +101,8 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
         metrics.append({
             "metric": m, "label": spec["label"], "statement": spec["statement"],
             "unit_kind": spec["unit"],
+            # first: each company and period with an ok figure; then rows, alternate tags kept
+            "periods_ok_pct": periods_ok.get(m),
             "ok_pct": round(100 * int(r[2] or 0) / total, 1) if total else None,
             "ambiguous_pct": round(100 * int(r[3] or 0) / total, 1) if total else None,
             "companies": int(r[4] or 0) if r else 0,
@@ -115,6 +133,9 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
         "facts_total": int(sum(int(r[1]) for r in rows)),
         "suspicious_periods": suspicious_count(db),
         "metrics": metrics,
+        "metrics_note": "periods_ok_pct: for each company and period, whether there is an ok "
+        "figure. ok_pct counts stored rows, including alternate tags a filing reports beside "
+        "the preferred one: they are kept for audit and marked ambiguous, never deleted.",
         "ratios": [
             {"metric": k, "label": r.label, "formula": r.formula, "unit": ratios.unit_of(r, "USD")}
             for k, r in ratios.RATIOS.items()

@@ -204,21 +204,28 @@ def main() -> int:
     per = db.execute(text(PER_METRIC)).all()
     period_ok = dict(db.execute(text(PERIOD_OK)).all())
     lines += ["## Per metric", "",
-              "% ok counts stored rows; an alternate tag a filing reports beside the preferred "
-              "one is stored as ambiguous_mapping by design. Periods with ok counts each company, "
-              "unit and period once.", "",
-              "| Metric | Facts | % ok | % ambiguous | % suspicious period | Periods with ok | "
-              "Companies (ok) | Earliest ok year |",
+              "Periods with an ok figure: for each company and period, is there an ok figure "
+              "(what a user meets). Rows ok counts stored rows: when a filing reports a figure "
+              "under two tags, the alternate one is kept and marked ambiguous, never deleted, "
+              "which is why the row % is lower for sbc, d_and_a and revenue.", "",
+              "| Metric | Periods with an ok figure | Rows ok (alternate tags kept for audit) | "
+              "% ambiguous | % suspicious period | Facts | Companies (ok) | Earliest ok year |",
               "|---|---|---|---|---|---|---|---|"]  # fmt: skip
     for m in per:
-        lines.append(f"| {m.metric} | {m.n:,} | {m.ok} | {m.ambiguous} | {m.suspicious} | "
-                     f"{period_ok.get(m.metric)}% | {m.companies:,} | {m.earliest} |")  # fmt: skip
+        lines.append(f"| {m.metric} | {period_ok.get(m.metric)}% | {m.ok}% | {m.ambiguous} | "
+                     f"{m.suspicious} | {m.n:,} | {m.companies:,} | {m.earliest} |")  # fmt: skip
     low = [m.metric for m in per if m.ok is not None and float(m.ok) < 93]
     lines += ["", f"Metrics under 93% ok by row: {', '.join(low) if low else 'none'}. Their "
               "periods with an ok figure: " + ", ".join(f"{m} {period_ok.get(m)}%" for m in low)
               + ". The rest are alternate tags in the same filing (for example "
               "AllocatedShareBasedCompensationExpense beside ShareBasedCompensation).",
               ""]  # fmt: skip
+
+    old_sql = "select count(*), count(distinct cik) from financial_facts where mapping_version<>:v"
+    old_rows = db.execute(text(old_sql), {"v": MAPPING_VERSION}).one()
+    lines += [f"Facts on an older mapping: {old_rows[0]:,} rows at {old_rows[1]:,} companies "
+              "(registrants not yet in the companyfacts archive; scripts/check_mapping.py must "
+              "report 0 after the next pass).", ""]  # fmt: skip
 
     n, c = db.execute(text(CONFLICTS)).one()
     lines += ["## Revenue tag conflicts", "",

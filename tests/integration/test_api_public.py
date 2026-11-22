@@ -331,3 +331,15 @@ def test_coverage_ignores_impossible_periods(client, db, ingested_aapl, settings
     assert rev["earliest_year"] >= 1993 and body["suspicious_periods"] >= 1
     assert body["history"]["earliest_fact_year"] >= 1993
     assert "read on demand" in body["forms"][-1]["basis"]
+
+
+def test_coverage_leads_with_periods_that_have_an_ok_figure(db, settings, ingested_aapl):
+    """What a user meets first: for each company and period, is there an ok figure; the row %
+    (alternate tags kept for audit) beside it."""
+    from app.services import coverage
+
+    data = coverage.compute(db, settings)
+    rev = next(m for m in data["metrics"] if m["metric"] == "revenue")
+    assert list(rev)[4] == "periods_ok_pct" and 0 < rev["periods_ok_pct"] <= 100
+    assert rev["periods_ok_pct"] >= rev["ok_pct"]
+    assert "never deleted" in data["metrics_note"]
