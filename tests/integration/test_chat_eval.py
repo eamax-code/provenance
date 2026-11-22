@@ -258,7 +258,7 @@ def score(case: dict, reply: dict) -> tuple[bool, str]:
               and not any(n in blob for n in case["absent"]) and bool(answer))  # fmt: skip
         return ok, "wants the parsed criteria, the expected companies only, an answer"
     if kind == "c06":
-        cites = {c["n"] for c in reply.get("citations") or [] if c.get("url")}
+        cites = {c["n"] for c in reply.get("citations") or []}  # an LEI is named, not linked
         cited = {int(n) for n in CITE.findall(answer)} & cites
         return bool(answer) and bool(cited), "C-06: wants a cited answer"
     raise AssertionError(kind)
@@ -298,6 +298,14 @@ def test_chat_eval(app, client, auth, eval_db, capsys):
     assert not unexpected, f"new failures: {unexpected}"
     assert not fixed, f"now passing, remove from KNOWN_FAILURES: {fixed}"
     assert not [u for u in uncited if u[0] not in KNOWN_FAILURES], f"uncited figures: {uncited}"
+    # the only links ever shown are filings on sec.gov/Archives (a source is named, not linked)
+    off = [
+        (r[0]["id"], c["url"])
+        for r in results
+        for c in r[3].get("citations") or []
+        if c.get("url") and not c["url"].startswith("https://www.sec.gov/Archives/")
+    ]
+    assert not off, f"citations outside sec.gov/Archives: {off}"
     if not any(k in KNOWN_FAILURES for k in (r[0]["id"] for r in figure)):
         assert exact >= 0.95
 

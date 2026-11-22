@@ -31,7 +31,6 @@ from app.services.fact_normalizer import (
 from app.services.form8k import ITEM_TITLES, LEADERSHIP_ITEM, split_items
 from app.services.form_names import form_label, human_date
 from app.services.point_in_time import known_by
-from app.services.sec_client import company_filings_url
 
 # Every mapped metric can be asked for; the brief's headline list stays short so the model's
 # context does not fill with thirty series.
@@ -318,7 +317,8 @@ def annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> lis
 
 def build_brief(db: Session, company: Company, as_of: date | None = None) -> Brief:
     b = Brief(company=company, as_of=as_of)
-    n = b.cite("SEC EDGAR filing list", company_filings_url(company.cik))
+    # named, not linked: only sec.gov/Archives filings are ever links (PM, 2026-11-23)
+    n = b.cite(f"SEC EDGAR company record, CIK {company.cik}", None)
     parts = [f"[{n}] Company: {company.legal_name}"]
     if company.ticker:
         parts.append(f" (ticker {company.ticker}, {company.exchange})")

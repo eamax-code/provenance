@@ -65,6 +65,7 @@ class DataAnswer:
     citations: list[dict] = field(default_factory=list)  # {n, label, url}: each figure's filing
     facts: list = field(default_factory=list)  # C-01: (fact, citation n) behind each figure chip
     how: list[dict] = field(default_factory=list)  # C-01: the API calls that answer it
+    names: dict = field(default_factory=dict)  # C-01: {cik: display name} for the chips
 
 
 def _cite(cites: list[dict], label: str, url: str | None) -> int | None:
@@ -559,6 +560,10 @@ def _compare(db: Session, p: Plan) -> DataAnswer:
         ConversationContext(intent="compare", ciks=p.ciks, label="the companies compared"),
         citations=cites,
         facts=facts,
+        names={
+            c.cik: intel.display_name(c.legal_name, c.ticker, c.registrant_name)
+            for c in comps.values()
+        },
         how=[
             {
                 "endpoint": f"/v1/companies/{cik}/facts",

@@ -154,12 +154,13 @@ class ChatReply(BaseModel):
     )  # fmt: skip
 
 
-def _chip(f, n: int | None) -> dict:
+def _chip(f, n: int | None, names: dict | None = None) -> dict:
     """A figure chip: the value as shown, and what the provenance card needs (C-01)."""
     from app.services.fact_normalizer import METRIC_LABELS
 
     return {
-        "type": "figure", "metric": f.metric, "label": METRIC_LABELS.get(f.metric, f.metric),
+        "type": "figure", "cik": f.cik, "company": (names or {}).get(f.cik),
+        "metric": f.metric, "label": METRIC_LABELS.get(f.metric, f.metric),
         "value": float(f.value), "unit": f.unit,
         "display": intel.display(f.value, f.metric, f.unit),
         "period_start": f.period_start.isoformat() if f.period_start else None,
@@ -171,14 +172,19 @@ def _chip(f, n: int | None) -> dict:
     }  # fmt: skip
 
 
-def _blocks(answer: str | None, citations: list[dict], widgets: list[dict], facts) -> list[dict]:
+def _blocks(answer: str | None, citations: list[dict], widgets: list[dict], facts,
+            names: dict | None = None) -> list[dict]:  # fmt: skip
     blocks = []
     if answer:
         cited = sorted({int(n) for n in re.findall(r"\[(\d+)\]", answer)})
         blocks.append({"type": "text", "text": answer, "citations": cited})
-    blocks += [_chip(f, n) for f, n in facts]
+    blocks += [_chip(f, n, names) for f, n in facts]
     blocks += [w for w in widgets if w.get("type") in ("screen", "table", "chart", "stats")]
     return blocks
+
+
+def _display(c) -> str:
+    return intel.display_name(c.legal_name, c.ticker, c.registrant_name)
 
 
 def _how(cik: str, metric: str, as_of) -> dict:
@@ -577,7 +583,9 @@ def _data_reply(found: conversation.DataAnswer) -> ChatReply:
         notes=found.notes
         or ["Answered from the filings loaded here; each row links to its filing."],
         context=found.context,
-        blocks=_blocks(answer, found.citations, found.widgets, found.facts if not checks else []),
+        blocks=_blocks(
+            answer, found.citations, found.widgets, found.facts if not checks else [], found.names
+        ),
         how=found.how,
     )
 
@@ -594,7 +602,7 @@ def _figure_reply(company, brief, brief_out, answer: str, notes: list[str],
         answered_by="data",
         intent="figure",
         notes=notes,
-        blocks=_blocks(answer, brief.citations, [], brief.facts),
+        blocks=_blocks(answer, brief.citations, [], brief.facts, {company.cik: _display(company)}),
         how=how or [],
     )
 

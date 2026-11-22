@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -19,7 +18,7 @@ class StatementColumn(BaseModel):
 
 class StatementCell(BaseModel):
     column: str
-    value: Decimal | float | None
+    value: float | None = Field(description="A JSON number (never a string)")
     unit: str
     period_start: date | None = None
     period_end: date | None = None
@@ -34,6 +33,9 @@ class StatementCell(BaseModel):
     derived: bool = False
     derivation: dict | None = None
     inputs: list[dict] | None = Field(None, description="For a derived row: each input's filing")
+    registrant_cik: str | None = Field(None, description="Who filed it (K-05)")
+    predecessor: bool = Field(False, description="Filed by a predecessor registrant")
+    registrant_label: str | None = None
 
 
 class StatementRow(BaseModel):

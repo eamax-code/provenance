@@ -189,8 +189,8 @@ def lei(db: Session, b: Brief, as_of: date | None) -> str:
     block = identity.for_company(db, b.company.cik)
     if not block or not block.get("lei"):
         return f"No LEI is linked to {_name(b)} in the data loaded here."
-    url = f"https://search.gleif.org/#/record/{block['lei']}"  # GLEIF's public record page
-    n = _cite(b, f"GLEIF record {block['lei']}", url)
+    # only sec.gov/Archives filings are ever linked: GLEIF is named, not linked (PM, 2026-11-23)
+    n = b.cite(f"GLEIF public record, LEI {block['lei']}, CC0 golden copy", None)
     how = METHODS.get(block["match_method"], f"matching ({block['match_method']})")
     holder = f" ({block['lei_name']})" if block.get("lei_name") else ""
     return f"{_name(b)}'s LEI is {block['lei']}{holder}, matched by {how} [{n}]."

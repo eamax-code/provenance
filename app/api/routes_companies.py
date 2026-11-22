@@ -616,6 +616,7 @@ STATEMENT_DERIVED = {
     "cash_flow": ("free_cash_flow",),
 }
 STATEMENT_PERIODS = {"annual": (12, 20), "quarterly": (40, 80)}  # (default, max) columns
+COVER_METRICS = {"shares_outstanding"}  # dated at the cover page, after the period
 
 
 @router.get(
@@ -651,8 +652,13 @@ def statement(
         raise APIError(422, "invalid_parameter", f"periods is at most {most} for {period}.")
     n_cols = periods_ or default
     metrics = STATEMENT_ROWS[statement]
+    from app.services import statements as statements_service
+    from app.services import successions
+
+    # K-05: a successor's statement continues with its predecessors' figures, as the overview
+    ciks = [cik] + [p.predecessor_cik for p in successions.predecessors(db, cik)]
     stmt = select(FinancialFact).where(
-        FinancialFact.cik == cik, FinancialFact.derived.is_(False),
+        FinancialFact.cik.in_(ciks), FinancialFact.derived.is_(False),
         FinancialFact.metric.in_(metrics), FinancialFact.period_class == period,
     )  # fmt: skip
     if as_of:
@@ -660,7 +666,7 @@ def statement(
     chosen = _select_latest(db.scalars(stmt).all())
     if include_derived and period == "quarterly":
         base = select(FinancialFact).where(
-            FinancialFact.cik == cik, FinancialFact.derived.is_(False),
+            FinancialFact.cik.in_(ciks), FinancialFact.derived.is_(False),
             FinancialFact.period_type == "duration", FinancialFact.metric.in_(metrics),
         )  # fmt: skip
         if as_of:
@@ -675,11 +681,23 @@ def statement(
     currency = mart.reporting_currency if mart else None
     # one cell per metric and period: the reporting currency first when a metric has several
     by_key: dict[tuple, FactOut] = {}
-    for f in sorted(chosen, key=lambda f: (f.unit != currency, f.unit)):
+    # the company's own filing first, then the reporting currency
+    for f in sorted(chosen, key=lambda f: (f.cik != cik, f.unit != currency, f.unit)):
         by_key.setdefault((f.metric, f.period_end), f)
     if not by_key:
         raise APIError(404, "no_statement_data", "No figures of this statement are loaded.")
+    # a cover-page figure (shares outstanding) is dated at the cover, after the period: it joins
+    # the latest column ending on or before that date, never a column of its own
+    cover = {k: v for k, v in by_key.items() if k[0] in COVER_METRICS}
+    for k in cover:
+        by_key.pop(k)
     ends = sorted({end for _, end in by_key})[-n_cols:]
+    for (m, dated), f in sorted(cover.items(), key=lambda kv: kv[0][1]):
+        home = [e for e in ends if e <= dated and (dated - e).days <= 120]
+        if home:
+            by_key[(m, home[-1])] = f  # the latest cover date for a column wins
+    if not ends and cover:
+        raise APIError(404, "no_statement_data", "No figures of this statement are loaded.")
     starts = {}
     for (_, end), f in by_key.items():
         if f.period_start and end in ends:
@@ -695,18 +713,22 @@ def statement(
         ))  # fmt: skip
     keys = {c.period_end: c.key for c in columns}
 
-    def cell(f: FactOut) -> StatementCell:
+    def cell(f: FactOut, end) -> StatementCell:
+        own = statements_service.registrant(f, cik)
         return StatementCell(
-            column=keys[f.period_end], value=f.value, unit=f.unit, period_start=f.period_start,
+            column=keys[end], value=float(f.value) if f.value is not None else None,
+            unit=f.unit, period_start=f.period_start,
             period_end=f.period_end, form_type=f.form_type, filed_date=f.filed_date,
             accession_number=f.accession_number, source_url=f.source_url, source_tag=f.source_tag,
             source_taxonomy=f.source_taxonomy, mapping_version=f.mapping_version,
             quality_status=f.quality_status, derived=f.derived, derivation=f.derivation,
+            registrant_cik=own["registrant_cik"], predecessor=own["predecessor"],
+            registrant_label=own.get("registrant_label"),
         )  # fmt: skip
 
     rows = []
     for m in metrics:
-        cells = [cell(by_key[(m, end)]) if (m, end) in by_key else None for end in ends]
+        cells = [cell(by_key[(m, end)], end) if (m, end) in by_key else None for end in ends]
         if any(cells):
             rows.append(StatementRow(metric=m, label=METRIC_LABELS[m],
                                      unit_kind=METRIC_UNIT_KIND[m], cells=cells))  # fmt: skip

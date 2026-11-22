@@ -56,3 +56,33 @@ def test_bad_requests(client, auth, ingested_aapl):
     r = client.get(f"/v1/companies/{CIK}/statements/income?periods=30", headers=auth)
     assert r.status_code == 422 and "at most 20" in r.json()["error"]["message"]
     assert client.get("/v1/companies/9999999/statements/income", headers=auth).status_code == 404
+
+
+def test_values_are_numbers_and_cover_dates_join_their_quarter(client, auth, ingested_aapl):
+    body = client.get(f"/v1/companies/{CIK}/statements/income", headers=auth).json()
+    cell = next(c for c in _rows(body)["revenue"]["cells"] if c)
+    assert isinstance(cell["value"], (int, float))  # a JSON number, never "391035000000.000000"
+    bal = client.get(f"/v1/companies/{CIK}/statements/balance?period=quarterly",
+                     headers=auth).json()  # fmt: skip
+    keys = [c["key"] for c in bal["columns"]]
+    assert len(keys) == len(set(keys))  # a cover-page date never makes a column of its own
+
+
+def test_a_successor_continues_with_its_predecessors_cells(client, auth, db, ingested_aapl):
+    from datetime import UTC, date, datetime
+
+    from app.db.models import Company, RegistrantSuccession
+
+    db.add(Company(cik="0002999999", legal_name="Apple Holdings Example Inc", ticker=None,
+                   source_url="https://www.sec.gov/", first_detected_at=datetime.now(UTC),
+                   quality_status="ok"))  # fmt: skip
+    db.add(RegistrantSuccession(
+        predecessor_cik="0000320193", successor_cik="0002999999",
+        effective_date=date(2026, 7, 1), evidence_accession="0002999999-26-000001",
+        evidence_form="8-K12B", match_method="holding_company_reorganization", confidence="high",
+    ))  # fmt: skip
+    db.commit()
+    body = client.get("/v1/companies/2999999/statements/income", headers=auth).json()
+    cell = next(c for c in _rows(body)["revenue"]["cells"] if c)
+    assert cell["predecessor"] and cell["registrant_cik"] == "0000320193"
+    assert "predecessor registrant" in cell["registrant_label"]
