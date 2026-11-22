@@ -132,28 +132,69 @@ def apply_registrant_names(db: Session, rows: list[dict]) -> int:
 INCORPORATION_TAG = "dei:EntityIncorporationStateCountryCode"
 
 
-def apply_incorporation(db: Session, rows: list[dict]) -> int:
+def apply_incorporation(
+    db: Session, rows: list[dict], submissions: dict[str, str | None] | None = None
+) -> int:
     """Each company's state of incorporation from the cover of its latest report that tags it
-    (the registrant's own undimensioned tag only, never a co-registrant's), with the filing. The
-    SEC submissions field can hold a home state instead (HubSpot: NY there, DE on its cover)."""
+    (the registrant's own undimensioned tag only), with the filing. The SEC submissions field can
+    hold a home state instead (HubSpot: NY there, DE on its cover).
+
+    Used only for a US state at a domestic filer: foreign filers often write an ISO country code
+    there, which collides with state codes (Israel "IL", Canada "CA", Cayman "KY"), so they keep
+    the SEC's EDGAR code. Used only when the cover's registrant name is the company's, so a
+    combined filing never gives a parent's state to a co-registrant (or the reverse). A company
+    that no longer qualifies goes back to the submissions value (`submissions`: cik -> code)."""
+    from app.services.identity import US_STATES, norm_key
+
     latest: dict[str, tuple] = {}
     for r in rows:
         if r.get("incorporation") and r.get("filed_date"):
             cur = latest.get(r["cik"])
             if cur is None or r["filed_date"] > cur[0]:
-                latest[r["cik"]] = (r["filed_date"], r["incorporation"], r["accession_number"])
+                latest[r["cik"]] = (r["filed_date"], r["incorporation"], r["accession_number"],
+                                    r.get("registrant"))  # fmt: skip
+    submissions = submissions or {}
     n = 0
-    for c in db.scalars(select(Company).where(Company.cik.in_(list(latest)))):
-        _, state, accession = latest[c.cik]
+    stmt = select(Company).where(
+        Company.cik.in_(list(latest)) | (Company.state_of_incorporation_source == INCORPORATION_TAG)
+    )
+    for c in db.scalars(stmt):
+        sub = submissions.get(
+            c.cik,
+            c.state_of_incorporation
+            if c.state_of_incorporation_source != INCORPORATION_TAG
+            else None,
+        )
+        found = latest.get(c.cik)
+        ok = False
+        if found:
+            _, state, accession, registrant = found
+            domestic = (sub or "").upper() in US_STATES or (not sub and _us_address(c))
+            names = {norm_key(c.legal_name), norm_key(c.registrant_name)} - {""}
+            same = not registrant or norm_key(registrant) in names
+            ok = state in US_STATES and domestic and same
+        if ok:
+            target = (state, INCORPORATION_TAG, accession)
+        elif c.state_of_incorporation_source == INCORPORATION_TAG:
+            target = (sub, "submissions" if sub else None, None)  # back to the SEC's field
+        else:
+            continue
         now = (c.state_of_incorporation, c.state_of_incorporation_source,
                c.state_of_incorporation_accession)  # fmt: skip
-        if now != (state, INCORPORATION_TAG, accession):
-            c.state_of_incorporation = state
-            c.state_of_incorporation_source = INCORPORATION_TAG
-            c.state_of_incorporation_accession = accession
+        if now != target:
+            (c.state_of_incorporation, c.state_of_incorporation_source,
+             c.state_of_incorporation_accession) = target  # fmt: skip
             n += 1
     db.commit()
     return n
+
+
+def _us_address(company: Company) -> bool:
+    try:
+        addr = json.loads(company.business_address or "{}") or {}
+    except ValueError:
+        return False
+    return (addr.get("country") or "").strip().lower() in ("united states", "usa", "us")
 
 
 def incorporation(company: Company) -> dict | None:

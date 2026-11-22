@@ -19,6 +19,27 @@ from _bootstrap import bootstrap
 from app.services import auditors, ticker_history
 
 
+def _submissions() -> dict[str, str | None]:
+    """cik -> stateOfIncorporation from the local SEC submissions archive (the value a company
+    goes back to when its cover tag does not qualify)."""
+    import zipfile
+
+    from app.core.config import get_settings
+
+    path = Path(get_settings().sec_bulk_dir) / "submissions.zip"
+    out: dict[str, str | None] = {}
+    if not path.exists():
+        return out
+    with zipfile.ZipFile(path) as z:
+        for name in z.namelist():
+            if name.startswith("CIK") and name.endswith(".json") and "-submissions-" not in name:
+                try:
+                    out[name[3:13]] = json.loads(z.read(name)).get("stateOfIncorporation") or None
+                except ValueError:
+                    continue
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("folder")
@@ -30,7 +51,7 @@ def main() -> int:
         rows += auditors.parse_notes_zip(p)[1]
     out = {"symbol_rows": len(rows), **ticker_history.apply(db, rows)}
     out["registrant_names_set"] = ticker_history.apply_registrant_names(db, rows)
-    out["incorporation_set"] = ticker_history.apply_incorporation(db, rows)
+    out["incorporation_set"] = ticker_history.apply_incorporation(db, rows, _submissions())
     print(json.dumps(out))
     db.close()
     return 0

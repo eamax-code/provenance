@@ -71,3 +71,34 @@ def test_the_cover_tag_wins_and_a_co_registrants_tag_is_never_used(db, tmp_path)
     assert again.state_of_incorporation == "DE"
     sub_only = ticker_history.incorporation(ohio)
     assert sub_only["source"] == "sec_submissions" and sub_only["source_url"] is None
+
+
+def test_foreign_iso_codes_and_another_registrants_cover_are_not_used(db):
+    """Allot writes "IL" (Israel, ISO) where the SEC's EDGAR code is L3; read as a US state it
+    would be Illinois. MPT Operating Partnership's combined filing carries its parent's cover
+    (Medical Properties Trust, MD). Both keep the submissions value."""
+    _company(db, "0001365767", "Allot Ltd.", "L3")
+    _company(db, "0001524596", "MPT Operating Partnership, L.P.", "DE")
+    _company(db, "0001404655", "HUBSPOT INC", "NY")
+    db.commit()
+    from datetime import date
+
+    rows = [
+        {"cik": "0001365767", "accession_number": "a1", "filed_date": date(2026, 3, 1),
+         "incorporation": "IL", "registrant": "Allot Ltd."},
+        {"cik": "0001524596", "accession_number": "a2", "filed_date": date(2026, 3, 1),
+         "incorporation": "MD", "registrant": "Medical Properties Trust, Inc."},
+        {"cik": "0001404655", "accession_number": "a3", "filed_date": date(2026, 3, 1),
+         "incorporation": "DE", "registrant": "HubSpot, Inc."},
+    ]  # fmt: skip
+    subs = {"0001365767": "L3", "0001524596": "DE", "0001404655": "NY"}
+    assert ticker_history.apply_incorporation(db, rows, subs) == 1
+    state = dict(db.query(Company.cik, Company.state_of_incorporation))
+    assert state["0001365767"] == "L3" and state["0001524596"] == "DE"
+    assert state["0001404655"] == "DE"
+    # a company set from a cover that no longer qualifies goes back to the submissions value
+    rows[2]["registrant"] = "Some Other Company Inc."
+    assert ticker_history.apply_incorporation(db, rows, subs) == 1
+    hubs = db.query(Company).filter(Company.cik == "0001404655").one()
+    assert hubs.state_of_incorporation == "NY"
+    assert hubs.state_of_incorporation_source == "submissions"
