@@ -268,7 +268,7 @@ tr:last-child td { border-bottom: 0; } td.wrap { white-space: normal; }
 .ov-table th, .ov-table td, .st-table th, .st-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .ov-table thead th, .st-table thead th { color: var(--muted); font-weight: 600; font-size: .78rem; }
 .ov-table tbody th { text-align: left; font-weight: 500; }
-.ov-table td.n, .ov-table th.n, .st-table .n { text-align: right; font-variant-numeric: tabular-nums; }
+.ov-table td.n, .ov-table th.n, .st-table .n { text-align: right; }
 .ov-table td.strong { font-weight: 600; }
 td.up { color: var(--good); } td.down { color: var(--bad); }
 .spark polyline { stroke: var(--muted); stroke-width: 1.5; } .spark circle { fill: var(--accent-hi); }
@@ -389,3 +389,35 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 700; border-top: 2px
 .scr-ctl { display: grid; gap: 6px; } .scr-ctl .ch-bar { margin: 0; } .scr-l { display: inline-flex; gap: 6px; align-items: center; font-size: .88rem; color: var(--muted); }
 .scr-ctl select, .scr-ctl input { padding: 5px 8px; font-size: .88rem; }
 .scr-table { font-size: .86rem; } .scr-table th[scope=row] { text-align: left; font-weight: 500; white-space: normal; min-width: 12em; } .scr-table td, .scr-table th { padding: 4px 8px; }
+
+td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }
+.ov-table td.n, .ov-table th.n, .st-table .n { font-variant-numeric: tabular-nums; }
+.own-nums { align-items: start; }
+.own-table tr.more-row[hidden] { display: none; }
+
+/* stretched cards keep content at the top; only a note or an action sits at the foot */
+.ov-grid > section { display: flex; flex-direction: column; } .ov-grid > section > .ov-foot { margin-top: auto; }
+/* ownership: 13F on the left, insiders and 5% holders on the right, all on the first screen */
+@media (min-width: 1200px) {
+  #pane-ownership:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 14px; align-items: start; }
+  #pane-ownership #ownership { grid-row: span 2; }
+  #pane-ownership .ins-table .opt2 { display: none; }
+  #pane-ownership .own-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* insiders: one line per person, the full role on hover */
+.ins-table th[scope="row"] { min-width: 10em; max-width: 16em; } .ins-table .ins-role { display: block; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ins-table td.n, .ins-table td:first-child { white-space: nowrap; } .ins-table td { white-space: normal; } .ins-table .tag { margin: 2px 0 0; }
+/* phones: the toolbar in two compact rows, the key bar in one line, identity behind a toggle */
+@media (max-width: 600px) {
+  .toolbar { gap: 8px; padding-bottom: 8px; } .toolbar-title { font-size: 1.15rem; }
+  .views { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; border-radius: 999px; max-width: calc(100% - 7.5rem); } .view-btn { padding: 5px 10px; white-space: nowrap; }
+  .toolbar .session { width: auto; margin-left: auto; } .toolbar .status-pill { display: none; }
+  .keybar p .muted { display: none; } .keybar { padding: 6px 10px; gap: 4px; } .keybar p { font-size: .82rem; }
+  .ws-ident { display: none; } .ws-ident.open { display: flex; } .ws-ident-t { display: inline-flex; }
+  .ws-title h2 { font-size: 1.25rem; } .ws-acts .btn { padding: 5px 9px; font-size: .8rem; }
+  .ws-chips .chip.quiet { display: none; }
+}
+.ws-ident-t { display: none; }
+
+.prov-in { display: grid; gap: 2px; }

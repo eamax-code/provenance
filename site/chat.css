@@ -67,7 +67,7 @@
 .cx[data-state="home"] .cx-dock{flex:1;display:flex;flex-direction:column;justify-content:flex-start}
 .cx-composer{view-transition-name:composer;background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:12px 12px 8px 16px;
   transition:border-color .25s,box-shadow .25s}
-.cx-composer:focus-within{border-color:var(--slate-2);box-shadow:0 0 0 3px color-mix(in srgb,var(--slate) 25%,transparent)}
+.cx-composer:focus-within{border-color:var(--slate-2);outline:1px solid color-mix(in srgb,var(--slate) 55%,transparent);outline-offset:0}
 .cx-composer textarea{width:100%;resize:none;border:0;outline:0;background:none;color:var(--fg);font:16px/1.5 var(--font-body);max-height:200px;min-height:26px}
 .cx-composer textarea::placeholder{color:var(--muted)}
 .cx-composer-row{display:flex;align-items:center;gap:8px;margin-top:6px}
@@ -272,3 +272,14 @@
 
 .cx-how{margin-top:10px;font-size:.88rem;color:var(--muted)} .cx-how summary{cursor:pointer} .cx-how pre{margin:6px 0 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;overflow-x:auto;font-size:.8rem}
 .cx-tile-value .door{font:inherit}
+
+/* tiles are type, not cards: figures in a row with thin rules; change is coloured text, no pill */
+.cx-tiles{gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.cx-tile,.cx-tile:first-child{background:none;color:var(--fg);--muted:var(--muted);border-radius:0;padding:10px 14px;border-left:1px solid var(--line);animation:none}
+.cx-tile:first-child{border-left:0;padding-left:0}
+.cx-tile-value{font-size:20px}
+.cx-delta,.cx-tile:first-child .cx-delta{background:none!important;padding:0;border-radius:0}
+.cx-delta.up,.cx-tile:first-child .cx-delta.up{color:var(--good)}.cx-delta.down,.cx-tile:first-child .cx-delta.down{color:var(--bad)}
+.cx-tile:first-child .cx-cite{color:inherit}
+.cx-tile:first-child .cx-spark polyline{stroke:var(--muted)}.cx-tile:first-child .cx-spark circle{fill:var(--red)}
+@media (max-width:600px){.cx-tile:nth-child(odd){border-left:0;padding-left:0}.cx-tile:nth-child(n+3){border-top:1px solid var(--line)}}

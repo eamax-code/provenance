@@ -221,6 +221,15 @@
       return [link];
     }
   });
+  // a growth or CAGR tile is derived from two reported figures: the card lists both filings
+  function rateInfo(w, t, p) {
+    var pts = w.points || [], a, b, formula;
+    if (/compound/i.test(t.label || '')) { a = pts[0]; b = pts[pts.length - 1]; formula = 'compound annual growth from ' + (a && a.label) + ' to ' + (b && b.label); }
+    else if (p) { var k = pts.indexOf(p); a = pts[k - 1]; b = p; formula = 'change from ' + (a && a.label) + ' to ' + (b && b.label); }
+    if (!a || !b) return null;
+    var inp = function (q) { return { metric: q.label, value: q.value, source_url: q.source_url, form_type: q.form_type, filed_date: q.filed_date, accession_number: q.accession_number }; };
+    return { label: t.label, metric: w.metric, currency: w.currency, derived: true, formula: formula, inputs: [inp(a), inp(b)], cik: state.cik };
+  }
   function tile(t, byN, i, info) {
     var box = el('div', 'cx-tile'); box.style.animationDelay = (0.05 * i) + 's';
     // a non-USD tile names its currency, unless the value already carries the code
@@ -252,7 +261,12 @@
     box.appendChild(head);
     var grid = el('div', 'cx-tiles');
     var byCite = {}; (w.points || []).forEach(function (p) { if (p.citation) byCite[p.citation] = p; });
-    (w.stats || []).forEach(function (t, i) { var p = t.citation && byCite[t.citation]; grid.appendChild(tile(t, byN, i, p && !/%$/.test(String(t.value)) ? pointInfo(w, p) : null)); });
+    (w.stats || []).forEach(function (t, i) {
+      var p = t.citation && byCite[t.citation], info = null;
+      if (p && !/%$/.test(String(t.value))) info = pointInfo(w, p);
+      else if (/%$/.test(String(t.value))) info = rateInfo(w, t, p);
+      grid.appendChild(tile(t, byN, i, info));
+    });
     box.appendChild(grid);
     var wrap = el('div', 'cx-chart'), canvas = el('canvas');
     canvas.setAttribute('role', 'img');

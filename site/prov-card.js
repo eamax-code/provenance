@@ -29,6 +29,9 @@
     kv('Mapping', i.mapping_version);
     kv('Quality', i.quality_status ? String(i.quality_status).replace(/_/g, ' ') : null);
     if (i.derived) kv('Derived', (i.formula || 'worked out here from reported figures') + (i.inputs && i.inputs.length ? ': ' + i.inputs.map(function (x) { return String(x.metric || x.name || '').replace(/_/g, ' ') + ' ' + money(x.value, i.currency); }).join(', ') : ''));
+    if (i.derived && i.inputs && i.inputs.some(function (x) { return x.source_url && ARCHIVE.test(x.source_url); })) kv('Inputs', el('span', { class: 'prov-in' }, i.inputs.map(function (x) {
+      return ARCHIVE.test(x.source_url || '') ? el('a', { href: x.source_url, target: '_blank', rel: 'noopener', text: String(x.metric || '').replace(/_/g, ' ') + ' · ' + (x.form_type || 'filing') + (x.filed_date ? ' filed ' + day(x.filed_date) : '') + ' ↗' }) : null;
+    })));
     if (i.predecessor) kv('Registrant', i.registrant_label || 'Reported by the predecessor registrant (CIK ' + i.registrant_cik + ')');
     var asOf = cfg.asOf(); kv('As known on', asOf ? day(asOf) : 'latest');
     card = el('div', { class: 'prov-card', role: 'dialog', 'aria-label': 'Where this figure comes from', tabindex: '-1' }, [

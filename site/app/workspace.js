@@ -142,9 +142,10 @@
       var inc = c.incorporation; if (inc && inc.code) bits.push(el('span', {}, ['Incorporated ' + (stateName(inc.code) || inc.code), inc.source_url && ARCHIVE.test(inc.source_url) ? el('a', { href: inc.source_url, target: '_blank', rel: 'noopener', text: ' · cover ↗' }) : '']));
       var au = d.auditor && d.auditor.current; if (au) bits.push(el('span', {}, ['Auditor ', au.latest_report && ARCHIVE.test(au.latest_report.source_url) ? el('a', { href: au.latest_report.source_url, target: '_blank', rel: 'noopener', text: au.name }) : au.name, au.since_basis === 'observed_change' && au.since ? ' since FY' + au.since : '']));
       if (c.sic_description) bits.push(el('span', { text: c.sic_description }));
-      strip = el('p', { class: 'ws-ident' }, bits);
+      strip = el('p', { class: 'ws-ident', id: 'ws-ident' }, bits);
     }
-    $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [el('h2', { text: c.display_name || c.legal_name || 'CIK ' + c.cik }), chips, acts]), strip,
+    var itog = strip ? el('button', { type: 'button', class: 'linkish ws-ident-t', 'aria-expanded': 'false', 'aria-controls': 'ws-ident', text: 'Identity: CIK, LEI, incorporation, auditor', on: { click: function () { var o = strip.classList.toggle('open'); itog.setAttribute('aria-expanded', String(o)); } } }) : null;
+    $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [el('h2', { text: c.display_name || c.legal_name || 'CIK ' + c.cik }), chips, acts]), itog, strip,
       S.asofNote ? el('p', { class: 'ws-note', role: 'status', text: S.asofNote }) : null].filter(Boolean));
     var ai = $('ws-asof'); if (ai) ai.value = S.as_of || ''; var ab = $('ws-asof-btn'); if (ab) ab.lastChild.textContent = S.as_of ? day(S.as_of) : 'latest';
     document.title = (c.display_name || 'Company') + (c.ticker ? ' (' + c.ticker + ')' : '') + ' · Explorer · Provenance';
@@ -192,7 +193,8 @@
   }
 
   /* ---- X-01 Overview ---- */
-  var KEYS = [['revenue', 'Revenue'], ['gross_profit', 'Gross profit'], ['operating_income', 'Operating income'], ['net_income', 'Net income'], ['eps_diluted', 'EPS, diluted'], ['operating_cash_flow', 'Operating cash flow'], ['free_cash_flow', 'Free cash flow'], ['cash_and_equivalents', 'Cash and equivalents'], ['total_assets', 'Total assets'], ['long_term_debt', 'Long-term debt'], ['stockholders_equity', 'Stockholders’ equity'], ['return_on_equity', 'Return on equity']];
+  var KEYS = [['revenue', 'Revenue'], ['gross_profit', 'Gross profit'], ['operating_income', 'Operating income'], ['net_income', 'Net income'], ['eps_diluted', 'EPS, diluted'], ['operating_cash_flow', 'Operating cash flow'], ['free_cash_flow', 'Free cash flow'], ['cash_and_equivalents', 'Cash and equivalents'], ['total_assets', 'Total assets'], ['long_term_debt', 'Long-term debt'], ['stockholders_equity', 'Stockholders’ equity'], ['capex', 'Capital expenditure'], ['shares_diluted_weighted', 'Diluted shares'], ['return_on_equity', 'Return on equity']];
+  var OPTIONAL = { capex: 1, shares_diluted_weighted: 1 }; // shown only when the company reports them
   var MARGIN = { gross_profit: 1, operating_income: 1, net_income: 1, operating_cash_flow: 1, free_cash_flow: 1 };
   // green and red only where more is plainly more (flows); balance-sheet lines and ratios stay neutral
   var FLOW = { revenue: 1, gross_profit: 1, operating_income: 1, net_income: 1, eps_diluted: 1, operating_cash_flow: 1, free_cash_flow: 1 };
@@ -205,6 +207,7 @@
     var head = el('tr', {}, [el('th', { scope: 'col', text: 'Annual, as filed' }), el('th', { scope: 'col', class: 'n', text: fy[last] || 'Latest' }), hasTTM ? el('th', { scope: 'col', class: 'n c-ttm', title: 'Trailing twelve months, from quarterly filings', text: 'TTM' }) : null, el('th', { scope: 'col', class: 'n c-yoy', text: 'YoY' }), el('th', { scope: 'col', class: 'n c-cagr', text: (last > 0 ? last : '') + 'y CAGR' }), el('th', { scope: 'col', class: 'n c-mg', text: 'Margin' }), el('th', { scope: 'col', class: 'spark-h', text: 'Trend' })]);
     var body = KEYS.map(function (k) {
       var r = rows[k[0]];
+      if (!r && OPTIONAL[k[0]]) return null;
       if (!r) return el('tr', { class: 'na' }, [el('th', { scope: 'row', text: k[1] }), el('td', { class: 'n muted', colspan: hasTTM ? '6' : '5', title: 'not reported', text: '— not reported' })]);
       var cells = r.cells, c = cells[last], p = cells[last - 1], f = cells.filter(function (x) { return x && x.value != null; })[0];
       var yoy = c && p ? growth(c.value, p.value) : null;
@@ -225,14 +228,14 @@
     var figs = el('section', { class: 'ov-figs', 'aria-labelledby': 'ov-figs-h' }, [
       el('h3', { id: 'ov-figs-h', text: 'Key figures' }),
       el('div', { class: 'tw' }, [el('table', { class: 'ov-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
-      el('p', { class: 'muted small', text: 'In ' + cur + ', as reported. Click any figure for its filing, tag and mapping. Growth only between positive years; green and red only on flows.' })
+      el('p', { class: 'muted small ov-foot', text: 'In ' + cur + ', as reported. Click any figure for its filing, tag and mapping. Growth only between positive years; green and red only on flows.' })
     ]);
     // events: the API's own labels (a Form 25 says what it is), information, not signals
     var evs = (d.events || []).slice(0, 7);
     var events = el('section', { class: 'ov-ev', 'aria-labelledby': 'ov-ev-h' }, [
       el('div', { class: 'ov-h' }, [el('h3', { id: 'ov-ev-h', text: 'Latest events' }), el('button', { type: 'button', class: 'linkish', text: 'Timeline', on: { click: function () { go('timeline'); } } })]),
       evs.length ? el('ul', { class: 'ov-list' }, evs.map(function (e) { return el('li', {}, [el('time', { datetime: e.date, text: day(e.date) }), el('span', {}, [e.short_label || e.label]), ARCHIVE.test(e.filing_url || '') ? el('a', { href: e.filing_url, target: '_blank', rel: 'noopener', title: e.label, text: e.form_type + ' ↗' }) : null]); })) : el('p', { class: 'muted', text: 'No events in the filings loaded.' }),
-      el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice.' })
+      el('p', { class: 'muted small ov-foot', text: 'Information, not signals. Not investment advice.' })
     ]);
     // ownership summary
     var o = d.ownership, own;
@@ -243,7 +246,7 @@
         el('ul', { class: 'ov-list' }, (o.top_holders || []).slice(0, 4).map(function (h) { return el('li', {}, [el('span', { text: orgName(h.name) }), el('span', { class: 'n', text: h.pct_of_outstanding != null ? pct(h.pct_of_outstanding) : money(h.value_usd, 'USD') }), ARCHIVE.test(h.filing_url || '') ? el('a', { href: h.filing_url, target: '_blank', rel: 'noopener', text: '13F ↗' }) : null]); })),
         el('p', { class: 'muted small', text: [f2.new, 'new', f2.added, 'added', f2.reduced, 'reduced', f2.exited, 'exited'].reduce(function (a, v, i) { return i % 2 ? a + ' ' + v + (i < 7 ? ' · ' : '') : a + Number(v || 0).toLocaleString('en-US'); }, '') })];
     } else own = [el('p', { class: 'muted', text: S.as_of ? '13F holdings show for the latest quarter only, not for a past date.' : 'No 13F holders matched yet.' })];
-    var ownership = el('section', { class: 'ov-own', 'aria-labelledby': 'ov-own-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ov-own-h', text: 'Ownership' + (o && o.quarter ? ' · 13F, ' + qname(o.quarter) : '') })])].concat(own));
+    var ownership = el('section', { class: 'ov-own', 'aria-labelledby': 'ov-own-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ov-own-h', text: 'Ownership' + (o && o.quarter ? ' · 13F, ' + qname(o.quarter) : '') }), el('button', { type: 'button', class: 'linkish', text: 'Holders and insiders', on: { click: function () { go('ownership'); } } })])].concat(own));
     // the main chart: revenue bars and operating margin, ten years, with event markers
     var ch = el('section', { class: 'ov-chart', 'aria-labelledby': 'ov-ch-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ov-ch-h', text: 'Revenue and operating margin' }), el('button', { type: 'button', class: 'linkish', text: 'Open in Chart', on: { click: function () { S.m = ['revenue', 'operating_margin']; go('chart'); } } })])]);
     var host = el('div', { class: 'chart-host' }); ch.appendChild(host);
@@ -260,6 +263,7 @@
       })));
       if (K.metrics.revenue.status && K.metrics.revenue.status[per] === 'unreconciled') seg.appendChild(el('p', { class: 'muted small', text: 'Unreconciled: these lines don’t add up to the total.' }));
     } else seg.appendChild(el('p', { class: 'muted', text: d.segments && d.segments.hidden_reason ? 'No segment breakdown to show for the latest report.' : 'No segments tagged in the latest annual report.' }));
+    if (K) seg.appendChild(el('p', { class: 'ov-foot' }, [el('button', { type: 'button', class: 'linkish', text: 'All breakdowns and years', on: { click: function () { go('segments'); } } })]));
     $('pane-overview').replaceChildren(el('div', { class: 'ov-grid' }, [figs, events, ownership, ch, seg]));
     drawChart(host, { series: [series('revenue'), series('operating_margin')].filter(Boolean), kinds: ['bar', 'line'], height: 200, compact: true });
   }
@@ -546,7 +550,17 @@
     var ins = el('section', { class: 'ws-sec', 'aria-labelledby': 'ins-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ins-h', text: 'Insider transactions (Forms 3, 4, 5)' })]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice.' }), el('p', { class: 'muted', text: 'Loading…' })]);
     var big = el('section', { class: 'ws-sec', 'aria-labelledby': 'big-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'big-h', text: 'Holders above 5% (Schedules 13D and 13G)' })]), el('p', { class: 'muted', text: 'Loading…' })]);
     pane.replaceChildren(own, ins, big);
-    if (d.ownership) companyLower().then(function (L) { if (L && S.tab === 'ownership') { window.CompanyPage.cur = cur; L.ownership(d); var more = $('own-more'); if (more) more.hidden = true; } });
+    if (d.ownership) companyLower().then(function (L) {
+      if (!L || S.tab !== 'ownership') return;
+      window.CompanyPage.cur = cur; L.ownership(d); var more = $('own-more'); if (more) more.hidden = true;
+      // ten holders first so insiders and 5% holders show on the first screen; the rest on request
+      var trs = [].slice.call(document.querySelectorAll('#own-table tbody tr'));
+      if (trs.length > 10) {
+        trs.slice(10).forEach(function (r) { r.classList.add('more-row'); r.hidden = true; });
+        var b = el('button', { type: 'button', class: 'linkish', text: 'Show all ' + trs.length + ' holders', on: { click: function () { trs.forEach(function (r) { r.hidden = false; }); b.remove(); } } });
+        $('own-table').parentNode.after(b);
+      }
+    });
     else own.replaceChildren(own.firstChild, el('p', { class: 'muted', text: S.as_of ? '13F holdings show for the latest quarter only, not for a past date.' : 'No 13F holders matched yet.' }));
     var asq = S.as_of ? '&as_of=' + S.as_of : '';
     keyedOrDemo('/v1/companies/' + cik + '/insider-transactions?limit=' + (X.hasKey() ? 40 : 10) + asq).then(function (r) {
@@ -554,15 +568,17 @@
       var rows = r.ok && r.body && r.body.data || [];
       var body = rows.map(function (t) {
         var sell = t.acquired_disposed === 'D', open = /open-market/.test(t.trans_code_label || '');
-        return el('tr', {}, [el('td', { text: day(t.trans_date) }), el('th', { scope: 'row' }, [t.owner_name, el('br'), el('span', { class: 'muted small', text: t.role || '' })]),
+        return el('tr', {}, [el('td', { text: day(t.trans_date) }), el('th', { scope: 'row' }, [t.owner_name, el('span', { class: 'muted small ins-role', title: t.role || '', text: t.role || '' })]),
           el('td', {}, [(t.trans_code_label || t.trans_code || '').replace(/^./, function (c) { return c.toUpperCase(); }), t.is_derivative ? el('span', { class: 'tag', text: 'derivative' }) : null, t.plan_10b5_1 ? el('span', { class: 'tag', title: 'Made under a Rule 10b5-1 trading plan set up in advance', text: '10b5-1 plan' }) : null]),
-          el('td', { class: 'n' + (open ? (sell ? ' down' : ' up') : '') }, [(sell ? '−' : '+') + count(t.shares || 0)]), el('td', { class: 'n', text: t.price != null ? money(t.price, 'USD', 2).replace(/\.00$/, '') : '—' }),
-          el('td', { class: 'n', text: t.value != null ? money(t.value, 'USD') : '—' }), el('td', { class: 'n muted', text: t.shares_after != null ? count(t.shares_after) : '—' }),
+          el('td', { class: 'n' + (open ? (sell ? ' down' : ' up') : '') }, [(sell ? '−' : '+') + count(t.shares || 0)]), el('td', { class: 'n opt2', text: t.price != null ? money(t.price, 'USD', 2).replace(/\.00$/, '') : '—' }),
+          el('td', { class: 'n', text: t.value != null ? money(t.value, 'USD') : '—' }), el('td', { class: 'n muted opt2', text: t.shares_after != null ? count(t.shares_after) : '—' }),
           el('td', {}, [ARCHIVE.test(t.source_url || '') ? el('a', { href: t.source_url, target: '_blank', rel: 'noopener', text: 'Form ' + t.form_type + ' ↗' }) : null])]);
       });
-      ins.replaceChildren(ins.firstChild, ins.children[1], rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table ins-table' }, [el('thead', {}, [el('tr', {}, ['Date', 'Insider', 'Transaction', 'Shares', 'Price', 'Value', 'Held after', 'Filing'].map(function (h, i) { return el('th', { scope: 'col', class: i >= 3 && i <= 6 ? 'n' : '', text: h }); }))]), el('tbody', {}, body)])])
+      body.forEach(function (tr, i) { if (i >= 8) { tr.hidden = true; tr.classList.add('more-row'); } });
+      var allIns = body.length > 8 ? el('button', { type: 'button', class: 'linkish', text: 'Show all ' + body.length, on: { click: function () { body.forEach(function (tr) { tr.hidden = false; }); allIns.remove(); } } }) : null;
+      ins.replaceChildren(ins.firstChild, ins.children[1], rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table ins-table' }, [el('thead', {}, [el('tr', {}, ['Date', 'Insider', 'Transaction', 'Shares', 'Price', 'Value', 'Held after', 'Filing'].map(function (h, i) { return el('th', { scope: 'col', class: (i >= 3 && i <= 6 ? 'n' : '') + (i === 4 || i === 6 ? ' opt2' : ''), text: h }); }))]), el('tbody', {}, body)])])
         : el('p', { class: 'muted', text: r.ok ? 'No insider transactions in the filings loaded.' : 'Insider transactions are unavailable right now.' }),
-        !X.hasKey() && rows.length ? el('p', { class: 'muted small', text: 'The ten most recent; a free key shows more.' }) : null);
+        allIns, !X.hasKey() && rows.length ? el('p', { class: 'muted small', text: 'The ten most recent; a free key shows more.' }) : null);
     });
     keyedOrDemo('/v1/companies/' + cik + '/holders?limit=' + (X.hasKey() ? 25 : 10) + asq).then(function (r) {
       if (S.tab !== 'ownership' || S.cik !== cik) return;
