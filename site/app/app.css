@@ -265,7 +265,7 @@ tr:last-child td { border-bottom: 0; } td.wrap { white-space: normal; }
 .ov-grid p { margin: 0; }
 .ov-table, .st-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .ov-table { min-width: 0; }
-.ov-table th, .ov-table td, .st-table th, .st-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.ov-table th, .ov-table td, .st-table th, .st-table td { padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .ov-table thead th, .st-table thead th { color: var(--muted); font-weight: 600; font-size: .78rem; }
 .ov-table tbody th { text-align: left; font-weight: 500; }
 .ov-table td.n, .ov-table th.n, .st-table .n { text-align: right; }

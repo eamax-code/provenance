@@ -180,9 +180,10 @@
     if (YEARLY[metric]) {
       var key = metric === 'operating_margin' ? 'operating_margin_pct' : metric;
       var pts = (d.years || []).filter(function (y) { return y[key] != null; }).map(function (y) {
-        var src = y.sources && y.sources[metric === 'operating_margin' ? 'operating_income' : metric];
+        var src = y.sources && y.sources[metric === 'operating_margin' ? 'operating_income' : metric], pv = y.provenance && y.provenance[metric === 'operating_margin' ? 'operating_income' : metric];
         var info = { label: YEARLY[metric], metric: metric, fiscal_label: y.fiscal_label, period_end: y.period_end, currency: cur, source_url: src, predecessor: y.predecessor, registrant_cik: y.registrant_cik };
-        if (metric === 'operating_margin') { info.derived = true; info.formula = 'operating income ÷ revenue'; }
+        if (pv) Object.assign(info, { accession_number: pv.accession_number, source_tag: pv.source_tag, mapping_version: pv.mapping_version, quality_status: pv.quality_status });
+        if (metric === 'operating_margin') { info.derived = true; info.formula = 'operating income ÷ revenue'; info.source_tag = null; }
         var srow = rows[metric] && rows[metric].cells.filter(function (c) { return c && c.fiscal_label === y.fiscal_label; })[0];
         if (srow) Object.assign(info, { form_type: srow.form_type, filed_date: srow.filed_date, accession_number: srow.accession_number, quality_status: srow.quality_status, source_tag: srow.source_tag, mapping_version: srow.mapping_version, inputs: srow.inputs });
         return { x: y.fiscal_label, v: y[key], info: info };
@@ -205,7 +206,9 @@
   function overview() {
     var d = S.d, cur = (d.company || {}).reporting_currency || 'USD', rows = statementRows(), fy = (d.statements || {}).fiscal_years || [];
     var last = fy.length - 1, rev = rows.revenue;
-    var ttm = (d.ttm && typeof d.ttm === 'object') ? d.ttm : null, hasTTM = !!ttm && KEYS.some(function (k) { return ttm[k[0]] && ttm[k[0]].value != null; });
+    // TTM comes with each key figure (key_figures[].ttm), only when four consecutive quarters exist
+    var ttm = {}; (d.key_figures || []).forEach(function (k) { if (k.ttm && k.ttm.value != null) ttm[k.metric] = Object.assign({}, k.ttm, { value: Number(k.ttm.value), fiscal_label: 'TTM to ' + day(k.ttm.period_end) }); });
+    var hasTTM = KEYS.some(function (k) { return ttm[k[0]]; });
     var head = el('tr', {}, [el('th', { scope: 'col', text: 'Annual, as filed' }), el('th', { scope: 'col', class: 'n', text: fy[last] || 'Latest' }), hasTTM ? el('th', { scope: 'col', class: 'n c-ttm', title: 'Trailing twelve months, from quarterly filings', text: 'TTM' }) : null, el('th', { scope: 'col', class: 'n c-yoy', text: 'YoY' }), el('th', { scope: 'col', class: 'n c-cagr', text: (last > 0 ? last : '') + 'y CAGR' }), el('th', { scope: 'col', class: 'n c-mg', text: 'Margin' }), el('th', { scope: 'col', class: 'spark-h', text: 'Trend' })]);
     var body = KEYS.map(function (k) {
       var r = rows[k[0]];
