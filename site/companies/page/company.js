@@ -42,6 +42,30 @@
     all: { label: 'All', test: function () { return true; } }
   };
 
+  // helpers the lower sections (company-lower.js, loaded later) use too
+  P.ui = { el: el, fmt: fmt, srcLink: srcLink, humanDates: humanDates, DOT: DOT };
+
+  /* ---- the lower sections load when they come near the screen (or after a short wait) ---- */
+  var LOWER = ['segments', 'people', 'ownership', 'peers'], lowerData = null, lowerLoading = false;
+  function renderLower(d) {
+    lowerData = d;
+    if (window.CompanyLower) { LOWER.forEach(function (k) { window.CompanyLower[k](d); }); return; }
+    if (lowerLoading) return;
+    lowerLoading = true;
+    var go = function () {
+      if (go.done) return; go.done = true;
+      var s = document.createElement('script');
+      s.src = '/companies/page/company-lower.js';
+      s.onload = function () { if (lowerData) renderLower(lowerData); };
+      document.body.appendChild(s);
+    };
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (es) { if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); go(); } }, { rootMargin: '800px 0px' });
+      ['segments', 'events', 'people', 'ownership', 'peer-card'].forEach(function (id) { var n = $(id); if (n) io.observe(n); });
+    }
+    setTimeout(go, 2500);
+  }
+
   /* ---- header ---- */
   function header(d) {
     var c = d.company, chips = $('chips');
@@ -191,64 +215,6 @@
   }
   narrow.addEventListener && narrow.addEventListener('change', function () { if (data) statements(data); });
 
-  /* ---- segments from the latest 10-K: business, geographic, product ---- */
-  var segKind = null, segMetric = 'revenue';
-  var KIND = { business: 'Business', geographic: 'Geographic', product: 'Products and services' };
-  var SEGM = { revenue: 'Revenue', operating_income: 'Operating income', pretax_income: 'Pretax income' };
-  function segments(d) {
-    var S = d.segments, box = $('segments');
-    box.hidden = !S || !(S.kinds || []).length; if (box.hidden) return;
-    var f = S.filing || {};
-    $('seg-from').replaceChildren('As reported in the ', srcLink((f.form_type || '10-K') + ' filed ' + P.date(f.filed_date), f.source_url, 'accession ' + (f.accession_number || '')), f.fiscal_year ? ' for FY' + f.fiscal_year + '.' : '.');
-    if (!S.kinds.some(function (k) { return k.kind === segKind; })) segKind = S.kinds[0].kind;
-    var tabs = $('seg-kinds'); tabs.textContent = '';
-    S.kinds.forEach(function (k) {
-      var b = el('button', { type: 'button', role: 'tab', 'aria-selected': String(k.kind === segKind), 'aria-controls': 'seg-table', text: KIND[k.kind] || k.kind });
-      b.addEventListener('click', function () { segKind = k.kind; segments(d); });
-      tabs.appendChild(b);
-    });
-    var K = S.kinds.filter(function (k) { return k.kind === segKind; })[0];
-    var metrics = Object.keys(K.metrics || {});
-    if (metrics.indexOf(segMetric) < 0) segMetric = metrics[0];
-    var mbox = $('seg-metrics'); mbox.textContent = '';
-    if (metrics.length > 1) metrics.forEach(function (m) {
-      var b = el('button', { type: 'button', 'aria-pressed': String(m === segMetric), text: SEGM[m] || m.replace(/_/g, ' ') });
-      b.addEventListener('click', function () { segMetric = m; segments(d); });
-      mbox.appendChild(b);
-    });
-    var M = K.metrics[segMetric] || {}, periods = K.periods || [];
-    var cell = function (v, extraTitle) {
-      if (v == null) return el('td', { class: 'n na', text: 'not reported' });
-      return el('td', { class: 'n' }, [srcLink(P.money(v), f.source_url, (SEGM[segMetric] || segMetric) + DOT + 'from the ' + (f.form_type || '10-K') + ' filed ' + P.date(f.filed_date) + (extraTitle ? DOT + extraTitle : ''))]);
-    };
-    var head = el('tr', {}, [el('th', { scope: 'col', class: 'fin-name', text: KIND[K.kind] ? KIND[K.kind] + ' segment' : 'Segment' })].concat(periods.map(function (p) {
-      var st = M.status && M.status[p];
-      return el('th', { scope: 'col', class: 'n' }, ['Year to ' + P.date(p), st === 'unreconciled' ? el('span', { class: 'tag', title: 'The segments do not add up to the consolidated figure within 1%, and the filing tags no reconciling item.', text: 'unreconciled' }) : null]);
-    })).concat(segMetric === 'revenue' ? [el('th', { scope: 'col', class: 'n', text: 'Share of revenue' })] : []));
-    var tb = el('tbody');
-    (K.segments || []).forEach(function (sg) {
-      var vals = (sg.values || {})[segMetric] || {};
-      var row = el('tr', {}, [el('th', { scope: 'row', class: 'fin-name', text: sg.label })].concat(periods.map(function (p) { return cell(vals[p]); })));
-      if (segMetric === 'revenue') {
-        var pct = sg.share_of_revenue_pct;
-        row.appendChild(el('td', { class: 'n share' }, pct == null ? ['—'] : [el('span', { class: 'seg-bar', style: 'width:' + Math.max(2, Math.min(100, pct)) * 0.6 + 'px', 'aria-hidden': 'true' }), P.pct(pct)]));
-      }
-      tb.appendChild(row);
-    });
-    (K.reconciling || []).forEach(function (rc) {
-      var vals = (rc.values || {})[segMetric] || {};
-      if (!periods.some(function (p) { return vals[p] != null; })) return;
-      var row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: rc.label })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
-      if (segMetric === 'revenue') row.appendChild(el('td'));
-      tb.appendChild(row);
-    });
-    var tot = el('tr', { class: 'total' }, [el('th', { scope: 'row', class: 'fin-name', text: 'Consolidated' })].concat(periods.map(function (p) { return cell((M.consolidated || {})[p], 'the company as a whole'); })));
-    if (segMetric === 'revenue') tot.appendChild(el('td', { class: 'n', text: '100%' }));
-    tb.appendChild(tot);
-    $('seg-table').replaceChildren(el('table', { class: 'fin seg' }, [el('caption', { class: 'vh', text: (KIND[K.kind] || K.kind) + ' segments, ' + (SEGM[segMetric] || segMetric) }), el('thead', {}, [head]), tb]));
-    $('seg-notes').textContent = (S.notes || []).join(' ');
-  }
-
   /* ---- events timeline ---- */
   function events(d) {
     var list = d.events || [], box = $('event-list'), chips = $('event-chips');
@@ -276,82 +242,6 @@
     });
   }
 
-  /* ---- people: who leads it now, then each person's changes, newest first ---- */
-  var STATUS = { appointed: 'Appointed', departed: 'Departed', leaving: 'Leaving', 'in office': 'In office' };
-  function people(d) {
-    var L = d.leadership || { changes: [] }, box = $('people-list'), now = $('people-now');
-    box.textContent = ''; now.textContent = '';
-    $('people-count').textContent = L.item_502_filings ? L.item_502_filings + ' filings with item 5.02 since ' + P.date(L.since) : '';
-    var cur = L.current_leadership || {};
-    [['ceo', 'Chief executive'], ['cfo', 'Chief financial officer'], ['chair', 'Chair']].forEach(function (r) {
-      var p = cur[r[0]];
-      now.appendChild(el('div', { class: 'now-role' }, [
-        el('dt', { text: r[1] }),
-        el('dd', {}, p ? [el('b', { text: p.name }), el('span', { class: 'muted', text: (p.title ? ' · ' + p.title : '') }), el('br'),
-          el('span', { class: 'muted small' }, [(p.basis === '8-K item 5.02' && p.since ? 'since ' + P.date(p.since) + ', ' : '') + 'from ', srcLink(p.basis === '8-K item 5.02' ? '8-K' : 'Form 4', p.source_url, 'Filed ' + P.date(p.filing_date))])]
-          : [el('span', { class: 'muted', text: 'Not named in recent filings' })])
-      ]));
-    });
-    var list = L.people && L.people.length ? L.people : null;
-    if (!list) {
-      if (!L.changes.length) { box.appendChild(el('p', { class: 'muted', text: 'No officer or director change read from these filings yet.' })); return; }
-      var by = {}, order = [];
-      L.changes.forEach(function (ch) { var k = ch.person || 'An officer'; if (!by[k]) { by[k] = []; order.push(k); } by[k].push(ch); });
-      list = order.map(function (n) { return { name: n, role: by[n][0].role, events: by[n].map(function (c) { return { filing_date: c.filing_date, sentence: c.what || c.change_label, verified: c.verified, source_url: c.source_url }; }) }; });
-    }
-    list.slice(0, 10).forEach(function (p) {
-      var head = el('p', {}, [el('b', { text: p.name }), p.role ? ', ' + p.role : '']);
-      if (p.status && STATUS[p.status]) head.appendChild(el('span', { class: 'tag', text: STATUS[p.status] + (p.status === 'leaving' && p.leaving_on ? ' ' + P.date(p.leaving_on) : '') }));
-      var item = el('li', { class: 'person' + (p.current === false ? ' is-former' : '') }, [head]);
-      var ul = el('ul');
-      (p.events || []).slice().sort(function (a, b) { return a.filing_date < b.filing_date ? 1 : -1; }).forEach(function (ev) {
-        ul.appendChild(el('li', {}, [
-          el('span', { text: P.date(ev.filing_date) + ': ' + humanDates(ev.sentence || ev.change_label || '') }), ' ',
-          srcLink('8-K', ev.source_url, 'Opens the filing'),
-          ev.verified === false ? el('span', { class: 'tag', title: 'Read by a model; the sentence did not match the filing exactly. Open the 8-K to check.', text: 'unverified' }) : null
-        ]));
-      });
-      item.appendChild(ul);
-      box.appendChild(item);
-    });
-  }
-
-  /* ---- ownership from 13F: top holders by value, changes since the quarter before ---- */
-  var CHANGE = { new: 'New', added: 'Added', reduced: 'Reduced', exited: 'Exited', unchanged: 'Unchanged' };
-  var quarterName = function (iso) { var m = /^(\d{4})-(\d{2})/.exec(iso || ''); return m ? 'Q' + Math.ceil(+m[2] / 3) + ' ' + m[1] : iso; };
-  function ownership(d) {
-    var o = d.ownership, box = $('ownership');
-    box.hidden = !o; if (!o) return;
-    $('own-when').textContent = quarterName(o.quarter) + ' (filed through ' + P.date(o.filed_through) + '). ' + (o.lag_note || '');
-    var pct = o.institutional_pct;
-    var pctTitle = o.institutional_pct_derived ? o.institutional_pct_derived.formula + (o.institutional_pct_derived.inputs || []).map(function (x) { return '; ' + x.name + ' ' + (x.value != null ? Number(x.value).toLocaleString('en-US') : '') + (x.quarter ? ' (' + quarterName(x.quarter) + ')' : x.as_of_date ? ' (' + P.date(x.as_of_date) + ')' : ''); }).join('') : '';
-    var nums = $('own-nums'); nums.textContent = '';
-    var tile = function (big, label, plain) { nums.appendChild(el('div', {}, [plain ? el('div', { class: 'own-flows' }, big) : el('b', {}, big), el('span', { text: label })])); };
-    tile([P.money(o.value_usd)], 'held by institutions filing 13F');
-    tile([pct != null ? P.pct(pct) : 'not computed', pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : 'several share classes; shares are not added across them');
-    tile([Number(o.holders_count).toLocaleString('en-US')], 'holders' + (o.holders_count_change != null ? ', ' + (o.holders_count_change >= 0 ? '+' : '−') + Math.abs(o.holders_count_change) + ' on the quarter before' : ''));
-    var f = o.flows || {};
-    tile([['new', 'new'], ['added', 'added'], ['reduced', 'reduced'], ['exited', 'exited']].map(function (k) { return el('span', {}, [el('strong', { text: String(f[k[0]] || 0) }), ' ' + k[1]]); }), 'holders by change since ' + quarterName(o.previous_quarter), true);
-    var rows = o.top_holders || [];
-    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Holder' }), el('th', { scope: 'col', class: 'n', text: 'Value' }), el('th', { scope: 'col', class: 'n opt', text: 'Shares' }), el('th', { scope: 'col', class: 'n', text: '% of shares' }), el('th', { scope: 'col', text: 'Change' }), el('th', { scope: 'col', class: 'opt', text: '13F' })]);
-    var tb = el('tbody');
-    rows.forEach(function (h) {
-      var ch = h.change ? el('span', { class: 'tag', text: CHANGE[h.change] || h.change }) : null;
-      var chText = h.shares_change_pct != null && h.change !== 'new' && h.change !== 'exited' ? ' ' + P.pct(h.shares_change_pct, true) : '';
-      tb.appendChild(el('tr', {}, [
-        el('th', { scope: 'row', text: h.name === h.name.toUpperCase() ? P.title(h.name) : h.name }),
-        el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd) }),
-        el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
-        el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
-        el('td', {}, [ch, chText]),
-        el('td', { class: 'opt' }, [srcLink(h.form_type + ', ' + P.date(h.filing_date), h.filing_url, 'accession ' + (h.accession_number || ''))])
-      ]));
-    });
-    $('own-table').replaceChildren(el('caption', { class: 'vh', text: 'Largest institutional holders, ' + quarterName(o.quarter) }), el('thead', {}, [head]), tb);
-    $('own-more').hidden = !o.has_more;
-    $('own-notes').textContent = (o.notes || []).join(' ');
-  }
-
   /* ---- filings with filters ---- */
   function filings(d) {
     var chips = $('filing-chips'), t = $('filings');
@@ -377,22 +267,6 @@
   }
 
   /* ---- peers and identity ---- */
-  function peers(d) {
-    var box = $('peers'); box.textContent = '';
-    if (!d.peers || !d.peers.companies.length) { $('peer-card').hidden = true; return; }
-    $('peer-card').hidden = false;
-    $('peer-basis').textContent = 'Same industry: ' + d.peers.basis + '; companies that filed an annual report in the last two years, closest by revenue.';
-    var rev = d.key_figures.filter(function (k) { return k.metric === 'revenue'; })[0];
-    var rows = d.peers.companies.map(function (p) { return { name: P.title(p.name), cik: p.cik, ticker: p.ticker, v: p.latest_revenue, label: p.fiscal_label }; });
-    if (rev) rows.push({ name: d.company.display_name, v: rev.value, label: rev.fiscal_label, me: true });
-    rows.sort(function (a, b) { return b.v - a.v; });
-    var top = rows[0].v || 1;
-    rows.forEach(function (r) {
-      var bar = el('span', { class: 'bar-h' }); bar.style.width = Math.max(2, 100 * r.v / top) + '%';
-      var nm = r.me ? el('b', { text: r.name }) : el('a', { href: '/companies/' + parseInt(r.cik, 10), text: r.name });
-      box.appendChild(el('li', { class: r.me ? 'me' : '' }, [el('span', { class: 'pn' }, [el('span', {}, [nm, r.ticker ? el('span', { class: 'muted', text: ' ' + r.ticker }) : null]), bar]), el('span', { class: 'n', text: P.money(r.v) + ' ' + (r.label || '') })]));
-    });
-  }
   function identity(d) {
     var c = d.company, dl = $('ident'); dl.textContent = '';
     var kv = function (k, v) { if (v == null || v === '' || (Array.isArray(v) && !v.length)) return; var dd = el('dd'); (Array.isArray(v) ? v : [v]).forEach(function (line, i) { if (i) dd.appendChild(el('br')); dd.appendChild(typeof line === 'string' ? document.createTextNode(line) : line); }); dl.appendChild(el('dt', { text: k })); dl.appendChild(dd); };
@@ -439,7 +313,7 @@
   $('asof-latest').addEventListener('click', function () { $('asof').value = ''; loadAt(null); });
 
   function render(d) {
-    header(d); story(d); statements(d); segments(d); events(d); people(d); ownership(d); filings(d); peers(d); identity(d);
+    header(d); story(d); statements(d); events(d); filings(d); identity(d); renderLower(d);
     $('asof').value = d.as_of || '';
     var picks = $('asof-picks'); picks.textContent = '';
     var ends = d.years.map(function (y) { return y; }).filter(function (y) { return y.period_end; });

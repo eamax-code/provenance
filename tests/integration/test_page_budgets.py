@@ -19,13 +19,16 @@ SITE = Path(__file__).resolve().parents[2] / "site"
 
 # page: (files it ships, budget in bytes compressed); measured 2026-11-22: company 24.8 KB,
 # chat 22.6 KB, ipos 10.3 KB, shell 9.1 KB. The company page grew to 28.2 KB the same day with
-# three agreed sections (13F ownership, successor registrants, segments); budget raised to 31 KB.
+# three agreed sections (13F ownership, successor registrants, segments); the sections below the
+# first screens then moved to company-lower.js, loaded as they come near the screen, and the
+# first-load budget went back to 28 KB. company-lower.js has its own budget.
 BUDGETS = {
     "company page": (
         ["companies/page/snapshot.html", "companies/page/page.css", "companies/page/page.js",
          "companies/page/company.js"],
-        31_000,
+        28_000,
     ),
+    "company page, lower sections (loaded later)": (["companies/page/company-lower.js"], 6_000),
     "chat": (["chat/index.html", "chat.css", "chat.js"], 25_000),
     "ipos": (["ipos/index.html", "ipos/ipos.css", "ipos/ipos.js"], 12_000),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
