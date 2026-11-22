@@ -190,3 +190,25 @@ No recurring infrastructure is required until a pilot exists: the stack runs on 
 VM or a free/entry tier (API + poller) plus an entry-tier managed PostgreSQL. Expected initial
 spend is well inside the ₹15,000 planning cap from AGENTS.md; check current prices and free-tier
 terms before purchasing. No paid data is used.
+
+## Local Postgres container
+
+The local database runs in Docker as `provenance-local-pg` (pgvector/pgvector:pg16) on the named
+volume `provenance-local-pgdata-v2`, published on 127.0.0.1:5433. Parallel query workers need
+more than Docker's default 64 MB of /dev/shm (2026-11-21: "could not resize shared memory
+segment ... No space left on device"), so the container runs with `--shm-size=1g`. To recreate
+it (data stays on the volume; stop jobs first, about a minute of downtime):
+
+```
+pw=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' provenance-local-pg \
+     | grep '^POSTGRES_PASSWORD=' | cut -d= -f2-)
+docker stop -t 90 provenance-local-pg && docker rm provenance-local-pg
+docker run -d --name provenance-local-pg --shm-size=1g -p 127.0.0.1:5433:5432 \
+  -e POSTGRES_DB=provenance -e POSTGRES_USER=provenance -e POSTGRES_PASSWORD="$pw" \
+  -v provenance-local-pgdata-v2:/var/lib/postgresql/data pgvector/pgvector:pg16
+```
+
+Recreated this way on 2026-11-22 at 03:01Z; `max_parallel_workers_per_gather` (set to 0 as a
+stopgap during the 1.4.0 pass) was reset with `ALTER SYSTEM RESET` (one statement per psql call:
+ALTER SYSTEM cannot run in a transaction block) and a parallel aggregate over financial_facts ran
+with 2 workers.
