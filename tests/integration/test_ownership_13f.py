@@ -248,8 +248,18 @@ def test_reorganisation_counts_both_cusips_as_one_class(db, ingested_aapl):
                                                           "exited": 0}  # fmt: skip
         assert b["shares_held"] == 320 and any("holding company reorganisation" in n
                                                for n in b["notes"])  # fmt: skip
+        assert b["flows_note"].startswith("This quarter spans the change of share identifier "
+                                          "on 1 Jul 2026 (8-K12B)")  # fmt: skip
     # a merger counterpart (accounting predecessor) is never combined
     link = db.scalar(select(RegistrantSuccession))
     link.match_method = "accounting_predecessor"
     db.commit()
     assert thirteenf.reorganisation_aliases(db, old) == []
+
+
+def test_flows_note_only_near_the_change():
+    change = [(date(2026, 7, 1), "8-K12B")]
+    assert thirteenf.flows_note(date(2026, 6, 30), change)  # reported after the change
+    assert thirteenf.flows_note(date(2026, 9, 30), change)  # the quarter that contains it
+    assert thirteenf.flows_note(date(2026, 12, 31), change) is None
+    assert thirteenf.flows_note(date(2026, 3, 31), change) is None

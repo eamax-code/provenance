@@ -331,6 +331,7 @@ def ownership(
     offset: int = 0,
     shares_outstanding: dict | None = None,
     aliases: list[str] | None = None,
+    changes: list[tuple[date, str]] | None = None,
 ) -> dict | None:
     """The overview "ownership" block for one company, or None without 13F data for it.
     `shares_outstanding` is the cover-page figure ({value, as_of_date, source_url, ...}).
@@ -430,6 +431,7 @@ def ownership(
         if pct is not None
         else None,  # fmt: skip
         "flows": flows,
+        "flows_note": flows_note(q, changes or []),
         "top_holders": holders,
         "has_more": len(ranked) > offset + top,
         "notes": notes,
@@ -451,7 +453,30 @@ def for_company(
     return ownership(
         db, company.cik, as_of=as_of, today=today, top=top, offset=offset, shares_outstanding=so,
         aliases=reorganisation_aliases(db, company.cik),
+        changes=reorganisation_changes(db, company.cik),
     )  # fmt: skip
+
+
+def flows_note(quarter: date, changes: list[tuple[date, str]]) -> str | None:
+    """A factual note when a quarter spans a change of share identifier (a holding company
+    reorganisation): the change falls in the quarter or in its 45-day filing window."""
+    for day, form in changes:
+        if previous_quarter(quarter) < day <= quarter + timedelta(days=DEADLINE_DAYS):
+            return (f"This quarter spans the change of share identifier on "
+                    f"{day.day} {day:%b %Y} ({form}). Holder changes may reflect how managers "
+                    "reported the change; compare with care.")  # fmt: skip
+    return None
+
+
+def reorganisation_changes(db: Session, cik: str) -> list[tuple[date, str]]:
+    from app.db.models import RegistrantSuccession
+
+    rs = RegistrantSuccession
+    rows = db.scalars(select(rs).where(
+        (rs.predecessor_cik == cik) | (rs.successor_cik == cik),
+        rs.match_method == "holding_company_reorganization",
+    ))  # fmt: skip
+    return [(r.effective_date, r.evidence_form) for r in rows]
 
 
 def reorganisation_aliases(db: Session, cik: str) -> list[str]:

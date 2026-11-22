@@ -66,6 +66,9 @@ class OwnershipOut(BaseModel):
     institutional_pct: float | None = Field(None, description="Derived: shares held / outstanding")
     institutional_pct_derived: Derivation | None = None
     flows: Flows
+    flows_note: str | None = Field(
+        None, description="Set when the quarter spans a change of share identifier"
+    )
     data: list[Holder] = Field(description="Holders by value at quarter end, largest first")
     meta: PageMeta
     as_of: str | None = None
