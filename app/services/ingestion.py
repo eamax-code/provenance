@@ -151,12 +151,11 @@ def _address(value: Any) -> str | None:
     parts = {k: _str_or_none(value.get(k)) for k in keys}
     if not any(parts.values()):
         return None
-    parts["country"] = (
-        _str_or_none(value.get("stateOrCountryDescription"))
-        if value.get("isForeignLocation")
-        else "United States"
-    )
-    return json.dumps(parts)
+    from app.services.places import clean
+
+    # K-06: the country from the state/country code; EDGAR's isForeignLocation is often missing,
+    # which made Toyota (M0) and SAP (2M) "United States"
+    return json.dumps(clean(parts))
 
 
 def _category(value: Any) -> str | None:

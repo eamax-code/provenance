@@ -68,6 +68,10 @@ def test_overview_block_current_history_changes_and_as_of(db, client, ingested_a
     assert b["current"]["latest_report"]["source_url"].endswith(f"{A25}-index.html")
     assert [h["name"] for h in b["history"]] == ["KPMG LLP", "Ernst & Young LLP"]
     assert b["changes"][0]["item"] == "4.01" and b["changes"][0]["filing_date"] == "2025-06-02"
+    fc = b["firm_changes"]
+    assert len(fc) == 1 and fc[0]["fiscal_year"] == 2025
+    assert (fc[0]["from"]["pcaob_firm_id"], fc[0]["to"]["pcaob_firm_id"]) == ("42", "185")
+    assert fc[0]["item_401"]["filing_date"] == "2025-06-02"  # filed between the two reports
     before = auditors.for_company(db, "0000320193", as_of=date(2025, 12, 31))
     assert before["current"]["name"] == "Ernst & Young LLP"
     o = client.get("/v1/public/companies/320193/overview").json()

@@ -35,7 +35,8 @@ CHANGE_ITEM = "4.01"
 NOTES = [
     "The audit firm is as tagged on the cover of each annual report (dei:AuditorName, "
     "AuditorFirmId, AuditorLocation); the firm ID is the PCAOB's.",
-    "8-K item 4.01 filings announce a change of certifying accountant.",
+    "8-K item 4.01 filings announce a change of certifying accountant; a firm change between two "
+    "consecutive annual reports links the 4.01 filed between them, when there is one.",
 ]
 
 csv.field_size_limit(50_000_000)
@@ -191,6 +192,29 @@ def for_company(db: Session, cik: str, as_of: date | None = None) -> dict | None
                             "from_fiscal_year": r.fiscal_year, "to_fiscal_year": r.fiscal_year,
                             "reports": 1})  # fmt: skip
     last = current[-1]
+    filings_401 = db.scalars(select(Filing).where(
+        Filing.cik == cik, Filing.form_type.like("8-K%"),
+        Filing.items.like(f"%{CHANGE_ITEM}%"), Filing.filing_date.is_not(None),
+        *([Filing.filing_date <= as_of] if as_of else []),
+    ).order_by(Filing.filing_date)).all()  # fmt: skip
+    firm_changes = []
+    for before, after in zip(current, current[1:], strict=False):
+        if before.auditor_key == after.auditor_key:
+            continue
+        # the 8-K item 4.01 filed between the two annual reports, the latest one if several
+        linked = [f for f in filings_401 if before.filed_date < f.filing_date <= after.filed_date]
+        f401 = linked[-1] if linked else None
+        firm_changes.append({
+            "fiscal_year": after.fiscal_year,
+            "from": {"name": before.auditor_name, "pcaob_firm_id": before.pcaob_firm_id},
+            "to": {"name": after.auditor_name, "pcaob_firm_id": after.pcaob_firm_id},
+            "first_report": {"form_type": after.form_type,
+                             "filed_date": after.filed_date.isoformat(),
+                             "accession_number": after.accession_number,
+                             "source_url": filing_index_url(cik, after.accession_number)},
+            "item_401": {"filing_date": f401.filing_date.isoformat(), "form_type": f401.form_type,
+                         "source_url": f401.source_url} if f401 else None,
+        })  # fmt: skip
     changes_q = select(Filing).where(
         Filing.cik == cik, Filing.form_type.like("8-K%"), Filing.items.like(f"%{CHANGE_ITEM}%")
     )
@@ -215,6 +239,8 @@ def for_company(db: Session, cik: str, as_of: date | None = None) -> dict | None
             },  # fmt: skip
         },
         "history": list(reversed(history)),
+        # a change of firm between consecutive annual reports, with the 8-K 4.01 announcing it
+        "firm_changes": list(reversed(firm_changes)),
         "changes": [
             {
                 "filing_date": f.filing_date.isoformat() if f.filing_date else None,
