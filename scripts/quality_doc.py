@@ -79,6 +79,22 @@ select count(*) filter (where a.unit = 'USD' and a.latest_revenue >= 1e9),
        count(*) filter (where a.unit <> 'USD'), count(l.cik) filter (where a.unit <> 'USD'),
        count(*), count(l.cik)
 from act a left join company_lei l using (cik)"""
+SEGMENT_CAUSES = """
+with g as (
+  select accession_number, kind, metric, period_end,
+         sum(value) filter (where role = 'segment') seg,
+         max(value) filter (where role = 'consolidated') tot,
+         count(*) filter (where role = 'segment') n
+  from company_segments where status = 'unreconciled' group by 1, 2, 3, 4),
+c as (select case
+   when tot is null then 'no consolidated figure under the same tag'
+   when n = 1 then 'a single segment tagged'
+   when tot <> 0 and seg > tot * 2.2 then 'segments far above the total (several breakdowns mixed)'
+   when tot <> 0 and seg > tot * 1.01
+     then 'segments above the total (overlapping breakdowns, subtotals)'
+   when seg >= 0 and seg < tot * 0.99 then 'segments below the total (partial disclosure)'
+   else 'other (signs, zero or negative totals)' end cause from g)
+select cause, count(*) from c group by 1 order by 2 desc"""
 LATEST = """
 select f.metric, f.value, f.unit, f.source_tag, f.period_start, f.period_end, f.accession_number,
        f.filed_date, f.form_type, f.quality_status
@@ -275,6 +291,16 @@ def main() -> int:
               f"accounting predecessors, each with the sentence quoted), {len(rev) - stored} "
               "rejected (mergers whose accounting acquirer was another company, or no sentence).",
               ""]  # fmt: skip
+
+    causes = db.execute(text(SEGMENT_CAUSES)).all()
+    total = sum(n for _, n in causes) or 1
+    lines += ["## Unreconciled segments (E-4)", "",
+              "Segment figures are shown with status unreconciled when they do not add up to the "
+              "consolidated figure within 1% and no reconciling item is tagged. Causes, per "
+              "filing, kind, metric and year:", ""]  # fmt: skip
+    lines += [f"- {cause}: {n:,} ({100 * n / total:.0f}%)" for cause, n in causes]
+    lines += ["", "A rule comparing segments with the consolidated figure under any revenue tag "
+              "(not only the segments' own) would address the second cause.", ""]  # fmt: skip
 
     lines += ["## Spot check against the 10-K as filed", "", spot_md]
     Path(args.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
