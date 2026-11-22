@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 import zipfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -30,7 +31,8 @@ ANNUAL = ("10-K", "10-K/A", "10-KT", "10-KT/A", "20-F", "20-F/A", "40-F", "40-F/
 AUDITOR_TAGS = {"AuditorName": "name", "AuditorFirmId": "firm_id", "AuditorLocation": "location"}
 SYMBOL_TAGS = {"TradingSymbol": "symbol", "SecurityExchangeName": "exchange",
                "Security12bTitle": "title",
-               "EntityRegistrantName": "registrant"}  # fmt: skip  # K-04b and K-06, one pass
+               "EntityRegistrantName": "registrant",
+               "EntityIncorporationStateCountryCode": "incorporation"}  # fmt: skip  # K-04b, K-06
 CHANGE_ITEM = "4.01"
 LINK_DAYS = 548  # an 8-K 4.01 links to a firm change up to 18 months before the first new report
 NOTES = [
@@ -115,14 +117,17 @@ def parse_notes_zip(path: str | Path) -> tuple[list[dict], list[dict]]:
     syms = []
     for (adsh, _), g in symbols.items():
         sub = subs.get(adsh)
-        if sub is None or not (g.get("symbol") or g.get("registrant")):
+        if sub is None or not (g.get("symbol") or g.get("registrant") or g.get("incorporation")):
             continue
         registrant = " ".join((g.get("registrant") or "").split())[:300] or None
+        inc = (g.get("incorporation") or "").strip().upper()
+        inc = inc if re.fullmatch(r"[A-Z0-9]{2}", inc) else None
         syms.append({"accession_number": adsh, "cik": normalize_cik(sub["cik"]),
                      "form_type": sub.get("form", "").upper(), "filed_date": _ymd(sub.get("filed")),
                      "symbol": (g.get("symbol") or "").upper()[:20] or None,
                      "exchange": g.get("exchange"), "title": g.get("title"),
-                     "registrant": registrant})  # fmt: skip
+                     "registrant": registrant,
+                     "incorporation": inc})  # fmt: skip
     # one row per filing and firm (a firm tagged in two contexts keeps the later period)
     best: dict[tuple, dict] = {}
     for a in auditors:

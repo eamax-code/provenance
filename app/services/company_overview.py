@@ -78,6 +78,9 @@ def _identity(db: Session, company: Company) -> dict:
     from app.services.ticker_history import legal_name_as_filed
 
     out["legal_name_as_filed"] = legal_name_as_filed(company)  # K-06
+    from app.services.ticker_history import incorporation
+
+    out["incorporation"] = incorporation(company)  # code, source, filing
     fye = company.fiscal_year_end
     if fye and fye[:2].isdigit() and 1 <= int(fye[:2]) <= 12:
         out["fiscal_year_end_month"] = date(2000, int(fye[:2]), 1).strftime("%B")

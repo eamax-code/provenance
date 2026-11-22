@@ -129,6 +129,50 @@ def apply_registrant_names(db: Session, rows: list[dict]) -> int:
     return n
 
 
+INCORPORATION_TAG = "dei:EntityIncorporationStateCountryCode"
+
+
+def apply_incorporation(db: Session, rows: list[dict]) -> int:
+    """Each company's state of incorporation from the cover of its latest report that tags it
+    (the registrant's own undimensioned tag only, never a co-registrant's), with the filing. The
+    SEC submissions field can hold a home state instead (HubSpot: NY there, DE on its cover)."""
+    latest: dict[str, tuple] = {}
+    for r in rows:
+        if r.get("incorporation") and r.get("filed_date"):
+            cur = latest.get(r["cik"])
+            if cur is None or r["filed_date"] > cur[0]:
+                latest[r["cik"]] = (r["filed_date"], r["incorporation"], r["accession_number"])
+    n = 0
+    for c in db.scalars(select(Company).where(Company.cik.in_(list(latest)))):
+        _, state, accession = latest[c.cik]
+        now = (c.state_of_incorporation, c.state_of_incorporation_source,
+               c.state_of_incorporation_accession)  # fmt: skip
+        if now != (state, INCORPORATION_TAG, accession):
+            c.state_of_incorporation = state
+            c.state_of_incorporation_source = INCORPORATION_TAG
+            c.state_of_incorporation_accession = accession
+            n += 1
+    db.commit()
+    return n
+
+
+def incorporation(company: Company) -> dict | None:
+    """The state of incorporation with where it comes from (the cover tag and its filing, or the
+    SEC submissions field)."""
+    if not company.state_of_incorporation:
+        return None
+    from app.services.sec_client import filing_index_url
+
+    acc = company.state_of_incorporation_accession
+    cover = company.state_of_incorporation_source == INCORPORATION_TAG
+    return {
+        "code": company.state_of_incorporation,
+        "source": INCORPORATION_TAG if cover else "sec_submissions",
+        "accession_number": acc if cover else None,
+        "source_url": filing_index_url(company.cik, acc) if cover and acc else None,
+    }
+
+
 def legal_name_as_filed(company: Company) -> dict | None:
     """K-06: the exact legal name the company wrote on its latest report's cover, with the
     filing it comes from (for KYC: the string as filed, not a display form)."""
