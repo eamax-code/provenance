@@ -1,0 +1,40 @@
+{
+ "tiebreak": {
+  "value_changed": 638,
+  "new_ok": 1724,
+  "lost_ok": 0,
+  "companies": 730,
+  "companies_changed": 91
+ },
+ "bank": {
+  "value_changed": 0,
+  "new_ok": 216,
+  "lost_ok": 0,
+  "companies": 10,
+  "companies_changed": 0
+ },
+ "tag_only": 8308,
+ "hand_check": "30 companies on the built code against each filing's rendered income statement, 30 right (Williams 2025 $11.95B; Republic Services 2022 $13,511M; Plexus net sales; Aspira, bioAffinity and Autoscope total revenue; HSBC, Santander, Galicia and SEK total income). Before building: income-statement rule v3, 1 doubtful in 20; IFRS banks, 20 of 20.",
+ "drift_vs_dry_run_pct": {
+  "tiebreak.value_changed": [
+   638,
+   638,
+   0.0
+  ],
+  "tiebreak.companies_changed": [
+   91,
+   91,
+   0.0
+  ],
+  "tiebreak.new_ok": [
+   1724,
+   1724,
+   0.0
+  ],
+  "bank.new_ok": [
+   216,
+   216,
+   0.0
+  ]
+ }
+}
