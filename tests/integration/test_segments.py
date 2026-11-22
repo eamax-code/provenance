@@ -74,6 +74,7 @@ def test_overview_block_endpoint_and_mcp(db, client, auth, ingested_aapl):
     top = biz["segments"][0]
     assert top["label"] == "Americas" and top["share_of_revenue_pct"] == 42.9
     assert top["key"] == "BusinessSegments=AmericasSegment"
+    assert top["label_source"] == "member_name"
     assert biz["reconciling"][0]["label"].startswith("Corporate")
     r = client.get("/v1/companies/320193/segments", headers=auth)
     assert r.status_code == 200 and r.json()["kinds"][0]["kind"] == "business"

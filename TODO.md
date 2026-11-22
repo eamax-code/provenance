@@ -26,6 +26,8 @@ Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-
 | E-1 | 13F institutional holders | code done 2026-11-22 (afd5294): data sets Q3 2025 to Q2 2026 on disk, CUSIP map from Schedule 13D/G (cached), API, MCP, overview block; load after the pass; E-1b (Q3 2026 per filing) approved after the load |
 | E-2 | First reported from 8-K 2.02 releases | code done 2026-11-22 (5621f5a): dry run 102 of 122 matched, none wrong; batch 1 (top 500, 4 releases) after the pass, batch 2 overnight |
 | E-3 | Auditor | code done 2026-11-22 (d79c222): from the Notes data sets (12 months on disk); PCAOB Form AP (partners) needs the owner to download it in a browser; load after the pass |
+| E-4 | Segments, first pass | code done 2026-11-22 (54985d6): business, geographic and product from the Notes data sets; load after the pass |
+| E-4b | Segment member labels | queued: the filing's own labels from its label linkbase (_lab.xml) through the shared SEC limiter, top 500 by revenue first; until then label_source "member_name" |
 | K-05 | Successor registrants (P1) | code done 2026-11-22 (49888f9): 23 pairs in 10 years (XOM, Linde, Baker Hughes...); store and hand-check after the pass |
 | K-03 | Co-registrants | done 2026-11-22: graph layer `co_registrants` from 10-K/10-Q/8-K filed under one accession by several registrants in 3 years (Duke Energy and its six utilities); filings indexed by accession |
 | P-01 | Public statistics from a stored snapshot | done 2026-11-22 (stats): a request reads one stored row, never the aggregates (tested); refreshed every 45 s by the web process (`STATS_REFRESH_SECONDS`) and by the poller; a stale snapshot is served with its generated_at. Coverage follows the same pattern |

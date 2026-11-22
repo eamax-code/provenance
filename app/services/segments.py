@@ -63,6 +63,7 @@ COUNTRIES = {"US": "United States", "CN": "China", "JP": "Japan", "GB": "United 
              "DE": "Germany", "FR": "France", "CA": "Canada", "IN": "India", "IE": "Ireland",
              "NL": "Netherlands", "CH": "Switzerland", "KR": "South Korea", "TW": "Taiwan",
              "MX": "Mexico", "BR": "Brazil", "AU": "Australia", "SG": "Singapore"}  # fmt: skip
+LABEL_SOURCE = "member_name"  # E-4b: the filing's own labels from its label linkbase
 NOTES = [
     "Segments as each annual report tags them (the segment, geographical and product axes); "
     "labels are made from the tagged member names.",
@@ -284,7 +285,8 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
                 m["consolidated"][p] = float(r.value)
                 continue
             target = segs if r.role == "segment" else recon
-            item = target.setdefault(r.member, {"key": r.member, "label": r.label, "values": {}})
+            new = {"key": r.member, "label": r.label, "label_source": LABEL_SOURCE, "values": {}}
+            item = target.setdefault(r.member, new)
             item["values"].setdefault(r.metric, {})[p] = float(r.value)
         latest_p = periods[0].isoformat()
         rev = metrics.get("revenue", {}).get("consolidated", {}).get(latest_p)

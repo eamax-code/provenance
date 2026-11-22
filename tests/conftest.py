@@ -63,6 +63,19 @@ def _env():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _fresh_process_caches():
+    """Each test has its own database, so the in-process caches (the stats snapshot, public
+    responses) must not carry counts from the test before."""
+    from app.services import public, stats
+
+    stats.reset_cache()
+    public.reset_cache()
+    yield
+    stats.reset_cache()
+    public.reset_cache()
+
+
 @pytest.fixture
 def settings(tmp_path):
     from app.core.config import Settings
