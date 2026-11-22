@@ -252,10 +252,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 conn.execute(text("SELECT 1"))
         except Exception:  # noqa: BLE001
             db_ok = False
-        ready = db_ok and not problems
+        schema = None
+        if db_ok:
+            from app.db.schema_guard import problem as schema_problem
+
+            schema = schema_problem(get_engine())
+        ready = db_ok and not problems and not schema
         body = {
             "status": "ready" if ready else "not_ready",
             "database": "ok" if db_ok else "unavailable",
+            "schema": "ok" if not schema else schema,
             "configuration": "ok" if not problems else problems,
             "email_notifications": "configured" if settings.email_configured else "not_configured",
         }

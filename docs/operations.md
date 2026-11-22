@@ -58,6 +58,16 @@ secret values) when:
 
 The Dockerfile serves the API by default; override the command for the poller.
 
+**Migrations before code.** Apply migrations (`alembic upgrade head`) before any process starts
+or restarts on new code: the API, the poller, the hourly tracker (launchd
+`com.eamax.provenance.track-filings`), chains and loaders all import whatever code is on disk
+when they start. Every job entry point (`scripts/_bootstrap.py`) and `/readyz` compare the
+database's alembic revision with the code's head and refuse to start ("schema behind code: run
+alembic upgrade head", exit 2; `/readyz` 503 with a `schema` field) instead of failing once per
+company. Create-table-only migrations are safe to apply while jobs run; a migration that alters
+facts or companies waits until no pass holds their locks. When code that reads a new table is
+merged locally, apply its migration in the same step.
+
 ## Backups and recovery
 
 Backups live outside the database host's disk. On 2026-11-20 Docker Desktop's disk image was
