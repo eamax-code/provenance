@@ -26,8 +26,8 @@ from app.db.models import (
     OfficerChange,
 )
 from app.schemas.companies import CompanyOut
-from app.services import cover as cover_service
 from app.services import (
+    auditors,
     documents,
     identity,
     insiders,
@@ -38,6 +38,7 @@ from app.services import (
     statements,
     thirteenf,
 )
+from app.services import cover as cover_service
 from app.services.form8k import ITEM_TITLES, split_items
 from app.services.form_names import form_label
 from app.services.intel import display_name
@@ -357,7 +358,8 @@ def _listings(db: Session, company: Company) -> list[dict]:
 
 
 POINT_IN_TIME = ("statements", "key_figures", "years", "cover", "filings", "filing_activity",
-                 "insider_activity", "leadership", "events", "ownership")  # fmt: skip
+                 "insider_activity", "leadership", "events", "ownership",
+                 "auditor")  # fmt: skip
 CURRENT = ("summary", "history", "risk_factors", "peers", "listings")
 
 
@@ -402,6 +404,7 @@ def build(
             db, anchor - timedelta(days=EVENT_DAYS), EVENTS, until=anchor, cik=cik
         ),
         "ownership": thirteenf.for_company(db, company, as_of, today=today),
+        "auditor": auditors.for_company(db, cik, as_of),
         "risk_factors": risk,
         "peers": _peers(db, company, today),
         "listings": _listings(db, company),

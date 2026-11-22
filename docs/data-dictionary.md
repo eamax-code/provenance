@@ -448,6 +448,20 @@ universe: `sic_prefix`, `exchange`, `filer_category`, or `ciks` (up to 500). `de
 (`sec.results`, `sec.material_agreement`, `sec.shareholder_vote`) and no universe; then it is
 `hourly`, and the hour's filings arrive in one webhook of type `sec.filing.batch`.
 `notification_deliveries.type_watch_id` links its deliveries. Backfill never notifies.
+## company_auditors (launch plan E-3)
+
+The audit firm tagged on each annual report's cover (10-K, 20-F, 40-F and amendments, since
+2021): `auditor_name`, `pcaob_firm_id` (the PCAOB firm ID, leading zeros dropped),
+`auditor_location`, with the report's `form_type`, `fiscal_year`, `period_end`, `filed_date`.
+Source: the txt and sub tables of the SEC's Financial Statement and Notes data sets
+(`scripts/load_auditors.py`). Only the registrant's own facts (no dimension, no co-registrant).
+A report filed after a change of auditor names both firms in separate contexts;
+`audited_through` is each context's end date, and the current firm is the one that audited the
+report's own period. Overview `auditor`: `current` (firm, since which fiscal year, latest
+report), `history` (runs of consecutive reports per firm, newest first) and `changes` (8-K item
+4.01 filings), point in time by filing date. Engagement partners (PCAOB Form AP) are not
+included: the AuditorSearch download is behind a browser challenge.
+
 ## first_reported (launch plan E-2)
 
 A 10-Q or 10-K figure that an 8-K item 2.02 earnings release (exhibit 99.1) stated earlier, with

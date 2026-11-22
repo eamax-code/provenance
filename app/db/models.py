@@ -335,6 +335,29 @@ class FirstReported(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class CompanyAuditor(Base):
+    """The audit firm named in an annual report's cover tags (launch plan E-3): dei:AuditorName,
+    AuditorFirmId (the PCAOB firm ID) and AuditorLocation, from the SEC's Financial Statement
+    and Notes data sets. A report after a change of auditor names both firms; `audited_through`
+    is the end of the period each one audited."""
+
+    __tablename__ = "company_auditors"
+    __table_args__ = (Index("ix_company_auditors_cik_filed", "cik", "filed_date"),)
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    auditor_key: Mapped[str] = mapped_column(Text, primary_key=True)  # firm ID, else the name
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    fiscal_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    period_end: Mapped[date | None] = mapped_column(Date, nullable=True)  # the report's period
+    audited_through: Mapped[date | None] = mapped_column(Date, nullable=True)
+    filed_date: Mapped[date] = mapped_column(Date, nullable=False)
+    auditor_name: Mapped[str] = mapped_column(Text, nullable=False)
+    pcaob_firm_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    auditor_location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class IssuerCusip(Base):
     """Internal only (launch plan E-1): which company a CUSIP belongs to, to join Form 13F
     positions to companies. A CUSIP never appears in a response (owner rule).
