@@ -130,6 +130,21 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik"],
         },
     },
+    "institutional_ownership": {
+        "title": "Institutional holders (13F)",
+        "description": "Institutional investment managers holding a company's shares at the "
+        "latest complete quarter, from Forms 13F: holder count and change, new/added/reduced/"
+        "exited counts, institutional percentage (derived from the cover-page shares "
+        "outstanding) and the largest holders by value, each with its 13F filing. as_of uses "
+        "only 13Fs filed by that date.",
+        "path": "/v1/companies/{cik}/ownership",
+        "params": {"as_of": "as_of", "limit": "limit"},
+        "schema": {
+            "type": "object",
+            "properties": {"cik": _CIK, "as_of": _DATE, "limit": _LIMIT},
+            "required": ["cik"],
+        },
+    },
     "companies_going_public": {
         "title": "Companies going public",
         "description": "First-time registrants going public, newest activity first, with the "

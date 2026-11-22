@@ -448,6 +448,40 @@ universe: `sic_prefix`, `exchange`, `filer_category`, or `ciks` (up to 500). `de
 (`sec.results`, `sec.material_agreement`, `sec.shareholder_vote`) and no universe; then it is
 `hourly`, and the hour's filings arrive in one webhook of type `sec.filing.batch`.
 `notification_deliveries.type_watch_id` links its deliveries. Backfill never notifies.
+## Institutional ownership: filings_13f, holdings_13f, issuer_cusips (launch plan E-1)
+
+Source: the SEC's Form 13F data sets (sec.gov/data-research/sec-markets-data/form-13f-data-sets),
+one zip of tab-separated files per three months of filing dates, loaded by
+`scripts/load_13f.py`. `job_state` `13f:loaded_through` is the last filing date the loaded data
+sets cover.
+
+**filings_13f**: one row per 13F filing: `accession_number`, `filer_cik` (the manager), `filer_name`
+as filed on the cover page, `report_period` (quarter end), `filing_date`, `form_type` (13F-HR,
+13F-HR/A, 13F-NT), `amendment_type` (RESTATEMENT or NEW HOLDINGS; an amendment that does not say
+is treated as a restatement), `report_type`, `entry_total`, `value_total_usd`,
+`confidential_omitted`, `source`. The manager's address is not stored.
+
+**holdings_13f**: a manager's position in one security on one filing, summed over the filing's
+rows (investment discretion, other managers): `shares`, `value_usd`, `title_of_class`. Shares
+only: amounts in principal (PRN) and put or call options are left out. Values are dollars;
+filings made before 2023-01-03 reported thousands and are multiplied by 1,000.
+
+**issuer_cusips** (internal; never in a response): which company a CUSIP belongs to.
+`method` is `schedule_13dg` (issuer CIK and CUSIP on a structured Schedule 13D or 13G), `isin`
+(a US or CA ISIN of a listing whose LEI is linked to the CIK) or `issuer_prefix` (another share
+class of a mapped issuer with the same 6-character issuer number that Forms 13F title as a share
+class; never a preferred, warrant, unit, right, note or ADR). A mapping changes only for a
+stronger source or the same source in a later filing.
+
+**Overview `ownership` and `GET /v1/companies/{cik}/ownership`**: the latest complete quarter
+(its 45-day filing deadline passed, and the loaded data reaches it). Per manager and quarter,
+filings count in filing order: an original or a restatement replaces, NEW HOLDINGS adds; with
+`as_of`, only filings made by then. `holders_count` counts managers with a position;
+`flows` compares each manager with the quarter before (`exited` only for managers that filed
+for the quarter without a position). `institutional_pct` is derived: 13F shares held divided by
+the cover-page shares outstanding, given only for a single share class. Holders are ranked by
+value; each links its 13F filing.
+
 ## International listings (ADR 0006)
 
 ### markets

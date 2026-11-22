@@ -18,6 +18,7 @@ from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
 from app.db.models import BeneficialOwner, Filing, GraphSourceState, utcnow
+from app.services import cusips
 from app.services.insiders import _find, _local, _num, safe_xml
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
 
@@ -132,7 +133,9 @@ def refresh(db: Session, client: SecClient, cik: str, limit: int = 60) -> dict:
             skip.add(f.accession_number)
             continue
         try:
-            parsed = parse_schedule_xml(client.get_text(url).data)
+            text = client.get_text(url).data
+            parsed = parse_schedule_xml(text)
+            cusips.record_schedule(db, text, f.accession_number, f.filing_date)  # E-1, internal
         except (SecClientError, ValueError, ElementTree.ParseError):
             failed += 1
             continue

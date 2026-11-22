@@ -307,6 +307,67 @@ class InsiderActivity(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class IssuerCusip(Base):
+    """Internal only (launch plan E-1): which company a CUSIP belongs to, to join Form 13F
+    positions to companies. A CUSIP never appears in a response (owner rule).
+
+    method: schedule_13dg (the issuer's CIK and CUSIP on a structured Schedule 13D or 13G),
+    isin (a US or CA ISIN of a listing linked to the CIK), issuer_prefix (another share class
+    with a mapped CUSIP's 6-character issuer number, as titled on Forms 13F)."""
+
+    __tablename__ = "issuer_cusips"
+    __table_args__ = (Index("ix_issuer_cusips_cik", "cik"),)
+
+    cusip: Mapped[str] = mapped_column(String(9), primary_key=True)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    class_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    method: Mapped[str] = mapped_column(Text, nullable=False)
+    accession_number: Mapped[str | None] = mapped_column(String(25), nullable=True)
+    filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class Filing13F(Base):
+    """One Form 13F filing by an institutional investment manager (E-1), from the SEC's Form
+    13F data sets or EDGAR. The manager's address is not stored."""
+
+    __tablename__ = "filings_13f"
+    __table_args__ = (Index("ix_filings_13f_filer_period", "filer_cik", "report_period"),
+                      Index("ix_filings_13f_period", "report_period"))  # fmt: skip
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    filer_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    filer_name: Mapped[str] = mapped_column(Text, nullable=False)  # as filed on the cover page
+    report_period: Mapped[date] = mapped_column(Date, nullable=False)
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)  # 13F-HR, 13F-HR/A, 13F-NT
+    amendment_type: Mapped[str | None] = mapped_column(Text, nullable=True)  # RESTATEMENT|NEW..
+    report_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entry_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    value_total_usd: Mapped[Decimal | None] = mapped_column(Numeric(24, 2), nullable=True)
+    confidential_omitted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class Holding13F(Base):
+    """A manager's position in one security on one 13F filing, summed over the filing's rows
+    (investment discretion, other managers). Shares only (SH), no options. Values in dollars:
+    filings before 2023-01-03 reported thousands and are multiplied by 1,000."""
+
+    __tablename__ = "holdings_13f"
+    __table_args__ = (Index("ix_holdings_13f_cusip_period", "cusip", "report_period"),)
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    cusip: Mapped[str] = mapped_column(String(9), primary_key=True)  # internal only
+    filer_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    report_period: Mapped[date] = mapped_column(Date, nullable=False)
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    title_of_class: Mapped[str | None] = mapped_column(Text, nullable=True)
+    shares: Mapped[Decimal] = mapped_column(Numeric(24, 2), nullable=False)
+    value_usd: Mapped[Decimal] = mapped_column(Numeric(24, 2), nullable=False)
+
+
 class CompanyLei(Base):
     """An SEC filer's LEI (launch plan K-01), with how it was matched and how sure we are."""
 

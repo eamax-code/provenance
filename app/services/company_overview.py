@@ -36,6 +36,7 @@ from app.services import (
     live,
     periods,
     statements,
+    thirteenf,
 )
 from app.services.form8k import ITEM_TITLES, split_items
 from app.services.form_names import form_label
@@ -356,7 +357,7 @@ def _listings(db: Session, company: Company) -> list[dict]:
 
 
 POINT_IN_TIME = ("statements", "key_figures", "years", "cover", "filings", "filing_activity",
-                 "insider_activity", "leadership", "events")  # fmt: skip
+                 "insider_activity", "leadership", "events", "ownership")  # fmt: skip
 CURRENT = ("summary", "history", "risk_factors", "peers", "listings")
 
 
@@ -400,6 +401,7 @@ def build(
         "insider_activity": live.insider_rows(
             db, anchor - timedelta(days=EVENT_DAYS), EVENTS, until=anchor, cik=cik
         ),
+        "ownership": thirteenf.for_company(db, company, as_of, today=today),
         "risk_factors": risk,
         "peers": _peers(db, company, today),
         "listings": _listings(db, company),
@@ -411,6 +413,8 @@ def build(
             "their inputs.",
             "Events say what a filing is, from its form and declared 8-K items: information, "
             "not signals.",
+            "Ownership is from Forms 13F filed by institutional investment managers for the "
+            "latest complete quarter; each holder links to its filing.",
             "Leadership changes are read from 8-K item 5.02 by a language model and checked "
             "against the filing text; unverified ones are marked.",
             "Data from SEC EDGAR. Independent service, not affiliated with the SEC. Not "
