@@ -14,7 +14,7 @@
   var money = function (v, unit) {
     if (v == null) return 'not reported';
     var s = Math.abs(v).toLocaleString('en-US');
-    return (v < 0 ? '−' : '') + (unit === 'USD' ? '$' + s : s + ' ' + (unit || ''));
+    return (v < 0 ? '−' : '') + (unit === 'USD' ? '$' + s : /^[A-Z]{3}$/.test(unit || '') ? unit + '\u00a0' + s : s + ' ' + (unit || ''));
   };
   var node = function (tag, attrs, kids) {
     var n = document.createElement(tag);

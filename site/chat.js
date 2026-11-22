@@ -182,10 +182,13 @@
     return chartLib;
   }
   function css(name) { return getComputedStyle(body).getPropertyValue(name).trim(); }
-  function short(v) {
+  // amounts stay in the company's reporting currency: "$" for USD, the ISO code otherwise ("EUR 36.8B")
+  function curOf(w) { var c = w && (w.currency || w.unit); return /^[A-Z]{3}$/.test(c || '') ? c : 'USD'; }
+  function short(v, cur) {
+    var p = !cur || cur === 'USD' ? '$' : cur + '\u00a0';
     var a = Math.abs(v), units = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
-    for (var i = 0; i < units.length; i++) if (a >= units[i][0]) return (v < 0 ? '-$' : '$') + (a / units[i][0]).toFixed(a / units[i][0] >= 100 ? 0 : 1) + units[i][1];
-    return '$' + v.toFixed(0);
+    for (var i = 0; i < units.length; i++) if (a >= units[i][0]) return (v < 0 ? '-' : '') + p + (a / units[i][0]).toFixed(a / units[i][0] >= 100 ? 0 : 1) + units[i][1];
+    return (v < 0 ? '-' : '') + p + Math.abs(v).toFixed(0);
   }
   function delta(p) {
     if (p == null) return null;
@@ -205,7 +208,9 @@
   }
   function tile(t, byN, i) {
     var box = el('div', 'cx-tile'); box.style.animationDelay = (0.05 * i) + 's';
-    box.appendChild(el('div', 'cx-tile-label', t.label));
+    // a non-USD tile names its currency, unless the value already carries the code
+    var tc = /^[A-Z]{3}$/.test(t.currency || '') && t.currency !== 'USD' && String(t.value).indexOf(t.currency) < 0 ? ' · ' + t.currency : '';
+    box.appendChild(el('div', 'cx-tile-label', t.label + tc));
     var v = el('div', 'cx-tile-value', t.value); box.appendChild(v);
     var sub = el('div', 'cx-tile-sub');
     var d = delta(t.change_pct); if (d) sub.appendChild(d);
@@ -297,7 +302,7 @@
         },
         scales: {
           x: { grid: { display: false }, ticks: { color: muted, font: font }, border: { color: line } },
-          y: { beginAtZero: true, grid: { color: line }, border: { display: false }, ticks: { color: muted, font: font, maxTicksLimit: 5, callback: function (v) { return short(v); } } },
+          y: { beginAtZero: true, grid: { color: line }, border: { display: false }, ticks: { color: muted, font: font, maxTicksLimit: 5, callback: function (v) { return short(v, curOf(w)); } } },
           pct: { position: 'right', grid: { display: false }, border: { display: false }, ticks: { color: red, font: font, maxTicksLimit: 5, callback: function (v) { return v + '%'; } } }
         }
       }
@@ -402,7 +407,7 @@
         },
         scales: {
           x: { grid: { display: false }, ticks: { color: muted, font: font }, border: { color: line } },
-          y: { beginAtZero: true, grid: { color: line }, border: { display: false }, ticks: { color: muted, font: font, maxTicksLimit: 5, callback: function (v) { return short(v); } } }
+          y: { beginAtZero: true, grid: { color: line }, border: { display: false }, ticks: { color: muted, font: font, maxTicksLimit: 5, callback: function (v) { return short(v, curOf(w)); } } }
         }
       }
     });

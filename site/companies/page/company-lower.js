@@ -114,7 +114,7 @@
     var pctTitle = o.institutional_pct_derived ? o.institutional_pct_derived.formula + (o.institutional_pct_derived.inputs || []).map(function (x) { return '; ' + x.name + ' ' + (x.value != null ? Number(x.value).toLocaleString('en-US') : '') + (x.quarter ? ' (' + quarterName(x.quarter) + ')' : x.as_of_date ? ' (' + P.date(x.as_of_date) + ')' : ''); }).join('') : '';
     var nums = $('own-nums'); nums.textContent = '';
     var tile = function (big, label, plain) { nums.appendChild(el('div', {}, [plain ? el('div', { class: 'own-flows' }, big) : el('b', {}, big), el('span', { text: label })])); };
-    tile([P.money(o.value_usd)], 'held by institutions filing 13F');
+    tile([P.money(o.value_usd, null, 'USD')], 'held by institutions filing 13F');
     tile([pct != null ? P.pct(pct) : 'not computed', pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : 'several share classes; shares are not added across them');
     tile([Number(o.holders_count).toLocaleString('en-US')], 'holders' + (o.holders_count_change != null ? ', ' + (o.holders_count_change >= 0 ? '+' : '−') + Math.abs(o.holders_count_change) + ' on the quarter before' : ''));
     var f = o.flows || {};
@@ -127,7 +127,7 @@
       var chText = h.shares_change_pct != null && h.change !== 'new' && h.change !== 'exited' ? ' ' + P.pct(h.shares_change_pct, true) : '';
       tb.appendChild(el('tr', {}, [
         el('th', { scope: 'row', text: h.name === h.name.toUpperCase() ? P.title(h.name) : h.name }),
-        el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd) }),
+        el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd, null, 'USD') }),
         el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
         el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
         el('td', {}, [ch, chText]),
@@ -145,14 +145,18 @@
     $('peer-card').hidden = false;
     $('peer-basis').textContent = 'Same industry: ' + d.peers.basis + '; companies that filed an annual report in the last two years, closest by revenue.';
     var rev = d.key_figures.filter(function (k) { return k.metric === 'revenue'; })[0];
-    var rows = d.peers.companies.map(function (p) { return { name: P.title(p.name), cik: p.cik, ticker: p.ticker, v: p.latest_revenue, label: p.fiscal_label }; });
-    if (rev) rows.push({ name: d.company.display_name, v: rev.value, label: rev.fiscal_label, me: true });
-    rows.sort(function (a, b) { return b.v - a.v; });
-    var top = rows[0].v || 1;
-    rows.forEach(function (r) {
-      var bar = el('span', { class: 'bar-h' }); bar.style.width = Math.max(2, 100 * r.v / top) + '%';
+    // ranked by size only within the company's own reporting currency; peers in another currency
+    // (ranked: false) follow without a bar, never converted
+    var rows = d.peers.companies.map(function (p) { return { name: P.title(p.name), cik: p.cik, ticker: p.ticker, v: p.latest_revenue, label: p.fiscal_label, cur: p.currency || 'USD', ranked: p.ranked !== false, note: p.note }; });
+    if (rev) rows.push({ name: d.company.display_name, v: rev.value, label: rev.fiscal_label, cur: rev.currency || P.cur, ranked: true, me: true });
+    var ranked = rows.filter(function (r) { return r.ranked; }).sort(function (a, b) { return b.v - a.v; });
+    var other = rows.filter(function (r) { return !r.ranked; });
+    var top = (ranked[0] && ranked[0].v) || 1;
+    ranked.concat(other).forEach(function (r) {
+      var bar = r.ranked ? el('span', { class: 'bar-h' }) : el('span', { class: 'muted peer-note', text: r.note || 'different currency, not ranked by size' });
+      if (r.ranked) bar.style.width = Math.max(2, 100 * r.v / top) + '%';
       var nm = r.me ? el('b', { text: r.name }) : el('a', { href: '/companies/' + parseInt(r.cik, 10), text: r.name });
-      box.appendChild(el('li', { class: r.me ? 'me' : '' }, [el('span', { class: 'pn' }, [el('span', {}, [nm, r.ticker ? el('span', { class: 'muted', text: ' ' + r.ticker }) : null]), bar]), el('span', { class: 'n', text: P.money(r.v) + ' ' + (r.label || '') })]));
+      box.appendChild(el('li', { class: (r.me ? 'me' : '') + (r.ranked ? '' : ' unranked') }, [el('span', { class: 'pn' }, [el('span', {}, [nm, r.ticker ? el('span', { class: 'muted', text: ' ' + r.ticker }) : null]), bar]), el('span', { class: 'n', text: P.money(r.v, null, r.cur) + ' ' + (r.label || '') })]));
     });
   }
   window.CompanyLower = { segments: segments, people: people, ownership: ownership, peers: peers };

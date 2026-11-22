@@ -28,9 +28,13 @@
     (kids || []).forEach(function (c) { if (c != null) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return n;
   };
-  P.money = function (v, digits) {
+  /* Amounts read in the company's own reporting currency (SAP in EUR, Toyota in JPY), never converted:
+     "$" only for USD, the ISO code before the number otherwise. company.js sets P.cur on load. */
+  P.cur = 'USD';
+  P.curPrefix = function (cur) { cur = cur || P.cur || 'USD'; return cur === 'USD' ? '$' : cur + '\u00a0'; };
+  P.money = function (v, digits, cur) {
     if (v == null) return '—';
-    var a = Math.abs(v), s = v < 0 ? '−$' : '$', d = digits == null ? 1 : digits;
+    var a = Math.abs(v), s = (v < 0 ? '−' : '') + P.curPrefix(cur), d = digits == null ? 1 : digits;
     if (a >= 1e12) return s + (a / 1e12).toFixed(d) + 'T';
     if (a >= 1e9) return s + (a / 1e9).toFixed(d) + 'B';
     if (a >= 1e6) return s + (a / 1e6).toFixed(d) + 'M';
@@ -205,8 +209,11 @@
     hi = Math.ceil(hi / tick) * tick; lo = lo < 0 ? Math.max(Math.floor(lo / tick) * tick, lo * 1.25) : 0;
     var rng = hi - lo || 1, ticks = [];
     for (var t = Math.ceil(lo / tick) * tick; t <= hi + tick / 2; t += tick) ticks.push(Math.abs(t) < tick / 2 ? 0 : t);
-    var tickText = ticks.map(function (t) { return t ? P.money(t, 0) : '0'; });
-    if (new Set(tickText).size < ticks.length) tickText = ticks.map(function (t) { return t ? P.money(t, 1) : '0'; });
+    // ticks keep "$40B" for USD; another currency is named once above the axis ("EUR") so ticks stay short
+    var cur = rows[0].currency || P.cur || 'USD', bare = function (t, dg) { var s = P.money(t, dg, cur); return cur === 'USD' ? s : s.replace(P.curPrefix(cur), ''); };
+    var tickText = ticks.map(function (t) { return t ? bare(t, 0) : '0'; });
+    if (new Set(tickText).size < ticks.length) tickText = ticks.map(function (t) { return t ? bare(t, 1) : '0'; });
+    if (cur !== 'USD') svg.appendChild(svgEl('text', { x: padL - 8, y: 12, 'text-anchor': 'end', class: 'axis axis-cur' }, cur));
     var plotH = H - padT - padB, yOf = function (v) { return padT + (hi - v) / rng * plotH; };
     var first = rows[0], last = rows[rows.length - 1];
     svg.setAttribute('aria-label', P.LABELS[m] + ' by fiscal year, ' + first.fiscal_label + ' ' + P.money(first[m]) + ' to ' + last.fiscal_label + ' ' + P.money(last[m]) + '.');

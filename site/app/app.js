@@ -24,8 +24,10 @@
     var n = Number(v);
     if (unit === '%') return n.toFixed(1) + '%';
     if (unit === 'x') return n.toFixed(2) + '×';
-    if (unit === 'USD/shares') return (n < 0 ? '−$' : '$') + Math.abs(n).toFixed(2);
-    if (unit === 'USD') return (n < 0 ? '−$' : '$') + fmtNum(Math.abs(n));
+    // reporting currency as filed, never converted: "$" for USD, the ISO code otherwise ("EUR 36.8B")
+    var cm = /^([A-Z]{3})(\/shares)?$/.exec(unit || ''), cp = cm && (cm[1] === 'USD' ? '$' : cm[1] + '\u00a0');
+    if (cm && cm[2]) return (n < 0 ? '−' : '') + cp + Math.abs(n).toFixed(2);
+    if (cm) return (n < 0 ? '−' : '') + cp + fmtNum(Math.abs(n));
     return fmtNum(n) + (unit && unit !== 'shares' ? ' ' + unit : '');
   };
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

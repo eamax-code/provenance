@@ -30,7 +30,7 @@
     var a = el('a', { class: 'card', href: '/companies/' + c.cik });
     a.appendChild(el('div', { class: 'ticker', text: (c.ticker || '—') + ' · ' + (c.exchange || '—') + ' · CIK ' + c.cik }));
     a.appendChild(el('div', { class: 'name', text: c.display_name || c.legal_name }));
-    a.appendChild(el('div', { class: 'big', text: rev ? (rev.unit === 'USD' ? '$' + fmtNum(rev.value) : fmtNum(rev.value) + ' ' + rev.unit) : 'Revenue not reported' }));
+    a.appendChild(el('div', { class: 'big', text: rev ? (rev.unit === 'USD' ? '$' + fmtNum(rev.value) : /^[A-Z]{3}$/.test(rev.unit || '') ? rev.unit + '\u00a0' + fmtNum(rev.value) : fmtNum(rev.value) + ' ' + rev.unit) : 'Revenue not reported' }));
     a.appendChild(el('div', { class: 'fine', text: rev ? 'Revenue, ' + (rev.period_label || humanDay(rev.period_end)) : 'No single annual revenue figure mapped' }));
     a.appendChild(el('div', { class: 'fine', text: lf ? 'Latest filing ' + lf.form_type + ', ' + humanDay(lf.filing_date) : 'No filings yet' }));
     a.appendChild(el('div', { class: 'fine', text: fmtInt(c.filings_count) + ' filings · ' + fmtInt(c.facts_count) + ' facts' }));

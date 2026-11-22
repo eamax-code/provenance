@@ -13,9 +13,11 @@
   function fmt(v, unit) {
     if (v == null) return null;
     if (unit === '%') return P.pct(v);
-    if (unit === 'USD/shares') return (v < 0 ? '−$' : '$') + Math.abs(v).toFixed(2);
+    var ps = /^([A-Z]{3})\/shares$/.exec(unit || '');
+    if (ps) return (v < 0 ? '−' : '') + P.curPrefix(ps[1]) + Math.abs(v).toFixed(2);
     if (unit === 'shares') { var a = Math.abs(v); return a >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : a >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v.toLocaleString('en-US'); }
-    if (unit && unit !== 'USD' && unit.indexOf('/') < 0) return P.money(v).replace('$', '') + ' ' + unit;
+    if (/^[A-Z]{3}$/.test(unit || '')) return P.money(v, null, unit);
+    if (unit && unit.indexOf('/') < 0) return P.money(v, null, 'USD').replace('$', '') + ' ' + unit;
     return P.money(v);
   }
   var archive = function (u) { return u && u.indexOf('https://www.sec.gov/Archives/') === 0; };
@@ -152,7 +154,7 @@
       var change = pct != null ? el('span', { class: 'kpi-ch', text: P.pct(pct, true) + ' on the year' }) : null;
       k.appendChild(el('div', { class: 'kpi' }, [
         el('p', { class: 'kpi-label' }, [P.figureButton(d, m, [P.LABELS[m]], 'fv-name')]),
-        el('p', { class: 'kpi-value' }, [f ? srcLink(P.money(f.value), f.source_url, 'Opens the filing') : 'not reported']),
+        el('p', { class: 'kpi-value' }, [f ? srcLink(P.money(f.value, null, f.currency || (/^[A-Z]{3}$/.test(f.unit || '') ? f.unit : null)), f.source_url, 'Opens the filing') : 'not reported']),
         el('p', { class: 'kpi-sub' }, sub.concat(change ? [el('br'), change] : [])),
         P.figureButton(d, m, [P.spark(P.series(d.years, m), 120, 28)], 'fv-open kpi-spark')
       ]));
@@ -283,7 +285,7 @@
     kv('EIN', c.ein ? c.ein.slice(0, 2) + '-' + c.ein.slice(2) : null);
     var cov = d.cover || {};
     if (cov.shares_outstanding) kv('Shares outstanding', [srcLink(fmt(cov.shares_outstanding.value, 'shares'), cov.shares_outstanding.source_url, cov.shares_outstanding.form_type + ' filed ' + P.date(cov.shares_outstanding.filed_date)), ' on ' + P.date(cov.shares_outstanding.as_of_date)]);
-    if (cov.public_float) kv('Public float', [srcLink(P.money(cov.public_float.value), cov.public_float.source_url, cov.public_float.form_type + ' filed ' + P.date(cov.public_float.filed_date)), ' on ' + P.date(cov.public_float.as_of_date)]);
+    if (cov.public_float) kv('Public float', [srcLink(P.money(cov.public_float.value, null, /^[A-Z]{3}$/.test(cov.public_float.unit || '') ? cov.public_float.unit : 'USD'), cov.public_float.source_url, cov.public_float.form_type + ' filed ' + P.date(cov.public_float.filed_date)), ' on ' + P.date(cov.public_float.as_of_date)]);
     kv('Former names', c.former_names.length ? c.former_names.map(function (f) { return P.title(f.name) + (f.to ? ' (to ' + f.to.slice(0, 4) + ')' : ''); }).join('; ') : 'None recorded by the SEC');
     var h = d.history || {};
     kv('Filings loaded', h.first_filing_date ? P.date(h.first_filing_date) + ' to ' + P.date(h.latest_filing_date) + ', ' + h.filings_last_12_months + ' in the last 12 months' : null);
@@ -313,6 +315,7 @@
   $('asof-latest').addEventListener('click', function () { $('asof').value = ''; loadAt(null); });
 
   function render(d) {
+    P.cur = (d.company && d.company.reporting_currency) || 'USD';
     header(d); story(d); statements(d); events(d); filings(d); identity(d); renderLower(d);
     $('asof').value = d.as_of || '';
     var picks = $('asof-picks'); picks.textContent = '';
