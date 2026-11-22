@@ -196,3 +196,12 @@ def test_stronger_source_wins_and_mcp_lists_the_tool(db, client, loaded_13f):
     from app.api.routes_mcp import TOOLS
 
     assert TOOLS["institutional_ownership"]["path"] == "/v1/companies/{cik}/ownership"
+
+
+def test_coverage_lists_13f_with_basis(db, settings, loaded_13f):
+    from app.services import coverage
+
+    row = coverage.thirteenf_row(db)
+    assert row["label"] == "Institutional holdings (13F)" and row["filings"] == 11
+    assert "2022-09-30 to 2026-06-30" in row["basis"] and "45 days" in row["basis"]
+    assert any(f["label"] == row["label"] for f in coverage.compute(db, settings)["forms"])

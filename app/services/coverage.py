@@ -35,6 +35,23 @@ FORMS = (
 )
 
 
+def thirteenf_row(db: Session) -> dict:
+    """E-1: Form 13F holdings reports loaded, with the quarters and the 45-day lag."""
+    from app.db.models import Filing13F
+    from app.services import thirteenf
+
+    n, first, last = db.execute(
+        select(func.count(), func.min(Filing13F.report_period), func.max(Filing13F.report_period))
+        .where(Filing13F.form_type.in_(thirteenf.HOLDINGS_FORMS))
+    ).one()  # fmt: skip
+    through = thirteenf.loaded_through(db)
+    basis = (f"quarters {first.isoformat()} to {last.isoformat()}, filed through "
+             f"{through.isoformat() if through else 'unknown'}; managers file up to 45 days after "
+             "the quarter ends") if n else "not loaded yet"  # fmt: skip
+    return {"label": "Institutional holdings (13F)", "forms": ["13F-HR", "13F-HR/A"],
+            "filings": int(n or 0), "basis": basis}  # fmt: skip
+
+
 def compute(db: Session, settings: Settings, now: datetime | None = None) -> dict:
     now = now or datetime.now(UTC)
     filers = int(db.scalar(select(func.count(Company.id))) or 0)
@@ -91,6 +108,7 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
                   "filings": int(db.scalar(select(func.count(distinct(
                       Subsidiary.accession_number)))) or 0),
                   "basis": f"read on demand; {subs_cos} companies so far"})  # fmt: skip
+    forms.append(thirteenf_row(db))
     snap = latest_snapshot(db)
     return {
         "universe": {"filers": filers, "with_facts": with_facts, "ifrs_filers": ifrs},
