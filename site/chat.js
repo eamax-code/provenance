@@ -609,6 +609,7 @@
       row.appendChild(copy);
     }
     bot.body.appendChild(row);
+    if ((reply.follow_ups || []).length) { var fu = el('div', 'cx-chips cx-follow'); reply.follow_ups.slice(0, 3).forEach(function (f) { var b = el('button', 'cx-chip', f); b.type = 'button'; b.onclick = function () { ask(f, true); }; fu.appendChild(b); }); bot.body.appendChild(fu); }
     (reply.notes || []).slice(1).forEach(function (n) { bot.body.appendChild(el('div', 'cx-note', n)); });
   }
   function showReply(bot, reply, animate, q) {
@@ -699,7 +700,7 @@
   var FORECAST_RE = /\b(forecast\w*|predict\w*|projections?|outlook|estimates?|(?:next|coming|following|upcoming)\s+(?:\d{1,2}\s+|two\s+|three\s+|four\s+|five\s+)?(?:fiscal\s+)?years?)\b/i;
   function headers() { return { 'Content-Type': 'application/json', 'X-API-Key': state.key }; }
 
-  function ask(q) {
+  function ask(q, fresh) {
     q = (q || '').trim().slice(0, 500);
     if (!q || state.busy) return;
     state.busy = true; send.disabled = true;
@@ -722,7 +723,7 @@
     var payload = { message: q };
     if (state.cik) payload.cik = state.cik;
     if (state.context) payload.context = state.context;
-    if (state.history.length) payload.history = state.history.slice(-2);
+    if (state.history.length && !fresh) payload.history = state.history.slice(-2);
     if ($('cx-asof').value) payload.as_of = $('cx-asof').value;
     if (state.sessionId && state.connected) payload.session_id = state.sessionId;
     state.controller = window.AbortController ? new AbortController() : null;
