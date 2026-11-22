@@ -72,6 +72,8 @@ def _identity(db: Session, company: Company) -> dict:
     for hidden in ("match_type", "matched_name", "quality_status", "ingestion_status"):
         out.pop(hidden, None)
     out["display_name"] = display_name(company.legal_name)
+    mart = db.get(MartCompany, company.cik)
+    out["reporting_currency"] = mart.reporting_currency if mart else None  # D-04
     fye = company.fiscal_year_end
     if fye and fye[:2].isdigit() and 1 <= int(fye[:2]) <= 12:
         out["fiscal_year_end_month"] = date(2000, int(fye[:2]), 1).strftime("%B")
@@ -135,6 +137,7 @@ def _key_figures(mart: MartCompany | None, fye: str | None) -> list[dict]:
             "metric": metric,
             "value": v["value"],
             "unit": v.get("unit", "USD"),
+            "currency": v.get("unit", "USD"),  # D-04: the company's reporting currency
             "period_end": v["period_end"],
             "fiscal_label": periods.label(end, "annual", fye),
             "form_type": v["form_type"],
@@ -179,6 +182,7 @@ def _years(db: Session, cik: str, fye: str | None) -> list[dict]:
                 else None,
                 "sources": json.loads(r.sources) if r.sources else {},
                 **statements.registrant(r, cik),
+                "currency": r.currency,
             }
         )
     return out
@@ -280,6 +284,7 @@ def _peers(db: Session, company: Company, today: date) -> dict | None:
         return None
     me = db.get(MartCompany, company.cik)
     mine = float(me.latest_revenue) if me and me.latest_revenue else None
+    cur = me.reporting_currency if me else None
     recent = today - timedelta(days=PEER_RECENT_DAYS)
     for width in (4, 3):
         prefix = code[:width]
@@ -295,7 +300,8 @@ def _peers(db: Session, company: Company, today: date) -> dict | None:
                 MartCompany.latest_revenue_period_end >= recent - timedelta(days=365),
             )
         ).all()
-        if len(rows) >= 4 or width == 3:
+        same = [r for r in rows if r[0].reporting_currency == cur]
+        if len(same) >= 4 or width == 3:
             break
     if not rows:
         return None
@@ -305,24 +311,33 @@ def _peers(db: Session, company: Company, today: date) -> dict | None:
             return -float(m.latest_revenue)  # no revenue of our own: largest first
         return abs(math.log(float(m.latest_revenue) / mine))
 
-    rows.sort(key=lambda r: distance(r[0]))
+    # D-04: sizes compare only within one currency (never converted); when fewer than four peers
+    # share it, same-SIC companies in other currencies fill in, unranked
+    same = sorted((r for r in rows if r[0].reporting_currency == cur), key=lambda r: distance(r[0]))
+    others = sorted((r for r in rows if r[0].reporting_currency != cur),
+                    key=lambda r: r[0].legal_name)  # fmt: skip
+    chosen = [(r, True) for r in same[:PEERS]]
+    if len(chosen) < 4:
+        chosen += [(r, False) for r in others[: PEERS - len(chosen)]]
+
+    def peer(m: MartCompany, fye, ranked: bool) -> dict:
+        out = {
+            "cik": m.cik, "name": display_name(m.legal_name), "ticker": m.ticker,
+            "latest_revenue": float(m.latest_revenue), "currency": m.reporting_currency,
+            "ranked": ranked, "period_end": m.latest_revenue_period_end,
+            "fiscal_label": periods.label(m.latest_revenue_period_end, "annual", fye)
+            if m.latest_revenue_period_end else None,
+            "filings_url": company_filings_url(m.cik),
+        }  # fmt: skip
+        if not ranked:
+            out["note"] = "different currency, not ranked by size"
+        return out
+
     return {
         "basis": f"SIC {prefix}" + (f" ({company.sic_description})" if width == 4 else ""),
         "basis_width": width,
-        "companies": [
-            {
-                "cik": m.cik,
-                "name": display_name(m.legal_name),
-                "ticker": m.ticker,
-                "latest_revenue": float(m.latest_revenue),
-                "period_end": m.latest_revenue_period_end,
-                "fiscal_label": periods.label(m.latest_revenue_period_end, "annual", fye)
-                if m.latest_revenue_period_end
-                else None,
-                "filings_url": company_filings_url(m.cik),
-            }
-            for m, fye in rows[:PEERS]
-        ],
+        "currency": cur,
+        "companies": [peer(m, fye, ranked) for (m, fye), ranked in chosen],
     }
 
 
@@ -337,7 +352,7 @@ def _figures_as_of(db: Session, company: Company, as_of: date) -> tuple[list[dic
             continue
         lab = max(per, key=lambda x: per[x].period_end)
         f = per[lab]
-        item = {"metric": metric, "value": float(f.value), "unit": f.unit,
+        item = {"metric": metric, "value": float(f.value), "unit": f.unit, "currency": f.unit,
                 "period_end": f.period_end, "fiscal_label": lab, "form_type": f.form_type,
                 "filed_date": f.filed_date, "source_url": f.source_url}  # fmt: skip
         prev = sorted(per.values(), key=lambda x: x.period_end)
@@ -356,6 +371,7 @@ def _figures_as_of(db: Session, company: Company, as_of: date) -> tuple[list[dic
             "fiscal_label": lab, "period_end": ends[lab], **values,
             "operating_margin_pct": round(100 * op / rev, 1) if rev and op is not None else None,
             "sources": {m: cells[m][lab].source_url for m in METRICS if lab in cells.get(m, {})},
+            "currency": units.get("revenue"),
         })  # fmt: skip
     return key_figures, years
 

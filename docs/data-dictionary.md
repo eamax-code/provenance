@@ -347,6 +347,16 @@ Precomputed by `app/services/marts.py` (`scripts/build_marts.py`; a company's ro
 after it is ingested). Nothing here is new data: every value is copied from `filings` or
 `financial_facts` with its accession number and filing link.
 
+**Reporting currency (D-04, 2026-11-22).** `mart_company.reporting_currency` and
+`mart_company_period.currency` are each company's reporting currency: the currency of its latest
+annual period of the mart metrics; where a convenience translation shares that period (TSMC's
+USD figures beside TWD), the currency with more years wins, then USD. `latest_revenue`,
+`latest_annual`, `revenue_history` and the company years are in that currency (before, the marts
+kept USD only, so SAP showed its FY2017 USD convenience translation as its latest revenue).
+Comparisons across companies stay in one currency: peers rank by size within the company's
+currency and fill with unranked same-SIC companies in other currencies when fewer than four;
+chat rank answers and the $1B cohorts use USD reporters; nothing is converted.
+
 | Column | Meaning |
 | --- | --- |
 | `first_filing_date`, `latest_filing_date`, `filings_last_12_months`, `active` | Filing history among the filings loaded here; active means a filing in the last 12 months |

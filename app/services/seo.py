@@ -21,11 +21,13 @@ from app.services.sec_client import company_filings_url
 DESC_MAX = 160
 
 
-def _money(v: float) -> str:
+def _money(v: float, currency: str | None = "USD") -> str:
+    """$1.2 billion in USD; "EUR 36.8 billion" in another reporting currency (D-04)."""
+    sym = "$" if currency in (None, "USD") else f"{currency} "
     for div, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
         if abs(v) >= div:
-            return f"${v / div:,.1f} {word}"
-    return f"${v:,.0f}"
+            return f"{sym}{v / div:,.1f} {word}"
+    return f"{sym}{v:,.0f}"
 
 
 def head_for(db: Session, settings, cik: str, origin: str) -> dict:
@@ -57,9 +59,10 @@ def head_for(db: Session, settings, cik: str, origin: str) -> dict:
             if len(history) > 1 and history[1]["value"]:
                 pct = (history[0]["value"] - history[1]["value"]) / abs(history[1]["value"]) * 100
                 change = f", {'up' if pct >= 0 else 'down'} {abs(pct):.1f}%"
-            desc = f"{who} reported revenue of {_money(rev['value'])} in {fy}{change}. {tail}"
+            amount = _money(rev["value"], rev.get("unit"))
+            desc = f"{who} reported revenue of {amount} in {fy}{change}. {tail}"
             if len(desc) > DESC_MAX:
-                desc = f"{who} reported revenue of {_money(rev['value'])} in {fy}. {tail}"
+                desc = f"{who} reported revenue of {amount} in {fy}. {tail}"
         else:
             desc = (f"{name}: financial statements, 8-K events, leadership and filings from the "
                     "SEC, every figure linked to its filing.")  # fmt: skip

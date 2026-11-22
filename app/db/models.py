@@ -967,6 +967,8 @@ class MartCompany(Base):
     latest_annual: Mapped[str | None] = mapped_column(Text, nullable=True)
     # JSON text: up to five fiscal years of revenue, newest first, each with its filing.
     revenue_history: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # D-04: the currency latest_revenue, latest_annual and revenue_history are in
+    reporting_currency: Mapped[str | None] = mapped_column(Text, nullable=True)
     built_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
@@ -1035,6 +1037,7 @@ class MartCompanyPeriod(Base):
     total_assets: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     operating_cash_flow: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     sources: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON {metric: url}
+    currency: Mapped[str | None] = mapped_column(Text, nullable=True)  # D-04: as reported
 
 
 class CompanyDocument(Base):

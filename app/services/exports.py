@@ -126,7 +126,7 @@ def period_row(row: MartCompanyPeriod, company: str | None) -> dict:
         "period_fiscal_year": row.fiscal_year,  # the mart's year is the period's own
         "period_label": f"FY{row.fiscal_year}",
         "period_end": row.period_end,
-        "unit": "USD",
+        "unit": row.currency or "USD",  # D-04: the company's reporting currency
     }
     out |= {m: getattr(row, m) for m in PERIOD_METRICS}
     return out | {f"{m}_filing_url": sources.get(m) for m in PERIOD_METRICS}

@@ -35,6 +35,30 @@ ACTIVITY_SINCE = date(2001, 1, 1)
 BATCH = 2000
 
 
+def reporting_currencies(db: Session, ciks: list[str] | None = None) -> dict[str, str]:
+    """{cik: the currency the company reports in} (D-04): the currency of its latest annual
+    period of the mart metrics; where a convenience translation (often USD) shares that period,
+    the currency with more years wins, then USD. SAP -> EUR, Toyota -> JPY, TSMC -> TWD."""
+    f = FinancialFact
+    stmt = (
+        select(f.cik, f.unit, func.max(f.period_end), func.count(distinct(f.period_end)))
+        .where(
+            f.metric.in_(MART_METRICS), f.period_class == "annual", f.derived.is_(False),
+            f.quality_status.in_(["ok", "partial"]), f.value.is_not(None),
+            func.length(f.unit) == 3, ~f.unit.contains("/"),
+        )
+        .group_by(f.cik, f.unit)
+    )  # fmt: skip
+    if ciks:
+        stmt = stmt.where(f.cik.in_(ciks))
+    best: dict[str, tuple] = {}
+    for cik, unit, last, years in db.execute(stmt):
+        key = (last, years, unit == "USD")
+        if cik not in best or key > best[cik][0]:
+            best[cik] = (key, unit)
+    return {cik: unit for cik, (_, unit) in best.items()}
+
+
 def build_company_marts(db: Session, ciks: list[str] | None = None) -> int:
     """Rebuild mart_company for these companies, or for every company. Returns rows written."""
     now = datetime.now(UTC)
@@ -68,7 +92,8 @@ def build_company_marts(db: Session, ciks: list[str] | None = None) -> int:
     registration = _first_filing(db, REGISTRATION_FORMS, scope)
     ipo = _first_filing(db, IPO_PROSPECTUS_FORMS, scope)
     annual_report = _latest_filing(db, ANNUAL_REPORT_FORMS, scope)
-    metrics = _annual_metrics(db, scope)
+    currency = reporting_currencies(db, ciks)
+    metrics = _annual_metrics(db, scope, currency)
 
     rows = []
     for cik, name, ticker, exchange, sic, sic_desc in companies:
@@ -102,6 +127,7 @@ def build_company_marts(db: Session, ciks: list[str] | None = None) -> int:
                 ),
                 "latest_annual": json.dumps(latest_annual, default=str) if latest_annual else None,
                 "revenue_history": json.dumps(revenue, default=str) if revenue else None,
+                "reporting_currency": currency.get(cik),
                 "built_at": now,
             }
         )
@@ -188,14 +214,17 @@ def _latest_filing(db: Session, forms, scope) -> dict[str, dict]:
     return {r.cik: _filing_dict(r) for r in db.execute(stmt)}
 
 
-def _annual_metrics(db: Session, scope) -> dict[str, dict[str, list[dict]]]:
+def _annual_metrics(
+    db: Session, scope, currency: dict[str, str]
+) -> dict[str, dict[str, list[dict]]]:
     """Up to HISTORY_YEARS reported annual values per company and metric, newest first, one per
-    period (the latest-filed observation), each with the filing it came from."""
+    period (the latest-filed observation), each with the filing it came from, in the company's
+    reporting currency (D-04: a convenience translation in another currency is left out)."""
     f = FinancialFact
     per_period = (
         func.row_number()
         .over(
-            partition_by=(f.cik, f.metric, f.period_end),
+            partition_by=(f.cik, f.metric, f.unit, f.period_end),
             # The annual report's figure over a proxy statement's repeat of it, then the latest.
             order_by=(
                 f.form_type.in_(ANNUAL_REPORT_FORMS).desc(),
@@ -224,7 +253,7 @@ def _annual_metrics(db: Session, scope) -> dict[str, dict[str, list[dict]]]:
             f.derived.is_(False),
             f.quality_status.in_(["ok", "partial"]),
             f.value.is_not(None),
-            f.unit == "USD",
+            func.length(f.unit) == 3,
             scope(f.cik),
         )
         .subquery()
@@ -232,7 +261,7 @@ def _annual_metrics(db: Session, scope) -> dict[str, dict[str, list[dict]]]:
     newest = (
         func.row_number()
         .over(
-            partition_by=(observations.c.cik, observations.c.metric),
+            partition_by=(observations.c.cik, observations.c.metric, observations.c.unit),
             order_by=observations.c.period_end.desc(),
         )
         .label("k")
@@ -244,6 +273,8 @@ def _annual_metrics(db: Session, scope) -> dict[str, dict[str, list[dict]]]:
         .where(ranked.c.k <= HISTORY_YEARS)
         .order_by(ranked.c.cik, ranked.c.metric, ranked.c.k)
     ):
+        if r.unit != currency.get(r.cik):
+            continue
         out[r.cik][r.metric].append(
             {
                 "value": float(r.value),
@@ -275,6 +306,7 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
     Returns (financial rows, company-year rows)."""
     f = FinancialFact
     scope = f.cik.in_(ciks) if ciks else True
+    currency = reporting_currencies(db, ciks)  # D-04: company years in the reporting currency
     best = (
         func.row_number()
         .over(
@@ -341,7 +373,8 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
                 "mapping_version": r.mapping_version,
             }
         )  # fmt: skip
-        if r.period_class == "annual" and r.unit == "USD" and r.metric in WIDE_METRICS:
+        if (r.period_class == "annual" and r.unit == currency.get(r.cik)
+                and r.metric in WIDE_METRICS):  # fmt: skip
             row = wide.setdefault(
                 (r.cik, fiscal_year), {"period_end": r.period_end, "values": {}, "sources": {}}
             )
@@ -363,6 +396,7 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
             "period_end": row["period_end"],
             **{m: row["values"].get(m) for m in WIDE_METRICS},
             "sources": json.dumps(row["sources"]),
+            "currency": currency.get(cik),
         }
         for (cik, fy), row in wide.items()
     ]

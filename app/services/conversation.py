@@ -300,14 +300,20 @@ def _rank(db: Session, p: Plan) -> DataAnswer:
         )
         rows = db.scalars(
             select(MartCompany)
-            .where(MartCompany.latest_revenue.is_not(None), MartCompany.latest_revenue > 0)
+            .where(
+                MartCompany.latest_revenue.is_not(None),
+                MartCompany.latest_revenue > 0,
+                MartCompany.reporting_currency == "USD",
+            )  # sizes compare in one currency
             .order_by(order)
             .limit(p.limit)
         ).all()
         values = [(r, (loads(r.revenue_history) or [None])[0]) for r in rows]
     else:
         # Other metrics live in the JSON column; rank the companies with revenue first.
-        pool = db.scalars(select(MartCompany).where(MartCompany.latest_annual.is_not(None))).all()
+        usd = MartCompany.reporting_currency == "USD"  # sizes compare in one currency
+        has = MartCompany.latest_annual.is_not(None)
+        pool = db.scalars(select(MartCompany).where(has, usd)).all()
         scored = [(r, (loads(r.latest_annual) or {}).get(p.metric)) for r in pool]
         scored = [(r, v) for r, v in scored if v and v.get("value") is not None]
         scored.sort(key=lambda x: x[1]["value"], reverse=p.order != "asc")
@@ -316,10 +322,12 @@ def _rank(db: Session, p: Plan) -> DataAnswer:
         return DataAnswer(f"No company has a reported annual {label.lower()} loaded yet.", "rank")
     word = "smallest" if p.order == "asc" else "largest"
     top = values[0]
+    amount = _money(top[1]["value"], top[1].get("unit"))
     text = (
-        f"{_name(top[0])} has the {word} latest annual {label.lower()}, {_money(top[1]['value'])} "
-        f"for the year ended {top[1]['period_end']}. Fiscal years differ, so compare the period "
-        f"ends in the table."
+        f"{_name(top[0])} has the {word} latest annual {label.lower()}, {amount} for the year "
+        f"ended {top[1]['period_end']}, among companies reporting in US dollars (other "
+        f"currencies are not converted). Fiscal years differ, so compare the period ends in the "
+        f"table."
     )
     widget = _table(
         f"{word.capitalize()} by latest annual {label.lower()}",
@@ -328,7 +336,7 @@ def _rank(db: Session, p: Plan) -> DataAnswer:
             [
                 _cell(_name(r)),
                 _cell(r.ticker or "—"),
-                _cell(_money(v["value"])),
+                _cell(_money(v["value"], v.get("unit"))),
                 _cell(v["period_end"]),
                 _cell(f"{v['form_type']} {v['filed_date']}", v.get("url")),
             ]
@@ -366,7 +374,10 @@ def _list_table(db: Session, p: Plan, ctx: ConversationContext | None) -> DataAn
         for k in range(years):
             v = series[k] if k < len(series) else None
             cells.append(
-                _cell(f"{_money(v['value'])} (FY ended {v['period_end']})", v.get("url"))
+                _cell(
+                    f"{_money(v['value'], v.get('unit'))} (FY ended {v['period_end']})",
+                    v.get("url"),
+                )
                 if v
                 else _cell("—")
             )
@@ -410,7 +421,8 @@ def _compare(db: Session, p: Plan) -> DataAnswer:
         latest = _series(r, p.metric)[:1] if r else []
         if r is not None:
             parts.append(
-                f"{_name(r)} {_money(latest[0]['value'])} (year ended {latest[0]['period_end']})"
+                f"{_name(r)} {_money(latest[0]['value'], latest[0].get('unit'))} "
+                f"(year ended {latest[0]['period_end']})"
                 if latest
                 else f"{_name(r)} not reported"
             )
@@ -474,7 +486,7 @@ def _series(r: MartCompany, metric: str) -> list[dict]:
             if value is not None:
                 url = (loads(y.sources) or {}).get(metric)
                 years.append({"value": float(value), "period_end": y.period_end.isoformat(),
-                              "url": url})  # fmt: skip
+                              "url": url, "unit": y.currency or "USD"})  # fmt: skip
     if years:
         return years
     latest = (loads(r.latest_annual) or {}).get(metric)
@@ -485,7 +497,7 @@ def _revenue_cell(r: MartCompany) -> dict:
     v = (loads(r.revenue_history) or [None])[0]
     if not v:
         return _cell("no annual report yet" if not r.latest_annual_report_date else "—")
-    return _cell(f"{_money(v['value'])} (FY ended {v['period_end']})", v.get("url"))
+    return _cell(f"{_money(v['value'], v.get('unit'))} (FY ended {v['period_end']})", v.get("url"))
 
 
 def _table(title: str, columns: list[str], rows: list[list[dict]], note: str | None = None) -> dict:
@@ -513,10 +525,12 @@ def _d(d: date | None) -> str:
     return d.isoformat() if d else "—"
 
 
-def _money(v: float | None) -> str:
+def _money(v: float | None, currency: str | None = "USD") -> str:
+    """$1.2 billion for USD; "EUR 36.8 billion" in any other reporting currency (D-04)."""
     if v is None:
         return "—"
-    a, s = abs(v), "-$" if v < 0 else "$"
+    sym = "$" if currency in (None, "USD") else f"{currency} "
+    a, s = abs(v), f"-{sym}" if v < 0 else sym
     if a >= 1e9:
         return f"{s}{a / 1e9:,.1f} billion"
     if a >= 1e6:

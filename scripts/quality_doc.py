@@ -71,15 +71,11 @@ where r.last_end < current_date - 3 * 365 and m.latest_annual_report_date >= cur
   and (r.last_unit <> 'USD' or r.top_usd >= 1e9)
 order by r.last_unit = 'USD' desc, r.top_usd desc nulls last"""
 LEI = """
-with last as (
-  select distinct on (cik) cik, unit from financial_facts
-  where metric = 'revenue' and period_class = 'annual' and not derived
-    and quality_status in ('ok', 'partial') order by cik, period_end desc),
-act as (
-  select m.cik, m.latest_revenue, l.unit from mart_company m left join last l using (cik)
-  where m.latest_annual_report_date >= current_date - 730)
-select count(*) filter (where a.latest_revenue >= 1e9),
-       count(l.cik) filter (where a.latest_revenue >= 1e9),
+with act as (
+  select cik, latest_revenue, reporting_currency unit from mart_company
+  where latest_annual_report_date >= current_date - 730)
+select count(*) filter (where a.unit = 'USD' and a.latest_revenue >= 1e9),
+       count(l.cik) filter (where a.unit = 'USD' and a.latest_revenue >= 1e9),
        count(*) filter (where a.unit <> 'USD'), count(l.cik) filter (where a.unit <> 'USD'),
        count(*), count(l.cik)
 from act a left join company_lei l using (cik)"""
@@ -262,8 +258,7 @@ def main() -> int:
 
     big, big_l, oth, oth_l, act, act_l = db.execute(text(LEI)).one()
     lines += ["## LEI coverage", "",
-              f"- USD reporters with $1B+ revenue (active; the marts keep USD revenue only): "
-              f"{big_l:,} of {big:,} "
+              f"- USD reporters with $1B+ revenue (active): {big_l:,} of {big:,} "
               f"({100 * big_l / max(big, 1):.1f}%)",
               f"- Non-USD reporters (active, any size): {oth_l:,} of {oth:,} "
               f"({100 * oth_l / max(oth, 1):.1f}%)",

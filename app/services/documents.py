@@ -62,10 +62,12 @@ class Profile:
     citations: list[dict] = field(default_factory=list)
 
 
-def _money(v: float | None) -> str:
+def _money(v: float | None, currency: str | None = "USD") -> str:
+    """$1.2 billion in USD; "EUR 36.8 billion" in another reporting currency (D-04)."""
     if v is None:
         return "not reported"
-    a, s = abs(v), "-$" if v < 0 else "$"
+    sym = "$" if currency in (None, "USD") else f"{currency} "
+    a, s = abs(v), f"-{sym}" if v < 0 else sym
     if a >= 1e9:
         return f"{s}{a / 1e9:,.1f} billion"
     if a >= 1e6:
@@ -130,7 +132,8 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
     ):
         c = cov[key]
         if c:
-            value = _money(c["value"]) if key == "public_float" else f"{c['value']:,.0f}"
+            value = (_money(c["value"], c.get("unit")) if key == "public_float"
+                     else f"{c['value']:,.0f}")  # fmt: skip
             source = f"{c['form_type']} filed {c['filed_date']}"
             cover_bits.append(
                 f"{label} {value} as of {c['as_of_date']} ({_link(source, c['source_url'])})"
@@ -177,7 +180,7 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
             fy = periods.label(end, "annual", company.fiscal_year_end)
             source = f"{v['form_type']} filed {v['filed_date']}"
             lines.append(
-                f"| {label} | {_money(v['value'])} | {fy}, ended {end} | "
+                f"| {label} | {_money(v['value'], v.get('unit'))} | {fy}, ended {end} | "
                 f"{_link(source, v.get('url'))} |"
             )
         rev = latest.get("revenue")
@@ -186,16 +189,15 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
                 f"Revenue, {rev['form_type']} filed {human_date(rev['filed_date'])}", rev.get("url")
             )
             end = date.fromisoformat(rev["period_end"])
-            s = (
-                f"{name} reported revenue of {_money(rev['value'])} for the fiscal year ended "
-                f"{human_date(end)}"
-            )
+            amount = _money(rev["value"], rev.get("unit"))
+            s = f"{name} reported revenue of {amount} for the fiscal year ended {human_date(end)}"
             if len(history) > 1 and history[1]["value"]:
                 change = (
                     (history[0]["value"] - history[1]["value"]) / abs(history[1]["value"]) * 100
                 )
                 way = "up" if change > 0 else "down"
-                s += f", {way} {abs(change):.1f}% from {_money(history[1]['value'])}"
+                before = _money(history[1]["value"], history[1].get("unit"))
+                s += f", {way} {abs(change):.1f}% from {before}"
             sentences.append(s + f" [{n}].")
         rest = [(label.lower(), latest[m]) for m, label in PROFILE_METRICS[1:] if latest.get(m)][:2]
         if rest:
@@ -206,7 +208,7 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
                     v.get("url"),
                 )
                 verb = "were" if label.endswith("assets") else "was"
-                parts.append(f"{label} {verb} {_money(v['value'])} [{n}]")
+                parts.append(f"{label} {verb} {_money(v['value'], v.get('unit'))} [{n}]")
             sentences.append(" and ".join(parts).capitalize() + ".")
     if len(history) > 1:
         lines += ["", "## Revenue by fiscal year", ""]
@@ -214,7 +216,7 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
         names = periods.labels(ends, "annual", company.fiscal_year_end)
         for label, h in zip(names, history, strict=True):
             lines.append(
-                f"- {label}: {_money(h['value'])} "
+                f"- {label}: {_money(h['value'], h.get('unit'))} "
                 f"({_link(h['form_type'] + ' filed ' + str(h['filed_date']), h.get('url'))})"
             )
 
