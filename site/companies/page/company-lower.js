@@ -57,8 +57,14 @@
     var segAt = function (l) { var i = (K.segments || []).findIndex(function (sg) { return String(l).indexOf(sg.label + ':') === 0; }); return i < 0 ? 1e3 : i; };
     (K.reconciling || []).slice().sort(function (a, b) { return segAt(a.label) - segAt(b.label); }).forEach(function (rc) {
       var vals = (rc.values || {})[segMetric] || {};
-      if (!periods.some(function (p) { return vals[p] != null && vals[p] !== 0; })) return; // nothing, or $0 every year
-      var row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: rc.label })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
+      if (!rc.derived && !periods.some(function (p) { return vals[p] != null && vals[p] !== 0; })) return; // nothing, or $0 every year
+      var row;
+      if (rc.derived) { // worked out here, not filed: the consolidated figure less the lines, equal to a segment the report doesn't split this way
+        var src = rc.inputs && rc.inputs.segment, seg = null;
+        S.kinds.forEach(function (k2) { (k2.segments || []).forEach(function (sg) { if (sg.key === src) seg = sg.label; }); });
+        var why = 'Calculated by Provenance, not filed: the consolidated figure less the lines above' + (seg ? '; it equals the ' + seg + ' segment, which the report does not split this way.' : '.');
+        row = el('tr', { class: 'recon derived' }, [el('th', { scope: 'row', class: 'fin-name' }, [rc.label + ' ', el('span', { class: 'tag', title: why, text: 'calculated' })])].concat(periods.map(function (p) { return el('td', { class: 'n', title: why, text: vals[p] == null ? '—' : P.money(vals[p]) }); })));
+      } else row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: rc.label })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
       if (share) row.appendChild(el('td'));
       tb.appendChild(row);
     });
@@ -67,7 +73,7 @@
     tb.appendChild(tot);
     $('seg-table').replaceChildren(unrec ? el('p', { class: 'seg-warn', text: 'These lines overlap or leave part of the total out, so they don\u2019t add up to the consolidated figure' + (segMetric === 'revenue' ? '; shares of revenue are not shown.' : '.') }) : '', el('table', { class: 'fin seg' }, [el('caption', { class: 'vh', text: (KIND[K.kind] || K.kind) + ' segments, ' + (SEGM[segMetric] || segMetric) }), el('thead', {}, [head]), tb]));
     // the API's notes speak to developers (field names); the page says the same for readers
-    $('seg-notes').textContent = 'As each annual report tags them. Names are the company\u2019s own; a dotted underline marks a name taken from the tag where the company gave none. Unreconciled: the lines don\u2019t add up to the consolidated figure within 1% and the report tags nothing that accounts for the difference.';
+    $('seg-notes').textContent = 'As each annual report tags them. Names are the company\u2019s own; a dotted underline marks a name taken from the tag where the company gave none. Unreconciled: the lines don\u2019t add up to the consolidated figure within 1% and the report tags nothing that accounts for the difference.' + ((K.reconciling || []).some(function (r) { return r.derived; }) ? ' A calculated row is worked out by Provenance from the filed figures; the company did not report it.' : '');
   }
 
   /* ---- people: who leads it now, then each person's changes, newest first ---- */
