@@ -192,3 +192,9 @@ def test_added_citations_keep_line_breaks():
         "Risks include:\n- Outages.\n- Losses.", ["[2] Outages and losses."]
     )
     assert answer == "Risks include:\n- Outages.\n- Losses."
+
+
+def test_nul_bytes_are_dropped_before_text_is_stored():
+    """One filer's press release held a NUL byte, which a Postgres text column refuses: E-2
+    batch 2 stopped on it."""
+    assert pr.to_text("<p>Revenue\x00 rose</p>") == "Revenue rose"

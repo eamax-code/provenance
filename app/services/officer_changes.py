@@ -116,7 +116,8 @@ def document_url(f: Filing) -> str | None:
 
 
 def html_to_text(doc: str) -> str:
-    t = re.sub(r"(?is)<(script|style|ix:header)\b.*?</\1>", " ", doc)
+    # a NUL byte (seen in one filer's press release) cannot be stored in a Postgres text column
+    t = re.sub(r"(?is)<(script|style|ix:header)\b.*?</\1>", " ", doc.replace("\x00", ""))
     t = re.sub(r"(?i)<br\s*/?>|</p>|</div>|</tr>|</h\d>|</li>", "\n", t)
     t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"[\xa0\u2002-\u200a\u202f]", " ", html.unescape(t))
