@@ -77,7 +77,7 @@ SHORT_LABELS = {
     "sec.ipo_priced": "IPO priced",
     "sec.change_in_control": "Change in control",
     "sec.auditor_change": "Auditor change",
-    "sec.delisting": "Security delisted",
+    "sec.delisting": "Form 25 listing removal",  # often notes, not the common stock
     "sec.deregistration": "Deregistration",
     "sec.tender_offer": "Tender offer",
     "sec.merger_proxy": "Merger vote",
