@@ -292,7 +292,12 @@
     kv('Industry', c.sic_code ? 'SIC ' + c.sic_code + (c.sic_description ? ', ' + c.sic_description : '') : null);
     // the current audit firm only, as tagged on its latest annual report; no "since" until the history is backfilled
     var au = d.auditor && d.auditor.current;
-    if (au) kv('Auditor', [au.latest_report ? srcLink(P.orgName(au.name), au.latest_report.source_url, 'Named on the ' + au.latest_report.form_type + ' filed ' + P.date(au.latest_report.filed_date)) : P.orgName(au.name), (au.location ? ', ' + au.location : '') + (au.pcaob_firm_id ? ' (PCAOB firm ' + au.pcaob_firm_id + ')' : '')]);
+    if (au) kv('Auditor', [el('span', {}, [au.latest_report ? srcLink(P.orgName(au.name), au.latest_report.source_url, 'Named on the ' + au.latest_report.form_type + ' filed ' + P.date(au.latest_report.filed_date)) : P.orgName(au.name), (au.location ? ', ' + au.location : '') + (au.pcaob_firm_id ? ' (PCAOB firm ' + au.pcaob_firm_id + ')' : '')])].concat((d.auditor.firm_changes || []).slice(-3).reverse().map(function (x) {
+      // a change of firm between two consecutive annual reports, with the 8-K item 4.01 when one was filed
+      return el('span', { class: 'muted' }, ['Replaced ' + P.orgName(x.from && x.from.name) + ' from ' + (x.first_report ? '' : 'FY' + x.fiscal_year),
+        x.first_report ? srcLink('FY' + x.fiscal_year, x.first_report.source_url, x.first_report.form_type + ' filed ' + P.date(x.first_report.filed_date)) : null,
+        x.item_401 ? [' (', srcLink('8-K item 4.01', x.item_401.source_url, 'filed ' + P.date(x.item_401.filing_date)), ')'] : null].flat().filter(Boolean));
+    })));
     kv('Incorporated', P.state(c.state_of_incorporation));
     kv('Address', P.address(c.business_address));
     kv('Phone', P.phone(c.phone));

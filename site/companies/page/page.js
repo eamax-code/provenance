@@ -66,16 +66,17 @@
   P.state = function (code) { return code ? STATES[code] || ABROAD[code] || null : null; };
   /* Organisation names filed in capitals (13F filers, audit firms) ("FMR LLC", "BANK OF AMERICA CORP /DE/"): title case them but keep
      legal forms and initialisms, drop EDGAR's state suffix; names filed in mixed case stay as filed */
-  var KEEP = { LLC: 1, LP: 1, LLP: 1, PLC: 1, NA: 1, AG: 1, SA: 1, SE: 1, NV: 1, ASA: 1, AB: 1, FMR: 1, UBS: 1, BNY: 1, TIAA: 1, CIBC: 1, RBC: 1, HSBC: 1, ABN: 1, AMRO: 1, BNP: 1, II: 1, III: 1, USA: 1, US: 1 };
+  var KEEP = { LLC: 1, LP: 1, LLP: 1, PLC: 1, NA: 1, AG: 1, SA: 1, SE: 1, NV: 1, ASA: 1, AB: 1, FMR: 1, UBS: 1, KPMG: 1, BDO: 1, RSM: 1, EY: 1, PWC: 1, CBIZ: 1, MNP: 1, BNY: 1, TIAA: 1, CIBC: 1, RBC: 1, HSBC: 1, ABN: 1, AMRO: 1, BNP: 1, II: 1, III: 1, USA: 1, US: 1 };
   var LOWER = { OF: 1, AND: 1, THE: 1, FOR: 1, DE: 1 };
   P.orgName = function (n) {
-    n = String(n || '').replace(/\s*\/[A-Z]{2,3}\/?\s*$/, '').trim();
+    n = String(n || '').replace(/\s*\/[A-Za-z]{2,3}\/?\s*$/, '').trim();
     if (n !== n.toUpperCase()) return n;
     return n.split(/(\s+|[,.&()-])/).map(function (w, i) {
       if (!/[A-Z]/.test(w)) return w;
       if (KEEP[w]) return w;
       if (i && LOWER[w]) return w.toLowerCase();
       if (w === 'JPMORGAN') return 'JPMorgan';
+      if (w === 'GMBH') return 'GmbH';
       return w.charAt(0) + w.slice(1).toLowerCase();
     }).join('');
   };
