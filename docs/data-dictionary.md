@@ -17,6 +17,7 @@ company's EDGAR filing list as `filings_url`.
 | `partial` | One or more optional fields/timestamps unavailable in the SEC source |
 | `ambiguous_mapping` | Several candidate XBRL tags cover the period, or they disagree, or the source period type did not match the metric |
 | `invalid_source_value` | The SEC value could not be parsed as a number; `value` is `null` |
+| `suspicious_period` | The period cannot be right: it ends before EDGAR began (1993) or more than two years after the filing that reported it (a typo in a date context, a founding year). Stored from mapping 1.4.1; never the latest figure |
 | `stale` | Last successful SEC fetch is older than `FRESHNESS_STALE_AFTER_SECONDS` (freshness endpoint only) |
 | `unavailable` | Source endpoint or requested fact not available |
 | `derived` | Value computed by this service from two reported observations (`derived=true`, `derivation` present) |
@@ -83,22 +84,40 @@ from later filings are additional rows, never overwrites.
 | `form_type`, `filed_date`, `accession_number` | Filing that reported the observation |
 | `source_tag`, `source_taxonomy` | XBRL concept and taxonomy (`us-gaap`) |
 | `source_url` | Filing index URL of the reporting filing |
-| `mapping_version` | Version of the concept mapping (`1.4.0`; 1.4.0 rows replace 1.3.0 rows as each company is re-read) |
+| `mapping_version` | Version of the concept mapping (`1.4.1`; 1.4.1 rows replace 1.4.0 rows as each company is re-read) |
 | `quality_status` | See table above |
 | `derived`, `derivation` | Derived quarter values are only produced at query time (`include_derived=true`) and are not stored |
 | `observation_key` | SHA-256 over metric, taxonomy, tag, unit, period, accession, derived flag; unique |
 | `first_detected_at`, `processed_at` | Provenance timestamps |
 
-### Concept mapping 1.4.0 (thirty metrics and two cover-page facts)
+### Concept mapping 1.4.1 (thirty metrics and two cover-page facts)
 
 Generated from `CONCEPT_MAP` in `app/services/fact_normalizer.py`. 1.0.0 to 1.2.0 had the first
 five metrics; 1.3.0 (2026-11-22, launch plan D-01) added the rest, industry fallback tags, the
 unit check, cover-page facts and IFRS; 1.4.0 (2026-11-22): total-first revenue, in-filing
-precedence, contract revenue as a component.
+precedence, contract revenue as a component; 1.4.1 (2026-11-22): the notes below.
+
+**1.4.1 notes.**
+- Periods that cannot be right (ending before 1993, or more than two years after their filing)
+  are stored as `suspicious_period` instead of being caught only when a figure is returned.
+- Zero beside a nonzero candidate: in a total-first metric (revenue), a candidate valued 0 when
+  another candidate in the same filing and period is nonzero is set aside as
+  `ambiguous_mapping` ("zero beside a nonzero candidate tag"), not a conflict. Flowserve tags
+  `Revenues` 0 beside $4.73B of contract revenue in its 10-K. A filing whose only figure is 0 (a
+  company before revenue) keeps it as reported.
+- `RegulatedOperatingRevenue` is a revenue fallback after
+  `RegulatedAndUnregulatedOperatingRevenue`, used only for a period no candidate covers (ONE
+  Gas has tagged nothing else since 2023).
+- Not in 1.4.1, and why: banks reporting in IFRS (21, such as HSBC, Santander, UBS) tag their
+  total operating income only in company-specific extension tags, which companyfacts leaves
+  out; ifrs-full has no standard total, and adding net interest and net fee income would leave
+  out trading and other income, so revenue stays absent for them. Williams' `Revenues` and
+  contract revenue disagree in the same 10-K (eliminations); which line is on the income
+  statement decides it, measured for a later mapping.
 
 | Metric | Statement | Candidate tags, in precedence order | Industry fallbacks | Unit | Period |
 | --- | --- | --- | --- | --- | --- |
-| `revenue` | Income statement | `RevenueFromContractWithCustomerExcludingAssessedTax`, `Revenues`, `SalesRevenueNet`, `RevenueFromContractWithCustomerIncludingAssessedTax` | `RevenuesNetOfInterestExpense`, `RegulatedAndUnregulatedOperatingRevenue` | USD (as reported) | duration |
+| `revenue` | Income statement | `Revenues`, `RevenueFromContractWithCustomerExcludingAssessedTax`, `SalesRevenueNet`, `RevenueFromContractWithCustomerIncludingAssessedTax` | `RevenuesNetOfInterestExpense`, `RegulatedAndUnregulatedOperatingRevenue`, `RegulatedOperatingRevenue` | USD (as reported) | duration |
 | `cost_of_revenue` | Income statement | `CostOfRevenue`, `CostOfGoodsAndServicesSold` | `CostOfGoodsSold` | USD (as reported) | duration |
 | `gross_profit` | Income statement | `GrossProfit` | none | USD (as reported) | duration |
 | `r_and_d` | Income statement | `ResearchAndDevelopmentExpense` | `ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost` | USD (as reported) | duration |
@@ -140,7 +159,8 @@ it: utilities often report no total liabilities, banks no gross profit or cash a
 `RevenuesNetOfInterestExpense` (total net revenue); `net_interest_income` is
 `InterestIncomeExpenseNet`; interest expense since the 2024 taxonomy is
 `InterestExpenseOperating`. **Utilities:** revenue falls back to
-`RegulatedAndUnregulatedOperatingRevenue` only for years no contract-revenue tag covers.
+`RegulatedAndUnregulatedOperatingRevenue`, then `RegulatedOperatingRevenue` (1.4.1), only for
+years no candidate tag covers.
 
 **IFRS (D-04):** foreign private issuers that file 20-F in IFRS (TSMC, SAP, Novartis; about 920
 filers) are read from the `ifrs-full` taxonomy with `IFRS_MAP` in the same module: revenue is

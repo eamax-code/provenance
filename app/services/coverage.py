@@ -52,6 +52,12 @@ def thirteenf_row(db: Session) -> dict:
             "filings": int(n or 0), "basis": basis}  # fmt: skip
 
 
+# what a metric leaves out, and why (mapping 1.4.1 notes in docs/data-dictionary.md)
+METRIC_NOTES = {
+    "revenue": "21 IFRS banks: total operating income is in company-specific tags; not shown yet.",
+}
+
+
 def compute(db: Session, settings: Settings, now: datetime | None = None) -> dict:
     now = now or datetime.now(UTC)
     filers = int(db.scalar(select(func.count(Company.id))) or 0)
@@ -107,6 +113,7 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
             "ambiguous_pct": round(100 * int(r[3] or 0) / total, 1) if total else None,
             "companies": int(r[4] or 0) if r else 0,
             "earliest_year": r[5].year if r and r[5] else None,
+            "note": METRIC_NOTES.get(m),
         })  # fmt: skip
     forms = []
     for label, codes in FORMS:

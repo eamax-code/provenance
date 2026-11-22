@@ -106,7 +106,7 @@ def test_company_bundle(client, ingested_aapl, fake_sec):
     assert [f["period_end"] for f in rev] == ["2024-09-28", "2023-09-30"]
     assert (
         rev[0]["value"] == 391035000000
-        and rev[0]["mapping_version"] == "1.4.0"
+        and rev[0]["mapping_version"] == "1.4.1"
         and rev[0]["quality_status"] == "ok"
     )
     assert rev[0]["source_tag"] and rev[0]["source_url"].startswith("https://www.sec.gov/")
@@ -343,6 +343,9 @@ def test_coverage_leads_with_periods_that_have_an_ok_figure(db, settings, ingest
     assert list(rev)[4] == "periods_ok_pct" and 0 < rev["periods_ok_pct"] <= 100
     assert rev["periods_ok_pct"] >= rev["ok_pct"]
     assert "never deleted" in data["metrics_note"]
+    # what a metric leaves out is said beside it (IFRS banks' total operating income, 1.4.1)
+    assert "IFRS banks" in rev["note"]
+    assert next(m for m in data["metrics"] if m["metric"] == "total_assets")["note"] is None
 
 
 def test_public_ip_limit_can_be_raised_by_settings(client, app, settings):

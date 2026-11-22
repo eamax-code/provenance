@@ -277,7 +277,7 @@ def _payload(tags):
 
 def test_thirty_metrics_each_with_label_unit_and_statement():
     # thirty statement metrics plus two cover-page facts (D-02)
-    assert len(SUPPORTED_METRICS) == 32 and MAPPING_VERSION == "1.4.0"
+    assert len(SUPPORTED_METRICS) == 32 and MAPPING_VERSION == "1.4.1"
     statements = [spec["statement"] for spec in CONCEPT_MAP.values()]
     assert statements.count("cover") == 2
     for metric, spec in CONCEPT_MAP.items():
@@ -403,3 +403,55 @@ def test_ifrs_filers_get_figures_in_their_reporting_currency():
     assert ni.value == Decimal("1173268000000") and ni.quality_status == "ok"
     (eps,) = _by(facts, "eps_diluted")
     assert eps.currency == "TWD" and eps.unit == "TWD/shares"
+
+
+def test_1_4_1_zero_beside_a_nonzero_candidate_is_set_aside_but_a_lone_zero_stays():
+    """Flowserve tags Revenues 0 beside $4.73B of contract revenue in the same 10-K: the zero is
+    not the total, and the contract revenue is the figure. A company before revenue whose only
+    figure is 0 keeps it as reported."""
+    start, end = "2025-01-01", "2025-12-31"
+    facts = normalize_company_facts(
+        _payload({
+            "Revenues": {"USD": [_obs(0, end, start)]},
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {
+                "USD": [_obs(4729260000, end, start)]},
+        }),
+        "30625",
+    )  # fmt: skip
+    rev = {f.source_tag: f for f in _by(facts, "revenue")}
+    assert rev["RevenueFromContractWithCustomerExcludingAssessedTax"].quality_status == "ok"
+    assert rev["Revenues"].quality_status == "ambiguous_mapping"
+    assert any("zero beside" in n for n in rev["Revenues"].notes)
+    alone = normalize_company_facts(
+        _payload({"Revenues": {"USD": [_obs(0, end, start)]}}), "1999999"
+    )
+    lone = _by(alone, "revenue")[0]
+    assert lone.value == 0 and lone.quality_status == "ok"
+
+
+def test_1_4_1_regulated_revenue_alone_is_a_utility_fallback():
+    """ONE Gas tags only RegulatedOperatingRevenue since 2023."""
+    start, end = "2025-01-01", "2025-12-31"
+    facts = normalize_company_facts(
+        _payload({"RegulatedOperatingRevenue": {"USD": [_obs(2600000000, end, start)]},
+                  "Revenues": {"USD": [_obs(2578005000, "2022-12-31", "2022-01-01")]}}),
+        "1587732",
+    )  # fmt: skip
+    by_end = {f.period_end: f for f in _by(facts, "revenue")}
+    assert by_end[date(2025, 12, 31)].quality_status == "ok"
+    assert by_end[date(2025, 12, 31)].source_tag == "RegulatedOperatingRevenue"
+    assert by_end[date(2022, 12, 31)].source_tag == "Revenues"
+
+
+def test_1_4_1_impossible_periods_are_stored_as_suspicious():
+    """A 1927 founding year in a date context, or a period two years after its filing."""
+    facts = normalize_company_facts(
+        _payload({"Revenues": {"USD": [_obs(5, "1927-12-31", "1927-01-01"),
+                                       _obs(7, "2029-12-31", "2029-01-01"),
+                                       _obs(9, "2025-09-30", "2024-10-01")]}}),
+        "320193",
+    )  # fmt: skip
+    by_end = {f.period_end.year: f for f in _by(facts, "revenue")}
+    assert by_end[1927].quality_status == "suspicious_period"
+    assert by_end[2029].quality_status == "suspicious_period"
+    assert by_end[2025].quality_status == "ok"

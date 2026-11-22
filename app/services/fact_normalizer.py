@@ -23,13 +23,28 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-MAPPING_VERSION = "1.4.0"
+MAPPING_VERSION = "1.4.1"
 # 1.2.0: twelve months in a quarterly report is "ttm", not annual.
 # 1.3.0: thirty metrics across the income statement, balance sheet and cash flow; industry
 #        fallback tags (banks, utilities, REITs); each metric's unit kind is checked; cover-page
 #        facts (dei); IFRS (ifrs-full).
 # 1.4.0: total-first revenue; precedence judged within each filing; contract revenue below the
 #        total is a component, not a conflict.
+# 1.4.1: periods that cannot be right (before EDGAR, 1993, or more than two years after their
+#        filing) are stored as suspicious_period; in a total-first metric a zero candidate beside
+#        a nonzero one in the same filing is set aside, not a conflict (Flowserve tags Revenues 0
+#        beside its contract revenue); utilities' RegulatedOperatingRevenue is a revenue fallback
+#        (ONE Gas tags nothing else since 2023).
+
+EDGAR_START = date(1993, 1, 1)
+
+
+def is_suspicious_period(period_end: date, filed_date: date | None) -> bool:
+    """A period that cannot be right: ending before EDGAR began (1993), or more than two years
+    after the filing that reported it (a typo in a date context, a founding year)."""
+    return period_end < EDGAR_START or (
+        filed_date is not None and period_end > filed_date + timedelta(days=730)
+    )
 
 
 def _m(
@@ -75,8 +90,13 @@ CONCEPT_MAP: dict[str, dict[str, Any]] = {
             "SalesRevenueNet",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
         ],
-        # banks report total net revenue; utilities report regulated plus unregulated revenue
-        ["RevenuesNetOfInterestExpense", "RegulatedAndUnregulatedOperatingRevenue"],
+        # banks report total net revenue; utilities report regulated plus unregulated revenue,
+        # or regulated revenue alone (ONE Gas)
+        [
+            "RevenuesNetOfInterestExpense",
+            "RegulatedAndUnregulatedOperatingRevenue",
+            "RegulatedOperatingRevenue",
+        ],
         components={"may_exceed": ["RevenueFromContractWithCustomerIncludingAssessedTax"]},
     ),
     "cost_of_revenue": _m(
@@ -555,6 +575,12 @@ def normalize_company_facts(
                         candidate_facts.append((precedence, nf))
         _apply_precedence(candidate_facts, primary, spec.get("components"))
         results.extend(nf for _, nf in candidate_facts)
+    for nf in results:
+        if nf.quality_status != "invalid_source_value" and is_suspicious_period(
+            nf.period_end, nf.filed_date
+        ):
+            nf.quality_status = "suspicious_period"
+            nf.notes.append("period before 1993 or more than two years after its filing")
     return results
 
 
@@ -670,6 +696,20 @@ def _apply_precedence(
         key = (nf.unit, nf.period_start, nf.period_end)
         by_period.setdefault(key, []).append((prec, nf))
     for group in by_period.values():
+        if components is not None:
+            # a zero beside a nonzero candidate in the same filing is not that filing's total
+            # (Flowserve tags Revenues 0 beside its contract revenue); a filing whose only
+            # figure is 0 (a company before revenue) keeps it as reported
+            nonzero = {_filing_key(nf) for _, nf in group if nf.value}
+            kept = []
+            for prec, nf in group:
+                if nf.value == 0 and _filing_key(nf) in nonzero:
+                    if nf.quality_status != "invalid_source_value":
+                        nf.quality_status = "ambiguous_mapping"
+                        nf.notes.append("zero beside a nonzero candidate tag in the same filing")
+                else:
+                    kept.append((prec, nf))
+            group = kept
         if primary_count is not None and any(prec < primary_count for prec, _ in group):
             for prec, nf in group:
                 if prec >= primary_count and nf.quality_status != "invalid_source_value":

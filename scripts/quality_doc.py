@@ -270,7 +270,14 @@ def main() -> int:
         lines.append(f"- {r[0] or '—'} {r[1]}: last {r[2]}, peak ${r[3]}B")
     for r in other[:10]:
         lines.append(f"- {r[0] or '—'} {r[1]} ({r[4]}): last {r[2]}")
-    lines.append("")
+    lines += ["", "Known causes (mapping 1.4.1 notes): banks reporting in IFRS (21, such as HSBC, "
+              "Santander, BBVA, UBS, SMFG) tag their total operating income only in "
+              "company-specific extension tags, which companyfacts leaves out, and ifrs-full has "
+              "no standard total; adding net interest and net fee income would leave out trading "
+              "and other income, so their revenue stays absent rather than built. Williams' "
+              "total and contract revenue disagree in the same 10-K (eliminations); the "
+              "income-statement line would decide it, measured for a later mapping.",
+              ""]  # fmt: skip
 
     big, big_l, oth, oth_l, act, act_l = db.execute(text(LEI)).one()
     lines += ["## LEI coverage", "",

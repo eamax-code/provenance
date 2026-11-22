@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import math
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
@@ -263,7 +263,7 @@ def snapshot_to_dict(snap: DataQualitySnapshot) -> dict:
     }
 
 
-EDGAR_START = date(1993, 1, 1)
+from app.services.fact_normalizer import EDGAR_START  # noqa: E402  (one rule, one date)
 
 
 def suspicious_period(stmt):
@@ -278,10 +278,11 @@ def suspicious_period(stmt):
 
 
 def is_suspicious_period(period_end, filed_date) -> bool:
-    """The same rule for one row, applied when a figure is returned (until mapping 1.4.1)."""
-    return period_end < EDGAR_START or (
-        filed_date is not None and period_end > filed_date + timedelta(days=730)
-    )
+    """The same rule for one row. Mapping 1.4.1 stores it as the fact's status; returned figures
+    still apply it, for rows normalized before 1.4.1."""
+    from app.services.fact_normalizer import is_suspicious_period as rule
+
+    return rule(period_end, filed_date)
 
 
 def suspicious_count(db: Session) -> int:

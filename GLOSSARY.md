@@ -9,7 +9,7 @@
 - **Preferred tag**: the highest-precedence candidate tag that has data for a period; its observations are `ok`, alternates are `ambiguous_mapping`.
 - **Period class**: `annual`, `quarterly`, `ytd`, `other`, derived from reported dates, never from the SEC `fp` label.
 - **Derived value**: a quarter computed by subtracting two reported year-to-date observations; always `derived=true`.
-- **Quality status**: `ok`, `partial`, `ambiguous_mapping`, `invalid_source_value`, `stale`, `unavailable`, `derived`.
+- **Quality status**: `ok`, `partial`, `ambiguous_mapping`, `invalid_source_value`, `suspicious_period`, `stale`, `unavailable`, `derived`.
 - **First detected / processed**: when this service first saw a record and when it last wrote it.
 - **Watch**: an API key's subscription to new filings for a CIK, delivered to a webhook or email.
 - **Delivery**: one attempt-tracked notification event with a stable `event_id`.
