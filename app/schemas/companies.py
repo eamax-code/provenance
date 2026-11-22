@@ -76,7 +76,17 @@ class CompanyList(BaseModel):
     meta: PageMeta
 
 
+class LegalNameAsFiled(BaseModel):
+    name: str = Field(description="Exactly as written on the cover (dei:EntityRegistrantName)")
+    source: str
+    accession_number: str | None = None
+    source_url: str | None = None
+
+
 class CompanyProfile(CompanyOut):
+    legal_name_as_filed: LegalNameAsFiled | None = Field(
+        None, description="The legal name as the company wrote it on its latest report's cover"
+    )
     filings_count: int = 0
     facts_count: int = 0
     last_fetch_error: str | None = None

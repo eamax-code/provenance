@@ -73,4 +73,20 @@ def test_registrant_names_are_stored_as_filed(db, ingested_aapl):
     assert ticker_history.apply_registrant_names(db, rows) == 1
     from app.db.models import Company
 
-    assert db.query(Company).filter(Company.cik == CIK).one().registrant_name == "Apple Inc."
+    c = db.query(Company).filter(Company.cik == CIK).one()
+    assert c.registrant_name == "Apple Inc." and c.registrant_name_accession.startswith("x-AAPL")
+    filed = ticker_history.legal_name_as_filed(c)
+    assert filed["name"] == "Apple Inc." and filed["source"] == "dei:EntityRegistrantName"
+
+
+def test_profile_and_overview_show_the_legal_name_as_filed(db, client, auth, ingested_aapl):
+    from app.services import company_overview
+
+    rows = [{**_row("AAPL", date(2025, 11, 1)), "registrant": "Apple Inc."}]
+    ticker_history.apply_registrant_names(db, rows)
+    c = client.get("/v1/companies/320193", headers=auth).json()
+    assert c["legal_name_as_filed"]["name"] == "Apple Inc."
+    p = client.get("/v1/companies/320193/profile", headers=auth).json()
+    assert p["legal_name_as_filed"]["accession_number"].startswith("x-AAPL")
+    o = company_overview.build(db, CIK)
+    assert o["company"]["legal_name_as_filed"]["source"] == "dei:EntityRegistrantName"

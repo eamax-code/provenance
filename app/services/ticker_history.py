@@ -118,12 +118,28 @@ def apply_registrant_names(db: Session, rows: list[dict]) -> int:
         if r.get("registrant") and r.get("filed_date"):
             cur = latest.get(r["cik"])
             if cur is None or r["filed_date"] > cur[0]:
-                latest[r["cik"]] = (r["filed_date"], r["registrant"])
+                latest[r["cik"]] = (r["filed_date"], r["registrant"], r["accession_number"])
     n = 0
     for c in db.scalars(select(Company).where(Company.cik.in_(list(latest)))):
-        name = latest[c.cik][1]
-        if c.registrant_name != name:
-            c.registrant_name = name
+        _, name, accession = latest[c.cik]
+        if (c.registrant_name, c.registrant_name_accession) != (name, accession):
+            c.registrant_name, c.registrant_name_accession = name, accession
             n += 1
     db.commit()
     return n
+
+
+def legal_name_as_filed(company: Company) -> dict | None:
+    """K-06: the exact legal name the company wrote on its latest report's cover, with the
+    filing it comes from (for KYC: the string as filed, not a display form)."""
+    if not company.registrant_name:
+        return None
+    from app.services.sec_client import filing_index_url
+
+    acc = company.registrant_name_accession
+    return {
+        "name": company.registrant_name,
+        "source": "dei:EntityRegistrantName",
+        "accession_number": acc,
+        "source_url": filing_index_url(company.cik, acc) if acc else None,
+    }

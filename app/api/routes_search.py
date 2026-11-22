@@ -65,6 +65,10 @@ class SearchResult(BaseModel):
 class ProfileOut(BaseModel):
     cik: str
     name: str
+    legal_name_as_filed: dict | None = Field(
+        None, description="The legal name exactly as written on the latest report's cover "
+        "(dei:EntityRegistrantName), with the filing it comes from",
+    )
     summary: str = Field(description="A few cited sentences; [n] refers to citations")
     citations: list[dict]
     markdown: str
@@ -170,9 +174,14 @@ def profile(cik: str, db: Session = Depends(db_session), _key=Depends(require_re
     p = documents.build_profile(db, cik)
     if p is None:
         raise APIError(404, "company_not_found", "No company with this CIK is available.")
+    from app.db.models import Company
+    from app.services.ticker_history import legal_name_as_filed
+
+    company = db.scalar(select(Company).where(Company.cik == cik))
     return ProfileOut(
         cik=p.cik,
         name=p.name,
+        legal_name_as_filed=legal_name_as_filed(company) if company else None,
         summary=p.summary,
         citations=p.citations,
         markdown=p.markdown,

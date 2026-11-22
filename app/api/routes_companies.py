@@ -26,6 +26,7 @@ from app.schemas.companies import (
     FilingOut,
     FirstReportedOut,
     FreshnessOut,
+    LegalNameAsFiled,
 )
 from app.services import first_reported, periods, ratios
 from app.services import freshness as freshness_service
@@ -232,6 +233,10 @@ def profile(
         raise APIError(404, "company_not_found", "No company with this CIK is available.")
 
     out = CompanyProfile.model_validate(company)
+    from app.services.ticker_history import legal_name_as_filed
+
+    filed = legal_name_as_filed(company)
+    out.legal_name_as_filed = LegalNameAsFiled(**filed) if filed else None
     out.filings_count = int(db.scalar(select(func.count(Filing.id)).where(Filing.cik == cik)) or 0)
     out.facts_count = int(
         db.scalar(select(func.count(FinancialFact.id)).where(FinancialFact.cik == cik)) or 0

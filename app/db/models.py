@@ -44,6 +44,7 @@ class Company(Base):
     legal_name: Mapped[str] = mapped_column(Text, nullable=False)
     # K-06: dei:EntityRegistrantName from the latest report's cover, exactly as filed
     registrant_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    registrant_name_accession: Mapped[str | None] = mapped_column(String(25), nullable=True)
     ticker: Mapped[str | None] = mapped_column(Text, nullable=True)
     exchange: Mapped[str | None] = mapped_column(Text, nullable=True)
     sic_code: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -89,7 +89,7 @@ def test_successor_overview_continues_the_history(db, reorganised):
 def test_the_reviewed_file_is_complete_and_quotes_every_stored_pair():
     rows = successions.reviewed()
     stored = [r for r in rows.values() if r["decision"] == "store"]
-    assert len(rows) == 23 and len(stored) == 12
+    assert len(rows) == 33 and len(stored) == 16
     assert all(r["quote"] and r["quote_url"].startswith("https://www.sec.gov/Archives/")
                for r in stored)  # fmt: skip
     assert rows[("0000034088", "0002115436")]["confidence"] == "high"  # ExxonMobil

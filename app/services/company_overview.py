@@ -75,6 +75,9 @@ def _identity(db: Session, company: Company) -> dict:
                                       company.registrant_name)  # fmt: skip
     mart = db.get(MartCompany, company.cik)
     out["reporting_currency"] = mart.reporting_currency if mart else None  # D-04
+    from app.services.ticker_history import legal_name_as_filed
+
+    out["legal_name_as_filed"] = legal_name_as_filed(company)  # K-06
     fye = company.fiscal_year_end
     if fye and fye[:2].isdigit() and 1 <= int(fye[:2]) <= 12:
         out["fiscal_year_end_month"] = date(2000, int(fye[:2]), 1).strftime("%B")
