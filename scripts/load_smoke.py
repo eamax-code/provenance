@@ -4,7 +4,8 @@
   python scripts/load_smoke.py --base http://127.0.0.1:8771 --key $KEY --rps 50 --seconds 300
 
 Requests are spread over the endpoints below in turn (facts, screen, search, MCP, the public
-overview, stats and coverage), at an open-loop rate: a slow response never slows the rate.
+overview, the keyed company overview, ownership, stats and coverage), at an open-loop rate:
+a slow response never slows the rate.
 Prints p50/p95/p99, errors and the targets (p95: facts < 500 ms, screen < 2 s, stats and
 coverage < 100 ms) as JSON.
 """
@@ -24,8 +25,8 @@ CIKS = ("320193", "789019", "19617", "1326160", "726728", "1067983")
 TARGET_P95_MS = {"facts": 500, "screen": 2000, "stats": 100, "coverage": 100}
 
 
-def requests_for(i: int) -> tuple[str, str, str, dict | None]:
-    """(name, method, path, json body) for the i-th request."""
+def requests_for(i: int, only: list[str] | None = None) -> tuple[str, str, str, dict | None]:
+    """(name, method, path, json body) for the i-th request, over `only` endpoints if given."""
     cik = CIKS[i % len(CIKS)]
     plan = [
         ("facts", "GET", f"/v1/companies/{cik}/facts?metric=revenue&period=annual&limit=20", None),
@@ -35,9 +36,13 @@ def requests_for(i: int) -> tuple[str, str, str, dict | None]:
                                  "params": {"name": "get_figures",
                                             "arguments": {"cik": cik, "metric": "net_income"}}}),
         ("overview", "GET", f"/v1/public/companies/{cik}/overview", None),
+        ("company", "GET", f"/v1/companies/{cik}", None),
+        ("ownership", "GET", f"/v1/companies/{cik}/ownership", None),
         ("stats", "GET", "/v1/stats", None),
         ("coverage", "GET", "/v1/public/coverage", None),
     ]  # fmt: skip
+    if only:
+        plan = [p for p in plan if p[0] in only]
     return plan[i % len(plan)]
 
 
@@ -55,7 +60,9 @@ def main() -> int:
     ap.add_argument("--rps", type=float, default=50)
     ap.add_argument("--seconds", type=float, default=300)
     ap.add_argument("--workers", type=int, default=64)
+    ap.add_argument("--endpoints", default="", help="comma-separated names (default: all)")
     args = ap.parse_args()
+    only = [e for e in args.endpoints.split(",") if e] or None
     results: dict[str, list[float]] = {}
     errors: dict[str, dict[str, int]] = {}
     lock = threading.Lock()
@@ -64,7 +71,7 @@ def main() -> int:
                           limits=httpx.Limits(max_connections=args.workers))  # fmt: skip
 
     def one(i: int) -> None:
-        name, method, path, body = requests_for(i)
+        name, method, path, body = requests_for(i, only)
         start = time.perf_counter()
         try:
             r = client.request(method, path, json=body)

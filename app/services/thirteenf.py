@@ -276,29 +276,42 @@ def effective_positions(
     quarter) after amendment precedence, counting only filings made by as_of."""
     if not codes:
         return {}, set()
-    hq = select(Holding13F).where(Holding13F.cusip.in_(codes), Holding13F.report_period == period)
+    # plain rows, not ORM objects: a large holder list (Apple: about 6,000 managers) and the
+    # quarter's whole filing list made this endpoint CPU-bound (R-2, 2026-11-22 evening)
+    hq = select(
+        Holding13F.accession_number,
+        Holding13F.cusip,
+        Holding13F.filer_cik,
+        Holding13F.shares,
+        Holding13F.value_usd,
+    ).where(Holding13F.cusip.in_(codes), Holding13F.report_period == period)
     if as_of:
         hq = hq.where(Holding13F.filing_date <= as_of)
-    holdings = db.scalars(hq).all()
-    by_acc: dict[str, list[Holding13F]] = {}
+    holdings = db.execute(hq).all()
+    by_acc: dict[str, list] = {}
     for h in holdings:
         by_acc.setdefault(h.accession_number, []).append(h)
     filers = {h.filer_cik for h in holdings}
-    fq = select(Filing13F).where(
-        Filing13F.report_period == period, Filing13F.form_type.in_(HOLDINGS_FORMS)
-    )
+    quarter = [Filing13F.report_period == period, Filing13F.form_type.in_(HOLDINGS_FORMS)]
     if as_of:
-        fq = fq.where(Filing13F.filing_date <= as_of)
-    all_filers: set[str] = set()
-    per_filer: dict[str, list[Filing13F]] = {}
-    for f in db.scalars(fq):
-        all_filers.add(f.filer_cik)
-        if f.filer_cik in filers:
+        quarter.append(Filing13F.filing_date <= as_of)
+    all_filers: set[str] = set(db.scalars(select(Filing13F.filer_cik).distinct().where(*quarter)))
+    per_filer: dict[str, list] = {}
+    if filers:
+        fq = select(
+            Filing13F.accession_number,
+            Filing13F.filer_cik,
+            Filing13F.filer_name,
+            Filing13F.filing_date,
+            Filing13F.form_type,
+            Filing13F.amendment_type,
+        ).where(*quarter, Filing13F.filer_cik.in_(filers))
+        for f in db.execute(fq):
             per_filer.setdefault(f.filer_cik, []).append(f)
     out: dict[str, dict] = {}
     for filer, fs in per_filer.items():
         fs.sort(key=lambda f: (f.filing_date, f.accession_number))
-        current: list[Filing13F] = []
+        current: list = []
         for f in fs:
             if f.amendment_type == "NEW HOLDINGS":
                 current.append(f)
