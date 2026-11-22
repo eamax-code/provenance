@@ -171,5 +171,43 @@
       box.appendChild(el('li', { class: (r.me ? 'me' : '') + (r.ranked ? '' : ' unranked') }, [el('span', { class: 'pn' }, [el('span', {}, [nm, r.ticker ? el('span', { class: 'muted', text: ' ' + r.ticker }) : null]), bar]), el('span', { class: 'n', text: P.money(r.v, null, r.cur) + ' ' + (r.label || '') })]));
     });
   }
-  window.CompanyLower = { segments: segments, people: people, ownership: ownership, peers: peers };
+  /* ---- identity: registry facts at the foot of the page ---- */
+  function identity(d) {
+    var c = d.company, dl = $('ident'); dl.textContent = '';
+    var kv = function (k, v) { if (v == null || v === '' || (Array.isArray(v) && !v.length)) return; var dd = el('dd'); (Array.isArray(v) ? v : [v]).forEach(function (line, i) { if (i) dd.appendChild(el('br')); dd.appendChild(typeof line === 'string' ? document.createTextNode(line) : line); }); dl.appendChild(el('dt', { text: k })); dl.appendChild(dd); };
+    kv('CIK', c.cik);
+    (c.predecessors || []).forEach(function (p) { kv('Predecessor', [el('a', { href: '/companies/' + parseInt(p.cik, 10), text: P.orgName(p.display_name || p.name) + ' (CIK ' + p.cik + ')' }), ' until ' + P.date(p.effective_date)]); });
+    if (c.successor) kv('Successor', [el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.orgName(c.successor.display_name || c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' from ' + P.date(c.successor.effective_date)]);
+    kv('Tickers', (c.tickers.length ? c.tickers : [c.ticker]).filter(Boolean).map(function (t, i) { return t + (c.exchanges[i] ? ' on ' + c.exchanges[i] : ''); }).join(', '));
+    var ln = c.legal_name_as_filed;
+    if (ln && ln.name) kv('Legal name as filed', ln.source_url ? srcLink(ln.name, ln.source_url, 'From the cover of the filing, accession ' + (ln.accession_number || '')) : ln.name);
+    kv('Formerly traded as', (c.former_tickers || []).map(function (t) { return t.ticker + (t.to ? ' (until ' + P.date(t.to) + ')' : ''); }).join(', '));
+    // how the LEI was linked: quiet when certain; a plain qualifier when matched from the registers
+    var idn = d.identity || {}, lei = idn.lei || c.lei, how = null;
+    if (lei && idn.match_method === 'override') how = el('span', { class: 'muted', title: String(idn.evidence || '').replace(/^manual_cited:\s*/, ''), text: ' · checked by hand against GLEIF and the SEC record' });
+    else if (lei && idn.confidence === 'medium') how = el('span', { class: 'muted', title: 'Matched from public registers; not stated in the company\u2019s filings.', text: ' · matched by name' + (/state_differs|city/.test(idn.match_method || '') ? ' and city' : '') });
+    kv('LEI', lei ? [el('span', {}, [lei, how])] : 'Not filed with the SEC');
+    (d.listings || []).forEach(function (l) { kv('Also listed', [l.isin, l.venue || l.mic].filter(Boolean).join(' on ')); });
+    kv('Industry', c.sic_code ? 'SIC ' + c.sic_code + (c.sic_description ? ', ' + c.sic_description : '') : null);
+    // the current audit firm only, as tagged on its latest annual report; no "since" until the history is backfilled
+    var au = d.auditor && d.auditor.current;
+    if (au) kv('Auditor', [el('span', {}, [au.latest_report ? srcLink(P.orgName(au.name), au.latest_report.source_url, 'Named on the ' + au.latest_report.form_type + ' filed ' + P.date(au.latest_report.filed_date)) : P.orgName(au.name), (au.location ? ', ' + au.location : '') + (au.pcaob_firm_id ? ' (PCAOB firm ' + au.pcaob_firm_id + ')' : '') + (au.since_basis === 'observed_change' && au.since ? ', since FY' + au.since : '')])].concat((d.auditor.firm_changes || []).slice().sort(function (a, b) { return b.fiscal_year - a.fiscal_year; }).slice(0, 3).map(function (x, i) {
+      // a change of firm between two consecutive annual reports, newest first, with the 8-K item 4.01 when
+      // one was filed; an older change names its incoming firm ("KPMG LLP replaced Ernst & Young LLP")
+      return el('span', { class: 'muted' }, [(i ? P.orgName(x.to && x.to.name) + ' replaced ' : 'Replaced ') + P.orgName(x.from && x.from.name) + ' from ' + (x.first_report ? '' : 'FY' + x.fiscal_year),
+        x.first_report ? srcLink('FY' + x.fiscal_year, x.first_report.source_url, x.first_report.form_type + ' filed ' + P.date(x.first_report.filed_date)) : null,
+        x.item_401 ? [' (', srcLink('8-K item 4.01', x.item_401.source_url, 'filed ' + P.date(x.item_401.filing_date)), ')'] : null].flat().filter(Boolean));
+    })));
+    kv('Incorporated', P.state(c.state_of_incorporation));
+    kv('Address', P.address(c.business_address));
+    kv('Phone', P.phone(c.phone));
+    kv('EIN', c.ein ? c.ein.slice(0, 2) + '-' + c.ein.slice(2) : null);
+    var cov = d.cover || {};
+    if (cov.shares_outstanding) kv('Shares outstanding', [srcLink(fmt(cov.shares_outstanding.value, 'shares'), cov.shares_outstanding.source_url, cov.shares_outstanding.form_type + ' filed ' + P.date(cov.shares_outstanding.filed_date)), ' on ' + P.date(cov.shares_outstanding.as_of_date)]);
+    if (cov.public_float) kv('Public float', [srcLink(P.money(cov.public_float.value, null, /^[A-Z]{3}$/.test(cov.public_float.unit || '') ? cov.public_float.unit : 'USD'), cov.public_float.source_url, cov.public_float.form_type + ' filed ' + P.date(cov.public_float.filed_date)), ' on ' + P.date(cov.public_float.as_of_date)]);
+    kv('Former names', c.former_names.length ? c.former_names.map(function (f) { return P.orgName(f.name) + (f.to ? ' (to ' + f.to.slice(0, 4) + ')' : ''); }).join('; ') : 'None recorded by the SEC');
+    var h = d.history || {};
+    kv('Filings loaded', h.first_filing_date ? P.date(h.first_filing_date) + ' to ' + P.date(h.latest_filing_date) + ', ' + h.filings_last_12_months + ' in the last 12 months' : null);
+  }
+  window.CompanyLower = { segments: segments, people: people, ownership: ownership, peers: peers, identity: identity };
 })();
