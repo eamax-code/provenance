@@ -29,10 +29,11 @@ _ERRORS = {
 
 
 def _guard(request: Request, response: Response) -> None:
+    override = getattr(request.app.state.settings, "public_rate_limit_per_minute", 0)
     enforce_ip_limit(
         ip_limiter,
         "public:" + client_ip(request),
-        PUBLIC_RATE_LIMIT_PER_MINUTE,
+        override or PUBLIC_RATE_LIMIT_PER_MINUTE,
         "Too many requests to the public endpoints from this address.",
     )
     response.headers["Cache-Control"] = f"public, max-age={public_service.CACHE_TTL_SECONDS}"

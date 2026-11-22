@@ -31,7 +31,7 @@ def stats(
     enforce_ip_limit(
         ip_limiter,
         "ip:" + client_ip(request),
-        STATS_RATE_LIMIT_PER_MINUTE,
+        settings.stats_rate_limit_per_minute or STATS_RATE_LIMIT_PER_MINUTE,
         "Too many requests to /v1/stats from this address.",
     )
     response.headers["Cache-Control"] = f"public, max-age={CACHE_TTL_SECONDS}"

@@ -343,3 +343,16 @@ def test_coverage_leads_with_periods_that_have_an_ok_figure(db, settings, ingest
     assert list(rev)[4] == "periods_ok_pct" and 0 < rev["periods_ok_pct"] <= 100
     assert rev["periods_ok_pct"] >= rev["ok_pct"]
     assert "never deleted" in data["metrics_note"]
+
+
+def test_public_ip_limit_can_be_raised_by_settings(client, app, settings):
+    from app.api import routes_public
+
+    routes_public.ip_limiter.reset()
+    settings.public_rate_limit_per_minute = 2
+    assert client.get("/v1/public/plans").status_code == 200
+    assert client.get("/v1/public/plans").status_code == 200
+    assert client.get("/v1/public/plans").status_code == 429
+    settings.public_rate_limit_per_minute = 0  # the built-in 60 again
+    routes_public.ip_limiter.reset()
+    assert client.get("/v1/public/plans").status_code == 200

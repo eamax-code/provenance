@@ -156,6 +156,10 @@ class Settings(BaseSettings):
     # Limits
     max_export_rows: int = 1000
     default_rate_limit_per_minute: int = 60
+    # per-address limits on the keyless endpoints; 0 keeps the built-in value (public 60, stats
+    # 30). A load test from one address raises them on its own instance only.
+    public_rate_limit_per_minute: int = 0
+    stats_rate_limit_per_minute: int = 0
     default_monthly_request_quota: int = 10_000
 
     # Webhooks
