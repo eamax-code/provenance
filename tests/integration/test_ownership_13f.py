@@ -299,7 +299,7 @@ def test_a_letter_in_the_issue_number_is_debt_and_never_a_share_class(db, loaded
 def test_the_reviewed_removal_list_names_no_cusip():
     text = cusips.REVIEWED_REMOVALS.read_text()
     reviewed = cusips.reviewed_removals()
-    assert len(reviewed) == 123 and sum(reviewed.values()) == 127
+    assert len(reviewed) == 128 and sum(reviewed.values()) == 132
     assert not any(cusips.valid(w) for w in text.replace(",", " ").split())
 
 

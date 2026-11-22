@@ -217,7 +217,13 @@ def debt_issue_number(cusip: str) -> bool:
 
 
 REVIEWED_REMOVALS = Path(__file__).resolve().parents[1] / "data" / "cusip_removals_reviewed.csv"
-RULES = ("issuer_name", "debt_issue_number", "other_security_share", "value_per_share")
+RULES = (
+    "issuer_name",
+    "debt_issue_number",
+    "other_security_share",
+    "value_per_share",
+    "filing_error",
+)
 
 
 def _issuer(name: str) -> str:
