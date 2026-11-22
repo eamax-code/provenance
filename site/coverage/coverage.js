@@ -48,6 +48,7 @@
   var slow = setTimeout(function () { var m = $('cov-metrics'); if (m && /Loading/.test(m.textContent)) m.firstChild.textContent = 'Still counting; the service is busy re-reading filings. This fills in when it finishes.'; }, 8000);
   var STATEMENT = { income: 'Income statement', balance: 'Balance sheet', cash_flow: 'Cash flow', cover: 'Cover page' };
   var OUT = [
+    [/segment/i, 'Revenue and profit by segment, geography and product, as each report tags them', '/developers/#segments'],
     [/annual|quarterly/i, 'Financial statements and cover-page facts', '/docs'],
     [/8-K|current/i, 'Events by item: results, restatements, auditor changes, mergers, officer changes', '/developers/#events'],
     [/insider/i, 'Insiders, their roles and their trades', '/app/'],
@@ -70,11 +71,14 @@
       var head = el('tr', {}, [el('th', { scope: 'col', text: STATEMENT[k] }), el('th', { scope: 'col', class: 'n', text: 'Companies' })]
         .concat(periods ? [el('th', { scope: 'col', class: 'n', title: 'For each company and period, the share with a clear figure: what you meet when you ask for it', text: 'Periods with a figure' })] : [])
         .concat([el('th', { scope: 'col', class: 'n', title: 'Stored rows with one clear tag, including alternate tags kept for audit', text: periods ? 'Rows ok' : 'Quality ok' }), el('th', { scope: 'col', class: 'n', text: 'From' })]));
-      var body = rows.map(function (m) {
-        return el('tr', {}, [el('th', { scope: 'row', text: m.label }), el('td', { class: 'n', text: int(m.companies) })]
+      var body = [];
+      rows.forEach(function (m) {
+        body.push(el('tr', {}, [el('th', { scope: 'row', text: m.label }), el('td', { class: 'n', text: int(m.companies) })]
           .concat(periods ? [el('td', { class: 'n strong', text: m.periods_ok_pct != null ? m.periods_ok_pct.toFixed(1) + '%' : '—' })] : [])
           .concat([el('td', { class: 'n' + (periods ? ' muted' : ''), title: (m.ambiguous_pct != null ? m.ambiguous_pct.toFixed(1) + '% of rows have two tags in one filing (ambiguous). ' : '') + 'Includes alternate tags kept for audit.', text: m.ok_pct != null ? m.ok_pct.toFixed(1) + '%' : '—' }),
-          el('td', { class: 'n', text: m.earliest_year && m.earliest_year >= 1993 ? String(m.earliest_year) : '—' })]));
+          el('td', { class: 'n', text: m.earliest_year && m.earliest_year >= 1993 ? String(m.earliest_year) : '—' })])));
+        // a metric's own caveat ("21 IFRS banks: ...") sits on a line under its row
+        if (m.note) body.push(el('tr', { class: 'cov-mnote' }, [el('td', { colspan: String(periods ? 5 : 4), class: 'muted small', text: m.note })]));
       });
       box.appendChild(el('div', { class: 'tw' }, [el('table', { class: 'cov-table' }, [el('caption', { class: 'vh', text: STATEMENT[k] }), el('thead', {}, [head]), el('tbody', {}, body)])]));
     });
@@ -87,7 +91,7 @@
       var tb = document.querySelector('#cov-forms-body');
       if (tb) tb.replaceChildren.apply(tb, c.forms.map(function (f) {
         var o = OUT.filter(function (x) { return x[0].test(f.label + ' ' + (f.forms || []).join(' ')); })[0];
-        return el('tr', {}, [el('th', { scope: 'row' }, [f.label, el('br'), el('span', { class: 'muted small', text: (f.forms || []).join(', ') })]),
+        return el('tr', {}, [el('th', { scope: 'row' }, [f.label, el('br'), el('span', { class: 'muted small', text: (f.forms || []).join(', ') + (f.basis ? ' · ' + f.basis : '') })]),
           el('td', { class: 'n', text: int(f.filings) }),
           el('td', {}, o ? [o[2] ? el('a', { href: o[2], text: o[1] }) : o[1]] : ['Listed with its form and acceptance time'])]);
       }));

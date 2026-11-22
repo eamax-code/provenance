@@ -33,7 +33,7 @@
     var M = K.metrics[segMetric] || {}, periods = K.periods || [];
     // lines that don't add up to the total (overlapping product lines, Microsoft's product view) have
     // no meaningful share: shares would sum past 100%, so the column goes and one line says why
-    var unrec = !!(M.status && M.status[periods[0]] === 'unreconciled'), share = segMetric === 'revenue' && !unrec;
+    var unrec = !!(M.status && M.status[periods[0]] === 'unreconciled'), share = segMetric === 'revenue' && !unrec && (K.segments || []).some(function (sg) { return sg.share_of_revenue_pct != null; });
     var cell = function (v, extraTitle) {
       if (v == null) return el('td', { class: 'n na', text: 'not reported' });
       return el('td', { class: 'n' }, [srcLink(P.money(v), f.source_url, (SEGM[segMetric] || segMetric) + DOT + 'from the ' + (f.form_type || '10-K') + ' filed ' + P.date(f.filed_date) + (extraTitle ? DOT + extraTitle : ''))]);
@@ -55,7 +55,7 @@
     });
     (K.reconciling || []).forEach(function (rc) {
       var vals = (rc.values || {})[segMetric] || {};
-      if (!periods.some(function (p) { return vals[p] != null; })) return;
+      if (!periods.some(function (p) { return vals[p] != null && vals[p] !== 0; })) return; // nothing, or $0 every year
       var row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: rc.label })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
       if (share) row.appendChild(el('td'));
       tb.appendChild(row);
@@ -64,7 +64,8 @@
     if (share) tot.appendChild(el('td', { class: 'n', text: '100%' }));
     tb.appendChild(tot);
     $('seg-table').replaceChildren(unrec ? el('p', { class: 'seg-warn', text: 'These lines overlap or leave part of the total out, so they don\u2019t add up to the consolidated figure' + (segMetric === 'revenue' ? '; shares of revenue are not shown.' : '.') }) : '', el('table', { class: 'fin seg' }, [el('caption', { class: 'vh', text: (KIND[K.kind] || K.kind) + ' segments, ' + (SEGM[segMetric] || segMetric) }), el('thead', {}, [head]), tb]));
-    $('seg-notes').textContent = (S.notes || []).join(' ');
+    // the API's notes speak to developers (field names); the page says the same for readers
+    $('seg-notes').textContent = 'As each annual report tags them. Names are the company\u2019s own; a dotted underline marks a name taken from the tag where the company gave none. Unreconciled: the lines don\u2019t add up to the consolidated figure within 1% and the report tags nothing that accounts for the difference.';
   }
 
   /* ---- people: who leads it now, then each person's changes, newest first ---- */

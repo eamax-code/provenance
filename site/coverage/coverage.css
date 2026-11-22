@@ -16,6 +16,8 @@
 .cov-table, .cov-forms { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--surface); border-radius: 4px; }
 .cov-table th, .cov-table td, .cov-forms th, .cov-forms td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 .cov-table thead th { color: var(--ink); font-weight: 700; }
+.cov-table tr.cov-mnote td { padding-top: 0; font-size: 13.5px; }
+.cov-table tr:has(+ tr.cov-mnote) > * { border-bottom: 0; }
 .cov-table thead th.n { color: var(--soft); font-weight: 600; font-size: 13px; }
 .cov-table th[scope="row"], .cov-forms th[scope="row"] { font-weight: 600; }
 .cov-table .n { text-align: right; white-space: nowrap; }
