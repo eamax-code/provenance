@@ -56,29 +56,22 @@ select count(*), count(distinct cik) from (
   where metric = 'revenue' and not derived group by 1, 2, 3, 4
   having bool_and(quality_status not in ('ok', 'partial'))
      and bool_or(quality_status = 'ambiguous_mapping')) t"""
-# $1B+ cohorts are USD reporters only: values are compared as reported, without FX (Federal
-# Reserve H.10 rates are the backlog item); non-USD reporters get their own line, no threshold
+# $1B+ cohorts by USD equivalent at the Federal Reserve H.10 average rate for each fiscal year
+# (app.services.fx); companies reporting in a currency H.10 does not cover are listed apart
 STOPPED = """
-with rev as (
-  select cik, max(period_end) last_end, max(value) filter (where unit = 'USD') top_usd,
-         (array_agg(unit order by period_end desc))[1] last_unit
-  from financial_facts
-  where metric = 'revenue' and period_class = 'annual' and not derived
-    and quality_status in ('ok', 'partial') group by cik)
-select c.ticker, m.legal_name, r.last_end, round(r.top_usd / 1e9, 1), r.last_unit
-from rev r join mart_company m using (cik) left join companies c using (cik)
-where r.last_end < current_date - 3 * 365 and m.latest_annual_report_date >= current_date - 730
-  and (r.last_unit <> 'USD' or r.top_usd >= 1e9)
-order by r.last_unit = 'USD' desc, r.top_usd desc nulls last"""
+select cik from financial_facts f join mart_company m using (cik)
+where f.metric = 'revenue' and f.period_class = 'annual' and not f.derived
+  and f.quality_status in ('ok', 'partial') and m.latest_annual_report_date >= current_date - 730
+group by cik having max(f.period_end) < current_date - 3 * 365"""
+ANNUAL_REVENUE = """
+select f.value, f.unit, f.period_start, f.period_end from financial_facts f
+where f.cik = :cik and f.metric = 'revenue' and f.period_class = 'annual' and not f.derived
+  and f.quality_status in ('ok', 'partial')"""
 LEI = """
-with act as (
-  select cik, latest_revenue, reporting_currency unit from mart_company
-  where latest_annual_report_date >= current_date - 730)
-select count(*) filter (where a.unit = 'USD' and a.latest_revenue >= 1e9),
-       count(l.cik) filter (where a.unit = 'USD' and a.latest_revenue >= 1e9),
-       count(*) filter (where a.unit <> 'USD'), count(l.cik) filter (where a.unit <> 'USD'),
-       count(*), count(l.cik)
-from act a left join company_lei l using (cik)"""
+select m.cik, m.latest_revenue, m.reporting_currency, m.latest_revenue_period_end, m.legal_name,
+       l.cik is not null linked
+from mart_company m left join company_lei l using (cik)
+where m.latest_annual_report_date >= current_date - 730"""
 SEGMENT_CAUSES = """
 with g as (
   select accession_number, kind, metric, period_end,
@@ -259,21 +252,37 @@ def main() -> int:
               f"at {BEFORE[1]:,} companies before the total-first rule, {n:,} at {c:,} now.",
               ""]  # fmt: skip
 
-    stopped = db.execute(text(STOPPED)).all()
-    usd = [r for r in stopped if r[4] == "USD"]
-    other = [r for r in stopped if r[4] != "USD"]
+    from app.services import fx
+
+    big_stopped, uncovered_stopped = [], []
+    for (cik,) in db.execute(text(STOPPED)).all():
+        best, last_end, cur = None, None, None
+        for value, unit, ps, pe in db.execute(text(ANNUAL_REVENUE), {"cik": cik}).all():
+            last_end = max(last_end or pe, pe)
+            cur = unit[:3] if unit else None
+            usd = fx.usd_equivalent(db, value, cur, ps, pe)
+            if usd is not None and (best is None or usd > best):
+                best = usd
+        ticker, name = db.execute(text("select c.ticker, m.legal_name from mart_company m "
+                                       "left join companies c using (cik) where m.cik = :c"),
+                                  {"c": cik}).one()  # fmt: skip
+        if best is not None and best >= 10**9:
+            big_stopped.append((ticker, name, last_end, round(float(best) / 1e9, 1), cur))
+        elif best is None and cur and cur != "USD":
+            uncovered_stopped.append((ticker, name, last_end, cur))
+    big_stopped.sort(key=lambda r: -r[3])
     lines += ["## Large filers whose revenue stopped", "",
-              "Values are compared as reported, without exchange rates, so the $1B threshold "
-              "applies to USD reporters only; other reporting currencies are listed without a "
-              "threshold.", "",
-              f"- USD reporters with $1B+ revenue at some point, an annual report in the last two "
-              f"years, but no annual revenue mapped in the last three years: {len(usd)}.",
-              f"- Non-USD reporters (any size) in the same position: {len(other)}.",
-              ""]  # fmt: skip
-    for r in usd[:15]:
-        lines.append(f"- {r[0] or '—'} {r[1]}: last {r[2]}, peak ${r[3]}B")
-    for r in other[:10]:
-        lines.append(f"- {r[0] or '—'} {r[1]} ({r[4]}): last {r[2]}")
+              "Revenue of $1B or more at some point, by USD equivalent at the Federal Reserve "
+              "H.10 average rate for each fiscal year (companies' own figures stay in the "
+              "currency they report in), an annual report in the last two years, but no annual "
+              "revenue mapped in the last three years.", "",
+              f"- $1B+ by USD equivalent: {len(big_stopped)}.",
+              f"- In a currency H.10 does not cover (no USD equivalent): "
+              f"{len(uncovered_stopped)}.", ""]  # fmt: skip
+    for r in big_stopped[:20]:
+        lines.append(f"- {r[0] or '—'} {r[1]} ({r[4]}): last {r[2]}, peak ${r[3]}B equivalent")
+    for r in uncovered_stopped[:15]:
+        lines.append(f"- {r[0] or '—'} {r[1]} ({r[3]}, not covered by H.10): last {r[2]}")
     lines += ["", "Known causes (mapping 1.4.1 notes): banks reporting in IFRS (21, such as HSBC, "
               "Santander, BBVA, UBS, SMFG) tag their total operating income only in "
               "company-specific extension tags, which companyfacts leaves out, and ifrs-full has "
@@ -283,16 +292,35 @@ def main() -> int:
               "income-statement line would decide it, measured for a later mapping.",
               ""]  # fmt: skip
 
-    big, big_l, oth, oth_l, act, act_l = db.execute(text(LEI)).one()
+    from datetime import timedelta
+
+    big = big_l = act = act_l = 0
+    uncovered: dict[str, list[str]] = {}
+    for _cik, rev_, cur, pe, name, linked in db.execute(text(LEI)).all():
+        act += 1
+        act_l += bool(linked)
+        if rev_ is None or pe is None:
+            continue
+        usd = fx.usd_equivalent(db, rev_, cur, pe - timedelta(days=364), pe)
+        if usd is None and cur and cur != "USD":
+            uncovered.setdefault(cur, []).append(name)
+        elif usd is not None and usd >= 10**9:
+            big += 1
+            big_l += bool(linked)
     lines += ["## LEI coverage", "",
-              f"- USD reporters with $1B+ revenue (active): {big_l:,} of {big:,} "
+              f"- Active reporters with $1B+ revenue by USD equivalent (Federal Reserve H.10 "
+              f"average rate for the fiscal year): {big_l:,} of {big:,} "
               f"({100 * big_l / max(big, 1):.1f}%)",
-              f"- Non-USD reporters (active, any size): {oth_l:,} of {oth:,} "
-              f"({100 * oth_l / max(oth, 1):.1f}%)",
               f"- All active reporters: {act_l:,} of {act:,} ({100 * act_l / max(act, 1):.1f}%)",
-              "- The rest: SEC records give the home state, not the state of incorporation, for "
-              "some filers, and GLEIF does not hold some entities under these names (Chevron).",
+              f"- Reporting in a currency H.10 does not cover, so outside the $1B+ cohort: "
+              f"{sum(len(v) for v in uncovered.values())} "
+              f"({', '.join(f'{k} {len(v)}' for k, v in sorted(uncovered.items()))})",
+              "- The rest: GLEIF does not hold some entities under these names (Chevron).",
               ""]  # fmt: skip
+    for cur, names in sorted(uncovered.items()):
+        lines.append(f"  - {cur}: {', '.join(sorted(names)[:12])}"
+                     + (f" and {len(names) - 12} more" if len(names) > 12 else ""))  # fmt: skip
+    lines.append("")
 
     rev = successions.reviewed()
     stored = sum(r["decision"] == "store" for r in rev.values())
@@ -332,6 +360,29 @@ def main() -> int:
               "Upstream $107.2B, Chemical Products $33.0B, Specialty Products $20.5B; with "
               "corporate and eliminations, $332.2B, the consolidated figure exactly.",
               ""]  # fmt: skip
+
+    results = Path(__file__).resolve().parents[1] / "docs" / "mapping-1.5.0-results.json"
+    if results.exists():
+        r = json.loads(results.read_text())
+        t, b = r["tiebreak"], r["bank"]
+        lines += ["## Mapping 1.5.0: what changed (two rules, shown apart)", "",
+                  "Counted against the stored values just before the pass (each figure is a "
+                  "revenue value for one filing and period).", "",
+                  "| Rule | Values changed | Newly ok | Lost ok | Companies |",
+                  "|---|---|---|---|---|",
+                  f"| Income-statement line settles disagreeing tags | {t['value_changed']:,} | "
+                  f"{t['new_ok']:,} | {t['lost_ok']:,} | {t['companies']:,} "
+                  f"({t['companies_changed']:,} with a changed value) |",
+                  f"| IFRS bank total income | {b['value_changed']:,} | {b['new_ok']:,} | "
+                  f"{b['lost_ok']:,} | {b['companies']:,} |", "",
+                  f"Tag-only changes (the same value now cited under the income-statement tag): "
+                  f"{r.get('tag_only', 0):,}.", "",
+                  "Bank revenue = the total income line on the income statement, after interest "
+                  "expense, as the bank labels it; only where the filing's own income statement "
+                  "shows ifrs-full RevenueAndOperatingIncome or GrossProfit under such a label, "
+                  "and only for banks and credit institutions (SIC 6000-6199). It is net of "
+                  "interest expense, so not comparable with US banks' gross revenue.", "",
+                  f"Hand-checks: {r.get('hand_check', '')}", ""]  # fmt: skip
 
     rates = first_reported.match_rates(db)
     matched = sum(m for m, _ in rates.values())
