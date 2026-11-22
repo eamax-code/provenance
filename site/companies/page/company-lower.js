@@ -31,8 +31,7 @@
       mbox.appendChild(b);
     });
     var M = K.metrics[segMetric] || {}, periods = K.periods || [];
-    // lines that don't add up to the total (overlapping product lines, Microsoft's product view) have
-    // no meaningful share: shares would sum past 100%, so the column goes and one line says why
+    // lines that don't add up (Microsoft's products) have no meaningful share; one line says why
     var unrec = !!(M.status && M.status[periods[0]] === 'unreconciled'), share = segMetric === 'revenue' && !unrec && (K.segments || []).some(function (sg) { return sg.share_of_revenue_pct != null; });
     var cell = function (v, extraTitle) {
       if (v == null) return el('td', { class: 'n na', text: 'not reported' });
@@ -126,23 +125,29 @@
     var none = o.listed === false;
     ['own-nums', 'own-table', 'own-flag', 'own-more', 'own-notes'].forEach(function (id) { var n = $(id); if (n) (n.closest('.tw') || n).hidden = none; });
     if (none) { $('own-when').textContent = 'No listed common stock, so no 13F holders.'; return; }
-    $('own-when').textContent = quarterName(o.quarter) + ' (filed through ' + P.date(o.filed_through) + '). ' + (o.lag_note || '');
+    // ADRs get a badge and their 13F title; other titles show as given; plain common says nothing
+    var cls = o.classes || [], adr = cls.some(function (c) { return c.held_as === 'adr'; });
+    var showCls = adr || cls.length > 1 || cls.some(function (c) { return !/^COM(MON)?( STOCK| NEW)?$/i.test(c.title || ''); });
+    var clsText = cls.map(function (c) { return c.held_as === 'adr' ? 'American depositary shares (' + P.orgName(c.title) + ')' : c.title; }).join('; ');
+    $('own-when').replaceChildren(quarterName(o.quarter) + ' (filed through ' + P.date(o.filed_through) + '). ' + (o.lag_note || ''),
+      showCls ? el('br') : '', showCls ? 'Class: ' + clsText + ' ' : '', adr ? el('span', { class: 'tag', text: 'held as ADRs' }) : '');
     var pct = o.institutional_pct;
     var pctTitle = o.institutional_pct_derived ? o.institutional_pct_derived.formula + (o.institutional_pct_derived.inputs || []).map(function (x) { return '; ' + x.name + ' ' + (x.value != null ? Number(x.value).toLocaleString('en-US') : '') + (x.quarter ? ' (' + quarterName(x.quarter) + ')' : x.as_of_date ? ' (' + P.date(x.as_of_date) + ')' : ''); }).join('') : '';
     var nums = $('own-nums'); nums.textContent = '';
     var tile = function (big, label, plain) { nums.appendChild(el('div', {}, [plain ? el('div', { class: 'own-flows' }, big) : el('b', {}, big), Array.isArray(label) ? el('span', {}, label) : el('span', { text: label })])); };
     tile([P.money(o.value_usd, null, 'USD')], 'held by institutions filing 13F');
-    tile([pct != null ? P.pct(pct) : el('span', { class: 'own-na', text: 'No single %' }), pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : 'several share classes; holdings are valued, but shares aren\u2019t added across classes');
+    tile([pct != null ? P.pct(pct) : el('span', { class: 'own-na', text: adr ? 'No %' : 'No single %' }), pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : adr ? 'held as American depositary shares; see the note below' : 'several share classes; holdings are valued, but shares aren\u2019t added across classes');
     tile([Number(o.holders_count).toLocaleString('en-US')], 'holders' + (o.holders_count_change != null ? ', ' + (o.holders_count_change >= 0 ? '+' : '−') + Math.abs(o.holders_count_change) + ' on the quarter before' : ''));
     var f = o.flows || {};
     tile([['new', 'new'], ['added', 'added'], ['reduced', 'reduced'], ['exited', 'exited']].map(function (k) { return el('span', {}, [el('strong', { text: Number(f[k[0]] || 0).toLocaleString('en-US') }), ' ' + k[1]]); }), // holders_count_change = new − exited − not_filed: last quarter's holders with no 13F for this one yet
       ['holders by change since ' + quarterName(o.previous_quarter)].concat(f.not_filed ? [el('br'), Number(f.not_filed).toLocaleString('en-US') + (f.not_filed === 1 ? ' holder hasn\u2019t' : ' holders haven\u2019t') + ' filed this quarter yet'] : []), true);
     $('own-flag').textContent = o.flows_note || ''; $('own-flag').hidden = !o.flows_note;
     var rows = o.top_holders || [];
-    // several share classes (Berkshire A and B): shares and % aren't added across classes, so the two
-    // columns go and the tile says why once, instead of "not added up" on every row
+    // several classes (Berkshire A and B): no shares or % columns; the tile says why once
     var multi = rows.length && rows.every(function (h) { return h.shares == null && h.pct_of_outstanding == null; });
-    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Holder' }), el('th', { scope: 'col', class: 'n', text: 'Value' }), multi ? null : el('th', { scope: 'col', class: 'n opt', text: 'Shares' }), multi ? null : el('th', { scope: 'col', class: 'n', text: '% of shares' }), el('th', { scope: 'col', text: 'Change' }), el('th', { scope: 'col', class: 'opt', text: '13F' })]);
+    // ADRs: ADS counts show, but no percentage of shares outstanding (the ratio isn't on Form 13F)
+    var noPct = multi || !rows.some(function (h) { return h.pct_of_outstanding != null; });
+    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Holder' }), el('th', { scope: 'col', class: 'n', text: 'Value' }), multi ? null : el('th', { scope: 'col', class: 'n opt', text: adr ? 'ADSs' : 'Shares' }), noPct ? null : el('th', { scope: 'col', class: 'n', text: '% of shares' }), el('th', { scope: 'col', text: 'Change' }), el('th', { scope: 'col', class: 'opt', text: '13F' })]);
     var tb = el('tbody');
     rows.forEach(function (h) {
       var ch = h.change ? el('span', { class: 'tag', text: CHANGE[h.change] || h.change }) : null;
@@ -151,7 +156,7 @@
         el('th', { scope: 'row', text: P.orgName(h.name) }),
         el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd, null, 'USD') }),
         multi ? null : el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
-        multi ? null : el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
+        noPct ? null : el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
         el('td', {}, [ch, chText]),
         el('td', { class: 'opt' }, [srcLink(h.form_type + ', ' + P.date(h.filing_date), h.filing_url, 'accession ' + (h.accession_number || ''))])
       ]));
@@ -199,7 +204,7 @@
     kv('LEI', lei ? [el('span', {}, [lei, how])] : 'Not filed with the SEC');
     (d.listings || []).forEach(function (l) { kv('Also listed', [l.isin, l.venue || l.mic].filter(Boolean).join(' on ')); });
     kv('Industry', c.sic_code ? 'SIC ' + c.sic_code + (c.sic_description ? ', ' + c.sic_description : '') : null);
-    // the current audit firm only, as tagged on its latest annual report; no "since" until the history is backfilled
+    // the current audit firm, as tagged on its latest annual report; "since" only for an observed change
     var au = d.auditor && d.auditor.current;
     if (au) kv('Auditor', [el('span', {}, [au.latest_report ? srcLink(P.orgName(au.name), au.latest_report.source_url, 'Named on the ' + au.latest_report.form_type + ' filed ' + P.date(au.latest_report.filed_date)) : P.orgName(au.name), (au.location ? ', ' + au.location : '') + (au.pcaob_firm_id ? ' (PCAOB firm ' + au.pcaob_firm_id + ')' : '') + (au.since_basis === 'observed_change' && au.since ? ', since FY' + au.since : '')])].concat((d.auditor.firm_changes || []).slice().sort(function (a, b) { return b.fiscal_year - a.fiscal_year; }).slice(0, 3).map(function (x, i) {
       // a change of firm between two consecutive annual reports, newest first, with the 8-K item 4.01 when

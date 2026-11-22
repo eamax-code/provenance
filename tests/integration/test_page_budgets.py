@@ -22,14 +22,15 @@ SITE = Path(__file__).resolve().parents[2] / "site"
 # three agreed sections (13F ownership, successor registrants, segments); the sections below the
 # first screens then moved to company-lower.js, loaded as they come near the screen, and the
 # first-load budget went back to 28 KB. company-lower.js has its own budget, raised to 8 KB when the
-# identity block (with the LEI match note) moved there from the first load (26.6 KB after).
+# identity block (with the LEI match note) moved there from the first load (26.6 KB after), and to
+# 8.5 KB with 13F share classes and ADRs (8.0 KB after trimming its comments).
 BUDGETS = {
     "company page": (
         ["companies/page/snapshot.html", "companies/page/page.css", "companies/page/page.js",
          "companies/page/company.js"],
         28_000,
     ),
-    "company page, lower sections (loaded later)": (["companies/page/company-lower.js"], 8_000),
+    "company page, lower sections (loaded later)": (["companies/page/company-lower.js"], 8_500),
     "chat": (["chat/index.html", "chat.css", "chat.js"], 25_000),
     "ipos": (["ipos/index.html", "ipos/ipos.css", "ipos/ipos.js"], 12_000),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
