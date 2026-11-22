@@ -277,7 +277,7 @@ def _payload(tags):
 
 def test_thirty_metrics_each_with_label_unit_and_statement():
     # thirty statement metrics plus two cover-page facts (D-02)
-    assert len(SUPPORTED_METRICS) == 32 and MAPPING_VERSION == "1.4.1"
+    assert len(SUPPORTED_METRICS) == 32 and MAPPING_VERSION == "1.5.0"
     statements = [spec["statement"] for spec in CONCEPT_MAP.values()]
     assert statements.count("cover") == 2
     for metric, spec in CONCEPT_MAP.items():

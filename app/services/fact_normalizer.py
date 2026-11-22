@@ -23,7 +23,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-MAPPING_VERSION = "1.4.1"
+MAPPING_VERSION = "1.5.0"
 # 1.2.0: twelve months in a quarterly report is "ttm", not annual.
 # 1.3.0: thirty metrics across the income statement, balance sheet and cash flow; industry
 #        fallback tags (banks, utilities, REITs); each metric's unit kind is checked; cover-page
@@ -35,6 +35,10 @@ MAPPING_VERSION = "1.4.1"
 #        a nonzero one in the same filing is set aside, not a conflict (Flowserve tags Revenues 0
 #        beside its contract revenue); utilities' RegulatedOperatingRevenue is a revenue fallback
 #        (ONE Gas tags nothing else since 2023).
+# 1.5.0: revenue tags that disagree in one filing are settled by the filing's income statement
+#        when it shows exactly one revenue line labelled as a total (rules_1_5_0); banks (SIC
+#        6000-6199) reporting in IFRS take the income statement's total income line as revenue,
+#        under a total-income label guard. Filings before 2021 are unchanged.
 
 EDGAR_START = date(1993, 1, 1)
 
