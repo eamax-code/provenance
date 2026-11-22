@@ -1,6 +1,6 @@
 # API contracts for the Explorer (X-01a, X-02, X-05, X-07)
 
-Status: **contract, not built** (published 2026-11-23 for provenance-ui). Built after the mapping
+Status: **contract**; X-05 built (7919122), X-02 built (published 2026-11-23 for provenance-ui). Built after the mapping
 1.5.0 pass in this order: X-05, X-02, X-01a, X-07. Each lands with tests, an OpenAPI entry and an
 R-2 line. Changes to a published contract are additive only (`docs/api-versioning.md`).
 
@@ -81,7 +81,12 @@ and period; `derived: true`, `formula`, `inputs`):
 | Statement | Derived rows |
 |---|---|
 | `income` | gross_margin (gross_profit / revenue), operating_margin (operating_income / revenue), net_margin (net_income / revenue) |
+| `balance` | current_ratio (current_assets / current_liabilities), debt_to_equity (long_term_debt / stockholders_equity) |
 | `cash_flow` | free_cash_flow (operating_cash_flow − capex) |
+
+As built (2026-11-23): derived rows use the ratio definitions `/facts` already uses for derived
+figures, so a margin is a percentage to one decimal with `unit: "%"` (31.5, not 0.315), a
+multiple has two decimals, and free cash flow is in the reporting currency.
 
 YoY and common-size are client-side toggles over these values; the API does not send them.
 
@@ -116,9 +121,9 @@ Response:
       ]
     },
     {
-      "metric": "operating_margin", "label": "Operating margin", "unit_kind": "ratio",
+      "metric": "operating_margin", "label": "Operating margin", "unit_kind": "percent",
       "derived": true, "formula": "operating_income / revenue",
-      "cells": [{"column": "FY2024", "value": 0.3151, "unit": "ratio", "derived": true,
+      "cells": [{"column": "FY2024", "value": 31.5, "unit": "%", "derived": true,
                  "inputs": [{"metric": "operating_income", "accession_number": "0000320193-24-000123"},
                             {"metric": "revenue", "accession_number": "0000320193-24-000123"}]}]
     }

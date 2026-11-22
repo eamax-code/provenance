@@ -28,6 +28,7 @@ from app.schemas.companies import (
     FreshnessOut,
     LegalNameAsFiled,
 )
+from app.schemas.statements import StatementCell, StatementColumn, StatementOut, StatementRow
 from app.services import first_reported, periods, ratios
 from app.services import freshness as freshness_service
 from app.services.company_lookup import search_companies
@@ -593,3 +594,152 @@ def _derived_out(cik: str, d, source_rows: list[FinancialFact]) -> FactOut:
         is_latest_revision=True,
         processed_at=processed or utcnow(),
     )
+
+
+# X-02 (docs/api-contracts-explorer.md): a whole statement in one call. Each cell is the value
+# /facts returns by default for that metric and period (_select_latest); derived rows use the
+# ratio definitions /facts uses for derived figures.
+STATEMENT_ROWS = {
+    "income": ("revenue", "cost_of_revenue", "gross_profit", "r_and_d", "sga", "operating_income",
+               "interest_expense", "net_interest_income", "pretax_income", "income_tax",
+               "net_income", "eps_basic", "eps_diluted", "shares_basic_weighted",
+               "shares_diluted_weighted"),
+    "balance": ("cash_and_equivalents", "current_assets", "total_assets", "current_liabilities",
+                "long_term_debt_current", "long_term_debt", "total_liabilities",
+                "stockholders_equity", "retained_earnings", "shares_outstanding"),
+    "cash_flow": ("operating_cash_flow", "capex", "d_and_a", "sbc", "dividends_paid",
+                  "share_repurchases"),
+}  # fmt: skip
+STATEMENT_DERIVED = {
+    "income": ("gross_margin", "operating_margin", "net_margin"),
+    "balance": ("current_ratio", "debt_to_equity"),
+    "cash_flow": ("free_cash_flow",),
+}
+STATEMENT_PERIODS = {"annual": (12, 20), "quarterly": (40, 80)}  # (default, max) columns
+
+
+@router.get(
+    "/{cik}/statements/{statement}",
+    response_model=StatementOut,
+    responses=_ERRORS,
+    summary="A whole income statement, balance sheet or cash flow statement, 10+ years, each "
+    "value with its filing",
+)
+def statement(
+    cik: str = Path(max_length=13),
+    statement: str = Path(pattern="^(income|balance|cash_flow)$"),
+    period: str = Query("annual", pattern="^(annual|quarterly)$"),
+    periods_: int | None = Query(
+        None, alias="periods", ge=1, le=80, description="Columns: up to 20 annual, 80 quarterly"
+    ),  # fmt: skip
+    as_of: date | None = Query(None, description="Only figures filed by this date"),
+    include_derived: bool = Query(
+        True,
+        description="Derived quarters (Q4 = FY - 9M) and "
+        "derived rows (margins, free cash flow, ...)",
+    ),  # fmt: skip
+    db: Session = Depends(db_session),
+    _key=Depends(require_reader),
+):
+    from app.db.models import MartCompany
+    from app.services.fact_normalizer import METRIC_LABELS, METRIC_UNIT_KIND, NormalizedFact
+
+    cik = _parse_cik_param(cik)
+    company = _require_company(db, cik)
+    default, most = STATEMENT_PERIODS[period]
+    if periods_ is not None and periods_ > most:
+        raise APIError(422, "invalid_parameter", f"periods is at most {most} for {period}.")
+    n_cols = periods_ or default
+    metrics = STATEMENT_ROWS[statement]
+    stmt = select(FinancialFact).where(
+        FinancialFact.cik == cik, FinancialFact.derived.is_(False),
+        FinancialFact.metric.in_(metrics), FinancialFact.period_class == period,
+    )  # fmt: skip
+    if as_of:
+        stmt = known_by(stmt, as_of)
+    chosen = _select_latest(db.scalars(stmt).all())
+    if include_derived and period == "quarterly":
+        base = select(FinancialFact).where(
+            FinancialFact.cik == cik, FinancialFact.derived.is_(False),
+            FinancialFact.period_type == "duration", FinancialFact.metric.in_(metrics),
+        )  # fmt: skip
+        if as_of:
+            base = known_by(base, as_of)
+        source_rows = db.scalars(base).all()
+        nfs = [_row_to_normalized(r) for r in source_rows]
+        have = {(f.metric, f.period_end) for f in chosen}
+        for d in derive_quarters([n for n in nfs if isinstance(n, NormalizedFact)]):
+            if (d.metric, d.period_end) not in have:
+                chosen.append(_derived_out(cik, d, source_rows))
+    mart = db.get(MartCompany, cik)
+    currency = mart.reporting_currency if mart else None
+    # one cell per metric and period: the reporting currency first when a metric has several
+    by_key: dict[tuple, FactOut] = {}
+    for f in sorted(chosen, key=lambda f: (f.unit != currency, f.unit)):
+        by_key.setdefault((f.metric, f.period_end), f)
+    if not by_key:
+        raise APIError(404, "no_statement_data", "No figures of this statement are loaded.")
+    ends = sorted({end for _, end in by_key})[-n_cols:]
+    starts = {}
+    for (_, end), f in by_key.items():
+        if f.period_start and end in ends:
+            starts.setdefault(end, f.period_start)
+    fye = company.fiscal_year_end
+    columns = []
+    for end in ends:
+        label = periods.label(end, period, fye)
+        columns.append(StatementColumn(
+            key=label, period_label=label, period_fiscal_year=periods.fiscal_year(end, fye),
+            period_start=starts.get(end), period_end=end,
+            calendar_period=periods.calendar_period(starts.get(end), end, period),
+        ))  # fmt: skip
+    keys = {c.period_end: c.key for c in columns}
+
+    def cell(f: FactOut) -> StatementCell:
+        return StatementCell(
+            column=keys[f.period_end], value=f.value, unit=f.unit, period_start=f.period_start,
+            period_end=f.period_end, form_type=f.form_type, filed_date=f.filed_date,
+            accession_number=f.accession_number, source_url=f.source_url, source_tag=f.source_tag,
+            source_taxonomy=f.source_taxonomy, mapping_version=f.mapping_version,
+            quality_status=f.quality_status, derived=f.derived, derivation=f.derivation,
+        )  # fmt: skip
+
+    rows = []
+    for m in metrics:
+        cells = [cell(by_key[(m, end)]) if (m, end) in by_key else None for end in ends]
+        if any(cells):
+            rows.append(StatementRow(metric=m, label=METRIC_LABELS[m],
+                                     unit_kind=METRIC_UNIT_KIND[m], cells=cells))  # fmt: skip
+    if include_derived:
+        for name in STATEMENT_DERIVED[statement]:
+            r = ratios.RATIOS[name]
+            cells = []
+            for end in ends:
+                num, den = by_key.get((r.numerator, end)), by_key.get((r.denominator, end))
+                value = None
+                both = num is not None and den is not None
+                if both and ratios.compatible(r, num.unit, den.unit):
+                    value = ratios.compute(r, float(num.value), float(den.value))
+                if value is None:
+                    cells.append(None)
+                    continue
+                cells.append(StatementCell(
+                    column=keys[end], value=value, unit=ratios.unit_of(r, num.unit),
+                    period_start=num.period_start, period_end=end, derived=True,
+                    mapping_version=num.mapping_version,
+                    inputs=[{"metric": x.metric, "accession_number": x.accession_number,
+                             "source_url": x.source_url} for x in (num, den)],
+                ))  # fmt: skip
+            if any(cells):
+                rows.append(StatementRow(metric=name, label=r.label, unit_kind=r.kind,
+                                         derived=True, formula=r.formula, cells=cells))  # fmt: skip
+    notes = ["Values are as reported in each filing, in the company's reporting currency; "
+             "nothing is converted. Derived rows and quarters say derived and list their "
+             "inputs."]  # fmt: skip
+    if as_of:
+        notes.append(as_of_note(as_of))
+    return StatementOut(
+        cik=cik, statement=statement, period=period,
+        as_of=as_of.isoformat() if as_of else None, reporting_currency=currency,
+        mapping_version=MAPPING_VERSION, columns=columns, rows=rows, notes=notes,
+    )  # fmt: skip
