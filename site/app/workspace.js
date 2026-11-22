@@ -100,6 +100,7 @@
         $('ws-head').replaceChildren(el('p', { class: 'muted', text: msg })); showPanes(null); return;
       }
       S.d = r.body; renderHead(); renderTab(); writeURL(push);
+      recent({ cik: S.cik, name: r.body.company.display_name || r.body.company.legal_name });
       if (KEYED[S.tab] && X.legacy) X.legacy(cik, S.tab);
     }
   }
@@ -199,7 +200,7 @@
   var MARGIN = { gross_profit: 1, operating_income: 1, net_income: 1, operating_cash_flow: 1, free_cash_flow: 1 };
   // green and red only where more is plainly more (flows); balance-sheet lines and ratios stay neutral
   var FLOW = { revenue: 1, gross_profit: 1, operating_income: 1, net_income: 1, eps_diluted: 1, operating_cash_flow: 1, free_cash_flow: 1 };
-  function tone(metric, v) { return v == null || !FLOW[metric] ? 'muted' : v >= 0 ? 'up' : 'down'; }
+  function tone(metric, v) { return v == null || !FLOW[metric] || Math.abs(v) < 0.05 ? 'muted' : v > 0 ? 'up' : 'down'; }
   function growth(a, b) { return a != null && b != null && b > 0 && a >= 0 ? 100 * (a - b) / b : null; }
   function overview() {
     var d = S.d, cur = (d.company || {}).reporting_currency || 'USD', rows = statementRows(), fy = (d.statements || {}).fiscal_years || [];
@@ -714,6 +715,43 @@
   function showEmpty() {
     $('company').hidden = true; $('ws-empty').hidden = false; S.d = null;
     document.title = 'Explorer · Provenance';
+    landing();
+  }
+  /* the landing: showcase companies with live figures, recent companies, the screener's top three */
+  var RKEY = 'prv_ws_recent';
+  function recent(add) {
+    var list = []; try { list = JSON.parse(localStorage.getItem(RKEY) || '[]').filter(function (r) { return r && /^\d{1,10}$/.test(r.cik); }); } catch (e) {}
+    if (add) { list = [add].concat(list.filter(function (r) { return r.cik !== add.cik; })).slice(0, 8); try { localStorage.setItem(RKEY, JSON.stringify(list)); } catch (e) {} }
+    return list;
+  }
+  var landed = false;
+  function landing() {
+    var host = $('ws-landing'); if (!host || landed) return; landed = true;
+    var cards = el('ul', { class: 'land-cards' }), rec = recent();
+    host.replaceChildren.apply(host, [
+      el('p', { class: 'land-k' }, [el('kbd', { text: '⌘K' }), ' or ', el('kbd', { text: '/' }), ' jumps to any company, tab, metric or date. Every figure opens its filing.']),
+      el('section', { 'aria-labelledby': 'land-sc' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'land-sc', text: 'Showcase companies' }), el('span', { class: 'muted small', text: X.hasKey() ? '' : 'Open with no key' })]), cards]),
+      rec.length ? el('section', { 'aria-labelledby': 'land-rec' }, [el('h3', { id: 'land-rec', text: 'Recent' }), el('p', { class: 'land-rec' }, rec.map(function (r) { return el('a', { class: 'chip', href: '/app/?c=' + r.cik, text: r.name, on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(r.cik); } } } }); }))]) : null,
+      el('section', { 'aria-labelledby': 'land-top', class: 'land-top' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'land-top', text: 'Largest by revenue, ' + (new Date().getFullYear() - 1) }), el('a', { class: 'linkish', href: '/app/?sm=revenue&sy=' + (new Date().getFullYear() - 1) + '#screener', text: 'Open the screener' })]), el('p', { class: 'muted', text: 'Loading…' })])].filter(Boolean));
+    X.raw('/v1/public/companies').then(function (r) {
+      var cos = r.ok && r.body && r.body.data || [];
+      cos.slice(0, 8).forEach(function (c) {
+        var cik = String(parseInt(c.cik, 10)), li = el('li', {}, [el('a', { class: 'land-card', href: '/app/?c=' + cik, on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(cik); } } } }, [el('b', { text: c.display_name || orgName(c.legal_name) }), el('span', { class: 'muted small', text: [c.ticker, c.exchange].filter(Boolean).join(' · ') })])]);
+        cards.appendChild(li);
+        X.raw('/v1/public/companies/' + cik + '/overview').then(function (o) {
+          if (!o.ok) return; var d = o.body; if (d.company.display_name) li.querySelector('b').textContent = d.company.display_name; var y = (d.years || []).filter(function (x) { return x.revenue != null; }), last = y[y.length - 1], prev = y[y.length - 2], cur = d.company.reporting_currency || 'USD';
+          if (!last) return;
+          var yoy = prev && prev.revenue > 0 ? 100 * (last.revenue - prev.revenue) / prev.revenue : null;
+          li.appendChild(el('p', { class: 'land-fig' }, [el('span', { class: 'muted small', text: 'Revenue ' + last.fiscal_label }), el('b', { text: money(last.revenue, cur) }), el('span', { class: 'small ' + tone('revenue', yoy), text: pct(yoy, true) }), last.operating_margin_pct != null ? el('span', { class: 'muted small', text: 'Op. margin ' + pct(last.operating_margin_pct) }) : null]));
+          var sp = spark(y.map(function (x) { return x.revenue; })); if (sp) li.appendChild(sp);
+        });
+      });
+    });
+    X.raw('/v1/facts/screen?metric=revenue&year=' + (new Date().getFullYear() - 1) + '&limit=3', X.hasKey() ? null : 'demo').then(function (r) {
+      var box = host.querySelector('.land-top'); if (!box) return;
+      var rows = r.ok && r.body && r.body.data || [];
+      box.replaceChild(rows.length ? el('ol', { class: 'ov-list land-list' }, rows.map(function (x) { var cik = String(parseInt(x.cik, 10)); return el('li', {}, [el('a', { href: '/app/?c=' + cik, text: x.display_name || orgName(x.legal_name), on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(cik); } } } }), el('span', { class: 'muted small', text: x.ticker || '' }), door(money(x.value, (x.unit || 'USD').split('/')[0]), { label: 'Revenue', metric: 'revenue', period_end: x.period_end, form_type: x.form_type, filed_date: x.filed_date, source_url: x.source_url, accession_number: x.accession_number, source_tag: x.source_tag, mapping_version: x.mapping_version, quality_status: x.quality_status })]); })) : el('p', { class: 'muted', text: 'The screen is unavailable right now.' }), box.lastChild);
+    });
   }
 
   /* ---- ⌘K palette (X-10): companies, tabs, metrics, as-of ---- */

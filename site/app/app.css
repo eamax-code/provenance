@@ -434,3 +434,24 @@ td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }
 .wl-table .x { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; } .wl-table th[scope=row] { text-align: left; font-weight: 500; }
 .wl-watch input { flex: 1 1 260px; padding: 6px 10px; } .wl-feed { margin: 0; }
 @media (max-width: 760px) { .wl-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* the Explorer's landing (no company open) */
+#ws-landing:not(:empty) ~ #gate-showcase { display: none; }
+.land { display: grid; gap: 14px; } .land h3 { font-family: var(--font-body); font-size: .88rem; font-weight: 600; color: var(--muted); } .land p { margin: 0; }
+.land-k { font-size: .9rem; color: var(--muted); } .land-k kbd { font: 600 .75rem var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; color: var(--fg); }
+.land-cards { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.land-cards li { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: 10px 12px; display: grid; gap: 4px; align-content: start; }
+.land-card { display: grid; gap: 2px; color: var(--fg); } .land-card:hover b { color: var(--accent-text); text-decoration: none; } .land-card:hover { text-decoration: none; }
+.land-fig { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; } .land-fig b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.land-fig .up { color: var(--good); } .land-fig .down { color: var(--bad); }
+.land-rec { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px !important; } .land-list li { grid-template-columns: minmax(0, 1fr) auto auto; }
+/* phones: one compact toolbar, the key bar out of the way while a company is open */
+@media (max-width: 600px) {
+  .toolbar { flex-wrap: wrap; } .toolbar-title { order: 0; font-size: 1rem; } .views { order: 1; max-width: none; flex: 1 1 0; min-width: 0; }
+  .toolbar .session { order: 2; flex: 0 0 auto; width: auto; margin-left: 0; } .ws-bar { order: 3; flex: 1 1 100%; flex-wrap: nowrap; }
+  .ws-bar .ws-k { flex: 1 1 0; min-width: 0; }
+  .land-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .land-cards li { padding: 8px 10px; } .land-fig b { font-size: 1rem; } .land-cards .spark { width: 100%; }
+  .ws-k span { font-size: .85rem; } .ws-asof .btn { padding: 5px 8px; } .ws-asof .btn .muted { display: none; }
+  #main:has(#company:not([hidden])) .keybar { display: none; }
+  .ws-acts .btn[href^="/companies/"] { display: none; }
+}
