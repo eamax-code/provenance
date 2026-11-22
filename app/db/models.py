@@ -42,6 +42,8 @@ class Company(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     cik: Mapped[str] = mapped_column(String(10), nullable=False, unique=True, index=True)
     legal_name: Mapped[str] = mapped_column(Text, nullable=False)
+    # K-06: dei:EntityRegistrantName from the latest report's cover, exactly as filed
+    registrant_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     ticker: Mapped[str | None] = mapped_column(Text, nullable=True)
     exchange: Mapped[str | None] = mapped_column(Text, nullable=True)
     sic_code: Mapped[str | None] = mapped_column(Text, nullable=True)

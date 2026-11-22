@@ -29,7 +29,8 @@ from app.services.sec_client import filing_index_url, normalize_cik
 ANNUAL = ("10-K", "10-K/A", "10-KT", "10-KT/A", "20-F", "20-F/A", "40-F", "40-F/A")
 AUDITOR_TAGS = {"AuditorName": "name", "AuditorFirmId": "firm_id", "AuditorLocation": "location"}
 SYMBOL_TAGS = {"TradingSymbol": "symbol", "SecurityExchangeName": "exchange",
-               "Security12bTitle": "title"}  # fmt: skip  # dei facts for K-04b, read in one pass
+               "Security12bTitle": "title",
+               "EntityRegistrantName": "registrant"}  # fmt: skip  # K-04b and K-06, one pass
 CHANGE_ITEM = "4.01"
 NOTES = [
     "The audit firm is as tagged on the cover of each annual report (dei:AuditorName, "
@@ -111,12 +112,14 @@ def parse_notes_zip(path: str | Path) -> tuple[list[dict], list[dict]]:
     syms = []
     for (adsh, _), g in symbols.items():
         sub = subs.get(adsh)
-        if sub is None or not g.get("symbol"):
+        if sub is None or not (g.get("symbol") or g.get("registrant")):
             continue
+        registrant = " ".join((g.get("registrant") or "").split())[:300] or None
         syms.append({"accession_number": adsh, "cik": normalize_cik(sub["cik"]),
                      "form_type": sub.get("form", "").upper(), "filed_date": _ymd(sub.get("filed")),
-                     "symbol": g["symbol"].upper()[:20], "exchange": g.get("exchange"),
-                     "title": g.get("title")})  # fmt: skip
+                     "symbol": (g.get("symbol") or "").upper()[:20] or None,
+                     "exchange": g.get("exchange"), "title": g.get("title"),
+                     "registrant": registrant})  # fmt: skip
     # one row per filing and firm (a firm tagged in two contexts keeps the later period)
     best: dict[tuple, dict] = {}
     for a in auditors:

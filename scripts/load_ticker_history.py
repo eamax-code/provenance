@@ -28,7 +28,9 @@ def main() -> int:
     rows: list[dict] = []
     for p in sorted(Path(args.folder).glob("*_notes.zip")):
         rows += auditors.parse_notes_zip(p)[1]
-    print(json.dumps({"symbol_rows": len(rows), **ticker_history.apply(db, rows)}))
+    out = {"symbol_rows": len(rows), **ticker_history.apply(db, rows)}
+    out["registrant_names_set"] = ticker_history.apply_registrant_names(db, rows)
+    print(json.dumps(out))
     db.close()
     return 0
 

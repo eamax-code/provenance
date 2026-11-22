@@ -39,6 +39,8 @@ def norm(symbol: str | None) -> str:
 
 
 def usable(row: dict) -> bool:
+    if not row.get("symbol"):
+        return False
     s = norm(row.get("symbol"))
     return (
         s not in _PLACEHOLDER
@@ -106,3 +108,22 @@ def dated(rows: list[dict], cik: str) -> list[tuple[str, date, date]]:
     """A company's symbols with the first and last filing that tagged them, oldest first."""
     segs = segments(rows).get(cik, {})
     return sorted(((s, v["first"], v["last"]) for s, v in segs.items()), key=lambda x: x[1])
+
+
+def apply_registrant_names(db: Session, rows: list[dict]) -> int:
+    """K-06: each company's name as written on the cover of its latest report
+    (dei:EntityRegistrantName), stored exactly as filed."""
+    latest: dict[str, tuple] = {}
+    for r in rows:
+        if r.get("registrant") and r.get("filed_date"):
+            cur = latest.get(r["cik"])
+            if cur is None or r["filed_date"] > cur[0]:
+                latest[r["cik"]] = (r["filed_date"], r["registrant"])
+    n = 0
+    for c in db.scalars(select(Company).where(Company.cik.in_(list(latest)))):
+        name = latest[c.cik][1]
+        if c.registrant_name != name:
+            c.registrant_name = name
+            n += 1
+    db.commit()
+    return n

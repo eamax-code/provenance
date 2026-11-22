@@ -53,3 +53,24 @@ def test_search_finds_the_company_by_a_dated_former_ticker(db, client, auth, ing
     ticker_history.apply(db, ROWS)
     r = client.get("/v1/companies/search?q=APPL", headers=auth).json()
     assert r["data"][0]["cik"] == CIK
+
+
+def test_display_names_k06():
+    from app.services.intel import display_name
+
+    assert display_name("TOYOTA MOTOR CORP/") == "Toyota Motor Corp"  # trailing slash dropped
+    assert display_name("SAP SE", "SAP") == "SAP SE"  # the ticker word keeps its capitals
+    assert display_name("APPLE COMPUTER INC/FA") == "Apple Computer Inc"
+    # the company's own cover-page name, when written with real casing, wins
+    assert display_name("APPLE INC", "AAPL", "Apple Inc.") == "Apple Inc."
+    # an all-caps cover name says nothing about casing: the conformed name is used
+    assert display_name("MICROSOFT CORP", "MSFT", "MICROSOFT CORPORATION") == "Microsoft Corp"
+
+
+def test_registrant_names_are_stored_as_filed(db, ingested_aapl):
+    rows = [{**_row("AAPL", date(2025, 11, 1)), "registrant": "Apple Inc."},
+            {**_row("AAPL", date(2024, 11, 1)), "registrant": "APPLE INC"}]  # fmt: skip
+    assert ticker_history.apply_registrant_names(db, rows) == 1
+    from app.db.models import Company
+
+    assert db.query(Company).filter(Company.cik == CIK).one().registrant_name == "Apple Inc."

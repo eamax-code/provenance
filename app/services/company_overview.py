@@ -71,7 +71,8 @@ def _identity(db: Session, company: Company) -> dict:
     out = CompanyOut.model_validate(company).model_dump(mode="json")
     for hidden in ("match_type", "matched_name", "quality_status", "ingestion_status"):
         out.pop(hidden, None)
-    out["display_name"] = display_name(company.legal_name)
+    out["display_name"] = display_name(company.legal_name, company.ticker,
+                                      company.registrant_name)  # fmt: skip
     mart = db.get(MartCompany, company.cik)
     out["reporting_currency"] = mart.reporting_currency if mart else None  # D-04
     fye = company.fiscal_year_end
@@ -322,7 +323,7 @@ def _peers(db: Session, company: Company, today: date) -> dict | None:
 
     def peer(m: MartCompany, fye, ranked: bool) -> dict:
         out = {
-            "cik": m.cik, "name": display_name(m.legal_name), "ticker": m.ticker,
+            "cik": m.cik, "name": display_name(m.legal_name, m.ticker), "ticker": m.ticker,
             "latest_revenue": float(m.latest_revenue), "currency": m.reporting_currency,
             "ranked": ranked, "period_end": m.latest_revenue_period_end,
             "fiscal_label": periods.label(m.latest_revenue_period_end, "annual", fye)

@@ -244,17 +244,27 @@ def _name_score(hit, phrase: str) -> tuple:
 _KEEP_UPPER = {"LLC", "PLC", "LP", "NV", "SA", "AG", "SE", "USA", "US", "II", "III", "IV"}
 
 
-def display_name(legal_name: str) -> str:
-    """ "COSTCO WHOLESALE CORP /NEW" reads as "Costco Wholesale Corp" in an answer."""
-    name = re.sub(r"\s*/[A-Z]{1,5}/?\s*$", "", legal_name).strip()
+_EDGAR_SUFFIX = re.compile(r"\s*/[A-Z]{0,5}/?\s*$")  # "/DE/", "/FA", or a trailing "/"
+
+
+def display_name(legal_name: str, ticker: str | None = None, registrant: str | None = None) -> str:
+    """ "COSTCO WHOLESALE CORP /NEW" reads as "Costco Wholesale Corp" in an answer (K-06):
+    the company's own cover-page name when it is written with real casing ("Apple Inc."), else
+    the SEC's conformed name without its state suffix ("TOYOTA MOTOR CORP/" -> "Toyota Motor
+    Corp"), title-cased, with the word that is the company's ticker kept in capitals ("SAP SE")."""
+    if registrant and registrant != registrant.upper():
+        return _EDGAR_SUFFIX.sub("", registrant).strip()
+    name = _EDGAR_SUFFIX.sub("", legal_name).strip()
     if name != name.upper():
         return name
+    root = (ticker or "").upper().replace(".", "-").split("-")[0]
     words: list[str] = []
     for w in name.split():
         if w == "COM" and words:  # the SEC drops the dot: "AMAZON COM INC" is Amazon.com
             words[-1] += ".com"
             continue
-        words.append(w if w in _KEEP_UPPER or not w[:1].isalpha() else w.capitalize())
+        keep = w in _KEEP_UPPER or not w[:1].isalpha() or (root and w == root)
+        words.append(w if keep else w.capitalize())
     return " ".join(words)
 
 

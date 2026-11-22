@@ -36,7 +36,7 @@ def head_for(db: Session, settings, cik: str, origin: str) -> dict:
         company = db.scalar(select(Company).where(Company.cik == cik))
         if company is None or cik not in allowed:
             return {"noindex": True}
-        name = display_name(company.legal_name)
+        name = display_name(company.legal_name, company.ticker, company.registrant_name)
         ticker = company.ticker
         canonical = f"{origin}/companies/{cik}"
         title = (f"{name} ({ticker}) revenue, financials and SEC filings · Provenance" if ticker

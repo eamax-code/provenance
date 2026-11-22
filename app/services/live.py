@@ -372,7 +372,8 @@ def public_company_search(db: Session, settings, q: str) -> dict:
         hits, _ = search_companies(db, key, SEARCH_MAX)
         return {
             "data": [{
-                "cik": h.company.cik, "display_name": display_name(h.company.legal_name),
+                "cik": h.company.cik, "display_name": display_name(
+                    h.company.legal_name, h.company.ticker, h.company.registrant_name),
                 "ticker": h.company.ticker, "exchange": h.company.exchange,
                 "matched_former_name": h.former_name, "is_public_page": h.company.cik in showcase,
                 # how the query matched: cik, ticker, former_ticker, former_name or name

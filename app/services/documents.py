@@ -98,7 +98,7 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
     if company is None:
         return None
     mart = db.get(MartCompany, cik)
-    name = display_name(company.legal_name)
+    name = display_name(company.legal_name, company.ticker, company.registrant_name)
     cites: list[dict] = []
 
     def cite(label: str, url: str | None) -> int:

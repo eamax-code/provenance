@@ -518,7 +518,7 @@ def _more(n: int) -> str | None:
 def _name(r) -> str:
     from app.services.intel import display_name
 
-    return display_name(r.legal_name)
+    return display_name(r.legal_name, getattr(r, "ticker", None))
 
 
 def _d(d: date | None) -> str:
