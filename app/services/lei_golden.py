@@ -96,13 +96,21 @@ def load(db: Session, path, keys: set[str] | None = None, norms: set[str] | None
                 seen += 1
                 name = row.get("Entity.LegalName") or ""
                 key = strict_key(name)
-                names = [name] + [row[c] for c in other_cols if row.get(c)]
-                nkeys = {norm_key(n) for n in names} - {""}
-                if key not in keys and not nkeys & norms:
+                current = [name] + [
+                    row[c]
+                    for c in other_cols
+                    if row.get(c) and row.get(c + ".type") != "PREVIOUS_LEGAL_NAME"
+                ]
+                previous = [row[c] for c in other_cols if row.get(c)
+                            and row.get(c + ".type") == "PREVIOUS_LEGAL_NAME"]  # fmt: skip
+                nkeys = {norm_key(n) for n in current} - {""}
+                pkeys = {norm_key(n) for n in previous} - {""} - nkeys
+                if key not in keys and not (nkeys | pkeys) & norms:
                     continue
                 batch.append(GleifEntity(
                     lei=row["LEI"], legal_name=name, name_key=key,
-                    norm_keys="|".join(sorted(nkeys)),
+                    # previous legal names marked "p:" (renames, holding-company reshuffles)
+                    norm_keys="|".join(sorted(nkeys) + sorted("p:" + k for k in pkeys)),
                     jurisdiction=row.get("Entity.LegalJurisdiction") or None,
                     entity_status=row.get("Entity.EntityStatus") or None,
                     registration_status=row.get("Registration.RegistrationStatus") or None,

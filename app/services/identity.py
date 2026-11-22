@@ -121,11 +121,14 @@ def match_all(db: Session) -> dict:
 
     golden: dict[str, list[GleifEntity]] = {}
     by_norm: dict[str, list[GleifEntity]] = {}
+    by_current: dict[str, list[GleifEntity]] = {}  # without previous legal names
     for g in db.scalars(select(GleifEntity).where(GleifEntity.entity_status == "ACTIVE")):
         golden.setdefault(g.name_key, []).append(g)
         for k in (g.norm_keys or "").split("|"):
             if k:
-                by_norm.setdefault(k, []).append(g)
+                by_norm.setdefault(k.removeprefix("p:"), []).append(g)
+                if not k.startswith("p:"):
+                    by_current.setdefault(k, []).append(g)
     rows: list[CompanyLei] = []
     counts = {"override": 0, "sec": 0, "name_jurisdiction": 0, "gleif_name_jurisdiction": 0,
               "name_unique": 0, "gleif_name_unique": 0, "gleif_normalised_name": 0,
@@ -208,6 +211,20 @@ def match_all(db: Session) -> dict:
                 evidence=f"GLEIF name {g.legal_name!r} matches the SEC name {c.legal_name!r} "
                 f"after normalising (state suffixes, The, legal-form spellings, other names), "
                 f"and the jurisdiction {g.jurisdiction} agrees with {here}",
+                matched_at=now,
+            ))  # fmt: skip
+            counts["gleif_normalised_name"] += 1
+        elif (
+            here is None
+            and not re.search(r"/OLD\b", c.legal_name or "", re.I)  # a former registrant
+            and len(cands := by_current.get(norm_key(c.legal_name), [])) == 1
+        ):
+            g = cands[0]  # the SEC record has no place of incorporation: unique name, medium
+            rows.append(CompanyLei(
+                cik=c.cik, lei=g.lei, match_method="gleif_normalised_name", confidence="medium",
+                evidence=f"GLEIF name {g.legal_name!r} (or one of its other names) matches the "
+                f"SEC name {c.legal_name!r} after normalising and is the only active entity "
+                "with it; the SEC record has no place of incorporation to confirm",
                 matched_at=now,
             ))  # fmt: skip
             counts["gleif_normalised_name"] += 1
