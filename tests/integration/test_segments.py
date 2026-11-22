@@ -3,6 +3,7 @@ latest 10-Ks (tests/fixtures/segments, cut from the SEC data sets)."""
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -21,8 +22,8 @@ def test_apple_business_geographic_and_product():
     rows = segments.parse_notes_zip(FIX / "aapl.zip")
     biz = _latest(rows, "business", "operating_income")
     assert set(biz) == {"Americas", "Europe", "Greater China", "Japan", "Rest Of Asia Pacific",
-                        "Corporate and other (not a segment)", "Consolidated"}  # fmt: skip
-    assert biz["Corporate and other (not a segment)"][0] == "reconciling"
+                        "Corporate and other", "Consolidated"}  # fmt: skip
+    assert biz["Corporate and other"][0] == "reconciling"
     assert biz["Consolidated"] == ("consolidated", 133050.0, "ok")
     geo = _latest(rows, "geographic", "revenue")
     assert set(geo) == {"United States", "China", "Other Countries", "Consolidated"}
@@ -46,7 +47,7 @@ def test_bank_reports_pretax_income_by_segment_with_reconciling_items():
     rows = segments.parse_notes_zip(FIX / "jpm.zip")
     pre = _latest(rows, "business", "pretax_income")
     assert pre["Commercial And Investment Bank"][0] == "segment"
-    assert pre["Material reconciling items"][0] == "reconciling"
+    assert pre["Reconciling items"][0] == "reconciling"
     assert pre["Consolidated"] == ("consolidated", 72595.0, "ok")
     assert any(r["tag"] == "RevenuesNetOfInterestExpense" for r in rows if r["metric"] == "revenue")
 
@@ -108,6 +109,37 @@ def test_no_share_of_revenue_when_the_latest_year_is_unreconciled(db, ingested_a
     assert kinds["business"]["segments"][0]["share_of_revenue_pct"] == 42.9  # ok stays
 
 
+def test_a_single_unreconciled_member_is_hidden_with_its_reason(db, client, auth, ingested_aapl):
+    """XOM showed one product line, "Sales and other operating revenue", unreconciled, in place
+    of its four segments: a kind like that is hidden, and an empty block says why."""
+    from app.db.models import CompanySegment
+
+    segments.load(db, FIX / "aapl.zip")
+    q = db.query(CompanySegment).filter(CompanySegment.kind == "product")
+    keep = "ProductOrService=IPhone"
+    assert q.filter(CompanySegment.member == keep).count()
+    q.filter(CompanySegment.role == "segment", CompanySegment.member != keep).delete()
+    q.filter(CompanySegment.kind == "product").update({"status": "unreconciled"})
+    db.commit()
+    b = segments.for_company(db, "0000320193")
+    assert {k["kind"] for k in b["kinds"]} == {"business", "geographic"}
+    assert b["hidden"] == [{"kind": "product", "reason": "single unreconciled member",
+                            "member": "IPhone"}]  # fmt: skip
+    assert b["hidden_reason"] is None  # other kinds still show
+    # one member that adds up is kept: a single-segment company is a real answer
+    q.filter(CompanySegment.kind == "product").update({"status": "ok"})
+    db.commit()
+    assert "product" in {k["kind"] for k in segments.for_company(db, "0000320193")["kinds"]}
+    # nothing left: the block is empty and explains itself
+    db.query(CompanySegment).filter(CompanySegment.kind != "product").delete()
+    q.filter(CompanySegment.kind == "product").update({"status": "unreconciled"})
+    db.commit()
+    r = client.get("/v1/companies/320193/segments", headers=auth).json()
+    assert r["kinds"] == [] and r["hidden_reason"] == "single unreconciled member"
+    o = client.get("/v1/public/companies/320193/overview").json()["segments"]
+    assert o["kinds"] == [] and o["hidden_reason"] == "single unreconciled member"
+
+
 LAB = """<?xml version="1.0"?>
 <link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase"
   xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -140,3 +172,85 @@ def test_labels_come_from_the_filings_own_linkbase():
     assert segment_labels.lab_url(idx).endswith(".xsd")  # linkbase embedded in the schema
     idx += '<a href="/Archives/edgar/data/1/000000000126000001/x-20260630_lab.xml">l</a>'
     assert segment_labels.lab_url(idx).endswith("_lab.xml")
+
+
+def _lab(*members):
+    """A label linkbase: (concept, role, text) per label."""
+    out = ['<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase" '
+           'xmlns:xlink="http://www.w3.org/1999/xlink"><link:labelLink>']  # fmt: skip
+    for i, (concept, role, text) in enumerate(members):
+        out.append(f'<link:loc xlink:href="x.xsd#{concept}" xlink:label="l{i}"/>'
+                   f'<link:labelArc xlink:from="l{i}" xlink:to="r{i}"/>'
+                   f'<link:label xlink:label="r{i}" xlink:role="http://www.xbrl.org/2003/role/'
+                   f'{role}">{text}</link:label>')  # fmt: skip
+    return "".join(out) + "</link:labelLink></link:linkbase>"
+
+
+def test_member_suffix_is_stripped_from_any_role_and_taxonomy_wording_gets_plain_names(
+    db, ingested_aapl
+):
+    """Berkshire's labels came through as "McLane [Member]"; JPM's reconciling row read
+    "Segment Reporting, Reconciling Item, Excluding Corporate Nonsegment"."""
+    from types import SimpleNamespace
+
+    from app.db.models import CompanySegment
+    from app.services import segment_labels
+
+    labels = segment_labels.parse_labels(_lab(
+        ("brka_McLaneMember", "terseLabel", "McLane [Member]"),
+        ("brka_BNSFMember", "label", "BNSF [Member]"),
+        ("brka_InsuranceDomain", "label", "Insurance [Domain]")))  # fmt: skip
+    assert labels == {"McLane": "McLane", "BNSF": "BNSF"}  # Domain is not a Member concept
+    assert segment_labels.clean("Insurance [Domain]") == "Insurance"
+
+    segments.load(db, FIX / "aapl.zip")
+    acc = db.query(CompanySegment.accession_number).first()[0]
+    db.add_all(
+        [
+            CompanySegment(**{**base, "member": m, "label": "x", "role": "reconciling"})
+            for base in [
+                dict(
+                    accession_number=acc,
+                    cik="0000320193",
+                    kind="business",
+                    metric="revenue",
+                    period_end=date(2025, 9, 27),
+                    form_type="10-K",
+                    fiscal_year=2025,
+                    filed_date=date(2025, 10, 31),
+                    tag="Revenues",
+                    unit="USD",
+                    status="ok",
+                    source="t",
+                    value=1,
+                )
+            ]
+            for m in (
+                "ConsolidationItems=MaterialReconcilingItems",
+                "BusinessSegments=IPhone;ConsolidationItems=IntersegmentElimination",
+            )
+        ]
+    )
+    db.commit()
+    lab = _lab(
+        ("us-gaap_MaterialReconcilingItemsMember", "label",
+         "Segment Reporting, Reconciling Item, Excluding Corporate Nonsegment [Member]"),
+        ("us-gaap_IntersegmentEliminationMember", "label",
+         "Segment Reporting, Reconciling Item, Intersegment Elimination [Member]"),
+        ("aapl_IPhoneMember", "terseLabel", "iPhone"),
+        ("aapl_AmericasSegmentMember", "label", "Americas [Member]"))  # fmt: skip
+    pages = {"index": '<a href="/Archives/edgar/data/320193/x/aapl_lab.xml">l</a>', "lab": lab}
+    sec = SimpleNamespace(get_text=lambda url: SimpleNamespace(
+        data=pages["lab"] if url.endswith("_lab.xml") else pages["index"]))  # fmt: skip
+    assert segment_labels.apply_filing(db, sec, "0000320193", acc) > 0
+    got = dict(db.query(CompanySegment.member, CompanySegment.label)
+               .filter(CompanySegment.accession_number == acc).distinct())  # fmt: skip
+    assert got["ConsolidationItems=MaterialReconcilingItems"] == "Reconciling items"
+    own = "BusinessSegments=IPhone;ConsolidationItems=IntersegmentElimination"
+    assert got[own] == "iPhone: intersegment eliminations"
+    assert got["BusinessSegments=AmericasSegment"] == "Americas"
+    assert not any("[Member]" in v for v in got.values())
+    src = dict(db.query(CompanySegment.member, CompanySegment.label_source)
+               .filter(CompanySegment.accession_number == acc).distinct())  # fmt: skip
+    assert src["ConsolidationItems=MaterialReconcilingItems"] == "member_name"
+    assert src["BusinessSegments=AmericasSegment"] == "filing_label"

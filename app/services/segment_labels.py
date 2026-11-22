@@ -4,9 +4,11 @@ The Notes data sets give segment members by name only ("IPhone", "MicrosoftThree
 Each filing's label linkbase (`*_lab.xml`, listed in its filing index) holds the company's own
 labels: a terse label ("iPhone") and a standard one ("iPhone [Member]"). For every annual report
 with segments, the linkbase is read once through the shared SEC limiter (filed documents are
-cached and never fetched twice), and each member takes its terse label, else its standard label
-without the " [Member]" suffix. Members the company did not label itself (US-GAAP standard members
-such as ServiceMember) keep the label made from the member name; `label_source` says which.
+cached and never fetched twice), and each member takes its terse label, else its standard label,
+either way without a " [Member]" or " [Domain]" suffix. A reconciling member labelled with the
+US-GAAP taxonomy's own wording keeps our plain name ("Corporate and other"). Members the company
+did not label itself (US-GAAP standard members such as ServiceMember) keep the label made from the
+member name; `label_source` says which.
 No casing is guessed in code.
 """
 
@@ -19,6 +21,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.db.models import CompanySegment
+from app.services import segments
 from app.services.insiders import safe_xml
 from app.services.sec_client import SecClient, SecClientError, filing_index_url
 
@@ -27,6 +30,20 @@ TERSE = "http://www.xbrl.org/2003/role/terseLabel"
 STANDARD = "http://www.xbrl.org/2003/role/label"
 _LAB_HREF = re.compile(r'href="(/Archives/edgar/data/[^"]+_lab\.xml)"', re.I)
 _XSD_HREF = re.compile(r'href="(/Archives/edgar/data/[^"]+\.xsd)"', re.I)
+_SUFFIX = re.compile(r"\s*\[(Member|Domain)\]\s*$", re.I)
+# the US-GAAP taxonomy's own labels for its reconciling members, which some filings copy in
+# place of a label of their own ("Segment Reporting, Reconciling Item, Corporate Nonsegment")
+_TAXONOMY_LABEL = re.compile(
+    r"^(Segment Reporting, Reconciling Item|Consolidation, Eliminations|Corporate, Non-?Segment"
+    r"|Segment Reconciling Items?$|Material Reconciling Items?$)",
+    re.I,
+)
+
+
+def clean(text: str) -> str:
+    """A label as a reader should see it: no " [Member]" or " [Domain]" suffix, whichever role
+    it came from (some filings put the suffix in the terse label too)."""
+    return _SUFFIX.sub("", " ".join((text or "").split()))
 
 
 def lab_url(index_html: str) -> str | None:
@@ -61,7 +78,7 @@ def parse_labels(xml: str) -> dict[str, str]:
         roles = resources.get(to)
         if not concept or not roles or not concept.endswith("Member"):
             continue
-        text = roles.get(TERSE) or re.sub(r"\s*\[Member\]\s*$", "", roles.get(STANDARD, ""))
+        text = clean(roles.get(TERSE) or "") or clean(roles.get(STANDARD) or "")
         if text:
             out[concept[: -len("Member")]] = text
     return out
@@ -93,14 +110,21 @@ def apply_filing(db: Session, sec: SecClient, cik: str, accession: str) -> int:
         text = labels.get(name) or labels.get(name.removesuffix("Segment"))
         if not text:
             continue
+        source = "filing_label"
+        if member.startswith("ConsolidationItems=") and _TAXONOMY_LABEL.match(text):
+            # the taxonomy's wording, not the company's: our plain name reads better
+            text, source = segments.member_label(member), "member_name"
         if ";ConsolidationItems=" in member:  # a segment's own eliminations
             items = member.split("ConsolidationItems=", 1)[1]
-            text = f"{text}: {labels.get(items) or 'intersegment eliminations'}"
+            own = labels.get(items)
+            if not own or _TAXONOMY_LABEL.match(own):
+                own = segments.label(items).lower()
+            text = f"{text}: {own}"
         n += db.execute(
             update(CompanySegment)
             .where(CompanySegment.accession_number == accession,
                    CompanySegment.member == member)
-            .values(label=text, label_source="filing_label")
+            .values(label=text, label_source=source)
         ).rowcount  # fmt: skip
     db.commit()
     return n

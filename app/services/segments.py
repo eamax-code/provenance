@@ -63,6 +63,7 @@ COUNTRIES = {"US": "United States", "CN": "China", "JP": "Japan", "GB": "United 
              "DE": "Germany", "FR": "France", "CA": "Canada", "IN": "India", "IE": "Ireland",
              "NL": "Netherlands", "CH": "Switzerland", "KR": "South Korea", "TW": "Taiwan",
              "MX": "Mexico", "BR": "Brazil", "AU": "Australia", "SG": "Singapore"}  # fmt: skip
+SINGLE_UNRECONCILED = "single unreconciled member"
 LABEL_SOURCE = "member_name"  # E-4b: the filing's own labels from its label linkbase
 NOTES = [
     "Segments as each annual report tags them (the segment, geographical and product axes). "
@@ -70,16 +71,19 @@ NOTES = [
     "not label keep a label made from the member name (member_name).",
     "Status ok: the segments add up to the consolidated figure within 1%, or the report tags a "
     "reconciling item (corporate, eliminations); unreconciled figures are shown with that status.",
+    "A kind with a single member that never adds up is left out (listed under hidden with its "
+    "reason); when nothing is left, hidden_reason says why the block is empty.",
 ]
 
 csv.field_size_limit(50_000_000)
 
 
 RECONCILING_LABELS = {
-    "CorporateNonSegment": "Corporate and other (not a segment)",
+    "CorporateNonSegment": "Corporate and other",
     "IntersegmentElimination": "Intersegment eliminations",
+    "ConsolidationEliminations": "Intersegment eliminations",
     "SegmentReconcilingItems": "Reconciling items",
-    "MaterialReconcilingItems": "Material reconciling items",
+    "MaterialReconcilingItems": "Reconciling items",
 }
 
 
@@ -290,7 +294,7 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
         return None
     rows = list(db.scalars(select(CompanySegment).where(
         CompanySegment.accession_number == latest.accession_number)))  # fmt: skip
-    kinds = []
+    kinds, hidden = [], []
     for kind in ("business", "geographic", "product"):
         krows = [r for r in rows if r.kind == kind]
         if not krows:
@@ -323,6 +327,14 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
             v = s["values"].get("revenue", {}).get(latest_p)
             share = round(v / rev * 100, 1) if rev_ok and v is not None and rev else None
             s["share_of_revenue_pct"] = share
+        if len(ordered) == 1 and not any(
+            st == "ok" for m in metrics.values() for st in m["status"].values()
+        ):
+            # one member that never adds up tells the reader nothing and can mislead (XOM's
+            # "Sales and other operating revenue" standing in for its four segments)
+            hidden.append({"kind": kind, "reason": SINGLE_UNRECONCILED,
+                           "member": ordered[0]["label"]})  # fmt: skip
+            continue
         kinds.append({"kind": kind, "periods": [p.isoformat() for p in periods],
                       "metrics": metrics, "segments": ordered,
                       "reconciling": list(recon.values())})  # fmt: skip
@@ -333,5 +345,8 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
             "source_url": filing_index_url(cik, latest.accession_number),
         },
         "kinds": kinds,
+        "hidden": hidden,
+        # set when every kind was hidden: the block has nothing to show, and says why
+        "hidden_reason": SINGLE_UNRECONCILED if hidden and not kinds else None,
         "notes": NOTES,
     }  # fmt: skip
