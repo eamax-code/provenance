@@ -472,6 +472,10 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
                                                          .get(latest_p) or 0))  # fmt: skip
         # a share of revenue only where the segments add up (ok); never from unreconciled figures
         rev_ok = metrics.get("revenue", {}).get("status", {}).get(latest_p) == "ok"
+        # and only where the segments alone make the total: segment figures that include sales
+        # between segments (XOM's, eliminated below them) would give shares adding to over 100%
+        seg_sum = sum(s["values"].get("revenue", {}).get(latest_p) or 0 for s in ordered)
+        rev_ok = rev_ok and bool(rev) and abs(seg_sum - rev) <= abs(rev) * float(TOLERANCE)
         for s in ordered:
             v = s["values"].get("revenue", {}).get(latest_p)
             share = round(v / rev * 100, 1) if rev_ok and v is not None and rev else None

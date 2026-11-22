@@ -140,6 +140,22 @@ def test_a_single_unreconciled_member_is_hidden_with_its_reason(db, client, auth
     assert o["kinds"] == [] and o["hidden_reason"] == "single unreconciled member"
 
 
+def test_no_share_of_revenue_when_segments_include_sales_between_them(db, ingested_aapl):
+    """XOM's segment revenue includes intersegment sales, eliminated below the segments: shares
+    of consolidated revenue would add up to 136%."""
+    from app.db.models import CompanySegment
+
+    segments.load(db, FIX / "aapl.zip")
+    biz = db.query(CompanySegment).filter(CompanySegment.kind == "business",
+                                          CompanySegment.role == "segment")  # fmt: skip
+    for r in biz:
+        r.value = r.value * 2  # gross of intersegment sales; still ok through reconciling items
+    db.commit()
+    kinds = {k["kind"]: k for k in segments.for_company(db, "0000320193")["kinds"]}
+    assert all(s["share_of_revenue_pct"] is None for s in kinds["business"]["segments"])
+    assert kinds["product"]["segments"][0]["share_of_revenue_pct"] is not None  # adds up alone
+
+
 LAB = """<?xml version="1.0"?>
 <link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase"
   xmlns:xlink="http://www.w3.org/1999/xlink">
