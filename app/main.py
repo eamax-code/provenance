@@ -45,7 +45,12 @@ from app.core.config import Settings, get_settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, log_event, request_id_var
 from app.core.security_headers import SecurityHeadersMiddleware
-from app.db.session import configure_engine, get_engine, session_factory
+from app.db.session import (
+    configure_engine,
+    control_session_factory,
+    get_engine,
+    session_factory,
+)
 from app.services.usage import record_usage
 
 # The company page layouts; the first is the default.
@@ -143,7 +148,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         if api_key_id is not None:
             try:
                 length = response.headers.get("content-length")
-                db = session_factory()()
+                db = control_session_factory()()  # never waits behind request sessions
                 try:
                     record_usage(
                         db,

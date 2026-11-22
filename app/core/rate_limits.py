@@ -47,12 +47,11 @@ class RateDecision:
 def _engine():
     if _store == "memory":
         return None
-    from app.db.session import get_engine
+    from app.db.session import control_engine, get_engine
 
-    engine = get_engine()
-    if _store == "auto" and engine.dialect.name != "postgresql":
+    if _store == "auto" and get_engine().dialect.name != "postgresql":
         return None
-    return engine
+    return control_engine()  # its own small pool: request handlers cannot starve it
 
 
 class FixedWindowRateLimiter:

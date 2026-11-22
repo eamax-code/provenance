@@ -78,3 +78,37 @@ def test_retention_removes_finished_windows(engine, db, settings, store):
     limiter.check("ip", 10, now=now.timestamp())
     assert retention.purge(db, settings, now=now)["rate_limit_counters"] == 1
     assert db.scalar(select(RateLimitCounter.count)) == 1
+
+
+def test_rate_limits_and_metering_never_wait_behind_request_sessions(store, monkeypatch, tmp_path):
+    """R-2, 2026-11-22: with every request-pool connection held, a rate-limit check still
+    completes (or fails fast), never waiting the pool's 30 s for a connection."""
+    import time
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import QueuePool
+
+    from app.db import session as dbs
+    from app.db.models import Base
+
+    main = create_engine(f"sqlite:///{tmp_path / 'pool.db'}", poolclass=QueuePool, pool_size=2,
+                         max_overflow=0, pool_timeout=30,
+                         connect_args={"check_same_thread": False})  # fmt: skip
+    Base.metadata.create_all(main, tables=[RateLimitCounter.__table__])
+    monkeypatch.setattr(dbs, "_engine", main)
+    monkeypatch.setattr(dbs, "_control", None)
+    monkeypatch.setattr(dbs, "_ControlSession", None)
+    store("database")
+    held = [main.connect() for _ in range(2)]  # every request-pool connection is in use
+    try:
+        assert dbs.control_engine() is not main
+        assert dbs.control_session_factory().kw["bind"] is dbs.control_engine()
+        start = time.monotonic()
+        decision = FixedWindowRateLimiter(60, name="held").check("k", 5, now=1_800_000_000.0)
+        assert decision.allowed and time.monotonic() - start < 5
+    finally:
+        for c in held:
+            c.close()
+        dbs._dispose_control()
+        main.dispose()
+    assert dbs.CONTROL_POOL["pool_timeout"] <= 5  # an exhausted control pool fails fast too
