@@ -93,6 +93,7 @@
         <li><a href="#ipos">Going public</a></li>
         <li><a href="#connections">Connections</a></li>
         <li><a href="#ownership">Ownership (13F)</a></li>
+        <li><a href="#segments">Segments</a></li>
         <li><a href="#events">Event feed</a></li>
         <li><a href="#webhooks">Watches and webhooks</a></li>
         <li><a href="#listings">Listings</a></li>
@@ -244,6 +245,15 @@ curl -s "{{BASE}}/v1/companies/320193/ownership?as_of=2026-08-01" -H "X-API-Key:
 # "Who are Apple's largest institutional holders, and who added or exited last quarter?"</code></pre></div>
       </section>
 
+      <section id="segments" aria-labelledby="segments-h">
+        <h2 id="segments-h">Segments</h2>
+        <p><code>/v1/companies/{cik}/segments</code> returns the business, geographic and product breakdowns from the latest annual report: revenue and, where reported, operating or pretax income for up to three years, each segment's share of revenue, the reconciling items the filing tags, and the consolidated total. When segments do not add up to the total within 1% and no reconciling item is tagged, the year is marked <code>unreconciled</code>. Labels are the tagged member names, as filed.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/segments" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+# or ask your agent (MCP tool company_segments):
+# "How did Apple's revenue by region change over the last three years?"</code></pre></div>
+      </section>
+
       <section id="events" aria-labelledby="events-h">
         <h2 id="events-h">The event feed</h2>
         <p><code>GET /v1/events</code> is one ordered feed of new SEC filings, officer changes read from 8-K item 5.02, and listing events. Store <code>next_cursor</code> and pass it back as <code>after</code>; you will never miss or repeat an event.</p>
@@ -302,7 +312,7 @@ curl -s "{{BASE}}/v1/markets/instruments?q=Exosens&amp;region=europe" -H "X-API-
 
       <section id="mcp" aria-labelledby="mcp-h">
         <h2 id="mcp-h">MCP server</h2>
-        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed, see new listings, follow companies going public, map a company's insiders, 5% holders and subsidiaries with their trades, and list its institutional holders from 13F. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
+        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed, see new listings, follow companies going public, map a company's insiders, 5% holders and subsidiaries with their trades, list its institutional holders from 13F, and break its revenue down by segment. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
         <div class="code" data-tabs>
           <div class="code-tabs" role="tablist" aria-label="Client">
             <button type="button" role="tab" aria-selected="true">Claude Code</button>

@@ -132,6 +132,10 @@ table.fin td.pred { background: color-mix(in srgb, var(--slate, #627b8c) 22%, tr
 .pred-note { color: var(--muted); font-size: 13.5px; margin: 8px 2px 0; display: flex; gap: 8px; align-items: center; }
 .pred-swatch { width: 14px; height: 14px; border-radius: 3px; background: color-mix(in srgb, var(--slate, #627b8c) 22%, transparent); flex: none; }
 .rev-chart .col.pred { fill-opacity: .4; }
+table.seg td.share { min-width: 9rem; }
+.seg-bar { display: inline-block; height: 8px; border-radius: 2px; background: var(--slate, #627b8c); vertical-align: middle; margin-right: 8px; }
+table.seg tr.recon th, table.seg tr.recon td { color: var(--muted); font-style: normal; }
+table.seg tr.total th, table.seg tr.total td { font-weight: 800; border-top: 2px solid var(--line); }
 .notes { color: var(--muted); font-size: 13.5px; max-width: 90ch; }
 @media (max-width: 1100px) {
   .co-story { grid-template-columns: minmax(0, 1fr); }
@@ -240,6 +244,14 @@ table.fin td.pred { background: color-mix(in srgb, var(--slate, #627b8c) 22%, tr
     <div class="sec-head"><h2 id="t-fin">Financials</h2><p class="muted" id="fin-note"></p></div>
     <div class="fin-tabs" id="fin-tabs" role="tablist" aria-label="Statement"></div>
     <div class="tw fin-wrap" id="fin-table" role="tabpanel" aria-labelledby="t-fin" tabindex="0"></div>
+  </section>
+
+  <section class="co-sec" id="segments" aria-labelledby="t-seg" hidden>
+    <div class="sec-head"><h2 id="t-seg">Segments</h2><p class="muted" id="seg-from"></p></div>
+    <div class="fin-tabs" id="seg-kinds" role="tablist" aria-label="Segment breakdown"></div>
+    <div class="chips-row" id="seg-metrics" role="group" aria-label="Figure"></div>
+    <div class="tw fin-wrap" id="seg-table"></div>
+    <p class="notes" id="seg-notes"></p>
   </section>
 
   <div class="co-two">

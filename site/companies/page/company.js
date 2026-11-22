@@ -191,6 +191,64 @@
   }
   narrow.addEventListener && narrow.addEventListener('change', function () { if (data) statements(data); });
 
+  /* ---- segments from the latest 10-K: business, geographic, product ---- */
+  var segKind = null, segMetric = 'revenue';
+  var KIND = { business: 'Business', geographic: 'Geographic', product: 'Products and services' };
+  var SEGM = { revenue: 'Revenue', operating_income: 'Operating income', pretax_income: 'Pretax income' };
+  function segments(d) {
+    var S = d.segments, box = $('segments');
+    box.hidden = !S || !(S.kinds || []).length; if (box.hidden) return;
+    var f = S.filing || {};
+    $('seg-from').replaceChildren('As reported in the ', srcLink((f.form_type || '10-K') + ' filed ' + P.date(f.filed_date), f.source_url, 'accession ' + (f.accession_number || '')), f.fiscal_year ? ' for FY' + f.fiscal_year + '.' : '.');
+    if (!S.kinds.some(function (k) { return k.kind === segKind; })) segKind = S.kinds[0].kind;
+    var tabs = $('seg-kinds'); tabs.textContent = '';
+    S.kinds.forEach(function (k) {
+      var b = el('button', { type: 'button', role: 'tab', 'aria-selected': String(k.kind === segKind), 'aria-controls': 'seg-table', text: KIND[k.kind] || k.kind });
+      b.addEventListener('click', function () { segKind = k.kind; segments(d); });
+      tabs.appendChild(b);
+    });
+    var K = S.kinds.filter(function (k) { return k.kind === segKind; })[0];
+    var metrics = Object.keys(K.metrics || {});
+    if (metrics.indexOf(segMetric) < 0) segMetric = metrics[0];
+    var mbox = $('seg-metrics'); mbox.textContent = '';
+    if (metrics.length > 1) metrics.forEach(function (m) {
+      var b = el('button', { type: 'button', 'aria-pressed': String(m === segMetric), text: SEGM[m] || m.replace(/_/g, ' ') });
+      b.addEventListener('click', function () { segMetric = m; segments(d); });
+      mbox.appendChild(b);
+    });
+    var M = K.metrics[segMetric] || {}, periods = K.periods || [];
+    var cell = function (v, extraTitle) {
+      if (v == null) return el('td', { class: 'n na', text: 'not reported' });
+      return el('td', { class: 'n' }, [srcLink(P.money(v), f.source_url, (SEGM[segMetric] || segMetric) + DOT + 'from the ' + (f.form_type || '10-K') + ' filed ' + P.date(f.filed_date) + (extraTitle ? DOT + extraTitle : ''))]);
+    };
+    var head = el('tr', {}, [el('th', { scope: 'col', class: 'fin-name', text: KIND[K.kind] ? KIND[K.kind] + ' segment' : 'Segment' })].concat(periods.map(function (p) {
+      var st = M.status && M.status[p];
+      return el('th', { scope: 'col', class: 'n' }, ['Year to ' + P.date(p), st === 'unreconciled' ? el('span', { class: 'tag', title: 'The segments do not add up to the consolidated figure within 1%, and the filing tags no reconciling item.', text: 'unreconciled' }) : null]);
+    })).concat(segMetric === 'revenue' ? [el('th', { scope: 'col', class: 'n', text: 'Share of revenue' })] : []));
+    var tb = el('tbody');
+    (K.segments || []).forEach(function (sg) {
+      var vals = (sg.values || {})[segMetric] || {};
+      var row = el('tr', {}, [el('th', { scope: 'row', class: 'fin-name', text: sg.label })].concat(periods.map(function (p) { return cell(vals[p]); })));
+      if (segMetric === 'revenue') {
+        var pct = sg.share_of_revenue_pct;
+        row.appendChild(el('td', { class: 'n share' }, pct == null ? ['—'] : [el('span', { class: 'seg-bar', style: 'width:' + Math.max(2, Math.min(100, pct)) * 0.6 + 'px', 'aria-hidden': 'true' }), P.pct(pct)]));
+      }
+      tb.appendChild(row);
+    });
+    (K.reconciling || []).forEach(function (rc) {
+      var vals = (rc.values || {})[segMetric] || {};
+      if (!periods.some(function (p) { return vals[p] != null; })) return;
+      var row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: rc.label })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
+      if (segMetric === 'revenue') row.appendChild(el('td'));
+      tb.appendChild(row);
+    });
+    var tot = el('tr', { class: 'total' }, [el('th', { scope: 'row', class: 'fin-name', text: 'Consolidated' })].concat(periods.map(function (p) { return cell((M.consolidated || {})[p], 'the company as a whole'); })));
+    if (segMetric === 'revenue') tot.appendChild(el('td', { class: 'n', text: '100%' }));
+    tb.appendChild(tot);
+    $('seg-table').replaceChildren(el('table', { class: 'fin seg' }, [el('caption', { class: 'vh', text: (KIND[K.kind] || K.kind) + ' segments, ' + (SEGM[segMetric] || segMetric) }), el('thead', {}, [head]), tb]));
+    $('seg-notes').textContent = (S.notes || []).join(' ');
+  }
+
   /* ---- events timeline ---- */
   function events(d) {
     var list = d.events || [], box = $('event-list'), chips = $('event-chips');
@@ -381,7 +439,7 @@
   $('asof-latest').addEventListener('click', function () { $('asof').value = ''; loadAt(null); });
 
   function render(d) {
-    header(d); story(d); statements(d); events(d); people(d); ownership(d); filings(d); peers(d); identity(d);
+    header(d); story(d); statements(d); segments(d); events(d); people(d); ownership(d); filings(d); peers(d); identity(d);
     $('asof').value = d.as_of || '';
     var picks = $('asof-picks'); picks.textContent = '';
     var ends = d.years.map(function (y) { return y; }).filter(function (y) { return y.period_end; });
