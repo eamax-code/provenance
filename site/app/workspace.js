@@ -429,25 +429,30 @@
   }
   function statementsBulk(b) {
     var pane = $('pane-statements'), cur = b.reporting_currency || ((S.d.company || {}).reporting_currency) || 'USD';
+    // nothing under this CIK (a new successor whose history the predecessor filed): the overview carries it
+    if (b.empty && ((S.d.statements || {}).sections || []).length && S.p === 'annual') return statementsFallback();
     if (b.empty) { pane.replaceChildren(stControls(cur, '', function () { return []; }, 'empty.csv'), el('p', { class: 'muted', text: 'No values for this statement in the filings loaded.' })); return; }
-    var cols = b.columns || [], rows = b.rows || [], base = S.st === 'balance' ? 'total_assets' : 'revenue';
+    // columns that share a label (a cover-page date beside the quarter's balance-sheet date) merge into one
+    var cols = [], idx = [], rows = b.rows || [], base = S.st === 'balance' ? 'total_assets' : 'revenue';
+    (b.columns || []).forEach(function (c, i) { var k = cols.length ? cols.map(function (x) { return x.key; }).lastIndexOf(c.key) : -1; if (k > -1 && k >= cols.length - 2) idx[k].push(i); else { cols.push(c); idx.push([i]); } });
     var baseRow = rows.filter(function (r) { return r.metric === base; })[0];
-    var at = function (r, key) { return (r.cells || []).filter(function (c) { return c && c.column === key; })[0]; };
+    // cells align with columns by position (keys can repeat when a filer reuses a period label); values may come as strings
+    var at = function (r, j) { var c = null; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; return true; } return false; }); return c ? Object.assign({}, c, { value: Number(c.value) }) : null; };
     var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick', text: STN[S.st] })].concat(cols.map(function (c) { return el('th', { scope: 'col', class: 'n', title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
     var body = rows.map(function (r) {
-      var ratio = r.unit_kind === 'ratio';
+      var ratio = r.unit_kind === 'ratio' || r.unit_kind === 'percent' || r.unit_kind === 'multiple';
       return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null])].concat(cols.map(function (col, i) {
-        var c = at(r, col.key); if (!c || c.value == null) return el('td', { class: 'n muted', title: 'not reported', text: '—' });
+        var c = at(r, i); if (!c || !isFinite(c.value)) return el('td', { class: 'n muted', title: 'not reported', text: '—' });
         var txt;
-        if (S.show === 'yoy') { var pc = i > 0 ? at(r, cols[i - (S.p === 'quarterly' ? Math.min(4, i) : 1)].key) : null; txt = ratio ? '—' : pct(pc && pc.value != null ? growth(c.value, pc.value) : null, true); }
-        else if (S.show === 'common') { var bc = baseRow && at(baseRow, col.key); txt = ratio || !bc || !bc.value ? '—' : pct(100 * c.value / bc.value); }
-        else txt = ratio ? pct(100 * c.value) : fmtv(c.value, c.unit === 'ratio' ? '%' : c.unit, cur);
+        if (S.show === 'yoy') { var back = S.p === 'quarterly' ? 4 : 1, pc = i >= back ? at(r, i - back) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
+        else if (S.show === 'common') { var bc = baseRow && at(baseRow, i); txt = ratio || !bc || !bc.value ? '—' : pct(100 * c.value / bc.value); }
+        else txt = c.unit === 'ratio' ? pct(100 * c.value) : fmtv(c.value, c.unit, cur);
         var info = Object.assign({ label: r.label, metric: r.metric, currency: cur, fiscal_label: col.period_label || col.key, formula: r.formula }, c);
         var flag = c.quality_status && c.quality_status !== 'ok';
         return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') }, [door(txt, info, flag ? 'flag' : ''), flag ? el('span', { class: 'qf', title: c.quality_status.replace(/_/g, ' '), text: '!' }) : null]);
       })));
     });
-    var csvRows = function () { return [['line_item'].concat(cols.map(function (c) { return c.key; })).join(',')].concat(rows.map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(cols.map(function (c) { var x = at(r, c.key); return x && x.value != null ? x.value : ''; })).join(','); })); };
+    var csvRows = function () { return [['line_item'].concat(cols.map(function (c) { return c.key; })).join(',')].concat(rows.map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(cols.map(function (c, i) { var x = at(r, i); return x ? x.value : ''; })).join(','); })); };
     pane.replaceChildren(stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + '.csv'),
       el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
