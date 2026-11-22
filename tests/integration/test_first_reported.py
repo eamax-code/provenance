@@ -123,3 +123,10 @@ def test_a_comparative_is_never_first_reported(db, release):
     fact, _ = release
     assert fr.original(fact, fact.period_end)
     assert not fr.original(fact, date(2099, 1, 1))  # the filing covers another period
+
+
+def test_match_rates_count_matched_of_eligible(db, release):
+    fr.match_company(db, CIK)
+    rates = fr.match_rates(db)
+    matched, eligible = rates["revenue"]
+    assert matched >= 1 and eligible >= matched

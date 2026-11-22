@@ -302,6 +302,20 @@ def main() -> int:
     lines += ["", "A rule comparing segments with the consolidated figure under any revenue tag "
               "(not only the segments' own) would address the second cause.", ""]  # fmt: skip
 
+    rates = first_reported.match_rates(db)
+    matched = sum(m for m, _ in rates.values())
+    eligible = sum(e for _, e in rates.values()) or 1
+    lines += ["## First reported in earnings releases (E-2)", "",
+              f"Figures an 8-K item 2.02 release stated with the same value, of those it could "
+              f"have stated (the period's own 10-Q or 10-K, a stored release in its window): "
+              f"{matched:,} of {eligible:,} ({100 * matched / eligible:.1f}%). Balance-sheet and "
+              "cash-flow figures are often not printed in releases.", "",
+              "| Metric | Matched | Eligible | Rate |", "|---|---|---|---|"]  # fmt: skip
+    lines += [
+        f"| {k} | {m:,} | {e:,} | {100 * m / max(e, 1):.0f}% |" for k, (m, e) in rates.items()
+    ]
+    lines.append("")
+
     lines += ["## Spot check against the 10-K as filed", "", spot_md]
     Path(args.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(json.dumps({"written": args.out, "spot_ok": ok, "spot_total": total}))

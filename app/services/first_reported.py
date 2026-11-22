@@ -215,3 +215,37 @@ def as_dict(r: FirstReported) -> dict:
         "stated_as": r.stated_as,
         "evidence": r.evidence,
     }
+
+
+def match_rates(db: Session) -> dict[str, tuple[int, int]]:
+    """{metric: (matched, eligible)} over companies with stored releases. Eligible: a figure from
+    the period's own 10-Q or 10-K with at least one stored release filed after the period ended
+    and by the filing date."""
+    from app.db.models import Filing, FilingSection
+
+    ciks = set(db.scalars(
+        select(Filing.cik).join(FilingSection, FilingSection.accession_number
+                                == Filing.accession_number)
+        .where(FilingSection.item == releases.ITEM, FilingSection.status == "ok")
+    ))  # fmt: skip
+    out: dict[str, list[int]] = {}
+    for cik in ciks:
+        rel = [f.filing_date for f in db.scalars(
+            select(Filing).join(FilingSection, FilingSection.accession_number
+                                == Filing.accession_number)
+            .where(Filing.cik == cik, FilingSection.item == releases.ITEM,
+                   FilingSection.status == "ok"))
+            if f.filing_date]  # fmt: skip
+        covers = dict(db.execute(select(Filing.accession_number, Filing.report_date)
+                                 .where(Filing.cik == cik)).all())  # fmt: skip
+        mine = db.scalars(select(FirstReported).where(FirstReported.cik == cik))
+        have = {(r.metric, r.unit, r.period_start, r.period_end, r.fact_accession) for r in mine}
+        for f in candidates(db, cik):
+            if not original(f, covers.get(f.accession_number)):
+                continue
+            if not any(f.period_end < d <= f.filed_date for d in rel):
+                continue
+            m = out.setdefault(f.metric, [0, 0])
+            m[1] += 1
+            m[0] += (f.metric, f.unit, f.period_start, f.period_end, f.accession_number) in have
+    return {k: (v[0], v[1]) for k, v in sorted(out.items())}
