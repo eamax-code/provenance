@@ -56,21 +56,31 @@ select count(*), count(distinct cik) from (
   where metric = 'revenue' and not derived group by 1, 2, 3, 4
   having bool_and(quality_status not in ('ok', 'partial'))
      and bool_or(quality_status = 'ambiguous_mapping')) t"""
+# $1B+ cohorts are USD reporters only: values are compared as reported, without FX (Federal
+# Reserve H.10 rates are the backlog item); non-USD reporters get their own line, no threshold
 STOPPED = """
 with rev as (
-  select cik, max(period_end) last_end, max(value) top from financial_facts
+  select cik, max(period_end) last_end, max(value) filter (where unit = 'USD') top_usd,
+         (array_agg(unit order by period_end desc))[1] last_unit
+  from financial_facts
   where metric = 'revenue' and period_class = 'annual' and not derived
     and quality_status in ('ok', 'partial') group by cik)
-select c.ticker, m.legal_name, r.last_end, round(r.top / 1e9, 1)
+select c.ticker, m.legal_name, r.last_end, round(r.top_usd / 1e9, 1), r.last_unit
 from rev r join mart_company m using (cik) left join companies c using (cik)
-where r.top >= 1e9 and r.last_end < current_date - 3 * 365
-  and m.latest_annual_report_date >= current_date - 730
-order by r.top desc"""
+where r.last_end < current_date - 3 * 365 and m.latest_annual_report_date >= current_date - 730
+  and (r.last_unit <> 'USD' or r.top_usd >= 1e9)
+order by r.last_unit = 'USD' desc, r.top_usd desc nulls last"""
 LEI = """
-with act as (select cik, latest_revenue from mart_company
-             where latest_annual_report_date >= current_date - 730)
+with last as (
+  select distinct on (cik) cik, unit from financial_facts
+  where metric = 'revenue' and period_class = 'annual' and not derived
+    and quality_status in ('ok', 'partial') order by cik, period_end desc),
+act as (
+  select m.cik, m.latest_revenue, l.unit from mart_company m left join last l using (cik)
+  where m.latest_annual_report_date >= current_date - 730)
 select count(*) filter (where a.latest_revenue >= 1e9),
        count(l.cik) filter (where a.latest_revenue >= 1e9),
+       count(*) filter (where a.unit <> 'USD'), count(l.cik) filter (where a.unit <> 'USD'),
        count(*), count(l.cik)
 from act a left join company_lei l using (cik)"""
 LATEST = """
@@ -234,18 +244,30 @@ def main() -> int:
               ""]  # fmt: skip
 
     stopped = db.execute(text(STOPPED)).all()
+    usd = [r for r in stopped if r[4] == "USD"]
+    other = [r for r in stopped if r[4] != "USD"]
     lines += ["## Large filers whose revenue stopped", "",
-              f"Active reporters (an annual report in two years) with revenue of $1B or more at "
-              f"some point but no annual revenue mapped in the last three years: {len(stopped)}.",
+              "Values are compared as reported, without exchange rates, so the $1B threshold "
+              "applies to USD reporters only; other reporting currencies are listed without a "
+              "threshold.", "",
+              f"- USD reporters with $1B+ revenue at some point, an annual report in the last two "
+              f"years, but no annual revenue mapped in the last three years: {len(usd)}.",
+              f"- Non-USD reporters (any size) in the same position: {len(other)}.",
               ""]  # fmt: skip
-    for s in stopped[:15]:
-        lines.append(f"- {s[0] or '—'} {s[1]}: last {s[2]}, peak ${s[3]}B")
+    for r in usd[:15]:
+        lines.append(f"- {r[0] or '—'} {r[1]}: last {r[2]}, peak ${r[3]}B")
+    for r in other[:10]:
+        lines.append(f"- {r[0] or '—'} {r[1]} ({r[4]}): last {r[2]}")
     lines.append("")
 
-    big, big_l, act, act_l = db.execute(text(LEI)).one()
+    big, big_l, oth, oth_l, act, act_l = db.execute(text(LEI)).one()
     lines += ["## LEI coverage", "",
-              f"- Active $1B+ companies: {big_l:,} of {big:,} ({100 * big_l / max(big, 1):.1f}%)",
-              f"- Active reporters: {act_l:,} of {act:,} ({100 * act_l / max(act, 1):.1f}%)",
+              f"- USD reporters with $1B+ revenue (active; the marts keep USD revenue only): "
+              f"{big_l:,} of {big:,} "
+              f"({100 * big_l / max(big, 1):.1f}%)",
+              f"- Non-USD reporters (active, any size): {oth_l:,} of {oth:,} "
+              f"({100 * oth_l / max(oth, 1):.1f}%)",
+              f"- All active reporters: {act_l:,} of {act:,} ({100 * act_l / max(act, 1):.1f}%)",
               "- The rest: SEC records give the home state, not the state of incorporation, for "
               "some filers, and GLEIF does not hold some entities under these names (Chevron).",
               ""]  # fmt: skip
