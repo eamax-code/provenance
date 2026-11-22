@@ -758,7 +758,10 @@
         var cik = String(parseInt(c.cik, 10)), li = el('li', {}, [el('a', { class: 'land-card', href: '/app/?c=' + cik, on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(cik); } } } }, [el('b', { text: c.display_name || orgName(c.legal_name) }), el('span', { class: 'muted small', text: [c.ticker, c.exchange].filter(Boolean).join(' · ') })])]);
         cards.appendChild(li);
         X.raw('/v1/public/companies/' + cik + '/overview').then(function (o) {
-          if (!o.ok) return; var d = o.body; if (d.company.display_name) li.querySelector('b').textContent = d.company.display_name; var y = (d.years || []).filter(function (x) { return x.revenue != null; }), last = y[y.length - 1], prev = y[y.length - 2], cur = d.company.reporting_currency || 'USD';
+          if (!o.ok) return; var d = o.body, nx = d.company.successor;
+          // a former registrant whose successor is also a card would show the same company twice
+          if (nx && cos.slice(0, 8).some(function (x) { return parseInt(x.cik, 10) === parseInt(nx.cik, 10); })) { li.remove(); return; }
+          if (d.company.display_name) li.querySelector('b').textContent = d.company.display_name; var y = (d.years || []).filter(function (x) { return x.revenue != null; }), last = y[y.length - 1], prev = y[y.length - 2], cur = d.company.reporting_currency || 'USD';
           if (!last) return;
           var yoy = prev && prev.revenue > 0 ? 100 * (last.revenue - prev.revenue) / prev.revenue : null;
           li.appendChild(el('p', { class: 'land-fig' }, [el('span', { class: 'muted small', text: 'Revenue ' + last.fiscal_label }), el('b', { text: money(last.revenue, cur) }), el('span', { class: 'small ' + tone('revenue', yoy), text: pct(yoy, true) }), last.operating_margin_pct != null ? el('span', { class: 'muted small', text: 'Op. margin ' + pct(last.operating_margin_pct) }) : null]));
