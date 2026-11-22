@@ -48,7 +48,7 @@ _inflight: set[str] = set()
 _lock = threading.Lock()
 
 
-def refresh_sources(db: Session, client, cik: str) -> dict:
+def refresh_sources(db: Session, client, cik: str, kinds: tuple[str, ...] | None = None) -> dict:
     """Read a company's exhibit 21, structured 13D/G filings and Forms 3/4/5 newer than the
     loaded insider data sets. Each source records when it was checked."""
     out = {}
@@ -57,6 +57,8 @@ def refresh_sources(db: Session, client, cik: str) -> dict:
         ("holders", beneficial_owners.refresh),
         ("insiders", insiders.fill_recent),
     ):
+        if kinds is not None and kind not in kinds:
+            continue
         try:
             out[kind] = fn(db, client, cik)
         except SecClientError as exc:
