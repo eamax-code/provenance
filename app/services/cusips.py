@@ -192,19 +192,63 @@ def name_key(name: str | None) -> str:
     return base(" ".join(words))
 
 
+# Forms 13F abbreviate issuer names ("STATE STR CORP", "XYZ HLDGS INC"); only expansions with one
+# meaning are used (TR and COS are not: trust or trustee, companies or a word part)
+ABBREVIATIONS = {"STR": "STREET", "HLDGS": "HOLDINGS", "HLDG": "HOLDING", "INTL": "INTERNATIONAL",
+                 "GRP": "GROUP", "FINL": "FINANCIAL", "SVCS": "SERVICES", "MGMT": "MANAGEMENT",
+                 "PPTYS": "PROPERTIES", "RLTY": "REALTY", "SYS": "SYSTEMS",
+                 "ENTMT": "ENTERTAINMENT", "BANCSHS": "BANCSHARES"}  # fmt: skip
+EXPAND = True  # switched so a dry run can count what the expansion adds
+TIE_BREAK = True  # one active listed company among several with the same name
+
+
+_FORMS = {"INC": "INC", "INCORPORATED": "INC", "CORP": "CORP", "CORPORATION": "CORP",
+          "CO": "CO", "COMPANY": "CO", "LTD": "LTD", "LIMITED": "LTD", "PLC": "PLC",
+          "LLC": "LLC", "LP": "LP", "AG": "AG", "SA": "SA", "NV": "NV", "SE": "SE"}  # fmt: skip
+
+
+def legal_form(name: str | None) -> str | None:
+    """The last legal-form word of a name ('LAZARD LTD' -> LTD; 'Lazard, Inc.' -> INC), skipping
+    state suffixes and NEW/DEL; None when it has none."""
+    words = re.sub(r"[^A-Z0-9 ]", " ", (name or "").upper()).split()
+    for w in reversed(words):
+        if w in _FORMS:
+            return _FORMS[w]
+        if w not in _STATE_SUFFIX and w not in ("NEW", "WIS", "MD"):
+            return None
+    return None
+
+
+def name_key_13f(name: str | None) -> str:
+    """name_key with 13F abbreviations expanded (both sides are keyed this way)."""
+    if not EXPAND:
+        return name_key(name)
+    words = re.sub(r"[^A-Z0-9 ]", " ", (name or "").upper().replace("&", " AND ")).split()
+    return name_key(" ".join(ABBREVIATIONS.get(w, w) for w in words))
+
+
 def map_by_13f_names(db: Session, names: dict[str, dict], ciks: list[str] | None = None) -> list:
     """E-1c, for companies no 13D/G or ISIN maps: a CUSIP whose dominant 13F issuer name equals the
     company's name once normalised, uniquely, given by at least MIN_FILERS managers with at least
     MIN_NAME_SHARE of them agreeing, titled as a share class, on an issuer number not mapped to
     another company. Returns the (cik, cusip, issuer name) pairs stored (medium confidence)."""
-    from app.db.models import Company
+    from datetime import timedelta
+
+    from app.db.models import Company, MartCompany
 
     companies = db.execute(select(Company.cik, Company.legal_name)).all()
+    legal_names = dict(companies)
     by_key: dict[str, set] = {}
     for cik, legal in companies:
-        k = name_key(legal)
+        k = name_key_13f(legal)
         if len(k) >= 4:
             by_key.setdefault(k, set()).add(cik)
+    # active and listed: a ticker and an annual report in the last two years (the tie-break)
+    recent = date.today() - timedelta(days=730)
+    listed_active = set(db.scalars(
+        select(Company.cik).join(MartCompany, MartCompany.cik == Company.cik)
+        .where(Company.ticker.is_not(None), MartCompany.latest_annual_report_date >= recent)
+    ))  # fmt: skip
     mapped = db.execute(select(IssuerCusip.cusip, IssuerCusip.cik)).all()
     have_cusip = {c for c, _ in mapped}
     prefix_owner: dict[str, set] = {}
@@ -217,7 +261,17 @@ def map_by_13f_names(db: Session, names: dict[str, dict], ciks: list[str] | None
             continue
         if not is_share_class(info["title"]):
             continue
-        hits = by_key.get(name_key(info["name"]), set())
+        hits = by_key.get(name_key_13f(info["name"]), set())
+        if len(hits) > 1 and TIE_BREAK:
+            # the old Howard Hughes Corp beside Howard Hughes Holdings: only an exactly-one
+            # active listed company takes it, and only when the legal forms agree, since the key
+            # drops them and a stale 13F line can name a predecessor (MEDTRONIC INC is not
+            # Medtronic plc; LAZARD LTD is not Lazard, Inc.)
+            # a 13F name without a legal form confirms nothing (FARMERS & MERCHANTS BANCORP is
+            # the Ohio bank's line, not the Californian one with no form in its name either)
+            form = legal_form(info["name"])
+            hits = {c for c in hits & listed_active
+                    if form is not None and legal_form(legal_names[c]) == form}  # fmt: skip
         if len(hits) != 1:
             continue
         cik = next(iter(hits))

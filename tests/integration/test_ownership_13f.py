@@ -356,3 +356,24 @@ def test_edgar_13f_submission_is_read_like_the_data_sets():
     assert filing["report_period"] == date(2026, 9, 30) and filing["filer_name"] == "Alpha Capital"
     assert filing["entry_total"] == 3 and filing["source"] == "sec:13f-edgar"
     assert len(rows) == 1 and rows[0]["shares"] == 250 and rows[0]["value_usd"] == 50000  # no put
+
+
+def test_13f_abbreviations_and_the_same_name_tie_break_rules():
+    """STATE STR CORP is State Street; a same-name tie goes to the one active listed company only
+    when the 13F line's legal form agrees (MEDTRONIC INC is not Medtronic plc), and a 13F name
+    with no legal form never breaks a tie (FARMERS & MERCHANTS BANCORP)."""
+    from app.services import cusips
+
+    assert cusips.name_key_13f("STATE STR CORP") == cusips.name_key_13f("State Street Corp")
+    assert cusips.name_key_13f("AMERIPRISE FINL INC") == cusips.name_key_13f(
+        "Ameriprise Financial, Inc."
+    )
+    assert cusips.name_key_13f("ACME TR INC") != cusips.name_key_13f(
+        "Acme Trust Inc"
+    )  # TR not expanded
+    assert (
+        cusips.legal_form("MEDTRONIC INC") == "INC" and cusips.legal_form("Medtronic plc") == "PLC"
+    )
+    assert cusips.legal_form("LAZARD LTD") == "LTD" and cusips.legal_form("Lazard, Inc.") == "INC"
+    assert cusips.legal_form("WATERSTONE FINL INC MD") == "INC"
+    assert cusips.legal_form("FARMERS & MERCHANTS BANCORP") is None
