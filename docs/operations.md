@@ -394,6 +394,38 @@ A point-in-time overview that misses the cache took 68-72 ms. The 50 req/s run's
 counted companies outside the showcase (404s), so the overview is reported from the separate
 showcase run.
 
+## Rehearsal re-run, 2026-11-22 evening (before mapping 1.5.0)
+
+The production image (`provenance:rehearsal`, built from 0df9281) on :8790 with `APP_ENV=production`
+and 2 workers against the local database; temporary Builder and Enterprise keys, revoked after.
+
+R-1 `scripts/smoke_prod.py --receiver 8099 --receiver-host host.docker.internal`: 7 of 8, as in the
+morning; readyz reports only the rehearsal settings (private webhook destinations, console email)
+and `NEWS_PROVIDER=google_rss` (owner decision).
+
+R-2 `scripts/load_smoke.py --rps 50 --seconds 300`, p95 in ms (morning in brackets):
+
+| Endpoint | Morning mix (7 endpoints) | Full mix (9: + company overview, ownership) |
+|---|---|---|
+| facts | 24.7 (23.8) | 122.5 |
+| screen | 39.8 (40.1) | 162.3 |
+| search | 41.6 (38.7) | 135.4 |
+| MCP get_figures | 31.2 (26.9) | 138.6 |
+| stats | 7.7 (7.0) | 38.6 |
+| coverage | 10.3 (10.3) | 62.5 |
+| company overview (`/v1/companies/{cik}`) | | 76.2 |
+| ownership | | 408.6 (p50 254) |
+
+No errors in either run (the public overview's 404s are companies outside the showcase). All
+targets pass. Ownership is CPU-bound in Python (a large holder list: Apple about 6,000
+managers per quarter, read twice), so with it in the mix the 2 workers saturate and every
+other endpoint's p95 rises 3-5x. The first full-mix run, before 0df9281 (which reads plain rows
+and only the holders' filings), collapsed: requests held a pooled connection while waiting for a
+second one (rate limits, usage metering), all 30 connections (2 x 15) were held and requests
+timed out after 30 s. Follow-ups: cache the latest-quarter ownership block per company until the
+next 13F load; give rate limits and metering a connection that cannot be starved by request
+sessions.
+
 ## Restore drill (R-3), 2026-11-22
 
 The daily dump `provenance-2026-11-22T0351Z.dump` (4.3 GB, custom format, 56 tables; written by
