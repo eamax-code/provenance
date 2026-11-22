@@ -21,11 +21,12 @@ import csv
 import re
 from datetime import date
 from pathlib import Path
+from statistics import median
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.db.models import CompanyLei, IssuerCusip, ListedInstrument, utcnow
+from app.db.models import CompanyLei, Holding13F, IssuerCusip, ListedInstrument, utcnow
 from app.services.insiders import _local, safe_xml
 from app.services.sec_client import normalize_cik
 
@@ -178,21 +179,54 @@ def names_other_security(issuer_name: str | None) -> bool:
     return bool(_NOT_COMMON.search(" ".join((issuer_name or "").split())))
 
 
+# (d), PM 2026-11-22: a CUSIP is judged on all its 13F lines, not line by line. At least this
+# share of lines naming another kind of security (or titling it preferred or depositary) keeps
+# it out of the issuer-prefix rule. The dry run that night: 10% caught 41 links, 15% 40 (nearly
+# all $25-par preferreds of banks, insurers and utilities, such as Citizens' Series I that one
+# manager filed as "CITIZENS FINL GROUP", Common Stock), 20-25% 36 (missing Allstate,
+# Brighthouse, a DTE and a Southern preferred); SPAC common stock with 3-8% of lines mislabelled
+# warrants or rights, Granite REIT's stapled units and WisdomTree ("WT") stay below it.
+OTHER_SECURITY_SHARE = 0.15
+_PERP = re.compile(r"\bPERP(ETUAL)?\b", re.I)
+_PREFERRED_TITLE = re.compile(r"\b(PFD|PREF|PREFERRED|DEP|DEPOSITARY)\b", re.I)
+_UNIT = re.compile(r"\bUNITS?\b", re.I)
+_LP_OR_TRUST = re.compile(r"\b(LP|L P|L\.P\.|PARTNERS|TRUST|TR)\b", re.I)
+
+
+def line_names_other_security(issuer_name: str | None, title: str | None) -> bool:
+    """One 13F line: its issuer name names another security (PERP counts), or its title says
+    preferred or depositary. UNIT is not counted for a partnership or trust: units are their
+    common equity (FERRELLGAS PARTNERS LP UNIT)."""
+    name = " ".join((issuer_name or "").split())
+    if _LP_OR_TRUST.search(name):
+        name = _UNIT.sub(" ", name)
+    return (
+        names_other_security(name)
+        or bool(_PERP.search(name))
+        or bool(_PREFERRED_TITLE.search(title or ""))
+    )
+
+
+def other_security(lines: int, flagged: int) -> bool:
+    return lines > 0 and flagged >= OTHER_SECURITY_SHARE * lines
+
+
 def debt_issue_number(cusip: str) -> bool:
     """CUSIP's own convention: an issue number (characters 7-8) with a letter is a debt issue."""
     return not cusip[6:8].isdigit()
 
 
 REVIEWED_REMOVALS = Path(__file__).resolve().parents[1] / "data" / "cusip_removals_reviewed.csv"
-RULES = ("issuer_name", "debt_issue_number")
+RULES = ("issuer_name", "debt_issue_number", "other_security_share", "value_per_share")
 
 
 def _issuer(name: str) -> str:
     return " ".join(name.upper().split())
 
 
-def _rule(cusip: str) -> str:
-    return "debt_issue_number" if debt_issue_number(cusip) else "issuer_name"
+def _rules(cusip: str) -> tuple[str, ...]:
+    """The reviewed rules that may reach this CUSIP: debt rows only letter issue numbers."""
+    return ("debt_issue_number",) if debt_issue_number(cusip) else RULES[:1] + RULES[2:]
 
 
 def reviewed_removals(path: Path = REVIEWED_REMOVALS) -> dict[tuple[str, str, str], int]:
@@ -220,13 +254,11 @@ def remove_reviewed(
     ).all()
     gone: list[tuple[str, str, str]] = []
     for cusip, cik in rows:
-        rule = _rule(cusip)
-        hit = next(
-            (n for n in sorted(names.get(cusip, ())) if (cik, _issuer(n), rule) in reviewed), None
-        )
+        keys = [(cik, _issuer(n), r) for n in sorted(names.get(cusip, ())) for r in _rules(cusip)]
+        hit = next((k for k in keys if k in reviewed), None)
         if hit:
             db.execute(delete(IssuerCusip).where(IssuerCusip.cusip == cusip))
-            gone.append((cik, _issuer(hit), rule))
+            gone.append(hit)
     return gone
 
 
@@ -239,14 +271,66 @@ def map_prefixes(db: Session, classes: dict[str, str]) -> int:
         by_prefix.setdefault(c[:6], set()).add(cik)
     known = {c for c, _ in mapped}
     n = 0
+    todo: dict[str, tuple[str, str]] = {}
     for c, title in classes.items():
         ciks = by_prefix.get(c[:6])
         if c in known or not ciks or len(ciks) != 1 or not is_share_class(title):
             continue
         if debt_issue_number(c):
             continue  # a bond some managers filed as shares (Airbnb's 0% notes, titled CLASS A)
-        n += record(db, next(iter(ciks)), c, "issuer_prefix", title)
+        todo[c] = (next(iter(ciks)), title)
+    low = value_outliers(db, {c: cik for c, (cik, _) in todo.items()})
+    for c, (cik, title) in todo.items():
+        if c not in low:
+            n += record(db, cik, c, "issuer_prefix", title)
     return n
+
+
+# E-1d for issue-prefix links (PM 2026-11-22): lines worth under this share of the company's own
+# other mapped common, per share, in the same quarter are not that common (the old Noble
+# Corporation's cancelled shares at $0.26 against about $30). Judged only where the company has
+# another mapped common CUSIP (13D/G, ISIN or 13F name) and both sides have at least MIN_LINES
+# lines that quarter; the latest quarter that can be judged decides.
+VALUE_SHARE_FLOOR = 0.10
+MIN_LINES = 3
+
+
+def value_outliers(db: Session, links: dict[str, str]) -> dict[str, dict]:
+    """{cusip: detail} for the links ({cusip: cik}) whose latest judged quarter is under the
+    floor."""
+    if not links:
+        return {}
+    ciks = set(links.values())
+    refs: dict[str, set[str]] = {}
+    for c, cik in db.execute(
+        select(IssuerCusip.cusip, IssuerCusip.cik).where(
+            IssuerCusip.cik.in_(ciks), IssuerCusip.method != "issuer_prefix"
+        )
+    ):
+        if c not in links and not debt_issue_number(c):
+            refs.setdefault(cik, set()).add(c)
+    wanted = set(links) | {c for cs in refs.values() for c in cs}
+    per: dict[tuple[str, date], list[float]] = {}
+    for c, period, value, shares in db.execute(
+        select(
+            Holding13F.cusip, Holding13F.report_period, Holding13F.value_usd, Holding13F.shares
+        ).where(Holding13F.cusip.in_(wanted), Holding13F.shares > 0)
+    ):
+        per.setdefault((c, period), []).append(float(value) / float(shares))
+    out = {}
+    for c, cik in links.items():
+        periods = sorted({p for (x, p) in per if x == c}, reverse=True)
+        for p in periods:
+            own = per[(c, p)]
+            ref = [v for r in refs.get(cik, ()) for v in per.get((r, p), [])]
+            if len(own) < MIN_LINES or len(ref) < MIN_LINES:
+                continue
+            m, rm = median(own), median(ref)
+            if rm > 0 and m < VALUE_SHARE_FLOOR * rm:
+                out[c] = {"cik": cik, "period": p.isoformat(), "median": round(m, 4),
+                          "reference_median": round(rm, 4), "lines": len(own)}  # fmt: skip
+            break
+    return out
 
 
 def cusips_for(db: Session, cik: str) -> list[IssuerCusip]:

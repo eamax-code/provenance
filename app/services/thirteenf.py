@@ -128,6 +128,7 @@ def _holdings(z: zipfile.ZipFile, filings: dict[str, dict], classes: dict[str, s
     done: set[str] = set()
     run: dict[str, dict] = {}
     run_acc = None
+    stats: dict[str, list] = {}
     for r in _rows(z, "INFOTABLE.TSV"):
         acc = r["ACCESSION_NUMBER"].strip()
         if acc != run_acc:
@@ -149,8 +150,11 @@ def _holdings(z: zipfile.ZipFile, filings: dict[str, dict], classes: dict[str, s
         if not cusip_map.valid(cusip) or shares is None or value is None:
             continue
         title = " ".join((r.get("TITLEOFCLASS") or "").split())[:100] or None
-        if title and not cusip_map.names_other_security(r.get("NAMEOFISSUER")):
-            classes.setdefault(cusip, title)  # never a preferred, warrant or unit line
+        st = stats.setdefault(cusip, [0, 0, None])  # lines, lines naming another security, title
+        st[0] += 1
+        st[1] += cusip_map.line_names_other_security(r.get("NAMEOFISSUER"), title)
+        if title and not cusip_map.line_names_other_security(r.get("NAMEOFISSUER"), title):
+            st[2] = st[2] or title
         h = run.get(cusip)
         if h is None:
             run[cusip] = {
@@ -163,6 +167,10 @@ def _holdings(z: zipfile.ZipFile, filings: dict[str, dict], classes: dict[str, s
             h["shares"] += shares
             h["value_usd"] += dollars(value, f["filing_date"])
     yield from run.values()
+    # (d): the whole CUSIP is judged once every line is read; never a preferred, warrant or unit
+    for cusip, (lines, flagged, title) in stats.items():
+        if title and not cusip_map.other_security(lines, flagged):
+            classes[cusip] = title
 
 
 def parse_dataset(path: str | Path, source: str | None = None) -> Dataset:

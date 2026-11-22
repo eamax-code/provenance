@@ -83,7 +83,9 @@ def make_zip(
     summary = [SUMMARY] + ["\t".join((a, "0", "1", "1000", "N")) for a, *_ in FILINGS]
     nm, tail = names or {}, ("SOLE", "", "0", "0", "0")
     info = [INFO] + [
-        "\t".join((a, str(i), nm.get(c, "ISSUER"), t, c, "", str(v), str(s), k, pc) + tail)
+        "\t".join(
+            (a, str(i), nm.get((a, c), nm.get(c, "ISSUER")), t, c, "", str(v), str(s), k, pc) + tail
+        )  # fmt: skip
         for i, (a, c, t, v, s, k, pc) in enumerate(ROWS if rows is None else rows)
     ]
     with zipfile.ZipFile(path, "w") as z:
@@ -221,6 +223,50 @@ def test_a_preferred_line_titled_common_does_not_extend_the_prefix(db, ingested_
     assert set(ds.classes) == {"037833506"}  # the preferred line is held but not a class
 
 
+def test_a_cusip_is_judged_on_all_its_lines_at_the_15_percent_share(db, ingested_aapl, tmp_path):
+    acc = "0000001001-26-000002"
+    pfd, ok = "037833407", "037833506"
+    rows = [(acc, pfd, "Common Stock", 25, 1, "SH", "")] + [(acc, ok, "COM", 100, 4, "SH", "")]
+    rows += [(f"0000001002-26-00000{i}", pfd, "Common Stock", 25, 1, "SH", "") for i in (2, 3)]
+    rows += [(f"0000001004-26-00000{i}", ok, "COM", 100, 4, "SH", "") for i in (2,)]
+    # the first line names the preferred as the plain company (it alone once made it a class);
+    # the other two say PFD
+    names = {(acc, pfd): "CITIZENS FINL GROUP", pfd: "CITIZENS FINL 6.5 PFD SER I"}
+    path = make_zip(tmp_path, rows=rows, names=names)
+    ds = thirteenf.parse_dataset(path)
+    list(ds.holdings)
+    assert set(ds.classes) == {ok}
+    assert cusips.other_security(6, 1) and not cusips.other_security(7, 1)  # 15%: 1 of 6, not 7
+    assert cusips.line_names_other_security("CFG 6 1/2 PERP", "PUBLIC")
+    assert cusips.line_names_other_security("DTE ENERGY CO", "PREFERRED STOCK")
+    assert cusips.line_names_other_security("ACME ACQUISITION CORP UNIT", "COM")
+    assert not cusips.line_names_other_security("FERRELLGAS PARTNERS LP UNIT LT", "COM")
+    assert not cusips.line_names_other_security("GRANITE REAL ESTATE INVT TR UNIT", "REIT")
+    assert not cusips.line_names_other_security("APPLE INC", "COM")
+
+
+def test_value_per_share_holds_out_a_prefix_link_far_below_the_common(db, loaded_13f):
+    from app.db.models import Holding13F
+
+    def lines(cusip, n, value):
+        for i in range(n):
+            db.add(Holding13F(accession_number=f"0000009{i:03d}-26-000001", cusip=cusip,
+                              filer_cik=f"9{i:03d}", report_period=date(2026, 6, 30),
+                              filing_date=date(2026, 8, 1), title_of_class="COM",
+                              shares=Decimal(1000), value_usd=Decimal(value)))  # fmt: skip
+        db.flush()
+
+    lines("037833407", 3, 260)  # $0.26 a share against about $200 for the 13D/G common
+    lines("037833506", 2, 260)  # too few lines that quarter: not judged
+    low = cusips.value_outliers(db, {"037833407": "0000320193", "037833506": "0000320193"})
+    assert set(low) == {"037833407"} and low["037833407"]["lines"] == 3
+    assert low["037833407"]["reference_median"] == 200
+    # no other mapped common of the company: not judged
+    assert cusips.value_outliers(db, {"037833407": "0000789019"}) == {}
+    assert cusips.map_prefixes(db, {"037833407": "COM", "037833506": "CL C"}) == 1
+    assert db.get(IssuerCusip, "037833407") is None and db.get(IssuerCusip, "037833506")
+
+
 def test_reviewed_removals_delete_only_the_listed_links(db, ingested_aapl, tmp_path):
     for c in ("037833407", "037833506"):
         cusips.record(db, "0000320193", c, "issuer_prefix", "COM")
@@ -253,7 +299,7 @@ def test_a_letter_in_the_issue_number_is_debt_and_never_a_share_class(db, loaded
 def test_the_reviewed_removal_list_names_no_cusip():
     text = cusips.REVIEWED_REMOVALS.read_text()
     reviewed = cusips.reviewed_removals()
-    assert len(reviewed) == 71 and sum(reviewed.values()) == 75
+    assert len(reviewed) == 123 and sum(reviewed.values()) == 127
     assert not any(cusips.valid(w) for w in text.replace(",", " ").split())
 
 
