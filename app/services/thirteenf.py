@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -330,6 +331,30 @@ def _change(prev: dict | None, cur: dict | None, filed: bool) -> str | None:
     return "unchanged"
 
 
+# a plain label for a 13F class title (PM 2026-11-22), first match wins; unmapped titles show as
+# filed. The raw title stays beside it.
+_CLASS_LABELS = (
+    (re.compile(r"\b(ADRS?|ADS|AMERICAN DEP\w*)\b", re.I), None, "American depositary shares"),
+    (re.compile(r"\b(UNITS?|UT)\b.*\b(LTD|LP|PARTN\w*|PTN|REP)\b|^COM UNIT|^UNIT LTD PARTN"
+                r"|^UT LTD", re.I), None, "Common units"),
+    (re.compile(r"^(?:COM(?:MON)?(?: STOCK| STK)?\s+)?CL(?:ASS)?\s?([A-Z])\b", re.I), 1,
+     "Class {} common stock"),
+    (re.compile(r"^COM(?:MON)?\b(?!.*\b(?:UNIT|PFD|PREF|WT|WARRANT|RIGHT)\b)", re.I), None,
+     "Common stock"),
+    (re.compile(r"^(?:SHS|ORD|ORDINARY)\b", re.I), None, "Ordinary shares"),
+)  # fmt: skip
+
+
+def class_label(title: str | None) -> str | None:
+    """'COM UNIT REP LTD' -> 'Common units'; 'SPONSORED ADS' -> 'American depositary shares'."""
+    t = " ".join((title or "").split())
+    for pattern, group, label in _CLASS_LABELS:
+        m = pattern.search(t)
+        if m:
+            return label.format(m.group(group).upper()) if group else label
+    return t or None
+
+
 ADR_NOTE = (
     "Managers report these holdings in American depositary shares. Each ADS represents a number "
     "of the company's shares that Form 13F does not state, so no percentage of shares "
@@ -443,6 +468,7 @@ def ownership(
         "classes": [
             {
                 "title": c.class_title,
+                "class_label": class_label(c.class_title),
                 "held_as": "adr" if c.cusip in adr_codes else "shares",
                 "ratio": None if c.cusip in adr_codes else 1,
             }

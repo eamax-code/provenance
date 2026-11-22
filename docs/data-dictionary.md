@@ -593,7 +593,9 @@ filings count in filing order: an original or a restatement replaces, NEW HOLDIN
 for the quarter without a position). `institutional_pct` is derived: 13F shares held divided by
 the cover-page shares outstanding, given only for a single share class. Holders are ranked by
 value; each links its 13F filing. `classes` lists the share classes counted (`title` as Forms 13F
-give it, `held_as` `shares` or `adr`, `ratio` 1 or null): for American depositary shares the
+give it, `class_label` a plain label from a reviewed map such as "Common stock", "Common units",
+"Class A common stock", "Ordinary shares" or "American depositary shares", else the title as
+filed, `held_as` `shares` or `adr`, `ratio` 1 or null): for American depositary shares the
 number of shares one ADS represents is not on Form 13F, so `ratio` is null, and while ADR positions
 are counted `institutional_pct`, `pct_of_outstanding` and `shares_outstanding` are null and a note
 says why.

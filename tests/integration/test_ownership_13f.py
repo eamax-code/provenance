@@ -445,15 +445,29 @@ def test_name_rule_takes_adrs_partnership_units_and_exact_short_names(db, ingest
     assert cusips.is_unit_title("UT LTD PTN INT") and not cusips.is_unit_title("UNIT 1 CL A 1/2 WT")
 
 
+def test_class_labels_are_plain_and_fall_back_to_the_title_as_filed():
+    label = thirteenf.class_label
+    assert label("COM UNIT REP LTD") == label("UNIT LTD PARTNER") == "Common units"
+    assert label("SPONSORED ADR") == label("SPON ADS RP CL B") == "American depositary shares"
+    assert label("COM CL A") == "Class A common stock"
+    assert label("CLASS B") == "Class B common stock"
+    assert label("COM NEW") == label("Common Stock, $0.00001 par value") == "Common stock"
+    assert label("ORD SHS") == label("SHS") == "Ordinary shares"
+    assert label("SH BEN INT") == "SH BEN INT" and label(None) is None
+
+
 def test_ownership_of_an_adr_class_gives_no_percentages(db, loaded_13f):
     so = {"value": 15_000_000_000, "as_of_date": "2026-07-15", "source_url": "https://x"}
     plain = thirteenf.ownership(db, "0000320193", shares_outstanding=so)
     assert plain["institutional_pct"] is not None
-    assert plain["classes"] == [{"title": "Common Stock", "held_as": "shares", "ratio": 1}]
+    assert plain["classes"] == [{"title": "Common Stock", "class_label": "Common stock",
+                                 "held_as": "shares", "ratio": 1}]  # fmt: skip
     db.get(IssuerCusip, AAPL).class_title = "SPONSORED ADS"
     db.flush()
     adr = thirteenf.ownership(db, "0000320193", shares_outstanding=so)
-    assert adr["classes"] == [{"title": "SPONSORED ADS", "held_as": "adr", "ratio": None}]
+    adr_class = {"title": "SPONSORED ADS", "class_label": "American depositary shares",
+                 "held_as": "adr", "ratio": None}  # fmt: skip
+    assert adr["classes"] == [adr_class]
     assert adr["institutional_pct"] is None and adr["institutional_pct_derived"] is None
     assert adr["shares_outstanding"] is None
     assert all(h["pct_of_outstanding"] is None for h in adr["top_holders"])
