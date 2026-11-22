@@ -101,3 +101,25 @@ def test_rows_events_and_watch(client, auth, items_aapl):
     )
     text = json.dumps(rows)
     assert "first_detected" not in text and "data.sec.gov" not in text
+
+
+def test_revoking_a_key_deletes_its_watchlists(client, auth, db, settings, items_aapl):
+    from sqlalchemy import func, select
+
+    from app.db.models import ApiKey, Watchlist, WatchlistCompany
+    from app.services.api_keys import create_key_record
+
+    _, raw = create_key_record(db, settings, "dev@example.com", "free", "second", actor="test")
+    db.commit()
+    second = {"X-API-Key": raw}
+    mine = client.post("/v1/watchlists", json={"name": "Gone", "ciks": ["320193"]}, headers=auth)
+    kept = client.post("/v1/watchlists", json={"name": "Kept", "ciks": ["320193"]}, headers=second)
+    assert mine.status_code == kept.status_code == 201
+    first = db.scalar(select(ApiKey).where(ApiKey.label == "test"))
+    r = client.delete(f"/v1/developer/api-keys/{first.id}", headers=second)
+    assert r.status_code == 200 and r.json()["is_active"] is False
+    db.expire_all()
+    names = list(db.scalars(select(Watchlist.name)))
+    assert names == ["Kept"]
+    assert db.scalar(select(func.count()).select_from(WatchlistCompany)) == 1
+    assert client.get(f"/v1/watchlists/{kept.json()['id']}", headers=second).status_code == 200

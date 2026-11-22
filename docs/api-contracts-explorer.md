@@ -213,7 +213,9 @@ Rules:
 ## X-07 Watchlists (stored per key)
 
 Named lists of companies with chosen columns, stored on the server per API key (no account
-work). Another key's list is `404` (never `403`, so ids are not probed).
+work). Another key's list is `404` (never `403`, so ids are not probed). A list stores the key
+id, its name, the CIKs, the columns and two timestamps; revoking the key deletes its lists in
+the same transaction.
 
 | Method and path | Body / parameters | Returns |
 |---|---|---|

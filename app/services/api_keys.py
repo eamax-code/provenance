@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.security import generate_api_key
-from app.db.models import ApiKey, AuditEvent, utcnow
+from app.db.models import ApiKey, AuditEvent, Watchlist, WatchlistCompany, utcnow
 
 
 def create_key_record(
@@ -40,11 +41,16 @@ def create_key_record(
 
 
 def revoke_key(db: Session, key: ApiKey, actor: str) -> None:
+    """Deactivate the key and delete its watchlists (X-07): no one could read them again, so
+    they are not kept. Same transaction as the revocation; the caller commits."""
     if not key.is_active:
         return
     now = utcnow()
     key.is_active = False
     key.revoked_at = now
+    lists = select(Watchlist.id).where(Watchlist.api_key_id == key.id)
+    db.execute(delete(WatchlistCompany).where(WatchlistCompany.watchlist_id.in_(lists)))
+    db.execute(delete(Watchlist).where(Watchlist.api_key_id == key.id))
     db.add(
         AuditEvent(
             actor=actor,
