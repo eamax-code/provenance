@@ -8,9 +8,14 @@
   var segKind = null, segMetric = 'revenue';
   var KIND = { business: 'Business', geographic: 'Geographic', product: 'Products and services' };
   var SEGM = { revenue: 'Revenue', operating_income: 'Operating income', pretax_income: 'Pretax income' };
+  // a filing's standard label role ends in " [Member]"; the name is what comes before it
+  var segLabel = function (l) { return String(l || '').replace(/\s*\[(Member|Domain|Axis)\]\s*$/, ''); };
   function segments(d) {
     var S = d.segments, box = $('segments');
-    box.hidden = !S || !(S.kinds || []).length; if (box.hidden) return;
+    // a "breakdown" with one line is the total under another name (XOM's product view): not shown
+    var kinds = ((S && S.kinds) || []).filter(function (k) { return (k.segments || []).length > 1; });
+    box.hidden = !kinds.length; if (box.hidden) return;
+    S = Object.assign({}, S, { kinds: kinds });
     var f = S.filing || {};
     $('seg-from').replaceChildren('As reported in the ', srcLink((f.form_type || '10-K') + ' filed ' + P.date(f.filed_date), f.source_url, 'accession ' + (f.accession_number || '')), f.fiscal_year ? ' for FY' + f.fiscal_year + '.' : '.');
     if (!S.kinds.some(function (k) { return k.kind === segKind; })) segKind = S.kinds[0].kind;
@@ -44,7 +49,7 @@
     var tb = el('tbody');
     (K.segments || []).forEach(function (sg) {
       var vals = (sg.values || {})[segMetric] || {};
-      var nameCell = sg.label_source === 'member_name' ? el('th', { scope: 'row', class: 'fin-name member-name', title: 'Name from the XBRL member, not the company\'s own label', text: sg.label }) : el('th', { scope: 'row', class: 'fin-name', text: sg.label });
+      var nameCell = sg.label_source === 'member_name' ? el('th', { scope: 'row', class: 'fin-name member-name', title: 'Name from the XBRL member, not the company\'s own label', text: segLabel(sg.label) }) : el('th', { scope: 'row', class: 'fin-name', text: segLabel(sg.label) });
       var row = el('tr', {}, [nameCell].concat(periods.map(function (p) { return cell(vals[p]); })));
       if (share) {
         var pct = sg.share_of_revenue_pct;
@@ -55,7 +60,7 @@
     (K.reconciling || []).forEach(function (rc) {
       var vals = (rc.values || {})[segMetric] || {};
       if (!periods.some(function (p) { return vals[p] != null; })) return;
-      var row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: rc.label })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
+      var row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: segLabel(rc.label) })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
       if (share) row.appendChild(el('td'));
       tb.appendChild(row);
     });
