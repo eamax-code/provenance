@@ -331,8 +331,13 @@ An SEC filer's LEI and, through it, its listings in Europe, the UK and Canada
 (which may also record "no LEI"); the LEI in the SEC's record (`sec`, high); the GLEIF name equal
 after removing legal-form words and the GLEIF jurisdiction equal to the SEC state of
 incorporation (`name_jurisdiction`, high); the full legal name equal, legal form included, unique
-among issuers, and both in or both outside the US (`name_unique`, medium). Everything else stays
-unmatched. Rebuilt by `scripts/match_identifiers.py` and the daily listings job. Shown as
+among issuers, and both in or both outside the US (`name_unique`, medium). From the GLEIF golden
+copy (K-01b/c): `gleif_name_jurisdiction` (high), `gleif_name_unique` and `gleif_normalised_name`
+(high when the jurisdiction is exact, else medium). K-01d: `gleif_name_us_state_differs`
+(medium) for a US filer whose SEC state differs from GLEIF's (the SEC often records the home
+state, GLEIF the state of incorporation): only when one active US entity has the normalised
+name, its headquarters or legal address is in the filer's business city, and no other filer
+holds the LEI (hand-check: 30 of 30 right). Everything else stays unmatched. Rebuilt by `scripts/match_identifiers.py` and the daily listings job. Shown as
 `identity` on the company overview, a line on `/profile`, and `sec_cik` on
 `/v1/markets/issuers/{lei}`. Coverage follows the listings data: shares on the 38 covered venues,
 so most links are foreign private issuers that also file with the SEC.
