@@ -135,6 +135,8 @@ def _c06_data(db, tmp_path) -> None:
         CompanyLei,
         CompanySegment,
         InsiderActivity,
+        InsiderFiling,
+        InsiderTransaction,
     )
     from app.services import cusips, thirteenf
     from tests.integration.test_ownership_13f import FIXTURES as F13
@@ -161,12 +163,28 @@ def _c06_data(db, tmp_path) -> None:
         detail=json.dumps({"shares": 1000, "value_usd": 200000}),
         source_url=arch.format(1111111, "000111111126000001", "0001111111-26-000001"),
     ))  # fmt: skip
+    for acc, owner, code, shares, price, days, director in (
+        ("0001111111-26-000002", "EXAMPLE JANE", "P", 1000, 200.0, 15, True),
+        ("0000320193-26-000077", "COOK TIMOTHY D", "S", 50000, 250.0, 30, False),
+    ):
+        db.add(InsiderFiling(
+            accession_number=acc, issuer_cik="0000320193", owner_cik="1111111",
+            owner_name=owner, is_director=director, is_officer=not director,
+            officer_title=None if director else "Chief Executive Officer", form_type="4",
+            filing_date=today - timedelta(days=days - 1), source="test",
+        ))  # fmt: skip
+        db.add(InsiderTransaction(
+            accession_number=acc, issuer_cik="0000320193", row_kind="transaction",
+            is_derivative=False, row_key=f"{acc}:1", security_title="Common Stock",
+            trans_date=today - timedelta(days=days), trans_code=code, shares=shares,
+            price=price, acquired_disposed="A" if code == "P" else "D",
+        ))  # fmt: skip
     db.add(CompanyLei(cik="0000320193", lei="HWUPKR0MPOU8FGXBT394", match_method="sec",
                       confidence="high", evidence="test"))  # fmt: skip
     db.add(CompanyAuditor(
         accession_number="0000950170-25-100235", auditor_key="34", cik="0000789019",
         form_type="10-K", fiscal_year=2025, period_end=date(2025, 6, 30),
-        filed_date=date(2025, 7, 30), auditor_name="Deloitte & Touche LLP",
+        filed_date=date(2025, 7, 30), auditor_name="DELOITTE & TOUCHE LLP",
         pcaob_firm_id="34", auditor_location="Seattle, Washington", source="test",
     ))  # fmt: skip
     _company(db, "0000018230", "CATERPILLAR INC", "CAT", "3531")
@@ -224,6 +242,16 @@ def _cited_sentence_with(reply: dict, needle: str) -> bool:
 
 
 def score(case: dict, reply: dict) -> tuple[bool, str]:
+    ok, why = _score_kind(case, reply)
+    answer = reply.get("answer") or ""
+    missing = [t for t in case.get("contains", []) if t not in answer]
+    extra = [t for t in case.get("absent_text", []) if t in answer]
+    if missing or extra:
+        return False, f"{why}; missing {missing}, must not say {extra}"
+    return ok, why
+
+
+def _score_kind(case: dict, reply: dict) -> tuple[bool, str]:
     answer = reply.get("answer") or ""
     kind = case["kind"]
     if kind == "figure":
@@ -278,11 +306,12 @@ def test_chat_eval(app, client, auth, eval_db, capsys):
     figure = [r for r in results if r[0]["kind"] in FIGURE_KINDS]
     exact = sum(r[1] for r in figure) / len(figure)
     core = results
+    c06 = [r for r in results if r[0]["kind"] == "c06"]
     uncited = [(r[0]["id"], s) for r in results for s in r[4]]
     with capsys.disabled():
         print(f"\nC-07: exact figures {sum(r[1] for r in figure)}/{len(figure)} ({exact:.1%}); "
               f"all {sum(r[1] for r in core)}/{len(core)}; "
-              f"C-06 {sum(r[1] for r in results if r[0]['kind'] == 'c06')}/6; "
+              f"C-06 {sum(r[1] for r in c06)}/{len(c06)}; "
               f"uncited figure sentences {len(uncited)}")  # fmt: skip
         for case, passed, why, reply, _ in results:
             if not passed:
@@ -292,7 +321,7 @@ def test_chat_eval(app, client, auth, eval_db, capsys):
     unexpected = [
         r[0]["id"]
         for r in results
-        if not r[1] and r[0]["kind"] != "c06" and r[0]["id"] not in KNOWN_FAILURES
+        if not r[1] and r[0]["id"] not in KNOWN_FAILURES  # every kind is gated, C-06 too
     ]
     fixed = [r[0]["id"] for r in results if r[1] and r[0]["id"] in KNOWN_FAILURES]
     assert not unexpected, f"new failures: {unexpected}"

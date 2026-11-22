@@ -1,5 +1,5 @@
 {
- "about": "C-07 chat accuracy eval: 63 questions (60, plus 3 C-04 screens) over the test fixtures (Apple and Microsoft as fixtured, an IFRS company in EUR, a second USD company, two recent IPOs). kind: figure (the expected value must be stated, rendered as the chat renders money, with a citation), ratio (a percentage to one decimal, cited), refusal (no figure; out of scope), clarify (no company found; no figure), no_data (no figure for something not reported; never empty), list (each expected name, with a filing link), leadership (an answer with a citation), c06 (the C-06 intents, landed 2026-11-23: holders, segments, auditor, insiders, 5% holders, LEI; a cited answer, figures citing their filing). screen (C-04: the parsed criteria in a screen block, every expected company named and none of the absent ones, figures cited).",
+ "about": "C-07 chat accuracy eval: 64 questions (60, plus 3 C-04 screens and an insider-sales case) over the test fixtures (Apple and Microsoft as fixtured, an IFRS company in EUR, a second USD company, two recent IPOs). kind: figure (the expected value must be stated, rendered as the chat renders money, with a citation), ratio (a percentage to one decimal, cited), refusal (no figure; out of scope), clarify (no company found; no figure), no_data (no figure for something not reported; never empty), list (each expected name, with a filing link), leadership (an answer with a citation), c06 (the C-06 intents, landed 2026-11-23: holders, segments, auditor, insiders, 5% holders, LEI; a cited answer, figures citing their filing). screen (C-04: the parsed criteria in a screen block, every expected company named and none of the absent ones, figures cited). Any case may add contains / absent_text: strings the answer must, or must not, hold.",
  "cases": [
   {
    "id": "fig-01",
@@ -372,12 +372,27 @@
   {
    "id": "c06-03",
    "q": "Who audits Microsoft?",
-   "kind": "c06"
+   "kind": "c06",
+   "contains": [
+    "Deloitte & Touche LLP"
+   ],
+   "absent_text": [
+    "DELOITTE"
+   ]
   },
   {
    "id": "c06-04",
    "q": "Which insiders bought Apple shares recently?",
-   "kind": "c06"
+   "kind": "c06",
+   "contains": [
+    "Example Jane",
+    "bought",
+    "Information, not signals. Not investment advice."
+   ],
+   "absent_text": [
+    "Cook Timothy",
+    "sold"
+   ]
   },
   {
    "id": "c06-05",
@@ -387,7 +402,14 @@
   {
    "id": "c06-06",
    "q": "What is Apple's LEI?",
-   "kind": "c06"
+   "kind": "c06",
+   "contains": [
+    "reported by the company to the SEC"
+   ],
+   "absent_text": [
+    "_",
+    "matching ("
+   ]
   },
   {
    "id": "scr-01",
@@ -430,6 +452,19 @@
     "industry": "software",
     "min_revenue_usd": 1000000000.0
    }
+  },
+  {
+   "id": "c06-07",
+   "q": "Which Apple insiders sold shares in the last year?",
+   "kind": "c06",
+   "contains": [
+    "Cook Timothy D",
+    "sold",
+    "Information, not signals. Not investment advice."
+   ],
+   "absent_text": [
+    "Example Jane"
+   ]
   }
  ]
 }

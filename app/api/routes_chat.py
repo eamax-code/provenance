@@ -790,7 +790,7 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     # C-06: holders, 5% holders, auditor, segments, insiders and the LEI from stored data
     c06 = chat_intents.detect(body.message) if fresh and not quoted else None
     if c06:
-        answer = chat_intents.answer(db, brief, c06, body.as_of)
+        answer = chat_intents.answer(db, brief, c06, body.as_of, body.message)
         how = [
             {
                 "endpoint": f"/v1/companies/{int(company.cik)}/{chat_intents.HOW[c06]}",

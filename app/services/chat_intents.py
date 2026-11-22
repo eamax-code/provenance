@@ -52,7 +52,30 @@ INTENTS = (  # first match wins
     ),  # fmt: skip
 )
 INSIDER_DAYS = 365
-NOT_SIGNALS = "This is information, not a signal, and not investment advice."
+NOT_SIGNALS = "Information, not signals. Not investment advice."  # launch rule: in the text
+_BUY = re.compile(r"\b(bought|buy\w*|purchas\w*)\b", re.I)
+_SELL = re.compile(r"\b(sold|sell\w*|sales?)\b", re.I)
+_LEGAL = {"LLC", "LLP", "LP", "PLC", "NV", "SA", "AG", "SE", "USA", "US", "LTD", "II", "III", "IV",
+          "NA", "N.A.", "L.P.", "PC"}  # fmt: skip
+
+
+_WORDS = {"CO", "INC", "THE", "AND", "OF", "FOR", "NEW", "BAY", "OAK", "SUN", "SKY", "ONE"}
+
+
+def filed_name(name: str | None) -> str | None:
+    """A firm's name as filed, readable: an all-caps name is title-cased word by word, keeping
+    legal forms, short acronyms (UBS), words without vowels (KPMG) and "&"; a name with any
+    lower-case letter is left exactly as filed. Words are never joined or split."""
+    if not name or any(ch.islower() for ch in name):
+        return name
+    out = []
+    for w in name.split():
+        core = w.strip(",.")
+        word = core not in _WORDS  # short common words are words, not acronyms
+        acronym = word and (len(core) <= 3 or not any(v in core for v in "AEIOUY"))
+        keep = core in _LEGAL or acronym or not core[:1].isalpha()
+        out.append(w if keep else w.capitalize())
+    return " ".join(out)
 
 
 def detect(text: str) -> str | None:
@@ -81,8 +104,9 @@ def holders(db: Session, b: Brief, as_of: date | None) -> str:
     parts = []
     for h in block["top_holders"]:
         url = h.get("filing_url") or filing_index_url(h["filer_cik"], h["accession_number"])
-        n = _cite(b, f"13F of {h['name']}, filed {h['filing_date']}", url)
-        parts.append(f"{h['name']} ({money(h['value_usd'], 'USD')}) [{n}]")
+        who = filed_name(h["name"])
+        n = _cite(b, f"13F of {who}, filed {h['filing_date']}", url)
+        parts.append(f"{who} ({money(h['value_usd'], 'USD')}) [{n}]")
     text = (f"{block['holders_count']:,} institutional managers reported holding {_name(b)} on "
             f"Form 13F for the quarter ended {block['quarter']}. The largest by value: "
             + "; ".join(parts) + ".")  # fmt: skip
@@ -118,7 +142,8 @@ def auditor(db: Session, b: Brief, as_of: date | None) -> str:
     n = _cite(b, f"{rep['form_type']} filed {rep['filed_date']}", rep["source_url"])
     where = f" ({cur['location']})" if cur.get("location") else ""
     fy = f" for fiscal {rep['fiscal_year']}" if rep.get("fiscal_year") else ""
-    text = (f"{_name(b)}'s auditor is {cur['name']}{where}, as named in its {rep['form_type']}"
+    text = (f"{_name(b)}'s auditor is {filed_name(cur['name'])}{where}, as named in its "
+            f"{rep['form_type']}"
             f"{fy} filed {rep['filed_date']} [{n}].")  # fmt: skip
     if block.get("firm_changes"):
         ch = block["firm_changes"][0]
@@ -157,11 +182,61 @@ def segments(db: Session, b: Brief, as_of: date | None) -> str:
     return text
 
 
-def insiders(db: Session, b: Brief, as_of: date | None) -> str:
+def _trades(db: Session, b: Brief, code: str, since: date, ref: date) -> list[tuple]:
+    """Open-market purchases (P) or sales (S) on Forms 4, per filing: (filing, date, shares,
+    average price)."""
+    from app.db.models import InsiderFiling, InsiderTransaction
+
+    rows = db.execute(
+        select(InsiderTransaction.accession_number, InsiderTransaction.trans_date,
+               InsiderTransaction.shares, InsiderTransaction.price)
+        .where(InsiderTransaction.issuer_cik == b.company.cik,
+               InsiderTransaction.row_kind == "transaction",
+               InsiderTransaction.is_derivative.is_(False),
+               InsiderTransaction.trans_code == code,
+               InsiderTransaction.trans_date >= since, InsiderTransaction.trans_date <= ref)
+    ).all()  # fmt: skip
+    per: dict[str, list] = {}
+    for acc, d, shares, price in rows:
+        per.setdefault(acc, []).append((d, float(shares or 0), float(price or 0)))
+    filings = {f.accession_number: f for f in db.scalars(
+        select(InsiderFiling).where(InsiderFiling.accession_number.in_(list(per)),
+                                    InsiderFiling.issuer_cik == b.company.cik))}  # fmt: skip
+    out = []
+    for acc, items in per.items():
+        f = filings.get(acc)
+        if f is None:
+            continue
+        shares = sum(x[1] for x in items)
+        value = sum(x[1] * x[2] for x in items)
+        out.append((f, max(x[0] for x in items), shares, value / shares if shares else None))
+    return sorted(out, key=lambda t: t[1], reverse=True)
+
+
+def insiders(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
     from app.services import insider_activity
+    from app.services.sec_client import filing_index_url
 
     ref = as_of or date.today()
     since = ref - timedelta(days=INSIDER_DAYS)
+    wants = "P" if _BUY.search(text) else "S" if _SELL.search(text) else None
+    if wants:  # a buy question answers purchases only, a sell question sales only
+        what = "purchases" if wants == "P" else "sales"
+        trades = _trades(db, b, wants, since, ref)[:5]
+        if not trades:
+            return (f"No open-market {what} by {_name(b)} insiders in the Forms 4 loaded here "
+                    f"for the last year. {NOT_SIGNALS}")  # fmt: skip
+        verb = "bought" if wants == "P" else "sold"
+        parts = []
+        for f, d, shares, price in trades:
+            n = _cite(b, f"Form 4 filed {f.filing_date}",
+                      filing_index_url(b.company.cik, f.accession_number))  # fmt: skip
+            role = f.officer_title or ("director" if f.is_director else None)
+            who = f"{filed_name(f.owner_name)}" + (f" ({role})" if role else "")
+            at = f" at an average ${price:,.2f}" if price else ""
+            parts.append(f"{who} {verb} {shares:,.0f} shares{at} on {d} [{n}]")
+        return (f"Open-market {what} by {_name(b)} insiders in the last year (Forms 4): "
+                + "; ".join(parts) + f". {NOT_SIGNALS}")  # fmt: skip
     rows = list(db.scalars(
         select(InsiderActivity).where(InsiderActivity.cik == b.company.cik,
                                       InsiderActivity.filing_date <= ref,
@@ -179,8 +254,14 @@ def insiders(db: Session, b: Brief, as_of: date | None) -> str:
             + f". {NOT_SIGNALS}")  # fmt: skip
 
 
-METHODS = {"sec": "the LEI the company reports to the SEC",
-           "name_jurisdiction": "its legal name and jurisdiction in GLEIF"}  # fmt: skip
+METHODS = {  # plain words, as the company page says them
+    "sec": "reported by the company to the SEC",
+    "override": "checked by hand against GLEIF and the SEC record",
+    "gleif_name_jurisdiction": "matched by name and jurisdiction",
+    "name_jurisdiction": "matched by name and jurisdiction",
+    "gleif_name_us_state_differs": "matched by name and city",
+    "gleif_name_us_country": "matched by name and country",
+}
 
 
 def lei(db: Session, b: Brief, as_of: date | None) -> str:
@@ -191,9 +272,9 @@ def lei(db: Session, b: Brief, as_of: date | None) -> str:
         return f"No LEI is linked to {_name(b)} in the data loaded here."
     # only sec.gov/Archives filings are ever linked: GLEIF is named, not linked (PM, 2026-11-23)
     n = b.cite(f"GLEIF public record, LEI {block['lei']}, CC0 golden copy", None)
-    how = METHODS.get(block["match_method"], f"matching ({block['match_method']})")
+    how = METHODS.get(block["match_method"], "matched by name")
     holder = f" ({block['lei_name']})" if block.get("lei_name") else ""
-    return f"{_name(b)}'s LEI is {block['lei']}{holder}, matched by {how} [{n}]."
+    return f"{_name(b)}'s LEI is {block['lei']}{holder}, {how} [{n}]."
 
 
 HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
@@ -205,7 +286,9 @@ ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
            "segments": segments, "insiders": insiders, "lei": lei}  # fmt: skip
 
 
-def answer(db: Session, b: Brief, intent: str, as_of: date | None) -> str:
+def answer(db: Session, b: Brief, intent: str, as_of: date | None, text: str = "") -> str:
+    if intent == "insiders":
+        return insiders(db, b, as_of, text)
     return ANSWERS[intent](db, b, as_of)
 
 
