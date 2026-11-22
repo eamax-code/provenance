@@ -246,7 +246,9 @@
     shown.slice(0, eventsAll ? shown.length : 8).forEach(function (e) {
       box.appendChild(el('li', {}, [
         el('time', { datetime: e.date, text: P.date(e.date) }),
-        el('span', { class: 'ev-what' }, [el('b', { text: e.short_label }), el('span', { class: 'muted', text: e.label })]),
+        el('span', { class: 'ev-what' }, [el('b', { text: e.short_label }), el('span', { class: 'muted' }, [e.label].concat(
+          // an auditor change in the annual report links the 8-K item 4.01 that announced it, as one event
+          e.linked_event && e.linked_event.source_url ? ['. Announced in ', srcLink('an 8-K (item 4.01) on ' + P.date(e.linked_event.filing_date), e.linked_event.source_url, 'Opens the filing on sec.gov'), '.'] : []))]),
         srcLink(e.form_type, e.filing_url, 'Opens the filing on sec.gov')
       ]));
     });
@@ -292,7 +294,7 @@
     kv('Industry', c.sic_code ? 'SIC ' + c.sic_code + (c.sic_description ? ', ' + c.sic_description : '') : null);
     // the current audit firm only, as tagged on its latest annual report; no "since" until the history is backfilled
     var au = d.auditor && d.auditor.current;
-    if (au) kv('Auditor', [el('span', {}, [au.latest_report ? srcLink(P.orgName(au.name), au.latest_report.source_url, 'Named on the ' + au.latest_report.form_type + ' filed ' + P.date(au.latest_report.filed_date)) : P.orgName(au.name), (au.location ? ', ' + au.location : '') + (au.pcaob_firm_id ? ' (PCAOB firm ' + au.pcaob_firm_id + ')' : '')])].concat((d.auditor.firm_changes || []).slice().sort(function (a, b) { return b.fiscal_year - a.fiscal_year; }).slice(0, 3).map(function (x, i) {
+    if (au) kv('Auditor', [el('span', {}, [au.latest_report ? srcLink(P.orgName(au.name), au.latest_report.source_url, 'Named on the ' + au.latest_report.form_type + ' filed ' + P.date(au.latest_report.filed_date)) : P.orgName(au.name), (au.location ? ', ' + au.location : '') + (au.pcaob_firm_id ? ' (PCAOB firm ' + au.pcaob_firm_id + ')' : '') + (au.since_basis === 'observed_change' && au.since ? ', since FY' + au.since : '')])].concat((d.auditor.firm_changes || []).slice().sort(function (a, b) { return b.fiscal_year - a.fiscal_year; }).slice(0, 3).map(function (x, i) {
       // a change of firm between two consecutive annual reports, newest first, with the 8-K item 4.01 when
       // one was filed; an older change names its incoming firm ("KPMG LLP replaced Ernst & Young LLP")
       return el('span', { class: 'muted' }, [(i ? P.orgName(x.to && x.to.name) + ' replaced ' : 'Replaced ') + P.orgName(x.from && x.from.name) + ' from ' + (x.first_report ? '' : 'FY' + x.fiscal_year),
