@@ -14,7 +14,7 @@
 .cov-sec-head p { color: var(--soft); max-width: 64ch; }
 .cov-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
 .cov-table, .cov-forms { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--surface); border-radius: 4px; }
-.cov-table th, .cov-table td, .cov-forms th, .cov-forms td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.cov-table th, .cov-table td, .cov-forms th, .cov-forms td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--line-soft); vertical-align: top; white-space: normal; } /* app.css sets nowrap on every cell */
 .cov-table thead th { color: var(--ink); font-weight: 700; }
 .cov-table tr.cov-mnote td { padding-top: 0; font-size: 13.5px; }
 .cov-table tr:has(+ tr.cov-mnote) > * { border-bottom: 0; }

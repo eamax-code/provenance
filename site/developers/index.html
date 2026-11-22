@@ -188,7 +188,7 @@ curl -s "{{BASE}}/v1/companies/789019/facts?metric=revenue&amp;period=annual&amp
 }</code></pre></div>
         <ul>
           <li><code>source_url</code> and <code>accession_number</code> identify the filing. <code>source_tag</code> is the XBRL concept the company used; <code>mapping_version</code> is the rule set that mapped it to <code>revenue</code>.</li>
-          <li><code>quality_status</code> is <code>ok</code>, <code>partial</code>, <code>ambiguous_mapping</code>, <code>invalid_source_value</code> or <code>derived</code>. Show anything other than <code>ok</code> with a note.</li>
+          <li><code>quality_status</code> is <code>ok</code>, <code>partial</code>, <code>ambiguous_mapping</code>, <code>invalid_source_value</code>, <code>suspicious_period</code> (a period ending before 1993 or two or more years after its filing: almost always a typo in the filing; never the latest figure) or <code>derived</code>. Show anything other than <code>ok</code> with a note.</li>
           <li><code>derived: true</code> means the value was computed, for example a fourth quarter as the year minus nine months. Say so when you show it.</li>
           <li><code>period_class</code> comes from the period's dates, not the company's label, so a year-to-date value is never mistaken for a quarter.</li>
           <li>A value the SEC data does not contain is <code>null</code>, never 0.</li>

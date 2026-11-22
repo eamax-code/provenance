@@ -60,7 +60,7 @@
 
 ## Interpreting facts
 - Every fact has source_url (SEC filing index), source_tag (XBRL concept), accession_number,
-  mapping_version, quality_status in {ok, partial, ambiguous_mapping, invalid_source_value, derived}.
+  mapping_version, quality_status in {ok, partial, ambiguous_mapping, invalid_source_value, suspicious_period, derived}; suspicious_period = period ends before 1993 or 2+ years after the filing, never the latest figure.
 - period_class is computed from period dates: annual, quarterly, ytd, other. A ytd value is not a quarter.
 - fiscal_year/fiscal_period are the SEC labels of the filing (a 10-K's comparative for last year carries this year's fy). period_fiscal_year and period_label ("FY2025", "Q1 FY2026") name the period itself: use those.
 - derived=true values are computed by subtraction of two reported year-to-date values; cite them as derived.

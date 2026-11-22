@@ -40,7 +40,7 @@ input[type="search"], #key-input { flex: 1 1 320px; }
 .company-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 18px; }
 .badges { display: flex; gap: 6px; flex-wrap: wrap; }
 .badge { font-family: var(--font-mono); font-size: .7rem; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); }
-.badge.ok { color: var(--good); } .badge.partial, .badge.processing, .badge.stale { color: var(--warn); } .badge.failed, .badge.unavailable, .badge.invalid_source_value { color: var(--bad); } .badge.ambiguous_mapping { color: var(--accent-2); } .badge.derived { color: var(--accent); }
+.badge.ok { color: var(--good); } .badge.partial, .badge.processing, .badge.stale, .badge.suspicious_period { color: var(--warn); } .badge.failed, .badge.unavailable, .badge.invalid_source_value { color: var(--bad); } .badge.ambiguous_mapping { color: var(--accent-2); } .badge.derived { color: var(--accent); }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
 .tab { border: 0; background: transparent; color: var(--muted); padding: 10px 14px; font: inherit; cursor: pointer; border-bottom: 2px solid transparent; }
 .tab[aria-pressed="true"] { color: var(--fg); border-bottom-color: var(--accent); }
