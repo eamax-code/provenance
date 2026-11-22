@@ -127,10 +127,11 @@
     if (none) { $('own-when').textContent = 'No listed common stock, so no 13F holders.'; return; }
     // ADRs get a badge and their 13F title; other titles show as given; plain common says nothing
     var cls = o.classes || [], adr = cls.some(function (c) { return c.held_as === 'adr'; });
-    var showCls = adr || cls.length > 1 || cls.some(function (c) { return !/^COM(MON)?( STOCK| NEW)?$/i.test(c.title || ''); });
-    var clsText = cls.map(function (c) { return c.held_as === 'adr' ? 'American depositary shares (' + P.orgName(c.title) + ')' : c.title; }).join('; ');
-    $('own-when').replaceChildren(quarterName(o.quarter) + ' (filed through ' + P.date(o.filed_through) + '). ' + (o.lag_note || ''),
-      showCls ? el('br') : '', showCls ? 'Class: ' + clsText + ' ' : '', adr ? el('span', { class: 'tag', text: 'held as ADRs' }) : '');
+    var showCls = adr || cls.length > 1 || cls.some(function (c) { return (c.class_label || c.title) !== 'Common stock' && !/^COM(MON)?( STOCK| NEW)?$/i.test(c.title || ''); });
+    // the plain class_label shows; the 13F title as filed is the tooltip
+    var clsLine = []; cls.forEach(function (c, i) { clsLine.push(i ? '; ' : 'Class: ', el('span', { title: 'As filed on Form 13F: ' + c.title, text: c.class_label || c.title })); });
+    $('own-when').replaceChildren.apply($('own-when'), [quarterName(o.quarter) + ' (filed through ' + P.date(o.filed_through) + '). ' + (o.lag_note || '')]
+      .concat(showCls ? [el('br')].concat(clsLine, [' ']) : [], adr ? [el('span', { class: 'tag', text: 'held as ADRs' })] : []));
     var pct = o.institutional_pct;
     var pctTitle = o.institutional_pct_derived ? o.institutional_pct_derived.formula + (o.institutional_pct_derived.inputs || []).map(function (x) { return '; ' + x.name + ' ' + (x.value != null ? Number(x.value).toLocaleString('en-US') : '') + (x.quarter ? ' (' + quarterName(x.quarter) + ')' : x.as_of_date ? ' (' + P.date(x.as_of_date) + ')' : ''); }).join('') : '';
     var nums = $('own-nums'); nums.textContent = '';
