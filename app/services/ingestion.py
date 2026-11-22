@@ -472,12 +472,8 @@ def upsert_company(db: Session, rec: CompanyRecord, now: datetime, source_update
     company.sic_code = rec.sic_code
     company.sic_description = rec.sic_description
     company.entity_type = rec.entity_type
-    if not (company.state_of_incorporation_source or "").startswith("dei:"):
-        # the company's own cover tag (K-06) wins over the submissions field, which can hold a
-        # home state (HubSpot)
-        company.state_of_incorporation = rec.state_of_incorporation
-        has = bool(rec.state_of_incorporation)
-        company.state_of_incorporation_source = "submissions" if has else None
+    company.state_of_incorporation = rec.state_of_incorporation  # the SEC field, as given;
+    # the company's own cover tag is kept beside it (state_of_incorporation_cover, K-06)
     company.fiscal_year_end = rec.fiscal_year_end
     company.source_url = rec.source_url
     if source_updated_at is not None:

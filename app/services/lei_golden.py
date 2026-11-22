@@ -44,7 +44,23 @@ SEC_COUNTRY = {
 
 def company_jurisdiction(company: Company) -> str | None:
     """ "US-DE", "KY", "CA-ON"... from the SEC's state or country of incorporation."""
-    code = (company.state_of_incorporation or "").strip()
+    return code_jurisdiction(company.state_of_incorporation)
+
+
+def company_jurisdictions(company: Company) -> list[str]:
+    """The jurisdictions a filer may be in: its own cover tag's state first (K-06), then the SEC
+    submissions field. Both count when matching GLEIF, which can lag a redomicile."""
+    out = []
+    for code in (company.state_of_incorporation_cover, company.state_of_incorporation):
+        j = code_jurisdiction(code)
+        if j and j not in out:
+            out.append(j)
+    return out
+
+
+def code_jurisdiction(code: str | None) -> str | None:
+    """ "US-DE", "KY", "CA-ON"... from an EDGAR state or country code."""
+    code = (code or "").strip()
     if code.upper() in US_STATES and code.isalpha():
         return f"US-{code.upper()}"
     return SEC_COUNTRY.get(code.upper())

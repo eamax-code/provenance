@@ -138,7 +138,7 @@ def match_all(db: Session) -> dict:
         by_name.setdefault(normalize(i.legal_name), []).append(i)
         by_strict.setdefault(strict_key(i.legal_name), []).append(i)
     from app.db.models import GleifEntity
-    from app.services.lei_golden import company_jurisdiction, jurisdictions_agree
+    from app.services.lei_golden import company_jurisdictions, jurisdictions_agree
 
     golden: dict[str, list[GleifEntity]] = {}
     by_norm: dict[str, list[GleifEntity]] = {}
@@ -179,9 +179,14 @@ def match_all(db: Session) -> dict:
         key = normalize(c.legal_name)
         candidates = by_name.get(key, []) if key else []
         exact = [i for i in candidates if _jurisdiction_matches(i, c)]
-        here = company_jurisdiction(c)
+        heres = company_jurisdictions(c)  # the cover tag's state first, then the SEC field
+        here = heres[0] if heres else None
+
+        def agrees(gj, heres=heres):
+            return any(jurisdictions_agree(h, gj) for h in heres)
+
         gold = golden.get(strict_key(c.legal_name), [])
-        gold_exact = [g for g in gold if jurisdictions_agree(here, g.jurisdiction)]
+        gold_exact = [g for g in gold if agrees(g.jurisdiction)]
         if len(exact) != 1 and len(gold_exact) == 1:
             g = gold_exact[0]
             rows.append(CompanyLei(
@@ -212,7 +217,14 @@ def match_all(db: Session) -> dict:
                 matched_at=now,
             ))  # fmt: skip
             counts["name_unique"] += 1
-        elif len(gold) == 1 and not (here and gold[0].jurisdiction):
+        elif len(gold) == 1 and (
+            not (here and gold[0].jurisdiction)
+            # GLEIF gives only the country for some US funds ("US"): compatible, not confirmed
+            or (
+                (gold[0].jurisdiction or "").upper() == "US"
+                and all(h.startswith("US-") for h in heres)
+            )
+        ):
             g = gold[0]  # unique name; one side's jurisdiction is unknown, so medium
             rows.append(CompanyLei(
                 cik=c.cik, lei=g.lei, match_method="gleif_name_unique", confidence="medium",
@@ -223,9 +235,9 @@ def match_all(db: Session) -> dict:
             ))  # fmt: skip
             counts["gleif_name_unique"] += 1
         elif len(norm := [g for g in by_norm.get(norm_key(c.legal_name), [])
-                          if jurisdictions_agree(here, g.jurisdiction)]) == 1:  # fmt: skip
+                          if agrees(g.jurisdiction)]) == 1:  # fmt: skip
             g = norm[0]  # K-01c: normalised names and the jurisdiction agree, one candidate
-            exact_place = (here or "").upper() == (g.jurisdiction or "").upper()
+            exact_place = (g.jurisdiction or "").upper() in {h.upper() for h in heres}
             rows.append(CompanyLei(
                 cik=c.cik, lei=g.lei, match_method="gleif_normalised_name",
                 confidence="high" if exact_place else "medium",
@@ -236,7 +248,7 @@ def match_all(db: Session) -> dict:
             ))  # fmt: skip
             counts["gleif_normalised_name"] += 1
         elif (
-            here is None
+            not heres
             and not re.search(r"/OLD\b", c.legal_name or "", re.I)  # a former registrant
             and len(cands := by_current.get(norm_key(c.legal_name), [])) == 1
         ):

@@ -162,3 +162,27 @@ def test_k01d_us_state_differs_needs_the_business_city_and_an_unshared_lei(db):
     m = identity.for_company(db, "0000000101")
     assert m["match_method"] == "gleif_name_us_state_differs" and m["confidence"] == "medium"
     assert identity.for_company(db, "0000000102") is None  # another city: not matched
+
+
+def test_either_the_cover_state_or_the_sec_state_agrees_with_gleif(db):
+    """A redomicile: the company's cover now says FL, the SEC field and GLEIF still say DE. The
+    LEI is the same entity's, so the high match stays."""
+    import json
+
+    from app.db.models import Company, GleifEntity, utcnow
+    from app.services import identity
+
+    db.add(Company(cik="0000000201", legal_name="Everything Example Inc",
+                   state_of_incorporation="DE", state_of_incorporation_cover="FL",
+                   business_address=json.dumps({"city": "Fleming Island"}),
+                   source_url="https://www.sec.gov/", quality_status="ok",
+                   first_detected_at=utcnow()))  # fmt: skip
+    db.add(GleifEntity(lei="LEI00000000000000201", legal_name="Everything Example Inc",
+                       name_key=identity.strict_key("Everything Example Inc"),
+                       norm_keys=identity.norm_key("Everything Example Inc"),
+                       jurisdiction="US-DE", entity_status="ACTIVE", hq_city="Jacksonville",
+                       loaded_at=utcnow()))  # fmt: skip
+    db.commit()
+    identity.match_all(db)
+    m = identity.for_company(db, "0000000201")
+    assert m["match_method"] == "gleif_name_jurisdiction" and m["confidence"] == "high"

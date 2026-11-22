@@ -41,7 +41,7 @@ def _zip(tmp_path):
 
 def _company(db, cik, name, state):
     db.add(Company(cik=cik, legal_name=name, state_of_incorporation=state,
-                   state_of_incorporation_source="submissions", source_url="https://www.sec.gov/",
+                   source_url="https://www.sec.gov/",
                    quality_status="ok", first_detected_at=utcnow()))  # fmt: skip
 
 
@@ -51,16 +51,18 @@ def test_the_cover_tag_wins_and_a_co_registrants_tag_is_never_used(db, tmp_path)
     _company(db, "0000073986", "OHIO POWER CO", "OH")
     db.commit()
     _, rows = auditors.parse_notes_zip(_zip(tmp_path))
-    assert ticker_history.apply_incorporation(db, rows) == 2
+    assert ticker_history.apply_incorporation(db, rows) == 1
     hubs = db.get(Company, db.query(Company.id).filter(Company.cik == "0001404655").scalar())
-    assert hubs.state_of_incorporation == "DE"
+    assert hubs.state_of_incorporation_cover == "DE" and hubs.state_of_incorporation == "NY"
     inc = ticker_history.incorporation(hubs)
+    assert inc["code"] == "DE" and inc["sec_submissions_code"] == "NY"
     assert inc["source"] == "dei:EntityIncorporationStateCountryCode"
     assert inc["accession_number"] == HUBS and inc["source_url"].startswith("https://www.sec.gov/")
     aep = db.query(Company).filter(Company.cik == "0000004904").one()
-    assert aep.state_of_incorporation == "NY"  # its own undimensioned tag, not Ohio Power's OH
+    # a combined filing (co-registrant cover tags) without the registrant's name: not used
+    assert aep.state_of_incorporation_cover is None and aep.state_of_incorporation == "NY"
     ohio = db.query(Company).filter(Company.cik == "0000073986").one()
-    assert ohio.state_of_incorporation_source == "submissions"  # untouched by the parent's file
+    assert ohio.state_of_incorporation_cover is None  # untouched by the parent's file
     # a later refresh from the SEC submissions feed does not put NY back
     upsert_company(db, CompanyRecord(
         cik="0001404655", legal_name="HUBSPOT INC", ticker="HUBS", exchange="NYSE", sic_code=None,
@@ -68,7 +70,7 @@ def test_the_cover_tag_wins_and_a_co_registrants_tag_is_never_used(db, tmp_path)
         fiscal_year_end="1231", source_url="https://www.sec.gov/"), datetime.now(UTC))  # fmt: skip
     db.commit()
     again = db.query(Company).filter(Company.cik == "0001404655").one()
-    assert again.state_of_incorporation == "DE"
+    assert again.state_of_incorporation_cover == "DE"  # the SEC field stays as the SEC gives it
     sub_only = ticker_history.incorporation(ohio)
     assert sub_only["source"] == "sec_submissions" and sub_only["source_url"] is None
 
@@ -93,12 +95,11 @@ def test_foreign_iso_codes_and_another_registrants_cover_are_not_used(db):
     ]  # fmt: skip
     subs = {"0001365767": "L3", "0001524596": "DE", "0001404655": "NY"}
     assert ticker_history.apply_incorporation(db, rows, subs) == 1
-    state = dict(db.query(Company.cik, Company.state_of_incorporation))
-    assert state["0001365767"] == "L3" and state["0001524596"] == "DE"
-    assert state["0001404655"] == "DE"
+    cover = dict(db.query(Company.cik, Company.state_of_incorporation_cover))
+    assert cover["0001365767"] is None and cover["0001524596"] is None
+    assert cover["0001404655"] == "DE"
     # a company set from a cover that no longer qualifies goes back to the submissions value
     rows[2]["registrant"] = "Some Other Company Inc."
     assert ticker_history.apply_incorporation(db, rows, subs) == 1
     hubs = db.query(Company).filter(Company.cik == "0001404655").one()
-    assert hubs.state_of_incorporation == "NY"
-    assert hubs.state_of_incorporation_source == "submissions"
+    assert hubs.state_of_incorporation_cover is None and hubs.state_of_incorporation == "NY"

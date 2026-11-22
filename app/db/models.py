@@ -54,6 +54,8 @@ class Company(Base):
     # where it comes from: "dei:EntityIncorporationStateCountryCode" (the company's own cover tag,
     # with the filing) or "submissions" (the SEC's field, which can hold a home state: HubSpot)
     state_of_incorporation_source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # the cover tag's value, beside the SEC field (state_of_incorporation) rather than over it
+    state_of_incorporation_cover: Mapped[str | None] = mapped_column(Text, nullable=True)
     state_of_incorporation_accession: Mapped[str | None] = mapped_column(String(25), nullable=True)
     fiscal_year_end: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Identity the SEC publishes in the submissions (issue #9); empty strings are stored as null.

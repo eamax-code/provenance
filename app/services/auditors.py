@@ -74,6 +74,7 @@ def parse_notes_zip(path: str | Path) -> tuple[list[dict], list[dict]]:
                 subs[r["adsh"]] = r
         groups: dict[tuple[str, str], dict] = {}
         symbols: dict[tuple[str, str], dict] = {}
+        combined: set[str] = set()
         with z.open(_member(z, "txt.tsv")) as fh:
             text = io.TextIOWrapper(fh, encoding="utf-8", errors="replace", newline="")
             header = text.readline().rstrip("\n").split("\t")
@@ -84,6 +85,13 @@ def parse_notes_zip(path: str | Path) -> tuple[list[dict], list[dict]]:
                     continue
                 f = line.rstrip("\n").split("\t")
                 if len(f) < len(header) or f[col["dimn"]] != "0" or f[col["coreg"]]:
+                    if (
+                        len(f) >= len(header)
+                        and f[col["coreg"]]
+                        and parts[1]
+                        in ("EntityIncorporationStateCountryCode", "EntityRegistrantName")
+                    ):
+                        combined.add(f[col["adsh"]])  # a co-registrant's own cover tags
                     continue  # a dimension or a co-registrant: not the registrant itself
                 adsh, tag, value = f[col["adsh"]], f[col["tag"]], f[col["value"]].strip()
                 key = (adsh, f[col["context"]])
@@ -114,8 +122,12 @@ def parse_notes_zip(path: str | Path) -> tuple[list[dict], list[dict]]:
                                                                .split())[:200] or None,
             "source": source,
         })  # fmt: skip
+    # the registrant name anywhere in a filing (it can sit in another context than the cover's
+    # other tags), and whether the filing is combined (co-registrant cover tags)
+    named = {adsh: g["registrant"] for (adsh, _), g in symbols.items() if g.get("registrant")}
     syms = []
     for (adsh, _), g in symbols.items():
+        g.setdefault("registrant", named.get(adsh))
         sub = subs.get(adsh)
         if sub is None or not (g.get("symbol") or g.get("registrant") or g.get("incorporation")):
             continue
@@ -127,7 +139,7 @@ def parse_notes_zip(path: str | Path) -> tuple[list[dict], list[dict]]:
                      "symbol": (g.get("symbol") or "").upper()[:20] or None,
                      "exchange": g.get("exchange"), "title": g.get("title"),
                      "registrant": registrant,
-                     "incorporation": inc})  # fmt: skip
+                     "incorporation": inc, "combined": adsh in combined})  # fmt: skip
     # one row per filing and firm (a firm tagged in two contexts keeps the later period)
     best: dict[tuple, dict] = {}
     for a in auditors:
