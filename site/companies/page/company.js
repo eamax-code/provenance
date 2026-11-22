@@ -84,13 +84,13 @@
     var pred = (c.predecessors || [])[0];
     if (pred) {
       succ.hidden = false;
-      succ.append('Successor to ', el('a', { href: '/companies/' + parseInt(pred.cik, 10), text: P.title(pred.name) + ' (CIK ' + pred.cik + ')' }), ' since ' + P.date(pred.effective_date) + ', ');
+      succ.append('Successor to ', el('a', { href: '/companies/' + parseInt(pred.cik, 10), text: P.orgName(pred.display_name || pred.name) + ' (CIK ' + pred.cik + ')' }), ' since ' + P.date(pred.effective_date) + ', ');
       succ.appendChild(srcLink(pred.evidence ? pred.evidence.form_type : '8-K12B', pred.evidence && pred.evidence.source_url, 'The filing that made it the successor registrant'));
       succ.append('. Its earlier figures continue below.');
     }
     if (c.successor) {
       succ.hidden = false; succ.classList.add('is-old');
-      succ.append('Continues as ', el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.title(c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' since ' + P.date(c.successor.effective_date) + ', ');
+      succ.append('Continues as ', el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.orgName(c.successor.display_name || c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' since ' + P.date(c.successor.effective_date) + ', ');
       succ.appendChild(srcLink(c.successor.evidence ? c.successor.evidence.form_type : '8-K12B', c.successor.evidence && c.successor.evidence.source_url, 'The filing that named the successor registrant'));
       succ.append('. New filings and figures are on its page.');
     }
@@ -220,7 +220,7 @@
     box.replaceChildren(t);
     if (pc.length) {
       var who = (d.company.predecessors || []).filter(function (p) { return pc.indexOf(String(p.cik)) > -1 || pc.indexOf(String(parseInt(p.cik, 10))) > -1; })[0];
-      box.appendChild(el('p', { class: 'pred-note' }, [el('span', { class: 'pred-swatch', 'aria-hidden': 'true' }), 'Shaded figures were reported by the predecessor registrant' + (who ? ', ' + P.title(who.name) : '') + ' (CIK ' + pc.join(', ') + '), each linked to its own filing.']));
+      box.appendChild(el('p', { class: 'pred-note' }, [el('span', { class: 'pred-swatch', 'aria-hidden': 'true' }), 'Shaded figures were reported by the predecessor registrant' + (who ? ', ' + P.orgName(who.display_name || who.name) : '') + ' (CIK ' + pc.join(', ') + '), each linked to its own filing.']));
     }
   }
   narrow.addEventListener && narrow.addEventListener('change', function () { if (data) statements(data); });
@@ -281,8 +281,8 @@
     var c = d.company, dl = $('ident'); dl.textContent = '';
     var kv = function (k, v) { if (v == null || v === '' || (Array.isArray(v) && !v.length)) return; var dd = el('dd'); (Array.isArray(v) ? v : [v]).forEach(function (line, i) { if (i) dd.appendChild(el('br')); dd.appendChild(typeof line === 'string' ? document.createTextNode(line) : line); }); dl.appendChild(el('dt', { text: k })); dl.appendChild(dd); };
     kv('CIK', c.cik);
-    (c.predecessors || []).forEach(function (p) { kv('Predecessor', [el('a', { href: '/companies/' + parseInt(p.cik, 10), text: P.title(p.name) + ' (CIK ' + p.cik + ')' }), ' until ' + P.date(p.effective_date)]); });
-    if (c.successor) kv('Successor', [el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.title(c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' from ' + P.date(c.successor.effective_date)]);
+    (c.predecessors || []).forEach(function (p) { kv('Predecessor', [el('a', { href: '/companies/' + parseInt(p.cik, 10), text: P.orgName(p.display_name || p.name) + ' (CIK ' + p.cik + ')' }), ' until ' + P.date(p.effective_date)]); });
+    if (c.successor) kv('Successor', [el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.orgName(c.successor.display_name || c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' from ' + P.date(c.successor.effective_date)]);
     kv('Tickers', (c.tickers.length ? c.tickers : [c.ticker]).filter(Boolean).map(function (t, i) { return t + (c.exchanges[i] ? ' on ' + c.exchanges[i] : ''); }).join(', '));
     kv('Formerly traded as', (c.former_tickers || []).map(function (t) { return t.ticker + (t.to ? ' (until ' + P.date(t.to) + ')' : ''); }).join(', '));
     kv('LEI', c.lei || 'Not filed with the SEC');
@@ -298,7 +298,7 @@
     var cov = d.cover || {};
     if (cov.shares_outstanding) kv('Shares outstanding', [srcLink(fmt(cov.shares_outstanding.value, 'shares'), cov.shares_outstanding.source_url, cov.shares_outstanding.form_type + ' filed ' + P.date(cov.shares_outstanding.filed_date)), ' on ' + P.date(cov.shares_outstanding.as_of_date)]);
     if (cov.public_float) kv('Public float', [srcLink(P.money(cov.public_float.value, null, /^[A-Z]{3}$/.test(cov.public_float.unit || '') ? cov.public_float.unit : 'USD'), cov.public_float.source_url, cov.public_float.form_type + ' filed ' + P.date(cov.public_float.filed_date)), ' on ' + P.date(cov.public_float.as_of_date)]);
-    kv('Former names', c.former_names.length ? c.former_names.map(function (f) { return P.title(f.name) + (f.to ? ' (to ' + f.to.slice(0, 4) + ')' : ''); }).join('; ') : 'None recorded by the SEC');
+    kv('Former names', c.former_names.length ? c.former_names.map(function (f) { return P.orgName(f.name) + (f.to ? ' (to ' + f.to.slice(0, 4) + ')' : ''); }).join('; ') : 'None recorded by the SEC');
     var h = d.history || {};
     kv('Filings loaded', h.first_filing_date ? P.date(h.first_filing_date) + ' to ' + P.date(h.latest_filing_date) + ', ' + h.filings_last_12_months + ' in the last 12 months' : null);
   }

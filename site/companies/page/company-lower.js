@@ -152,7 +152,7 @@
     var rev = d.key_figures.filter(function (k) { return k.metric === 'revenue'; })[0];
     // ranked by size only within the company's own reporting currency; peers in another currency
     // (ranked: false) follow without a bar, never converted
-    var rows = d.peers.companies.map(function (p) { return { name: P.title(p.name), cik: p.cik, ticker: p.ticker, v: p.latest_revenue, label: p.fiscal_label, cur: p.currency || 'USD', ranked: p.ranked !== false, note: p.note }; });
+    var rows = d.peers.companies.map(function (p) { return { name: P.orgName(p.display_name || p.name), cik: p.cik, ticker: p.ticker, v: p.latest_revenue, label: p.fiscal_label, cur: p.currency || 'USD', ranked: p.ranked !== false, note: p.note }; });
     if (rev) rows.push({ name: d.company.display_name, v: rev.value, label: rev.fiscal_label, cur: rev.currency || P.cur, ranked: true, me: true });
     var ranked = rows.filter(function (r) { return r.ranked; }).sort(function (a, b) { return b.v - a.v; });
     var other = rows.filter(function (r) { return !r.ranked; });
