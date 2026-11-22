@@ -36,3 +36,6 @@
 .cov-metrics .cov-table { table-layout: auto; min-width: 0; }
 .cov-metrics .cov-table thead th { white-space: normal; }
 .cov-metrics .cov-table th[scope="row"] { white-space: normal; }
+.cov-metrics-note { color: var(--soft); max-width: 90ch; }
+.cov-table td.strong { font-weight: 700; }
+.cov-table td.muted { color: var(--soft); }

@@ -62,14 +62,19 @@
     set('latency', dur(f.acceptance_to_here_median_seconds));
     set('venues', int(c.listings && c.listings.venues)); set('instruments', int(c.listings && c.listings.instruments));
     var box = $('cov-metrics'); box.textContent = '';
+    var mn = $('cov-metrics-note'); if (mn) { mn.textContent = c.metrics_note || ''; mn.hidden = !c.metrics_note; }
     var by = {}; (c.metrics || []).forEach(function (m) { (by[m.statement] = by[m.statement] || []).push(m); });
     Object.keys(STATEMENT).forEach(function (k) {
       var rows = by[k]; if (!rows || !rows.length) return;
-      var head = el('tr', {}, [el('th', { scope: 'col', text: STATEMENT[k] }), el('th', { scope: 'col', class: 'n', text: 'Companies' }), el('th', { scope: 'col', class: 'n', text: 'Quality ok' }), el('th', { scope: 'col', class: 'n', text: 'From' })]);
+      var periods = rows.some(function (m) { return m.periods_ok_pct != null; });
+      var head = el('tr', {}, [el('th', { scope: 'col', text: STATEMENT[k] }), el('th', { scope: 'col', class: 'n', text: 'Companies' })]
+        .concat(periods ? [el('th', { scope: 'col', class: 'n', title: 'For each company and period, the share with a clear figure: what you meet when you ask for it', text: 'Periods with a figure' })] : [])
+        .concat([el('th', { scope: 'col', class: 'n', title: 'Stored rows with one clear tag, including alternate tags kept for audit', text: periods ? 'Rows ok' : 'Quality ok' }), el('th', { scope: 'col', class: 'n', text: 'From' })]));
       var body = rows.map(function (m) {
-        return el('tr', {}, [el('th', { scope: 'row', text: m.label }), el('td', { class: 'n', text: int(m.companies) }),
-          el('td', { class: 'n', title: m.ambiguous_pct != null ? m.ambiguous_pct.toFixed(1) + '% have two tags in one filing (ambiguous)' : null, text: m.ok_pct != null ? m.ok_pct.toFixed(1) + '%' : '—' }),
-          el('td', { class: 'n', text: m.earliest_year && m.earliest_year >= 1993 ? String(m.earliest_year) : '—' })]);
+        return el('tr', {}, [el('th', { scope: 'row', text: m.label }), el('td', { class: 'n', text: int(m.companies) })]
+          .concat(periods ? [el('td', { class: 'n strong', text: m.periods_ok_pct != null ? m.periods_ok_pct.toFixed(1) + '%' : '—' })] : [])
+          .concat([el('td', { class: 'n' + (periods ? ' muted' : ''), title: (m.ambiguous_pct != null ? m.ambiguous_pct.toFixed(1) + '% of rows have two tags in one filing (ambiguous). ' : '') + 'Includes alternate tags kept for audit.', text: m.ok_pct != null ? m.ok_pct.toFixed(1) + '%' : '—' }),
+          el('td', { class: 'n', text: m.earliest_year && m.earliest_year >= 1993 ? String(m.earliest_year) : '—' })]));
       });
       box.appendChild(el('div', { class: 'tw' }, [el('table', { class: 'cov-table' }, [el('caption', { class: 'vh', text: STATEMENT[k] }), el('thead', {}, [head]), el('tbody', {}, body)])]));
     });

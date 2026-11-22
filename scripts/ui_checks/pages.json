@@ -44,6 +44,7 @@
     { "path": "/contact/" },
     { "path": "/ipos/" },
     { "path": "/coverage/" },
+    {"path": "/coverage/#periods-check", "label": "Coverage leads with periods with a figure (sample transform)", "stubs": [{"match": "/v1/public/coverage", "transform": "(b.metrics||[]).forEach(function(m,i){m.periods_ok_pct=99.6-(i%5)*0.3;});b.metrics_note='Periods with a figure: for each company and period, whether a clear figure exists. Rows ok counts every stored row, including alternate tags kept for audit.';return b;"}], "expect": [{"label": "periods column first, rows ok beside it", "js": "(function(h){return !!h && /Periods with a figure/.test(h.textContent) && h.textContent.indexOf('Periods with a figure') < h.textContent.indexOf('Rows ok')})(document.querySelector('#cov-metrics thead'))"}, {"label": "metrics note shown", "js": "!document.getElementById('cov-metrics-note').hidden"}]},
     { "path": "/ipos/?cik=2130357" },
     { "path": "/legal/terms/" },
     { "path": "/legal/privacy/" },
