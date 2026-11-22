@@ -65,8 +65,9 @@ COUNTRIES = {"US": "United States", "CN": "China", "JP": "Japan", "GB": "United 
              "MX": "Mexico", "BR": "Brazil", "AU": "Australia", "SG": "Singapore"}  # fmt: skip
 LABEL_SOURCE = "member_name"  # E-4b: the filing's own labels from its label linkbase
 NOTES = [
-    "Segments as each annual report tags them (the segment, geographical and product axes); "
-    "labels are made from the tagged member names.",
+    "Segments as each annual report tags them (the segment, geographical and product axes). "
+    "Labels are the company's own from the filing (label_source filing_label); members it did "
+    "not label keep a label made from the member name (member_name).",
     "Status ok: the segments add up to the consolidated figure within 1%, or the report tags a "
     "reconciling item (corporate, eliminations); unreconciled figures are shown with that status.",
 ]
