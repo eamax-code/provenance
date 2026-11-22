@@ -213,6 +213,141 @@ stopgap during the 1.4.0 pass) was reset with `ALTER SYSTEM RESET` (one statemen
 ALTER SYSTEM cannot run in a transaction block) and a parallel aggregate over financial_facts ran
 with 2 workers.
 
+## Incidents (runbook)
+
+Each case: the symptom, how to confirm it, then the commands. Local names are used throughout
+(container `provenance-local-pg`, launchd jobs `com.eamax.provenance.*`); in production the same
+steps apply through the provider's console and `DATABASE_URL`. Stop and ask before anything that
+deletes data. Write what happened, when and what was done in docs/status-<date>.md.
+
+### Database down
+
+- **Symptom:** `/readyz` returns 503 with a database error; the tracker log says "database not
+  reachable ... skipped"; jobs fail at start.
+- **Confirm:**
+  ```
+  docker ps --filter name=provenance-local-pg --format '{{.Status}}'
+  docker exec provenance-local-pg pg_isready -U provenance
+  curl -s localhost:8000/readyz
+  ```
+- **Fix:** `docker start provenance-local-pg`, then `pg_isready` again and `/readyz`. If Docker
+  itself is down, start Docker Desktop first. If the container will not start, read
+  `docker logs --tail 100 provenance-local-pg` before anything else; never remove the volume
+  `provenance-local-pgdata-v2`. A volume that is lost is a restore (below).
+
+### Database disk full
+
+- **Symptom:** writes fail with "could not extend file" or "No space left on device"; loads stop.
+- **Confirm:**
+  ```
+  docker system df
+  docker exec provenance-local-pg df -h /var/lib/postgresql/data
+  df -h ..                       # the host disk that holds Docker and the backups
+  docker exec provenance-local-pg psql -U provenance -c "select pg_size_pretty(pg_database_size('provenance'))"
+  ```
+- **Fix:** stop the loads first. Free host space (old files in `.sec_cache/`, `.markets_cache/` and
+  `.sec_bulk/` can be fetched again; keep the newest backup). Grow Docker Desktop's disk image if
+  it is the limit. Never delete database rows to make room. Afterwards `VACUUM (ANALYZE)` the
+  tables a failed load touched.
+
+### /dev/shm full (parallel queries)
+
+- **Symptom:** "could not resize shared memory segment ... No space left on device" on large
+  queries (marts, the quality report).
+- **Confirm:** `docker exec provenance-local-pg df -h /dev/shm` (should be 1G, not 64M).
+- **Fix:** recreate the container with `--shm-size=1g` (Local Postgres container, above; data
+  stays on the volume). As a stopgap without a restart:
+  `docker exec provenance-local-pg psql -U provenance -c "ALTER SYSTEM SET max_parallel_workers_per_gather = 0"`
+  then `... -c "select pg_reload_conf()"`; undo with `ALTER SYSTEM RESET` after the recreate.
+
+### SEC 403 or 429
+
+- **Symptom:** logs show `sec request error` with status 403 or 429; every SEC job slows down at
+  once (the machine-wide limiter pauses all processes: 600 s after a 403, 30 s after a 429).
+- **Confirm:**
+  ```
+  grep -h '"status": 40[3]\|"status": 429' ~/Library/Logs/provenance-track-filings.log | tail -5
+  cat ~/.cache/provenance/sec-rate   # the shared limiter's state, pause included
+  ```
+- **Fix:** back off; let the pause run. Never raise `SEC_MAX_REQUESTS_PER_SECOND` (8) and never
+  bypass `SecClient`. Stop the least important SEC job (E-4b+ relabels, E-5 connections) if
+  several run. Check that `SEC_USER_AGENT` carries a working contact. A 403 that keeps coming
+  back after the pause means the SEC has blocked the address: stop all SEC jobs and wait an
+  hour before one test request with `python scripts/sec_fetch.py <a filing index URL>`.
+
+### Hourly tracker skipping
+
+- **Symptom:** the status page's latest filing is hours old; the tracker log shows "skipped".
+- **Confirm:**
+  ```
+  tail -20 ~/Library/Logs/provenance-track-filings.log
+  launchctl list | grep provenance        # the job and its last exit status
+  docker exec provenance-local-pg psql -U provenance -c "select name, value, updated_at from job_state where name like 'filings_tracker%'"
+  ```
+  "another run is in progress": a run still holds the lock (PostgreSQL advisory lock; the
+  `.track_filings.lock` file on SQLite). "database not reachable": see Database down. "refusing
+  to start: schema behind code": run `alembic upgrade head`.
+- **Fix:** if a run is stuck, find it with `ps aux | grep track_filings` and stop that process
+  only; the next hourly run catches up from `filings_tracker.daily_index`. To catch up by hand:
+  `python scripts/track_filings.py --days 2`. Reload the job after editing its plist with
+  `launchctl bootout gui/$(id -u)/com.eamax.provenance.track-filings` and `launchctl bootstrap
+  gui/$(id -u) ~/Library/LaunchAgents/com.eamax.provenance.track-filings.plist`.
+
+### A bad mapping found after a pass
+
+- **Symptom:** a spot check, the quality report or a user shows wrong figures from a mapping
+  version that was just rolled out.
+- **Confirm:** reproduce on one company (`/v1/companies/{cik}/facts?metric=...` shows the value and
+  `mapping_version`); compare with the 10-K as filed; `python scripts/quality_doc.py --out
+  /tmp/q.md` and diff the per-metric table with the last good report.
+- **Fix, forward (preferred):** correct the rule, bump `MAPPING_VERSION` (a changed rule is always
+  a new version), add a test with the case, run the suite, then the full pass
+  (`python scripts/sec_bulk.py --scope facts`), `check_mapping.py`, `build_marts.py` and the
+  quality report. Each stored fact carries the version that produced it, so as_of answers stay
+  explainable.
+- **Fix, back to a backup** (when the pass also broke other tables): take a dump of the current
+  state first (`PG_CONTAINER=provenance-local-pg scripts/backup_db.sh`), then restore the last
+  dump taken before the pass (Restore from backup, below), then `alembic upgrade head`,
+  `check_mapping.py` and `build_marts.py`. Facts loaded since that dump come back with the next
+  tracker runs and a `sec_bulk.py --scope facts` pass.
+- **Tell users:** add a dated entry to the public changelog (`site/changelog/`, through
+  provenance-ui) naming the mapping version, the metrics and companies affected, the wrong and
+  the right figures, and when it was corrected. A changed figure is a restatement of our own
+  output and is listed plainly.
+
+### A leaked API key
+
+- **Symptom:** a key appears in a public place (a repository, a paste, a screenshot) or its usage
+  jumps.
+- **Confirm (by prefix, never by the full key):**
+  ```
+  docker exec provenance-local-pg psql -U provenance -c "select id, key_prefix, plan, label, last_used_at, revoked_at from api_keys where key_prefix = 'prv_XXXX'"
+  docker exec provenance-local-pg psql -U provenance -c "select date_trunc('hour', occurred_at) h, count(*) from api_usage where api_key_id = '<id>' group by 1 order by 1 desc limit 24"
+  ```
+- **Revoke at once:** the owner can do it on /account (`DELETE /v1/account/keys/{id}`); as the
+  operator:
+  ```
+  docker exec provenance-local-pg psql -U provenance -c "update api_keys set revoked_at = now(), is_active = false where id = '<id>'"
+  ```
+  The next request with the key gets 401.
+- **Rotate:** issue the owner a new key (`python scripts/create_api_key.py <owner email> --plan
+  <plan> --label "rotated <date>"`; the raw key prints once and is never stored) and send it over
+  the channel they registered with. Update webhook secrets the owner derived from the old key.
+  Never paste a key into a log, a ticket or a message; the R-2 script once printed one, and that
+  key was revoked.
+
+### Restore from backup
+
+- **When:** the database is lost or corrupted, or a bad pass needs undoing (above).
+- **Confirm the dump first:** `docker exec -i provenance-local-pg pg_restore --list <
+  ../provenance-backups/provenance-<stamp>.dump | grep -c 'TABLE DATA'` (56 tables in November
+  2026).
+- **Restore:** follow "Restore" under Backups and recovery (an empty database, `pg_restore`, then
+  `alembic upgrade head` and the catch-up commands). The R-3 drill (below) restored the 2026-11-22
+  dump in 307 s with identical row counts. Afterwards: `/readyz` is 200, `check_mapping.py`
+  reports "0 unexpected old rows", the status page shows today's filings, and the post-chain
+  checklist runs.
+
 ## Post-chain checklist
 
 Run after a mapping pass or a chain (facts, tracker, ipo_terms, marts, backup) ends. Steps that
