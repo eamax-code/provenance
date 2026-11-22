@@ -212,3 +212,24 @@ Recreated this way on 2026-11-22 at 03:01Z; `max_parallel_workers_per_gather` (s
 stopgap during the 1.4.0 pass) was reset with `ALTER SYSTEM RESET` (one statement per psql call:
 ALTER SYSTEM cannot run in a transaction block) and a parallel aggregate over financial_facts ran
 with 2 workers.
+
+## Post-chain checklist
+
+Run after a mapping pass or a chain (facts, tracker, ipo_terms, marts, backup) ends. Steps that
+wait on something are written here, not remembered.
+
+1. `alembic current` equals head; every create-table migration merged since the chain started
+   is applied (the schema guard refuses jobs otherwise).
+2. `python scripts/check_mapping.py`: no facts on an older mapping (or the companies listed are
+   registrants not yet in the companyfacts archive).
+3. Marts rebuilt (`scripts/build_marts.py`), coverage snapshot refreshed; mart counts compared
+   with the previous run.
+4. `python scripts/quality_doc.py --out docs/data-quality-<date>.md`; spot check all "same".
+5. Backup: the chain's dump lists every table (`pg_restore --list`); the daily launchd backup's
+   last log line is "backup ok".
+6. K-05: `python scripts/detect_successions.py` stores the reviewed pairs; new pairs it reports
+   as not reviewed go to `app/data/successions_reviewed.csv` after a hand check.
+7. Loads that waited for the chain: E-1 13F (`scripts/load_13f.py`), E-2 releases
+   (`scripts/read_releases.py`), E-3 auditors (`scripts/load_auditors.py`), K-04b tickers
+   (`scripts/load_ticker_history.py`), E-4 segments (`scripts/load_segments.py`).
+8. Restart long-running processes (API, poller) only after step 1.

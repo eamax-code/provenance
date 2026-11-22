@@ -90,3 +90,17 @@ def test_chat_prints_the_currency_and_ranks_usd_reporters_only(db, three_currenc
     mart = db.get(conversation.MartCompany, EUR_CO)
     series = conversation._series(mart, "revenue")
     assert series[0]["unit"] == "EUR" and series[0]["period_end"] == "2025-12-31"
+
+
+def test_chat_series_and_figures_use_the_reporting_unit(db, three_currencies):
+    from app.services import intel
+    from app.services.fact_normalizer import display_value
+
+    series = intel.annual_series(db, EUR_CO, "revenue", None)
+    assert [f.unit for f in series] == ["EUR", "EUR", "EUR"]
+    assert series[0].period_end == date(2025, 12, 31)  # not the 2017 USD translation
+    twd = intel.annual_series(db, TWD_CO, "revenue", None)
+    assert {f.unit for f in twd} == {"TWD"}
+    assert intel.money(36.8e9, "EUR") == "EUR 36.8 billion"
+    assert display_value(Decimal("2.10"), "eps_diluted", "EUR/shares") == "EUR 2.10 per share"
+    assert display_value(Decimal("6.08"), "eps_diluted", "USD/shares") == "$6.08 per share"
