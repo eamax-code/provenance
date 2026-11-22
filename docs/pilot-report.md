@@ -4,6 +4,50 @@ The live-week sections below are filled in after the first deployed week (ticket
 publish numbers that were not measured. The first section records a full local refresh, which
 was measured.
 
+## State on 2026-11-22, 20:00 IST (measured, local)
+
+Mapping 1.4.1, 25.7M facts, 20,615 companies. Every figure below was measured today on the local
+database; sources are `docs/data-quality-2026-11-22.md` and `docs/operations.md`.
+
+**Coverage**
+
+| Area | Measure |
+| --- | --- |
+| Metrics | 34 metrics; periods with an ok figure 98.9-100% for every metric; rows ok under 93% only for cost_of_revenue, d_and_a, interest_expense, revenue, sbc (alternate tags kept for audit) |
+| LEI | active USD reporters with $1B+ revenue: 1,605 of 1,898 (84.6%); all active reporters: 4,097 of 7,501 (54.6%) |
+| 13F holders | listed companies with $1B+ revenue by USD equivalent (Fed H.10): 1,794 of 1,874 mapped (95.7%), 1,783 with holders in the latest quarter; listed USD reporters $1B+: 1,652 of 1,700 (97.2%). Tonight: 132 wrong issue-number links removed by reviewed rules (preferreds, debt, warrants, cancelled and pre-split CUSIPs, one manager's misfiled 13F), 124 ADR, partnership-unit and exact-name links added; each step hand-checked (final samples 1/30 and 0/30 wrong) |
+| Segments | 5,824 companies; 118,632 of 143,366 segment blocks (83%) add up to the consolidated figure or a tagged reconciling item; the rest are shown as unreconciled with the cause |
+| First reported (E-2) | 76,428 figures at 1,633 companies matched to the 8-K earnings release that stated them first: 73.6% of those a stored release could have stated (operating cash flow 54.5%, up from 53.6% tonight; most of the rest is not printed in releases) |
+| Incorporation | the company's own cover-page state for 7,846 companies, beside the SEC's field (17,925); domestic filers with a US state only, never from combined filings |
+
+**Quality**
+
+- Spot check against the 10-K as filed: 27 of 27 figures match.
+- Revenue tag conflicts: 2,239 periods at 452 companies (57,872 at 2,075 before the total-first rule).
+- Mapping check: 122 figures at 5 companies stay on an older mapping, all reviewed in `app/data/mapping_exceptions.csv` (rows the SEC's company facts no longer publish); 0 unexpected.
+- 39 display names corrected (Novo Nordisk A/S and seven other Danish A/S names; 27 names the SEC data sets glued, such as "NIOInc.").
+
+**Performance** (production image, 2 workers, 50 requests a second for 300 s, all nine endpoints)
+
+| p95 | facts | screen | company overview | ownership | search | stats |
+| --- | --- | --- | --- | --- | --- | --- |
+| this morning (7 endpoints) | 23.8 ms | 40.1 ms | | | 38.7 ms | 7.0 ms |
+| tonight, before fixes | 122.5 ms | 162.3 ms | 76.2 ms | 408.6 ms | 135.4 ms | 38.6 ms |
+| tonight, after fixes | 21.7 ms | 37.4 ms | 23.5 ms | 25.6 ms | 40.8 ms | 8.5 ms |
+
+No errors. The first run stalled: requests waited for a second database connection for rate
+limits and metering, which now have their own pool; ownership is cached until the next 13F load.
+Production smoke: 7 of 8 (readyz flags only the rehearsal settings and the pending email and news
+providers).
+
+**At 02:30 IST, mapping 1.5.0** (dry run on the built code; the pass's own counts replace these):
+when a filing reports revenue under two tags that disagree, the line on its income statement
+decides: 638 published values change at 91 companies and 1,724 ambiguous values get a figure
+(Republic Services 2022 $13,511M as on its income statement, not $15,645M). Banks reporting in
+IFRS get total income as revenue: 216 values, 55 bank-years at 10 banks (HSBC, UBS, Santander).
+Hand-checks: 30 of 30. Every changed value is listed in the quality report; the change is silent
+on the event feed.
+
 ## Local full refresh, 2026-11-15 (measured)
 
 Run on the owner's machine against Docker PostgreSQL, from the SEC's nightly archives
