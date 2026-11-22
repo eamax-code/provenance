@@ -61,6 +61,18 @@ class DataAnswer:
     widgets: list[dict] = field(default_factory=list)
     context: ConversationContext | None = None
     notes: list[str] = field(default_factory=list)
+    citations: list[dict] = field(default_factory=list)  # {n, label, url}: each figure's filing
+
+
+def _cite(cites: list[dict], label: str, url: str | None) -> int | None:
+    """The citation number for a filing link (sec.gov/Archives only), added once."""
+    if not url or "sec.gov/Archives" not in url:
+        return None
+    same = next((c["n"] for c in cites if c["url"] == url), None)
+    if same:
+        return same
+    cites.append({"n": len(cites) + 1, "label": label, "url": url})
+    return len(cites)
 
 
 _NUMBERS = {
@@ -120,9 +132,12 @@ def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) 
     if db is not None and _COMPARE.search(text):
         named = compared_companies(db, text)
         if len(named) >= 2:
+            from app.services.intel import asked_margin
+
+            margin = asked_margin(text)
             return Plan(
                 "compare",
-                metric=_metric(text) or "revenue",
+                metric=f"margin:{margin}" if margin else (_metric(text) or "revenue"),
                 years=_years(text) or 3,
                 ciks=[c.cik for c in named],
             )
@@ -190,7 +205,14 @@ def _ipos(db: Session, p: Plan, today: date) -> DataAnswer:
             f"No company filed a final IPO prospectus (Form 424B4) {_when(p)}.", "ipos"
         )
     spacs = sum(1 for r in rows if r.sic_code == BLANK_CHECK_SIC)
-    recent = ", ".join(_name(r) for r in rows[:3])
+    cites: list[dict] = []
+
+    def named(r) -> str:  # each company with its own final prospectus cited (C-07)
+        n = _cite(cites, f"{_name(r)}, 424B4 filed {_d(r.ipo_prospectus_date)}",
+                  r.ipo_prospectus_url)  # fmt: skip
+        return f"{_name(r)} [{n}]" if n else _name(r)
+
+    recent = ", ".join(named(r) for r in rows[:3])
     text = (
         f"{n} {_plural(n, 'company', 'companies')} went public {_when(p)}, going by the "
         f"final IPO prospectus (Form 424B4) each filed after registering on Form S-1 or F-1."
@@ -226,6 +248,7 @@ def _ipos(db: Session, p: Plan, today: date) -> DataAnswer:
             "A 424B4 is the final prospectus filed when an offering prices. It marks an IPO on "
             "paper; it does not confirm that trading began."
         ],
+        citations=cites,
     )
 
 
@@ -323,11 +346,14 @@ def _rank(db: Session, p: Plan) -> DataAnswer:
     word = "smallest" if p.order == "asc" else "largest"
     top = values[0]
     amount = _money(top[1]["value"], top[1].get("unit"))
+    cites: list[dict] = []
+    n = _cite(cites, f"{_name(top[0])}, {label.lower()}", top[1].get("url"))
+    figure = (f", {amount} for the year ended {top[1]['period_end']} [{n}]," if n
+              else f" (year ended {top[1]['period_end']}),")  # fmt: skip
     text = (
-        f"{_name(top[0])} has the {word} latest annual {label.lower()}, {amount} for the year "
-        f"ended {top[1]['period_end']}, among companies reporting in US dollars (other "
-        f"currencies are not converted). Fiscal years differ, so compare the period ends in the "
-        f"table."
+        f"{_name(top[0])} has the {word} latest annual {label.lower()}{figure} among companies "
+        f"reporting in US dollars (other currencies are not converted). Fiscal years differ, so "
+        f"compare the period ends in the table."
     )
     widget = _table(
         f"{word.capitalize()} by latest annual {label.lower()}",
@@ -352,6 +378,7 @@ def _rank(db: Session, p: Plan) -> DataAnswer:
             ciks=[r.cik for r, _ in values],
             label=f"the {word} companies by {label.lower()}",
         ),
+        citations=cites,
     )
 
 
@@ -413,42 +440,63 @@ def _list_table(db: Session, p: Plan, ctx: ConversationContext | None) -> DataAn
 
 
 def _compare(db: Session, p: Plan) -> DataAnswer:
-    label = METRIC_LABELS[p.metric]
-    rows = {r.cik: r for r in db.scalars(select(MartCompany).where(MartCompany.cik.in_(p.ciks)))}
-    parts = []
+    """Each company's latest annual figure (or margin) from its own filing, cited (C-07)."""
+    from app.services import intel
+
+    comps = {c.cik: c for c in db.scalars(select(Company).where(Company.cik.in_(p.ciks)))}
+    cites: list[dict] = []
+    margin = p.metric.split(":", 1)[1] if p.metric.startswith("margin:") else None
+    label = f"{margin} margin" if margin else METRIC_LABELS[p.metric].lower()
+    parts, ends = [], set()
     for cik in p.ciks:
-        r = rows.get(cik)
-        latest = _series(r, p.metric)[:1] if r else []
-        if r is not None:
-            parts.append(
-                f"{_name(r)} {_money(latest[0]['value'], latest[0].get('unit'))} "
-                f"(year ended {latest[0]['period_end']})"
-                if latest
-                else f"{_name(r)} not reported"
+        c = comps.get(cik)
+        if c is None:
+            continue
+        name = intel.display_name(c.legal_name, c.ticker)
+        if margin:
+            top = intel.annual_fact(db, c, "revenue", None, None)
+            part = intel._MARGIN_PARTS[margin]
+            same = intel.annual_series(db, cik, part, None)
+            num = top and next(
+                (f for f in same if f.period_end == top.period_end and f.unit == top.unit), None
             )
-    text = f"Latest annual {label.lower()}: " + "; ".join(parts) + "."
-    if (
-        len(
-            {
-                (_series(rows[c], p.metric)[:1] or [{}])[0].get("period_end", "")[5:]
-                for c in p.ciks
-                if c in rows
-            }
-        )
-        > 1
-    ):
+            if top is None or num is None or not top.value:
+                parts.append(f"{name}: not available from the filings loaded here")
+                continue
+            n = _cite(cites, f"{name}, {top.form_type} filed {top.filed_date}", top.source_url)
+            pct = float(num.value) / float(top.value) * 100
+            parts.append(f"{name} {pct:.1f}% (year ended {top.period_end}) [{n}]")
+            ends.add(top.period_end.isoformat()[5:])
+            continue
+        f = intel.annual_fact(db, c, p.metric, None, None)
+        if f is None:
+            parts.append(f"{name} not reported")
+            continue
+        n = _cite(cites, f"{name}, {f.form_type} filed {f.filed_date}", f.source_url)
+        parts.append(f"{name} {intel.display(f.value, p.metric, f.unit)} (year ended "
+                     f"{f.period_end}) [{n}]")  # fmt: skip
+        ends.add(f.period_end.isoformat()[5:])
+    text = f"Latest annual {label}: " + "; ".join(parts) + "."
+    if margin:
+        text += f" Each margin is {label.split()[0]} income over revenue, derived from the filing."
+    if len(ends) > 1:
         text += " Their fiscal years end in different months, so the years do not line up exactly."
-    table = _list_table(
-        db,
-        Plan("list_followup", metric=p.metric, years=p.years),
-        ConversationContext(intent="compare", ciks=p.ciks, label="companies compared"),
-    )
-    table.widgets[0]["title"] = f"{label}, last {max(1, min(p.years, 5))} fiscal years"
+    widgets = []
+    if not margin:
+        table = _list_table(
+            db,
+            Plan("list_followup", metric=p.metric, years=p.years),
+            ConversationContext(intent="compare", ciks=p.ciks, label="companies compared"),
+        )
+        n_years = max(1, min(p.years, 5))
+        table.widgets[0]["title"] = f"{METRIC_LABELS[p.metric]}, last {n_years} fiscal years"
+        widgets = table.widgets
     return DataAnswer(
         text,
         "compare",
-        table.widgets,
+        widgets,
         ConversationContext(intent="compare", ciks=p.ciks, label="the companies compared"),
+        citations=cites,
     )
 
 

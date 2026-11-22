@@ -43,7 +43,11 @@ _METRIC_WORDS = [
     ("retained_earnings", r"retained earnings|accumulated deficit"),
     ("stockholders_equity", r"(?:stockholders'?|shareholders'?) equity|book value|equity"),
     ("operating_income", r"operating (?:income|profits?|loss)|ebit"),
-    ("net_income", r"net (?:income|profits?|loss|earnings)|profits?|earnings|bottom line"),
+    (
+        "net_income",
+        r"net (?:income|profits?|loss|earnings)|profits?|earnings|earn(?:ed|s)?|"
+        r"bottom line",
+    ),
     ("total_assets", r"(?:total )?assets"),
     ("revenue", r"revenues?|sales|turnover|top line"),
 ]

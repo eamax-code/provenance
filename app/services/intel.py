@@ -69,6 +69,7 @@ _ACRONYMS = {
 }  # fmt: skip
 _LEADERSHIP_Q = re.compile(
     r"\b(leadership|ceo|cfo|coo|cto|chief|executives?|officers?|directors?|board|management|"
+    r"who (?:runs|leads|heads|manages)|in charge|"
     r"resign\w*|appoint\w*|hired?|depart\w*|succession|successor|step(?:s|ped)? down|chair\w*)\b",
     re.IGNORECASE,
 )
@@ -595,6 +596,100 @@ _NEEDS_REASONING = re.compile(
 def is_simple_lookup(text: str) -> bool:
     """A question that only asks for a figure ("What was Apple's revenue last year?")."""
     return bool(_LOOKUP.search(text)) and not _NEEDS_REASONING.search(text) and len(text) <= 120
+
+
+# C-07: a figure question is answered from the stored facts without a model, for any of the
+# metrics and any fiscal year the question names ("Apple net income 2023", "AAPL revenue"):
+# one sentence citing the filing, or a sentence saying the filings loaded here do not hold it.
+_ASKED_YEAR = re.compile(r"\b(?:fy\s?|fiscal(?: year)?\s+)?((?:19|20)\d{2})\b", re.IGNORECASE)
+_FIGURE_REASONING = re.compile(
+    r"\b(why|explain|because|reason|driv\w*|compar\w*|versus|vs\.?|risks?|outlook|segment|"
+    r"guidance|should|would|could|impact|cause\w*|forecast|predict|expect\w*|next year)\b",
+    re.IGNORECASE,
+)
+_MARGIN_Q = re.compile(r"\b(gross|operating|net|profit)?\s*margins?\b", re.IGNORECASE)
+_MARGIN_PARTS = {"gross": "gross_profit", "operating": "operating_income", "net": "net_income"}
+
+
+def asked_year(text: str) -> int | None:
+    m = _ASKED_YEAR.search(text)
+    return int(m.group(1)) if m else None
+
+
+def is_figure_question(text: str) -> bool:
+    """Asks for a figure, not an explanation ("Apple net income 2023", "What was ...?")."""
+    return len(text) <= 120 and not _FIGURE_REASONING.search(text)
+
+
+def asked_margin(text: str) -> str | None:
+    """'operating', 'gross' or 'net' when the question asks for a margin (operating by
+    default)."""
+    m = _MARGIN_Q.search(text)
+    if not m:
+        return None
+    word = (m.group(1) or "operating").lower()
+    return "net" if word == "profit" else word
+
+
+def _cite_fact(b: Brief, f: FinancialFact) -> int:
+    same = next((c["n"] for c in b.citations if c["url"] == f.source_url), None)
+    return same or b.cite(f"{f.form_type} filed {f.filed_date}", f.source_url)
+
+
+def annual_fact(db: Session, company: Company, metric: str, year: int | None,
+                as_of: date | None) -> FinancialFact | None:  # fmt: skip
+    """The reported annual figure for a fiscal year (the latest when no year is named)."""
+    rows = annual_series(db, company.cik, metric, as_of)
+    if year is None:
+        return rows[0] if rows else None
+    from app.services import periods
+
+    fye = company.fiscal_year_end
+    return next((f for f in rows if periods.fiscal_year(f.period_end, fye) == year), None)
+
+
+def figure_for(db: Session, b: Brief, metric: str, year: int | None, as_of: date | None) -> str:
+    from app.services.fact_normalizer import METRIC_LABELS
+
+    name, label = display_name(b.company.legal_name), METRIC_LABELS.get(metric, metric).lower()
+    f = annual_fact(db, b.company, metric, year, as_of)
+    if f is None:
+        when = f" for fiscal {year}" if year else ""
+        return f"{name}'s {label}{when} is not in the filings loaded here."
+    n = _cite_fact(b, f)
+    text = (f"{name}'s {label} was {display(f.value, metric, f.unit)} in the fiscal year ended "
+            f"{f.period_end} [{n}]")  # fmt: skip
+    rows = annual_series(db, b.company.cik, metric, as_of)
+    older = [r for r in rows if r.period_end < f.period_end and r.unit == f.unit]
+    prior = older[0] if older else None
+    if prior is not None and prior.value and (f.period_end - prior.period_end).days < 400:
+        g = (float(f.value) - float(prior.value)) / abs(float(prior.value)) * 100
+        way = "up" if g > 0 else "down" if g < 0 else "unchanged"
+        change = f"{way} {abs(g):.1f}%" if round(g, 1) else "unchanged"
+        text += (f", {change} from {display(prior.value, metric, prior.unit)} the year before "
+                 f"[{_cite_fact(b, prior)}]")  # fmt: skip
+    return text + "."
+
+
+def margin_for(db: Session, b: Brief, kind: str, year: int | None, as_of: date | None) -> str:
+    """A margin derived from two reported figures of the same fiscal year and currency."""
+    name, part = display_name(b.company.legal_name), _MARGIN_PARTS[kind]
+    top = annual_fact(db, b.company, "revenue", year, as_of)
+    num = None
+    if top is not None:
+        num = next((f for f in annual_series(db, b.company.cik, part, as_of)
+                    if f.period_end == top.period_end and f.unit == top.unit), None)  # fmt: skip
+    if top is None or num is None or not top.value:
+        when = f" for fiscal {year}" if year else ""
+        return f"{name}'s {kind} margin{when} cannot be worked out from the filings loaded here."
+    pct = float(num.value) / float(top.value) * 100
+    n_num, n_top = _cite_fact(b, num), _cite_fact(b, top)
+    cites = f"[{n_num}]" if n_num == n_top else f"[{n_num}] [{n_top}]"
+    from app.services.fact_normalizer import METRIC_LABELS
+
+    return (f"{name}'s {kind} margin was {pct:.1f}% in the fiscal year ended {top.period_end}: "
+            f"{METRIC_LABELS[part].lower()} of {display(num.value, part, num.unit)} on revenue of "
+            f"{display(top.value, 'revenue', top.unit)} (derived) {cites}.")  # fmt: skip
 
 
 def figure_answer(b: Brief, m: dict) -> str:

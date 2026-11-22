@@ -495,13 +495,32 @@ def _coverage_reply(db: Session, settings: Settings) -> ChatReply:
     )
 
 
+_MONEY = re.compile(r"(?:\$|\b[A-Z]{3} )-?[\d,]+(?:\.\d+)? (?:trillion|billion|million)\b")
+
+
+def _uncited_money(answer: str, citations: list[dict]) -> bool:
+    """A sentence states a money figure without citing a filing (C-07: never shipped)."""
+    ok = {c["n"] for c in citations if "sec.gov/Archives" in (c.get("url") or "")}
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", answer or ""):
+        cited = {int(n) for n in re.findall(r"\[(\d+)\]", sentence)}
+        if _MONEY.search(sentence) and not cited & ok:
+            return True
+    return False
+
+
 def _data_reply(found: conversation.DataAnswer) -> ChatReply:
+    answer, checks = found.answer, {}
+    if _uncited_money(answer, found.citations):
+        # the safety net: a figure that cannot be linked to its filing is withheld
+        checks = {"withheld": answer}
+        answer = ("These figures could not be linked to their filings, so they are not shown "
+                  "here; the table links each row to its filing.")  # fmt: skip
     return ChatReply(
         company=None,
-        answer=found.answer,
+        answer=answer,
         brief=None,
-        citations=[],
-        checks={},
+        citations=found.citations,
+        checks=checks,
         model=None,
         answered_by="data",
         intent=found.intent,
@@ -509,6 +528,20 @@ def _data_reply(found: conversation.DataAnswer) -> ChatReply:
         notes=found.notes
         or ["Answered from the filings loaded here; each row links to its filing."],
         context=found.context,
+    )
+
+
+def _figure_reply(company, brief, brief_out, answer: str, notes: list[str]) -> ChatReply:
+    return ChatReply(
+        company=_company_dict(company),
+        answer=answer,
+        brief=brief_out,
+        citations=brief.citations,
+        checks=check_answer(answer, brief.context(), len(brief.citations)),
+        model=None,
+        answered_by="data",
+        intent="figure",
+        notes=notes,
     )
 
 
@@ -681,6 +714,24 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
                 widgets=shown,
                 notes=notes,
             )
+    # C-07: margins and figures for any metric and fiscal year come from the stored facts, cited,
+    # without a model; a figure the filings do not hold is said to be missing, never guessed.
+    fresh = not body.history  # a follow-up in a conversation goes to the model, as before
+    margin = intel.asked_margin(body.message) if fresh else None
+    if margin and not quoted and intel.is_figure_question(body.message.replace("margin", "")):
+        answer = intel.margin_for(db, brief, margin, intel.asked_year(body.message), body.as_of)
+        return _figure_reply(company, brief, brief_out, answer, notes)
+    if (
+        fresh
+        and plan.kind == "metric"
+        and plan.metric
+        and not quoted
+        and intel.is_figure_question(body.message)
+    ):
+        answer = intel.figure_for(
+            db, brief, plan.metric, intel.asked_year(body.message), body.as_of
+        )
+        return _figure_reply(company, brief, brief_out, answer, notes)
     # A plain figure question needs no model: one cited sentence from the brief.
     if plan.kind == "metric" and not quoted and intel.is_simple_lookup(body.message):
         figure = next((m for m in brief.metrics if m["metric"] == plan.metric), None)
