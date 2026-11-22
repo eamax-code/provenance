@@ -375,6 +375,8 @@ def public_company_search(db: Session, settings, q: str) -> dict:
                 "cik": h.company.cik, "display_name": display_name(h.company.legal_name),
                 "ticker": h.company.ticker, "exchange": h.company.exchange,
                 "matched_former_name": h.former_name, "is_public_page": h.company.cik in showcase,
+                # how the query matched: cik, ticker, former_ticker, former_name or name
+                "match_type": "name" if h.match_type.startswith("name") else h.match_type,
             } for h in hits],
             "notes": ["Companies this service has loaded; pages exist for the showcase companies."],
         }  # fmt: skip

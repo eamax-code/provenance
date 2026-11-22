@@ -315,9 +315,12 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
         rev = metrics.get("revenue", {}).get("consolidated", {}).get(latest_p)
         ordered = sorted(segs.values(), key=lambda s: -(s["values"].get("revenue", {})
                                                          .get(latest_p) or 0))  # fmt: skip
+        # a share of revenue only where the segments add up (ok); never from unreconciled figures
+        rev_ok = metrics.get("revenue", {}).get("status", {}).get(latest_p) == "ok"
         for s in ordered:
             v = s["values"].get("revenue", {}).get(latest_p)
-            s["share_of_revenue_pct"] = round(v / rev * 100, 1) if v is not None and rev else None
+            share = round(v / rev * 100, 1) if rev_ok and v is not None and rev else None
+            s["share_of_revenue_pct"] = share
         kinds.append({"kind": kind, "periods": [p.isoformat() for p in periods],
                       "metrics": metrics, "segments": ordered,
                       "reconciling": list(recon.values())})  # fmt: skip

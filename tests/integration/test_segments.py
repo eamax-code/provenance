@@ -94,3 +94,15 @@ def test_a_segments_own_eliminations_are_keyed_apart():
     assert segments.member_label(c[2]) == "Europe Steel Group: intersegment eliminations"
     assert segments.member_label("BusinessSegments=AmericasSegment") == "Americas"
     assert segments.member_label("ConsolidationItems=CorporateNonSegment").startswith("Corporate")
+
+
+def test_no_share_of_revenue_when_the_latest_year_is_unreconciled(db, ingested_aapl):
+    from app.db.models import CompanySegment
+
+    segments.load(db, FIX / "aapl.zip")
+    for r in db.query(CompanySegment).filter(CompanySegment.kind == "product"):
+        r.status = "unreconciled"
+    db.commit()
+    kinds = {k["kind"]: k for k in segments.for_company(db, "0000320193")["kinds"]}
+    assert all(s["share_of_revenue_pct"] is None for s in kinds["product"]["segments"])
+    assert kinds["business"]["segments"][0]["share_of_revenue_pct"] == 42.9  # ok stays

@@ -307,7 +307,7 @@ def test_public_company_search(client, ingested_aapl, fake_sec):
     top = r.json()["data"][0]
     assert top["cik"] == "0000320193" and top["ticker"] == "AAPL"
     assert set(top) == {"cik", "display_name", "ticker", "exchange", "matched_former_name",
-                        "is_public_page"}  # fmt: skip
+                        "match_type", "is_public_page"}  # fmt: skip
     assert client.get("/v1/public/companies/search?q=320193").json()["data"][0]["cik"] == (
         "0000320193"
     )
@@ -356,3 +356,15 @@ def test_public_ip_limit_can_be_raised_by_settings(client, app, settings):
     settings.public_rate_limit_per_minute = 0  # the built-in 60 again
     routes_public.ip_limiter.reset()
     assert client.get("/v1/public/plans").status_code == 200
+
+
+def test_public_search_says_how_each_result_matched(client, db, ingested_aapl):
+    from app.db.models import CompanyAlias
+
+    db.add(CompanyAlias(cik="0000320193", alias="APPL", kind="former_ticker"))
+    db.commit()
+    by = lambda q: client.get(f"/v1/public/companies/search?q={q}").json()["data"][0]  # noqa: E731
+    assert by("AAPL")["match_type"] == "ticker"
+    assert by("320193")["match_type"] == "cik"
+    assert by("Apple")["match_type"] == "name"
+    assert by("APPL")["match_type"] == "former_ticker"
