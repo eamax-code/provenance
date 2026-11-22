@@ -122,6 +122,10 @@
   function ownership(d) {
     var o = d.ownership, box = $('ownership');
     box.hidden = !o; if (!o) return;
+    // no listed common stock (debt-only filers, operating partnerships): one line, no empty block
+    var none = o.listed === false;
+    ['own-nums', 'own-table', 'own-flag', 'own-more', 'own-notes'].forEach(function (id) { var n = $(id); if (n) (n.closest('.tw') || n).hidden = none; });
+    if (none) { $('own-when').textContent = 'No listed common stock, so no 13F holders.'; return; }
     $('own-when').textContent = quarterName(o.quarter) + ' (filed through ' + P.date(o.filed_through) + '). ' + (o.lag_note || '');
     var pct = o.institutional_pct;
     var pctTitle = o.institutional_pct_derived ? o.institutional_pct_derived.formula + (o.institutional_pct_derived.inputs || []).map(function (x) { return '; ' + x.name + ' ' + (x.value != null ? Number(x.value).toLocaleString('en-US') : '') + (x.quarter ? ' (' + quarterName(x.quarter) + ')' : x.as_of_date ? ' (' + P.date(x.as_of_date) + ')' : ''); }).join('') : '';
