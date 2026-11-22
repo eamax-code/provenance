@@ -538,6 +538,42 @@
     }, 1700);
     return function () { clearInterval(t); row.remove(); };
   }
+  // the reply's API calls (schema 2), or for a saved version-1 reply the company and the chart's metric
+  function howOf(reply) {
+    if (Array.isArray(reply.how)) return reply.how.filter(function (h) { return h && /^\/v1\//.test(h.endpoint || ''); });
+    var m = (reply.widgets || []).map(function (w) { return w.metric; }).filter(function (x) { return /^[a-z_]{2,40}$/.test(x || ''); })[0];
+    if (!reply.company || !reply.company.cik || !m) return [];
+    var a = (reply.brief && reply.brief.as_of) || null;
+    return [{ endpoint: '/v1/companies/' + parseInt(reply.company.cik, 10) + '/facts', parameters: { metric: m, period: 'annual' }, as_of: a }];
+  }
+  // a deep link to the same view: one company's metric, a compare, the screener or the IPO page
+  function explorerLink(hw) {
+    var cos = [], metric = null, asOf = null;
+    hw.forEach(function (h) { var m = /^\/v1\/companies\/(\d{1,10})\//.exec(h.endpoint || ''); if (m && cos.indexOf(String(parseInt(m[1], 10))) < 0) cos.push(String(parseInt(m[1], 10))); metric = metric || (h.parameters || {}).metric; asOf = asOf || h.as_of; });
+    var q = new URLSearchParams(), okDate = /^\d{4}-\d{2}-\d{2}$/.test(asOf || '');
+    if (cos.length > 1) { q.set('c', cos[0]); q.set('tab', 'compare'); q.set('cmp', cos.slice(1, 5).join(',')); if (okDate) q.set('as_of', asOf); return '/app/?' + q.toString(); }
+    if (cos.length === 1) { q.set('c', cos[0]); if (/^[a-z_]{2,40}$/.test(metric || '')) { q.set('tab', 'chart'); q.set('m', metric); } if (okDate) q.set('as_of', asOf); return '/app/?' + q.toString(); }
+    var sc = hw.filter(function (h) { return h.endpoint === '/v1/facts/screen'; })[0];
+    if (sc) { var p = sc.parameters || {}; if (/^[a-z_]{2,40}$/.test(p.metric || '')) q.set('sm', p.metric); if (/^\d{4}$/.test(String(p.year || ''))) q.set('sy', p.year); return '/app/?' + q.toString() + '#screener'; }
+    if (hw.some(function (h) { return /^\/v1\/(public\/)?ipos/.test(h.endpoint || ''); })) return '/ipos/';
+    return null;
+  }
+  // figure chips (schema 2): each figure the answer states, as a door to its provenance card
+  function figureChips(reply) {
+    var figs = (reply.blocks || []).filter(function (b) { return b && b.type === 'figure' && b.value != null; });
+    // a chart or table already makes each figure a door; chips are for answers in words
+    if (!figs.length || !window.ProvCard || (reply.widgets || []).length) return null;
+    var cikOf = function (f) { var m = /\/edgar\/data\/(\d+)\//.exec(f.source_url || ''); return f.cik || (m && m[1]) || ''; };
+    var many = figs.map(cikOf).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).length > 1;
+    var row = el('div', 'cx-chips');
+    figs.slice(0, 12).forEach(function (f) {
+      var info = { label: f.label, metric: f.metric, currency: (f.unit || '').split('/')[0], fiscal_label: f.period_label || null, period_end: f.period_end, form_type: f.form_type, filed_date: f.filed_date, source_url: f.source_url, accession_number: f.accession_number, source_tag: f.source_tag, mapping_version: f.mapping_version, quality_status: f.quality_status, derived: f.derived, inputs: f.inputs, cik: cikOf(f) || state.cik };
+      var who = f.company || f.display_name || (many && cikOf(f) ? 'CIK ' + cikOf(f) : '');
+      var chip = el('span', 'cx-chip'); chip.appendChild(el('span', 'cx-muted cx-small', (who ? who + ' · ' : '') + f.label + ' ')); chip.appendChild(window.ProvCard.door(human(f.display || String(f.value)), info));
+      row.appendChild(chip);
+    });
+    return row;
+  }
   function meta(bot, reply) {
     var row = el('div', 'cx-meta');
     var c = reply.checks || {};
@@ -551,27 +587,16 @@
       var badge = el('span', 'cx-badge ' + (ok ? 'ok' : 'warn'), ok ? '✓ Checked against SEC data' : 'Check: ' + problems.join('; '));
       row.appendChild(badge);
     }
-    // C-01: how I got this — the same data as one API call, so anyone can check it
-    if (reply.company && reply.company.cik) {
-      var hm = (reply.widgets || []).map(function (w) { return w.metric; }).filter(function (m) { return /^[a-z_]{2,40}$/.test(m || ''); })[0];
-      if (hm) {
-        var ck = String(parseInt(reply.company.cik, 10)), ao = (reply.brief && reply.brief.as_of) || $('cx-asof').value, hasAo = /^\d{4}-\d{2}-\d{2}$/.test(ao || '');
-        var how = el('details', 'cx-how'); how.appendChild(el('summary', null, 'How I got this'));
-        how.appendChild(el('p', 'cx-note', 'Read from the annual reports cited above for CIK ' + ck + ' (' + displayName(reply.company.legal_name) + '): ' + hm.replace(/_/g, ' ') + ', annual, ' + (hasAo ? 'as known on ' + human(ao) : 'latest data') + '. The same figures in one request:'));
-        var code = el('code'); code.textContent = 'GET /v1/companies/' + ck + '/facts?metric=' + hm + '&period=annual' + (hasAo ? '&as_of=' + ao : '');
-        var pre = el('pre'); pre.appendChild(code); how.appendChild(pre);
-        bot.body.appendChild(how);
-      }
+    // C-01 / C-02: 'How I got this' and 'Open in Explorer' come from the reply's how[] (schema 2);
+    // a saved version-1 reply falls back to the company and the chart's metric
+    var hw = howOf(reply), ox = explorerLink(hw);
+    if (hw.length) {
+      var how = el('details', 'cx-how'); how.appendChild(el('summary', null, 'How I got this'));
+      how.appendChild(el('p', 'cx-note', hw.length > 1 ? 'The same figures in ' + hw.length + ' requests:' : 'The same figures in one request:'));
+      var pre = el('pre'); hw.forEach(function (h, i) { var q = new URLSearchParams(); Object.keys(h.parameters || {}).forEach(function (k) { if (h.parameters[k] != null) q.set(k, h.parameters[k]); }); if (h.as_of) q.set('as_of', h.as_of); var code = el('code'); code.textContent = (i ? '\n' : '') + 'GET ' + h.endpoint + (q.toString() ? '?' + q.toString() : ''); pre.appendChild(code); });
+      how.appendChild(pre); bot.body.appendChild(how);
     }
-    // C-02: the same view in the Explorer (company, metric, as-of)
-    if (reply.company && reply.company.cik) {
-      var wm = (reply.widgets || []).map(function (w) { return w.metric; }).filter(function (m) { return /^[a-z_]{2,40}$/.test(m || ''); })[0];
-      var xp = new URLSearchParams(); xp.set('c', String(parseInt(reply.company.cik, 10)));
-      if (wm) { xp.set('tab', 'chart'); xp.set('m', wm); }
-      var asOf = (reply.brief && reply.brief.as_of) || $('cx-asof').value; if (/^\d{4}-\d{2}-\d{2}$/.test(asOf || '')) xp.set('as_of', asOf);
-      var ox = el('a', 'cx-act cx-open', 'Open in Explorer'); ox.href = '/app/?' + xp.toString();
-      row.appendChild(ox);
-    }
+    if (ox) { var oa = el('a', 'cx-act cx-open', 'Open in Explorer'); oa.href = ox; row.appendChild(oa); }
     var by = reply.answered_by === 'data' ? 'Read from filings' : (reply.model ? reply.model + ' (local)' : null);
     if (by) row.appendChild(el('span', null, by + (reply.brief && reply.brief.as_of ? ' · as of ' + human(reply.brief.as_of) : '')));
     if (reply.answer) {
@@ -591,8 +616,10 @@
       // table): no company card; the table carries the filing links, and cited figures in the
       // text ([1], [2]: a compare or a ranking) link their filings too.
       content.appendChild(renderText(reply.answer, reply.citations || []));
+      var fc0 = figureChips(reply); if (fc0) content.appendChild(fc0);
       renderWidgets(content, reply);
       (reply.notes || []).forEach(function (n) { content.appendChild(el('p', 'cx-note', n)); });
+      meta(bot, reply);
       keepScrolled(); return;
     }
     if (!reply.company) {
@@ -615,7 +642,7 @@
       renderWidgets(content, reply); meta(bot, reply); return;
     }
     if (isLeadership(reply)) { renderLeadership(content, reply); meta(bot, reply); keepScrolled(); return; }
-    var finish = function () { renderWidgets(content, reply); meta(bot, reply); keepScrolled(); };
+    var finish = function () { var fc1 = figureChips(reply); if (fc1) content.appendChild(fc1); renderWidgets(content, reply); meta(bot, reply); keepScrolled(); };
     if (animate) stream(content, reply.answer, reply.citations, finish);
     else { content.appendChild(renderText(reply.answer, reply.citations)); finish(); }
   }

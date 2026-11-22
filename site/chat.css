@@ -154,20 +154,17 @@
 .cx-widget-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .cx-widget h3{margin:0;font:600 15px var(--font-display);color:var(--fg)}
 .cx-widget-sub{color:var(--muted);font-size:12.5px}
-.cx-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}
-.cx-tile{border-radius:14px;background:var(--bg);padding:11px 13px;min-width:0;animation:cx-pop .45s var(--ease) both}
-.cx-tile:first-child{background:var(--field);color:var(--field-ink);--muted:color-mix(in srgb,var(--field-ink) 75%,transparent)}
-.cx-tile:first-child .cx-cite{color:var(--field-ink)}
+/* tiles are type, not cards: figures in a row with thin rules; change is coloured text */
+.cx-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-top:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.cx-tile{padding:10px 14px;min-width:0;border-left:1px solid var(--line)}.cx-tile:first-child{border-left:0;padding-left:0}
 .cx-tile-label{font-size:12.5px;color:var(--muted)}
-.cx-tile-value{font:600 18px/1.25 var(--font-display);margin-top:2px}
+.cx-tile-value{font:600 20px/1.25 var(--font-display);margin-top:2px}
 .cx-tile-sub{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.cx-delta{font:600 12px var(--font-body);border-radius:999px;padding:1px 7px}
-.cx-delta.up{background:var(--good-soft);color:var(--good)}.cx-delta.down{background:var(--bad-soft);color:var(--bad)}
-.cx-tile:first-child .cx-delta{color:var(--field-ink)}.cx-tile:first-child .cx-delta.up{background:var(--good)}.cx-tile:first-child .cx-delta.down{background:var(--red-deep)}
+.cx-delta{font:600 12px var(--font-body)}
+.cx-delta.up{color:var(--good)}.cx-delta.down{color:var(--bad)}
 .cx svg.cx-spark{display:block;width:100%;height:30px;margin-top:8px;stroke:none}
-.cx-spark polyline{fill:none;stroke:var(--red);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cx-spark polyline{fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .cx-spark circle{fill:var(--red)}
-.cx-tile:first-child .cx-spark polyline{stroke:var(--field-ink)}.cx-tile:first-child .cx-spark circle{fill:var(--field-ink)}
 .cx-chart{position:relative;height:280px;margin-top:14px}
 .cx-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--muted)}
 .cx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
@@ -237,7 +234,7 @@
   .cx-card:nth-child(n+3){display:none}
   .cx-bubble{max-width:90%}
   .cx-chart{height:230px}
-  .cx-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cx-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.cx-tile:nth-child(odd){border-left:0;padding-left:0}.cx-tile:nth-child(n+3){border-top:1px solid var(--line)}
   .cx-tile-value{font-size:16px}
 }
 @media (prefers-reduced-motion:reduce){
@@ -273,13 +270,5 @@
 .cx-how{margin-top:10px;font-size:.88rem;color:var(--muted)} .cx-how summary{cursor:pointer} .cx-how pre{margin:6px 0 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;overflow-x:auto;font-size:.8rem}
 .cx-tile-value .door{font:inherit}
 
-/* tiles are type, not cards: figures in a row with thin rules; change is coloured text, no pill */
-.cx-tiles{gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
-.cx-tile,.cx-tile:first-child{background:none;color:var(--fg);--muted:var(--muted);border-radius:0;padding:10px 14px;border-left:1px solid var(--line);animation:none}
-.cx-tile:first-child{border-left:0;padding-left:0}
-.cx-tile-value{font-size:20px}
-.cx-delta,.cx-tile:first-child .cx-delta{background:none!important;padding:0;border-radius:0}
-.cx-delta.up,.cx-tile:first-child .cx-delta.up{color:var(--good)}.cx-delta.down,.cx-tile:first-child .cx-delta.down{color:var(--bad)}
-.cx-tile:first-child .cx-cite{color:inherit}
-.cx-tile:first-child .cx-spark polyline{stroke:var(--muted)}.cx-tile:first-child .cx-spark circle{fill:var(--red)}
-@media (max-width:600px){.cx-tile:nth-child(odd){border-left:0;padding-left:0}.cx-tile:nth-child(n+3){border-top:1px solid var(--line)}}
+
+.cx-chips{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 2px;font-size:.9rem}.cx-chip{display:inline-flex;align-items:baseline;gap:4px}.cx-chip .door{font-weight:600}

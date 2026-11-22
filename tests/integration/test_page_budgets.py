@@ -31,7 +31,7 @@ BUDGETS = {
         28_000,
     ),
     "company page, lower sections (loaded later)": (["companies/page/company-lower.js"], 8_500),
-    "chat": (["chat/index.html", "chat.css", "chat.js"], 25_000),
+    "chat": (["chat/index.html", "chat.css", "chat.js"], 26_000),  # 25.3 KB on 23 Nov with C-01/C-02 (figure chips, how, hand-off)
     "ipos": (["ipos/index.html", "ipos/ipos.css", "ipos/ipos.js"], 12_000),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
 }
