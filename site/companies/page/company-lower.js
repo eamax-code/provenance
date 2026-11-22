@@ -118,7 +118,7 @@
     tile([pct != null ? P.pct(pct) : 'not computed', pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : 'several share classes; shares are not added across them');
     tile([Number(o.holders_count).toLocaleString('en-US')], 'holders' + (o.holders_count_change != null ? ', ' + (o.holders_count_change >= 0 ? '+' : '−') + Math.abs(o.holders_count_change) + ' on the quarter before' : ''));
     var f = o.flows || {};
-    tile([['new', 'new'], ['added', 'added'], ['reduced', 'reduced'], ['exited', 'exited']].map(function (k) { return el('span', {}, [el('strong', { text: String(f[k[0]] || 0) }), ' ' + k[1]]); }), 'holders by change since ' + quarterName(o.previous_quarter), true);
+    tile([['new', 'new'], ['added', 'added'], ['reduced', 'reduced'], ['exited', 'exited']].map(function (k) { return el('span', {}, [el('strong', { text: Number(f[k[0]] || 0).toLocaleString('en-US') }), ' ' + k[1]]); }), 'holders by change since ' + quarterName(o.previous_quarter), true);
     var rows = o.top_holders || [];
     var head = el('tr', {}, [el('th', { scope: 'col', text: 'Holder' }), el('th', { scope: 'col', class: 'n', text: 'Value' }), el('th', { scope: 'col', class: 'n opt', text: 'Shares' }), el('th', { scope: 'col', class: 'n', text: '% of shares' }), el('th', { scope: 'col', text: 'Change' }), el('th', { scope: 'col', class: 'opt', text: '13F' })]);
     var tb = el('tbody');
@@ -126,7 +126,7 @@
       var ch = h.change ? el('span', { class: 'tag', text: CHANGE[h.change] || h.change }) : null;
       var chText = h.shares_change_pct != null && h.change !== 'new' && h.change !== 'exited' ? ' ' + P.pct(h.shares_change_pct, true) : '';
       tb.appendChild(el('tr', {}, [
-        el('th', { scope: 'row', text: h.name === h.name.toUpperCase() ? P.title(h.name) : h.name }),
+        el('th', { scope: 'row', text: holderName(h.name) }),
         el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd, null, 'USD') }),
         el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
         el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
@@ -158,6 +158,21 @@
       var nm = r.me ? el('b', { text: r.name }) : el('a', { href: '/companies/' + parseInt(r.cik, 10), text: r.name });
       box.appendChild(el('li', { class: (r.me ? 'me' : '') + (r.ranked ? '' : ' unranked') }, [el('span', { class: 'pn' }, [el('span', {}, [nm, r.ticker ? el('span', { class: 'muted', text: ' ' + r.ticker }) : null]), bar]), el('span', { class: 'n', text: P.money(r.v, null, r.cur) + ' ' + (r.label || '') })]));
     });
+  }
+  /* 13F filer names come in capitals ("FMR LLC", "BANK OF AMERICA CORP /DE/"): title case them but keep
+     legal forms and initialisms, drop EDGAR's state suffix; names filed in mixed case stay as filed */
+  var KEEP = { LLC: 1, LP: 1, LLP: 1, PLC: 1, NA: 1, AG: 1, SA: 1, SE: 1, NV: 1, ASA: 1, AB: 1, FMR: 1, UBS: 1, BNY: 1, TIAA: 1, CIBC: 1, RBC: 1, HSBC: 1, ABN: 1, AMRO: 1, BNP: 1, II: 1, III: 1, USA: 1, US: 1 };
+  var LOWER = { OF: 1, AND: 1, THE: 1, FOR: 1, DE: 1 };
+  function holderName(n) {
+    n = String(n || '').replace(/\s*\/[A-Z]{2,3}\/?\s*$/, '').trim();
+    if (n !== n.toUpperCase()) return n;
+    return n.split(/(\s+|[,.&()-])/).map(function (w, i) {
+      if (!/[A-Z]/.test(w)) return w;
+      if (KEEP[w]) return w;
+      if (i && LOWER[w]) return w.toLowerCase();
+      if (w === 'JPMORGAN') return 'JPMorgan';
+      return w.charAt(0) + w.slice(1).toLowerCase();
+    }).join('');
   }
   window.CompanyLower = { segments: segments, people: people, ownership: ownership, peers: peers };
 })();
