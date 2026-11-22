@@ -573,8 +573,17 @@ filings made before 2023-01-03 reported thousands and are multiplied by 1,000.
 `method` is `schedule_13dg` (issuer CIK and CUSIP on a structured Schedule 13D or 13G), `isin`
 (a US or CA ISIN of a listing whose LEI is linked to the CIK) or `issuer_prefix` (another share
 class of a mapped issuer with the same 6-character issuer number that Forms 13F title as a share
-class; never a preferred, warrant, unit, right, note or ADR). A mapping changes only for a
-stronger source or the same source in a later filing.
+class; never a preferred, warrant, unit, right, note or ADR), or `13f_issuer_name` (the dominant
+13F issuer name equals the company's name, uniquely, with enough managers agreeing; it also takes
+American depositary shares and a partnership's units, never fund or trust units; a name whose key
+is under four characters only on the exact legal name of exactly one company). The issuer-prefix
+rule judges a CUSIP on all its 13F lines: 15% of lines naming another security (preferred,
+depositary, perpetual, warrant, CW, right, unit, note) keep it out, so does a letter in the issue
+number (a debt issue), and so do lines worth under 10% a share of the company's other mapped common
+in the latest quarter with three lines on each side (also applied to the 13F-name rule).
+Links removed by hand are listed with their reason, without CUSIPs, in
+`app/data/cusip_removals_reviewed.csv` (`scripts/load_13f.py --remove-reviewed`). A mapping
+changes only for a stronger source or the same source in a later filing.
 
 **Overview `ownership` and `GET /v1/companies/{cik}/ownership`**: the latest complete quarter
 (its 45-day filing deadline passed, and the loaded data reaches it). Per manager and quarter,
@@ -583,7 +592,11 @@ filings count in filing order: an original or a restatement replaces, NEW HOLDIN
 `flows` compares each manager with the quarter before (`exited` only for managers that filed
 for the quarter without a position). `institutional_pct` is derived: 13F shares held divided by
 the cover-page shares outstanding, given only for a single share class. Holders are ranked by
-value; each links its 13F filing.
+value; each links its 13F filing. `classes` lists the share classes counted (`title` as Forms 13F
+give it, `held_as` `shares` or `adr`, `ratio` 1 or null): for American depositary shares the
+number of shares one ADS represents is not on Form 13F, so `ratio` is null, and while ADR positions
+are counted `institutional_pct`, `pct_of_outstanding` and `shares_outstanding` are null and a note
+says why.
 
 ## International listings (ADR 0006)
 

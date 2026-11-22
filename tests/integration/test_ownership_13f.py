@@ -411,6 +411,55 @@ def test_13f_issuer_name_rule_maps_unique_exact_names_only(db, ingested_aapl):
     assert db.get(IssuerCusip, "46625H100").method == "13f_issuer_name"
 
 
+def test_name_rule_takes_adrs_partnership_units_and_exact_short_names(db, ingested_aapl):
+    """Items 4 and 5 and BGC: ADRs, a partnership's units, and a key under four characters only
+    on the exact legal name of exactly one company."""
+    from app.db.models import Company, utcnow
+
+    for cik, legal in (("0001114448", "NOVARTIS AG"), ("0001552000", "MPLX LP"),
+                       ("0001094831", "BGC Group, Inc."), ("0001999001", "ACME ACQUISITION CORP"),
+                       ("0001999002", "SPROTT PHYSICAL COPPER TRUST")):  # fmt: skip
+        db.add(Company(cik=cik, legal_name=legal, source_url="https://www.sec.gov/",
+                       first_detected_at=utcnow(), quality_status="ok"))  # fmt: skip
+    db.commit()
+
+    def cu(first8):
+        return first8 + str(cusips.check_digit(first8))
+
+    def line(name, title):
+        return {"name": name, "share": 0.9, "filers": 400, "title": title}
+
+    names = {
+        cu("66987V10"): line("NOVARTIS AG SPONSORED ADR", "SPONSORED ADR"),
+        cu("55336V10"): line("MPLX LP", "COM UNIT REP LTD"),
+        cu("08892910"): line("BGC GROUP INC", "CL A"),
+        cu("08892920"): line("BGC GROUP", "CL B"),  # not the exact legal name
+        cu("00499910"): line("ACME ACQUISITION CORP", "UNIT 99/99/9999"),  # a SPAC unit
+        cu("85207H10"): line("SPROTT PHYSICAL COPPER TRUST", "UNIT"),  # a trust's units
+        cu("66987V20"): line("NOVARTIS AG SPON ADR PFD", "SPON ADR PFD"),  # never a preferred
+    }
+    stored = {(c, n) for c, _, n in cusips.map_by_13f_names(db, names)}
+    assert stored == {("0001114448", "NOVARTIS AG SPONSORED ADR"), ("0001552000", "MPLX LP"),
+                      ("0001094831", "BGC GROUP INC")}  # fmt: skip
+    assert cusips.is_adr_title("SPONSORED ADS") and not cusips.is_adr_title("SPON ADR PFD")
+    assert cusips.is_unit_title("UT LTD PTN INT") and not cusips.is_unit_title("UNIT 1 CL A 1/2 WT")
+
+
+def test_ownership_of_an_adr_class_gives_no_percentages(db, loaded_13f):
+    so = {"value": 15_000_000_000, "as_of_date": "2026-07-15", "source_url": "https://x"}
+    plain = thirteenf.ownership(db, "0000320193", shares_outstanding=so)
+    assert plain["institutional_pct"] is not None
+    assert plain["classes"] == [{"title": "Common Stock", "held_as": "shares", "ratio": 1}]
+    db.get(IssuerCusip, AAPL).class_title = "SPONSORED ADS"
+    db.flush()
+    adr = thirteenf.ownership(db, "0000320193", shares_outstanding=so)
+    assert adr["classes"] == [{"title": "SPONSORED ADS", "held_as": "adr", "ratio": None}]
+    assert adr["institutional_pct"] is None and adr["institutional_pct_derived"] is None
+    assert adr["shares_outstanding"] is None
+    assert all(h["pct_of_outstanding"] is None for h in adr["top_holders"])
+    assert thirteenf.ADR_NOTE in adr["notes"]
+
+
 SUBMISSION = """<SEC-DOCUMENT>
 <DOCUMENT>
 <TYPE>13F-HR

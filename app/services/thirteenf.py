@@ -330,6 +330,13 @@ def _change(prev: dict | None, cur: dict | None, filed: bool) -> str | None:
     return "unchanged"
 
 
+ADR_NOTE = (
+    "Managers report these holdings in American depositary shares. Each ADS represents a number "
+    "of the company's shares that Form 13F does not state, so no percentage of shares "
+    "outstanding is shown and ADS counts are not added to other share classes."
+)
+
+
 def ownership(
     db: Session,
     cik: str,
@@ -361,7 +368,11 @@ def ownership(
     # one class: the company's single CUSIP, with its reorganisation twin when there is one
     single = len(own) <= 1 and len(aliases) <= 1
     held = sum((p["shares"] for p in cur.values()), Decimal(0))
-    out_value = (shares_outstanding or {}).get("value")
+    # American depositary shares: Form 13F does not state how many shares one ADS represents, so
+    # nothing is a percentage of shares outstanding while ADR positions are counted
+    adr_codes = {c.cusip for c in classes if cusip_map.is_adr_title(c.class_title)}
+    adr_held = any(code in adr_codes for p in cur.values() for code in p["by_class"])
+    out_value = (shares_outstanding or {}).get("value") if not adr_held else None
     pct = None
     if single and out_value:
         pct = round(float(held) / float(out_value) * 100, 1)
@@ -407,6 +418,8 @@ def ownership(
         notes.append("Includes holdings reported under the share identifier of the registrant "
                      "this company replaced or was replaced by in a holding company "
                      "reorganisation (the same shares, exchanged one for one).")  # fmt: skip
+    if adr_held:
+        notes.append(ADR_NOTE)
     if not single:
         notes.append(
             "This company has several share classes; shares are not added across classes, so "
@@ -427,6 +440,14 @@ def ownership(
         "value_usd": float(sum((p["value_usd"] for p in cur.values()), Decimal(0))),
         "shares_held": float(held) if single else None,
         "shares_outstanding": shares_outstanding if out_value else None,
+        "classes": [
+            {
+                "title": c.class_title,
+                "held_as": "adr" if c.cusip in adr_codes else "shares",
+                "ratio": None if c.cusip in adr_codes else 1,
+            }
+            for c in classes
+        ],  # fmt: skip
         "institutional_pct": pct,
         "institutional_pct_derived": {
             "formula": "13F shares held / cover-page shares outstanding",

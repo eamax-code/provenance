@@ -389,6 +389,29 @@ def name_key_13f(name: str | None) -> str:
     return name_key(" ".join(ABBREVIATIONS.get(w, w) for w in words))
 
 
+# items 4 and 5 (PM 2026-11-22): the 13F-name rule also takes American depositary shares, held as
+# ADRs (the ratio to the company's shares is not on Form 13F), and the units of a partnership,
+# its common equity. Fund and trust units stay out.
+_ADR_TITLE = re.compile(r"\b(ADRS?|ADS|AMERICAN DEP\w*|SPON\w*|DEPOSITARY RCPT|DEP RCPT)\b", re.I)
+_UNIT_TITLE = re.compile(r"\b(UNITS?|UT|LTD PARTN\w*|LTD PTN\w*|LP INT\w*|PARTNERSHIP|L P)\b", re.I)
+_NEVER_EQUITY = re.compile(r"PFD|PREF|WT|WARRANT|RIGHT|RTS|NOTE|BOND", re.I)
+_PARTNERSHIP = re.compile(r"\b(L\.?\s?P\.?|PARTNERS|PARTNERSHIP)\b", re.I)
+
+
+def is_adr_title(title: str | None) -> bool:
+    t = title or ""
+    return bool(_ADR_TITLE.search(t)) and not _NEVER_EQUITY.search(t)
+
+
+def is_unit_title(title: str | None) -> bool:
+    t = title or ""
+    return bool(_UNIT_TITLE.search(t)) and not _NEVER_EQUITY.search(t)
+
+
+def _full_name(name: str | None) -> str:
+    return " ".join(re.sub(r"[^A-Z0-9& ]", " ", (name or "").upper()).split())
+
+
 def map_by_13f_names(db: Session, names: dict[str, dict], ciks: list[str] | None = None) -> list:
     """E-1c, for companies no 13D/G or ISIN maps: a CUSIP whose dominant 13F issuer name equals the
     company's name once normalised, uniquely, given by at least MIN_FILERS managers with at least
@@ -401,10 +424,12 @@ def map_by_13f_names(db: Session, names: dict[str, dict], ciks: list[str] | None
     companies = db.execute(select(Company.cik, Company.legal_name)).all()
     legal_names = dict(companies)
     by_key: dict[str, set] = {}
+    exact: dict[str, set] = {}
     for cik, legal in companies:
         k = name_key_13f(legal)
         if len(k) >= 4:
             by_key.setdefault(k, set()).add(cik)
+        exact.setdefault(_full_name(legal), set()).add(cik)
     # active and listed: a ticker and an annual report in the last two years (the tie-break)
     recent = date.today() - timedelta(days=730)
     listed_active = set(db.scalars(
@@ -417,13 +442,21 @@ def map_by_13f_names(db: Session, names: dict[str, dict], ciks: list[str] | None
     for c, cik in mapped:
         prefix_owner.setdefault(c[:6], set()).add(cik)
     wanted = set(ciks) if ciks else None
-    stored = []
+    stored, todo = [], []
     for cusip, info in names.items():
         if cusip in have_cusip or info["filers"] < MIN_FILERS or info["share"] < MIN_NAME_SHARE:
             continue
-        if not is_share_class(info["title"]):
+        title, name = info["title"], info["name"]
+        adr = is_adr_title(title)
+        unit = not adr and is_unit_title(title)
+        if not (is_share_class(title) or adr or unit):
             continue
-        hits = by_key.get(name_key_13f(info["name"]), set())
+        if adr:  # NOVARTIS AG SPONSORED ADR is Novartis AG
+            name = " ".join(_ADR_TITLE.sub(" ", name).split())
+        key = name_key_13f(name)
+        # a key under four characters (BGC GROUP INC is "BGC") only on the exact legal name, legal
+        # form included, of exactly one company
+        hits = by_key.get(key, set()) if len(key) >= 4 else exact.get(_full_name(name), set())
         if len(hits) > 1 and TIE_BREAK:
             # the old Howard Hughes Corp beside Howard Hughes Holdings: only an exactly-one
             # active listed company takes it, and only when the legal forms agree, since the key
@@ -431,7 +464,7 @@ def map_by_13f_names(db: Session, names: dict[str, dict], ciks: list[str] | None
             # Medtronic plc; LAZARD LTD is not Lazard, Inc.)
             # a 13F name without a legal form confirms nothing (FARMERS & MERCHANTS BANCORP is
             # the Ohio bank's line, not the Californian one with no form in its name either)
-            form = legal_form(info["name"])
+            form = legal_form(name)
             hits = {c for c in hits & listed_active
                     if form is not None and legal_form(legal_names[c]) == form}  # fmt: skip
         if len(hits) != 1:
@@ -439,9 +472,16 @@ def map_by_13f_names(db: Session, names: dict[str, dict], ciks: list[str] | None
         cik = next(iter(hits))
         if wanted is not None and cik not in wanted:
             continue
+        if unit and not _PARTNERSHIP.search(legal_names[cik] or ""):
+            continue  # SPAC, equity and trust units are not a partnership's common units
         owners = prefix_owner.get(cusip[:6], set())
         if owners and owners != {cik}:
             continue  # the issuer number belongs to another company
-        if record(db, cik, cusip, "13f_issuer_name", info["title"]):
+        todo.append((cik, cusip, info))
+    # the value check of the issuer-prefix rule applies here too: a pre-split CUSIP removed by it
+    # (ChargePoint's) is free again and its name still matches
+    low = value_outliers(db, {cusip: cik for cik, cusip, _ in todo})
+    for cik, cusip, info in todo:
+        if cusip not in low and record(db, cik, cusip, "13f_issuer_name", info["title"]):
             stored.append((cik, cusip, info["name"]))
     return stored
