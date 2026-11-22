@@ -96,6 +96,17 @@ def label(member: str) -> str:
     return " ".join(m.split()) or member
 
 
+def member_label(key: str) -> str:
+    """'BusinessSegments=Europe' -> 'Europe'; a segment's own eliminations ->
+    'Europe: intersegment eliminations'."""
+    parts = dims(key.replace(";", ";") + ";")
+    items = parts.pop("ConsolidationItems", None)
+    base = label(next(iter(parts.values()))) if parts else ""
+    if items and base:
+        return f"{base}: {label(items)[:1].lower() + label(items)[1:]}"
+    return base or label(items or key)
+
+
 def dims(segments: str) -> dict[str, str]:
     """'BusinessSegments=Americas;ConsolidationItems=OperatingSegments;' -> {axis: member}."""
     out = {}
@@ -119,7 +130,9 @@ def classify(d: dict[str, str]) -> tuple[str, str, str] | None:
     if kind is None:
         return None
     if items and items != OPERATING:
-        return (kind, "reconciling", f"{axis}={member}") if RECONCILING.search(items) else None
+        # a segment's own eliminations: keyed apart from the segment itself
+        key = f"{axis}={member};ConsolidationItems={items}"
+        return (kind, "reconciling", key) if RECONCILING.search(items) else None
     if kind != "geographic" and RECONCILING.search(member):
         return kind, "reconciling", f"{axis}={member}"
     return kind, "segment", f"{axis}={member}"
@@ -212,9 +225,19 @@ def parse_notes_zip(path: str | Path) -> list[dict]:
         tags = METRIC_TAGS[metric]
         if k not in chosen or tags.index(tag) < tags.index(chosen[k]):
             chosen[k] = tag
+    # D-04: one unit per filing, kind and metric: the unit with the most periods; on a tie not
+    # USD (a USD figure beside another currency is a convenience translation)
+    periods_by_unit: dict[tuple, dict[str, set]] = {}
+    for adsh, kind, metric, tag, ddate, unit in groups:
+        if chosen[(adsh, kind, metric)] == tag:
+            periods_by_unit.setdefault((adsh, kind, metric), {}).setdefault(unit, set()).add(ddate)
+    unit_of = {k: max(v, key=lambda u: (len(v[u]), u != "USD"))
+               for k, v in periods_by_unit.items()}  # fmt: skip
     out = []
     for (adsh, kind, metric, tag, ddate, unit), g in groups.items():
         if chosen[(adsh, kind, metric)] != tag or not g["segment"]:
+            continue
+        if unit_of.get((adsh, kind, metric)) != unit:
             continue
         sub, end = subs[adsh], _ymd(ddate)
         if end is None:
@@ -231,7 +254,7 @@ def parse_notes_zip(path: str | Path) -> list[dict]:
                 "source": source}  # fmt: skip
         for role, items in (("segment", segs), ("reconciling", recon)):
             for member, v in items.items():
-                out.append({**base, "member": member, "label": label(member.split("=", 1)[1]),
+                out.append({**base, "member": member, "label": member_label(member),
                             "role": role, "value": v})  # fmt: skip
         if total is not None:
             out.append({**base, "member": "consolidated", "label": "Consolidated",

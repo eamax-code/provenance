@@ -84,3 +84,13 @@ def test_overview_block_endpoint_and_mcp(db, client, auth, ingested_aapl):
     from app.api.routes_mcp import TOOLS
 
     assert TOOLS["company_segments"]["path"] == "/v1/companies/{cik}/segments"
+
+
+def test_a_segments_own_eliminations_are_keyed_apart():
+    c = segments.classify({"BusinessSegments": "EuropeSteelGroup",
+                           "ConsolidationItems": "IntersegmentElimination"})  # fmt: skip
+    key = "BusinessSegments=EuropeSteelGroup;ConsolidationItems=IntersegmentElimination"
+    assert c == ("business", "reconciling", key)
+    assert segments.member_label(c[2]) == "Europe Steel Group: intersegment eliminations"
+    assert segments.member_label("BusinessSegments=AmericasSegment") == "Americas"
+    assert segments.member_label("ConsolidationItems=CorporateNonSegment").startswith("Corporate")
