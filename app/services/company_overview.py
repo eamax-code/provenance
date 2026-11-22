@@ -20,6 +20,7 @@ from app.db.models import (
     Company,
     CompanyAlias,
     Filing,
+    FinancialFact,
     ListedInstrument,
     MartCompany,
     MartCompanyPeriod,
@@ -39,6 +40,7 @@ from app.services import (
     statements,
     successions,
     thirteenf,
+    ttm,
 )
 from app.services import cover as cover_service
 from app.services.form8k import ITEM_TITLES, split_items
@@ -425,6 +427,36 @@ def first_filing_date(db: Session, cik: str) -> date | None:
     return db.scalar(select(func.min(Filing.filing_date)).where(Filing.cik.in_(ciks)))
 
 
+def _card_fields(db: Session, cik: str, key_figures: list[dict], years: list[dict]) -> None:
+    """X-01a: each figure carries what the provenance card shows (accession, tag, mapping
+    version, quality) beside its filing link, matched to the stored fact by metric, period end
+    and filing. Years get them in `provenance` ({metric: {...}}); `sources` keeps its URLs."""
+    urls = {kf.get("source_url") for kf in key_figures} | {
+        u for y in years for u in (y.get("sources") or {}).values()
+    }
+    urls.discard(None)
+    if not urls:
+        return
+    rows = db.execute(
+        select(FinancialFact.metric, FinancialFact.period_end, FinancialFact.source_url,
+               FinancialFact.accession_number, FinancialFact.source_tag,
+               FinancialFact.mapping_version, FinancialFact.quality_status)
+        .where(FinancialFact.cik == cik, FinancialFact.metric.in_(METRICS),
+               FinancialFact.derived.is_(False), FinancialFact.source_url.in_(urls))
+    ).all()  # fmt: skip
+    card = {(m, str(end), url): {"accession_number": acc, "source_tag": tag,
+                                 "mapping_version": mv, "quality_status": qs}
+            for m, end, url, acc, tag, mv, qs in rows}  # fmt: skip
+    for kf in key_figures:
+        kf.update(card.get((kf["metric"], str(kf["period_end"]), kf.get("source_url")), {}))
+    for y in years:
+        y["provenance"] = {
+            m: card[(m, str(y["period_end"]), url)]
+            for m, url in (y.get("sources") or {}).items()
+            if (m, str(y["period_end"]), url) in card
+        }
+
+
 def build(
     db: Session, cik: str, today: date | None = None, as_of: date | None = None
 ) -> dict | None:
@@ -441,6 +473,11 @@ def build(
     else:
         key_figures = _key_figures(mart, company.fiscal_year_end)
         years = _years(db, cik, company.fiscal_year_end)
+    _card_fields(db, cik, key_figures, years)
+    trailing = ttm.compute(db, company, list(METRICS), as_of=as_of, today=today)
+    for kf in key_figures:
+        if kf["metric"] in trailing:
+            kf["ttm"] = trailing[kf["metric"]]
     return {
         "company": _identity(db, company),
         "as_of": as_of.isoformat() if as_of else None,

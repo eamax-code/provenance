@@ -743,3 +743,42 @@ def statement(
         as_of=as_of.isoformat() if as_of else None, reporting_currency=currency,
         mapping_version=MAPPING_VERSION, columns=columns, rows=rows, notes=notes,
     )  # fmt: skip
+
+
+@router.get(
+    "/{cik}/overview",
+    responses=_ERRORS,
+    summary="Everything known about a company, for one page (keyed; any company)",
+    description="The public overview's payload and as_of rules for any company: identity, key "
+    "figures with TTM, ten fiscal years, statements, cover, filings, leadership, events, "
+    "ownership, auditor, segments and more. Built from stored data only, never calls the SEC. "
+    "The demo key reaches the showcase companies only.",
+)
+def keyed_overview(
+    request: Request,
+    response: Response,
+    cik: str = Path(max_length=13),
+    as_of: date | None = Query(None, description="Point in time, as for the public overview"),
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+    _key=Depends(require_reader),
+):
+    from app.services import company_overview as overview_service
+
+    cik = _parse_cik_param(cik)
+    _require_company(db, cik)
+    # the demo key is held to the showcase by require_reader (403 demo_scope)
+    if as_of is not None:
+        if as_of > date.today():
+            raise APIError(422, "invalid_parameter", "as_of cannot be in the future.")
+        first = overview_service.first_filing_date(db, cik)
+        if first is None or as_of < first:
+            when = f"{first.day} {first:%b %Y}" if first else "that date"
+            raise APIError(
+                422, "invalid_parameter", f"No filings before {when}; pick a later date."
+            )
+    body = overview_service.build(db, cik, as_of=as_of)
+    if body is None:
+        raise APIError(404, "company_not_found", "No company with this CIK is loaded.")
+    response.headers["Cache-Control"] = "private, no-store"
+    return body

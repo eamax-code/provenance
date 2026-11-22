@@ -50,6 +50,8 @@ def _cell(f: FinancialFact, fiscal_label: str, own: str | None = None) -> dict:
         "filed_date": f.filed_date.isoformat() if f.filed_date else None,
         "accession_number": f.accession_number,
         "source_url": f.source_url,
+        "source_tag": f.source_tag,  # the provenance card needs no second call (X-01a)
+        "mapping_version": f.mapping_version,
         "quality_status": f.quality_status,
         "derived": False,
     }
