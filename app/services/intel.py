@@ -275,11 +275,14 @@ def display(v: Decimal | float, metric: str, unit: str | None = None) -> str:
 
 def money(v: Decimal | float, unit: str | None = None) -> str:
     """$1.2 billion; EUR 36.8 billion in a company's own currency (D-04)."""
+    from app.services.fact_normalizer import MINUS
+
     x, sym = float(v), currency_symbol(unit)
+    sign, a = (MINUS if x < 0 else ""), abs(x)
     for div, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
-        if abs(x) >= div:
-            return f"{sym}{x / div:,.1f} {word}"
-    return f"{sym}{x:,.0f}"
+        if a >= div:
+            return f"{sign}{sym}{a / div:,.1f} {word}"
+    return f"{sign}{sym}{a:,.0f}"
 
 
 def annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> list[FinancialFact]:

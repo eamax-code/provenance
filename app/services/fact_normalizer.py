@@ -489,15 +489,20 @@ def currency_symbol(unit: str | None) -> str:
     return "$" if cur in ("USD", "shares", "pure") else f"{cur} "
 
 
+# A negative amount reads "−$1.0 million": the minus sign (U+2212) before the currency, never
+# "$-1.0 million" (C-07). Every text rendering of money uses it.
+MINUS = "\u2212"
+
+
 def display_value(value: Decimal | float, metric: str, unit: str | None = None) -> str:
     """A figure as a reader says it: $391.0 billion, $6.08 per share, 15.4 billion shares;
-    EUR 36.8 billion in a company's own currency (D-04)."""
+    EUR 36.8 billion in a company's own currency (D-04); −$1.0 million when negative."""
     x = float(value)
     kind = METRIC_UNIT_KIND.get(metric, "currency")
     sym = currency_symbol(unit)
     if kind == "per_share":
-        return f"-{sym}{abs(x):,.2f} per share" if x < 0 else f"{sym}{x:,.2f} per share"
-    sign, a = ("-" if x < 0 else ""), abs(x)
+        return f"{MINUS}{sym}{abs(x):,.2f} per share" if x < 0 else f"{sym}{x:,.2f} per share"
+    sign, a = (MINUS if x < 0 else ""), abs(x)
     for div, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
         if a >= div:
             n = f"{a / div:,.1f} {word}"

@@ -16,7 +16,7 @@
     {"id": "fig-13", "q": "Apple's sales in fiscal 2024", "kind": "figure", "value": 391035000000, "unit": "USD"},
     {"id": "fig-14", "q": "What was Apple's profit in 2023?", "kind": "figure", "value": 96995000000, "unit": "USD"},
     {"id": "fig-15", "q": "Microsoft total assets", "kind": "figure", "value": 512163000000, "unit": "USD"},
-    {"id": "fig-16", "q": "What were Microsoft's total assets in fiscal 2024?", "kind": "figure", "value": 512163000000, "unit": "USD"},
+    {"id": "fig-16", "q": "Microsoft operating income 2024", "kind": "figure", "value": -1000000, "unit": "USD", "note": "a negative amount reads −$1.0 million (minus before the currency)"},
     {"id": "fig-17", "q": "Northwind Example revenue 2024", "kind": "figure", "value": 50000000000, "unit": "USD"},
     {"id": "fig-18", "q": "What was Northwind Example's operating income in 2024?", "kind": "figure", "value": 7500000000, "unit": "USD"},
     {"id": "fig-19", "q": "Northwind Example net income 2023", "kind": "figure", "value": 4200000000, "unit": "USD"},

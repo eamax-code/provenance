@@ -578,7 +578,7 @@ def _money(v: float | None, currency: str | None = "USD") -> str:
     if v is None:
         return "—"
     sym = "$" if currency in (None, "USD") else f"{currency} "
-    a, s = abs(v), f"-{sym}" if v < 0 else sym
+    a, s = abs(v), f"\u2212{sym}" if v < 0 else sym  # the minus sign before the currency
     if a >= 1e12:  # JPY, KRW, TWD reporters
         return f"{s}{a / 1e12:,.1f} trillion"
     if a >= 1e9:
