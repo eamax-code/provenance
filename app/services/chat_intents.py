@@ -78,6 +78,35 @@ def filed_name(name: str | None) -> str | None:
     return " ".join(out)
 
 
+_KEEP_IN_PERSON = {"JR", "SR", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"}
+_ENTITY_WORDS = (_LEGAL - _KEEP_IN_PERSON) | {"INC", "CO", "CORP", "TRUST", "FUND", "LIMITED",
+                                               "HOLDINGS", "PARTNERS", "CAPITAL", "&"}  # fmt: skip
+
+
+def _cap(word: str) -> str:
+    """LEVINSON -> Levinson, O'BRIEN -> O'Brien, SMITH-JONES -> Smith-Jones."""
+    return re.sub(r"[A-Z]+", lambda m: m.group(0).capitalize(), word)
+
+
+def filed_owner_name(name: str | None) -> str | None:
+    """A Form 4 owner's name as filed, readable, in filed order (never reordered: filers put the
+    surname first or last, and reordering would be a guess). An all-caps person's name is cased
+    word by word; initials, JR/SR and roman numerals stay as filed. An owner whose name carries
+    a legal form (a fund, a firm) follows filed_name. A name with any lower-case letter is left
+    exactly as filed."""
+    if not name or any(ch.islower() for ch in name):
+        return name
+    words = name.split()
+    if any(w.strip(",.") in _ENTITY_WORDS for w in words):
+        return filed_name(name)
+    out = []
+    for w in words:
+        core = w.strip(",.")
+        keep = len(core) <= 1 or core in _KEEP_IN_PERSON or not core[:1].isalpha()
+        out.append(w if keep else _cap(w))
+    return " ".join(out)
+
+
 def detect(text: str) -> str | None:
     return next((name for name, rx in INTENTS if rx.search(text)), None)
 
@@ -232,7 +261,7 @@ def insiders(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
             n = _cite(b, f"Form 4 filed {f.filing_date}",
                       filing_index_url(b.company.cik, f.accession_number))  # fmt: skip
             role = f.officer_title or ("director" if f.is_director else None)
-            who = f"{filed_name(f.owner_name)}" + (f" ({role})" if role else "")
+            who = f"{filed_owner_name(f.owner_name)}" + (f" ({role})" if role else "")
             at = f" at an average ${price:,.2f}" if price else ""
             parts.append(f"{who} {verb} {shares:,.0f} shares{at} on {d} [{n}]")
         return (f"Open-market {what} by {_name(b)} insiders in the last year (Forms 4): "

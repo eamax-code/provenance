@@ -111,3 +111,23 @@ def test_13f_quarters_point_to_ownership(client, auth, loaded_13f):  # noqa: F81
     q = data[0]["details"]
     assert q["quarter"] == "2026-06-30" and q["holders_count"] >= 1 and "flows" in q
     assert data[0]["date"] == "2026-08-14"  # the quarter's 45-day filing deadline
+
+
+def test_insider_names_are_cased_in_filed_order(client, auth, db, items_aapl):
+    today = date.today()
+    db.add(InsiderActivity(
+        cik=CIK, activity_type="sec.insider_large_sale", activity_date=today - timedelta(days=3),
+        filing_date=today - timedelta(days=2), accession_number="0001222222-26-000001",
+        owners=json.dumps([{"owner_cik": "1222222", "name": "LEVINSON ARTHUR D",
+                            "role": "Director"}]),
+        detail=json.dumps({"shares": 10000, "value_usd": 2500000}),
+        source_url=URL.format("000122222226000001", "0001222222-26-000001"),
+    ))  # fmt: skip
+    db.commit()
+    body = client.get(f"/v1/companies/{CIK}/timeline?types=insider", headers=auth).json()
+    item = next(i for i in body["data"] if i["accession_number"] == "0001222222-26-000001")
+    assert item["title"].startswith("Levinson Arthur D (Director) sold $2.5 million")
+    wl = client.post("/v1/watchlists", json={"name": "x", "ciks": [CIK], "columns": ["last_event"]},
+                     headers=auth).json()  # fmt: skip
+    row = client.get(f"/v1/watchlists/{wl['id']}/rows", headers=auth).json()["data"][0]
+    assert row["cells"]["last_event"]["title"].startswith("Levinson Arthur D (Director) sold")

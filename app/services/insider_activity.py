@@ -206,7 +206,9 @@ def label(row: InsiderActivity) -> str:
     detail = json.loads(row.detail)
     if row.activity_type == CLUSTER:
         return f"{detail['insiders']} insiders bought shares in the open market within 30 days"
-    who = owners[0]["name"] if owners else "An insider"
+    from app.services.chat_intents import filed_owner_name
+
+    who = filed_owner_name(owners[0]["name"]) if owners else "An insider"
     role = owners[0].get("role") if owners else None
     who = f"{who} ({role})" if role else who
     if row.activity_type == FIRST_BUY:
