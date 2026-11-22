@@ -58,6 +58,7 @@ def test_matching_rules_and_listings(db, client, auth):
     assert counts == {"override": 1, "sec": 1, "name_jurisdiction": 1, "name_unique": 1,
                       "gleif_name_jurisdiction": 0, "gleif_name_unique": 0,
                       "gleif_normalised_name": 0, "gleif_name_us_state_differs": 0,
+                      "gleif_name_us_country": 0,
                       "unmatched": 1}  # fmt: skip
     apple = identity.for_company(db, "0000320193")
     assert apple["lei"] == "HWUPKR0MPOU8FGXBT394" and apple["confidence"] == "high"

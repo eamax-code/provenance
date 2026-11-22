@@ -105,6 +105,15 @@ def load_overrides(db: Session, path=OVERRIDES_FILE) -> int:
     return n
 
 
+# Matching rules with the cover-tag state (K-06): agreement with either the cover's or the SEC's
+# state (GLEIF lags a redomicile), and a GLEIF country-level "US" at medium. Each needs its own
+# hand-check before it writes; switched here so a dry run can count what each adds.
+ACCEPT_EITHER_STATE = True
+US_COUNTRY_LEVEL = True
+# medium matches that give way when another filer holds the same LEI
+WEAK_METHODS = ("gleif_name_us_state_differs", "gleif_name_us_country")
+
+
 def _business_city(company: Company) -> str:
     """The city of the filer's business address as the SEC records it, upper case."""
     import json
@@ -153,7 +162,8 @@ def match_all(db: Session) -> dict:
     rows: list[CompanyLei] = []
     counts = {"override": 0, "sec": 0, "name_jurisdiction": 0, "gleif_name_jurisdiction": 0,
               "name_unique": 0, "gleif_name_unique": 0, "gleif_normalised_name": 0,
-              "gleif_name_us_state_differs": 0, "unmatched": 0}  # fmt: skip
+              "gleif_name_us_state_differs": 0, "gleif_name_us_country": 0,
+              "unmatched": 0}  # fmt: skip
     for c in db.scalars(select(Company)):
         o = overrides.get(c.cik)
         if o is not None:
@@ -180,6 +190,8 @@ def match_all(db: Session) -> dict:
         candidates = by_name.get(key, []) if key else []
         exact = [i for i in candidates if _jurisdiction_matches(i, c)]
         heres = company_jurisdictions(c)  # the cover tag's state first, then the SEC field
+        if not ACCEPT_EITHER_STATE:
+            heres = heres[:1]
         here = heres[0] if heres else None
 
         def agrees(gj, heres=heres):
@@ -217,14 +229,7 @@ def match_all(db: Session) -> dict:
                 matched_at=now,
             ))  # fmt: skip
             counts["name_unique"] += 1
-        elif len(gold) == 1 and (
-            not (here and gold[0].jurisdiction)
-            # GLEIF gives only the country for some US funds ("US"): compatible, not confirmed
-            or (
-                (gold[0].jurisdiction or "").upper() == "US"
-                and all(h.startswith("US-") for h in heres)
-            )
-        ):
+        elif len(gold) == 1 and not (here and gold[0].jurisdiction):
             g = gold[0]  # unique name; one side's jurisdiction is unknown, so medium
             rows.append(CompanyLei(
                 cik=c.cik, lei=g.lei, match_method="gleif_name_unique", confidence="medium",
@@ -283,16 +288,34 @@ def match_all(db: Session) -> dict:
                 matched_at=now,
             ))  # fmt: skip
             counts["gleif_name_us_state_differs"] += 1
+        elif (
+            US_COUNTRY_LEVEL
+            and len(gold) == 1
+            and (gold[0].jurisdiction or "").upper() == "US"
+            and heres
+            and all(h.startswith("US-") for h in heres)
+        ):
+            # GLEIF gives only the country for some US funds ("US"): compatible with the filer's
+            # state, not confirmed. Last, so it never stands in for stronger evidence
+            g = gold[0]
+            rows.append(CompanyLei(
+                cik=c.cik, lei=g.lei, match_method="gleif_name_us_country", confidence="medium",
+                evidence=f"GLEIF legal name {g.legal_name!r} equals the SEC name "
+                f"{c.legal_name!r}, legal form included, and is unique among active entities; "
+                f"GLEIF gives only the country (US), compatible with {here}, not confirmed",
+                matched_at=now,
+            ))  # fmt: skip
+            counts["gleif_name_us_country"] += 1
         else:
             counts["unmatched"] += 1
     # a K-01d match never takes an LEI another company holds, nor one two filers would share
     seen: dict[str, int] = {}
     for r in rows:
         seen[r.lei] = seen.get(r.lei, 0) + 1
-    for r in [r for r in rows if r.match_method == "gleif_name_us_state_differs"]:
+    for r in [r for r in rows if r.match_method in WEAK_METHODS]:
         if seen[r.lei] > 1:
             rows.remove(r)
-            counts["gleif_name_us_state_differs"] -= 1
+            counts[r.match_method] -= 1
             counts["unmatched"] += 1
     db.execute(delete(CompanyLei))
     db.add_all(rows)

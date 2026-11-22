@@ -85,13 +85,13 @@ def parse_notes_zip(path: str | Path) -> tuple[list[dict], list[dict]]:
                     continue
                 f = line.rstrip("\n").split("\t")
                 if len(f) < len(header) or f[col["dimn"]] != "0" or f[col["coreg"]]:
-                    if (
-                        len(f) >= len(header)
-                        and f[col["coreg"]]
-                        and parts[1]
-                        in ("EntityIncorporationStateCountryCode", "EntityRegistrantName")
+                    if len(f) >= len(header) and parts[1] in (
+                        "EntityIncorporationStateCountryCode",
+                        "EntityRegistrantName",
                     ):
-                        combined.add(f[col["adsh"]])  # a co-registrant's own cover tags
+                        # several entities' cover tags (on coreg or a legal-entity dimension):
+                        # a combined filing (SL Green's operating partnership)
+                        combined.add(f[col["adsh"]])
                     continue  # a dimension or a co-registrant: not the registrant itself
                 adsh, tag, value = f[col["adsh"]], f[col["tag"]], f[col["value"]].strip()
                 key = (adsh, f[col["context"]])

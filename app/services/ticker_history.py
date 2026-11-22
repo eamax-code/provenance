@@ -142,8 +142,8 @@ def apply_incorporation(
     Taken only for a US state at a domestic filer: foreign filers often write an ISO country code
     there, which collides with state codes (Israel "IL", Canada "CA", Cayman "KY"). Taken only
     when the filing's own registrant name is the company's, and in a combined filing (one with
-    co-registrant cover tags) only when it says so explicitly, so a parent's state never reaches
-    a co-registrant (SL Green's operating partnership). `submissions` (cik -> code) restores the
+    co-registrant cover tags) never, so a parent's state never reaches a co-registrant (SL
+    Green's operating partnership). `submissions` (cik -> code) restores the
     SEC field where an earlier version wrote the cover value over it."""
     from app.services.identity import US_STATES, norm_key
 
@@ -169,8 +169,10 @@ def apply_incorporation(
             _, state, acc, registrant, combined = found
             domestic = (sec or "").upper() in US_STATES or (not sec and _us_address(c))
             names = {norm_key(c.legal_name), norm_key(c.registrant_name)} - {""}
-            named = norm_key(registrant) in names if registrant else not combined
-            if state in US_STATES and domestic and named:
+            named = not registrant or norm_key(registrant) in names
+            # a combined filing's undimensioned cover can carry the parent's state even under the
+            # subsidiary's own name (SL Green OP: MD there, DE on its entity dimension): never used
+            if state in US_STATES and domestic and named and not combined:
                 cover, accession = state, acc
         target = (sec, cover, INCORPORATION_TAG if cover else None, accession)
         now = (c.state_of_incorporation, c.state_of_incorporation_cover,
