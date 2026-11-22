@@ -448,6 +448,21 @@ universe: `sic_prefix`, `exchange`, `filer_category`, or `ciks` (up to 500). `de
 (`sec.results`, `sec.material_agreement`, `sec.shareholder_vote`) and no universe; then it is
 `hourly`, and the hour's filings arrive in one webhook of type `sec.filing.batch`.
 `notification_deliveries.type_watch_id` links its deliveries. Backfill never notifies.
+## registrant_successions (launch plan K-05)
+
+A company continuing under a new registrant (a new holding company, a redomicile): one row per
+`predecessor_cik` and `successor_cik`, with `effective_date` (the successor's 8-K12B or 8-K12G3),
+`evidence_accession` and `evidence_form`, the predecessor's exit filing (`predecessor_accession`,
+`predecessor_form`: Form 25 or 15, or 8-K item 3.01, 3.03 or 2.01 from 3 days before to 30
+after), `match_method` (`successor_filing_name`: the names agree once legal-form words are
+removed and exactly one company qualifies) and `confidence`. Facts stay under the CIK that filed
+them. The overview joins the predecessors' annual figures at query time: every statement cell and
+year carries `registrant_cik` and `predecessor` (with `registrant_label`, "Reported by predecessor
+registrant (CIK 34088)", on a predecessor's rows); the company's own filing wins for a fiscal year
+both report. `company.predecessors` and `company.successor` link the two pages with the evidence
+filing. Point in time: rows count by their own filing date, so before the change the
+predecessor's rows are the ones shown. Filled by `scripts/detect_successions.py`.
+
 ## company_auditors (launch plan E-3)
 
 The audit firm tagged on each annual report's cover (10-K, 20-F, 40-F and amendments, since

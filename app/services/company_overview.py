@@ -36,6 +36,7 @@ from app.services import (
     live,
     periods,
     statements,
+    successions,
     thirteenf,
 )
 from app.services import cover as cover_service
@@ -85,6 +86,10 @@ def _identity(db: Session, company: Company) -> dict:
             .order_by(CompanyAlias.valid_to.desc().nulls_last())
         )
     ]
+    out["predecessors"] = [successions.as_dict(db, p, "predecessor")
+                           for p in successions.predecessors(db, company.cik)]  # fmt: skip
+    nxt = successions.successor(db, company.cik)
+    out["successor"] = successions.as_dict(db, nxt, "successor") if nxt else None
     out["former_tickers"] = [
         {"ticker": a.alias, "to": a.valid_to.isoformat() if a.valid_to else None}
         for a in db.scalars(
@@ -144,12 +149,20 @@ def _key_figures(mart: MartCompany | None, fye: str | None) -> list[dict]:
 
 
 def _years(db: Session, cik: str, fye: str | None) -> list[dict]:
-    rows = db.scalars(
+    rows = list(db.scalars(
         select(MartCompanyPeriod)
         .where(MartCompanyPeriod.cik == cik)
         .order_by(MartCompanyPeriod.fiscal_year.desc())
         .limit(YEARS)
-    ).all()
+    ))  # fmt: skip
+    have = {r.period_end for r in rows}
+    for p in successions.predecessors(db, cik):  # K-05: the years before the new registrant
+        for r in db.scalars(select(MartCompanyPeriod).where(MartCompanyPeriod.cik
+                                                            == p.predecessor_cik)):  # fmt: skip
+            if r.period_end not in have and all(abs((r.period_end - e).days) > 45 for e in have):
+                rows.append(r)
+                have.add(r.period_end)
+    rows = sorted(rows, key=lambda r: r.period_end, reverse=True)[:YEARS]
     out = []
     for r in reversed(rows):
         values = {m: float(getattr(r, m)) if getattr(r, m) is not None else None for m in METRICS}
@@ -164,6 +177,7 @@ def _years(db: Session, cik: str, fye: str | None) -> list[dict]:
                 if rev and op is not None
                 else None,
                 "sources": json.loads(r.sources) if r.sources else {},
+                **statements.registrant(r, cik),
             }
         )
     return out
@@ -364,7 +378,9 @@ CURRENT = ("summary", "history", "risk_factors", "peers", "listings")
 
 
 def first_filing_date(db: Session, cik: str) -> date | None:
-    return db.scalar(select(func.min(Filing.filing_date)).where(Filing.cik == cik))
+    """The first filing of the company, its predecessor registrants' included (K-05)."""
+    ciks = [cik] + [p.predecessor_cik for p in successions.predecessors(db, cik)]
+    return db.scalar(select(func.min(Filing.filing_date)).where(Filing.cik.in_(ciks)))
 
 
 def build(

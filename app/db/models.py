@@ -358,6 +358,25 @@ class CompanyAuditor(Base):
     source: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class RegistrantSuccession(Base):
+    """A company that continues under a new registrant (launch plan K-05), such as a new
+    holding company. Facts stay under the CIK that filed them; readers join at query time."""
+
+    __tablename__ = "registrant_successions"
+    __table_args__ = (Index("ix_registrant_successions_successor", "successor_cik"),)
+
+    predecessor_cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    successor_cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    effective_date: Mapped[date] = mapped_column(Date, nullable=False)
+    evidence_accession: Mapped[str] = mapped_column(String(25), nullable=False)  # 8-K12B/12G3
+    evidence_form: Mapped[str] = mapped_column(Text, nullable=False)
+    predecessor_accession: Mapped[str | None] = mapped_column(String(25), nullable=True)
+    predecessor_form: Mapped[str | None] = mapped_column(Text, nullable=True)
+    match_method: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class IssuerCusip(Base):
     """Internal only (launch plan E-1): which company a CUSIP belongs to, to join Form 13F
     positions to companies. A CUSIP never appears in a response (owner rule).

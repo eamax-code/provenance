@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, FinancialFact
-from app.services import periods, ratios
+from app.services import periods, ratios, successions
 from app.services.fact_normalizer import CONCEPT_MAP, currency_from_unit, default_unit
 from app.services.intel import ANNUAL_FORMS
 from app.services.point_in_time import known_by
@@ -25,12 +25,24 @@ SECTIONS = (
 )
 
 
-def _pref(f: FinancialFact) -> tuple:
-    return (f.form_type in ANNUAL_FORMS, f.filed_date or date.min, f.accession_number or "")
+def _pref(f: FinancialFact, own: str = "") -> tuple:
+    """The company's own filing over a predecessor's (K-05), an annual report over a proxy's
+    repeat, then the latest filed."""
+    return (f.cik == own, f.form_type in ANNUAL_FORMS, f.filed_date or date.min,
+            f.accession_number or "")  # fmt: skip
 
 
-def _cell(f: FinancialFact, fiscal_label: str) -> dict:
+def registrant(f: FinancialFact, own: str) -> dict:
+    """K-05: which registrant filed the figure; a predecessor's rows say so."""
+    if f.cik == own:
+        return {"registrant_cik": f.cik, "predecessor": False}
+    label = f"Reported by predecessor registrant (CIK {int(f.cik)})"
+    return {"registrant_cik": f.cik, "predecessor": True, "registrant_label": label}
+
+
+def _cell(f: FinancialFact, fiscal_label: str, own: str | None = None) -> dict:
     return {
+        **registrant(f, own or f.cik),
         "fiscal_label": fiscal_label,
         "period_end": f.period_end.isoformat(),
         "value": float(f.value),
@@ -46,10 +58,12 @@ def _cell(f: FinancialFact, fiscal_label: str) -> dict:
 def annual_cells(
     db: Session, company: Company, as_of: date | None = None, metrics: tuple[str, ...] | None = None
 ) -> tuple[dict[str, dict[str, FinancialFact]], dict[str, str], dict[str, date]]:
-    """({metric: {fiscal_label: fact}}, {metric: unit}, {fiscal_label: period_end})."""
+    """({metric: {fiscal_label: fact}}, {metric: unit}, {fiscal_label: period_end}). A successor
+    registrant's figures continue with its predecessors' (K-05), each fact under its own CIK."""
     wanted = metrics or tuple(m for m, s in CONCEPT_MAP.items() if s["statement"] != "cover")
+    ciks = [company.cik] + [p.predecessor_cik for p in successions.predecessors(db, company.cik)]
     stmt = select(FinancialFact).where(
-        FinancialFact.cik == company.cik,
+        FinancialFact.cik.in_(ciks),
         FinancialFact.metric.in_(wanted),
         FinancialFact.period_class == "annual",
         FinancialFact.derived.is_(False),
@@ -75,7 +89,7 @@ def annual_cells(
         if units.get(r.metric) != r.unit:
             continue
         cur = best.setdefault(r.metric, {}).get(r.period_end)
-        if cur is None or _pref(r) > _pref(cur):
+        if cur is None or _pref(r, company.cik) > _pref(cur, company.cik):
             best[r.metric][r.period_end] = r
     fye = company.fiscal_year_end
     by_label: dict[str, dict[str, FinancialFact]] = {}
@@ -102,7 +116,8 @@ def build(db: Session, company: Company, as_of: date | None = None, years: int =
         for m, spec in CONCEPT_MAP.items():
             if spec["statement"] != key or m not in cells:
                 continue
-            row_cells = [_cell(cells[m][lab], lab) if lab in cells[m] else None for lab in labels]
+            row_cells = [_cell(cells[m][lab], lab, company.cik) if lab in cells[m] else None
+                         for lab in labels]  # fmt: skip
             if not any(row_cells):
                 continue
             rows.append({"metric": m, "label": spec["label"], "unit": units[m],
@@ -122,6 +137,7 @@ def build(db: Session, company: Company, as_of: date | None = None, years: int =
             row_cells.append(None if value is None else {
                 "fiscal_label": lab, "period_end": ends[lab].isoformat(), "value": value,
                 "derived": True, "accession_number": n.accession_number,
+                **registrant(n, company.cik),
                 "inputs": [{"metric": f.metric, "value": float(f.value),
                             "accession_number": f.accession_number, "source_url": f.source_url}
                            for f in (n, d)],
