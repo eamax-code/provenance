@@ -119,6 +119,15 @@ class FilingList(BaseModel):
     meta: PageMeta
 
 
+class FirstReportedOut(BaseModel):
+    filing_date: date = Field(description="Filing date of the 8-K item 2.02 earnings release")
+    form_type: str
+    accession_number: str
+    source_url: str = Field(description="The release (exhibit 99.1) on sec.gov")
+    stated_as: str = Field(description="dollars, thousands, millions, billions or per share")
+    evidence: str = Field(description="The release line that states the value")
+
+
 class FactOut(ORMModel):
     cik: str
     metric: str
@@ -164,6 +173,10 @@ class FactOut(ORMModel):
         default=1, description="Number of stored observations for the same metric/unit/period"
     )
     is_latest_revision: bool = True
+    first_reported: FirstReportedOut | None = Field(
+        default=None,
+        description="The earnings release that stated this value before the 10-Q or 10-K",
+    )
     processed_at: datetime
 
     @field_serializer("value")

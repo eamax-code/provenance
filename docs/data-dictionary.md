@@ -448,6 +448,22 @@ universe: `sic_prefix`, `exchange`, `filer_category`, or `ciks` (up to 500). `de
 (`sec.results`, `sec.material_agreement`, `sec.shareholder_vote`) and no universe; then it is
 `hourly`, and the hour's filings arrive in one webhook of type `sec.filing.batch`.
 `notification_deliveries.type_watch_id` links its deliveries. Backfill never notifies.
+## first_reported (launch plan E-2)
+
+A 10-Q or 10-K figure that an 8-K item 2.02 earnings release (exhibit 99.1) stated earlier, with
+the same value: `release_accession`, `release_filing_date`, `release_url` (the exhibit),
+`stated_as` (dollars, thousands, millions, billions, per share) and `evidence` (the line). Rules:
+the release prints the value rounded at its precision (losses in parentheses), with at least
+four digits (per-share amounts to the cent), on a line labelled for the metric (a table row's
+label, or the 80 characters before the number in a paragraph); only for the period the 10-Q or
+10-K covers (its report period; comparatives were known from their own filing); the earliest
+release filed after the period end and by the filing date wins. Metrics: revenue, gross profit,
+operating income, net income, EPS basic and diluted, operating cash flow, total assets, cash,
+stockholders' equity. `as_of` counts a matched figure from the release date; facts carry
+`first_reported`. Filled by `scripts/read_releases.py`. A dry run on AAPL, MSFT, JPM and DUK
+(last four releases each) matched 102 of 122 figures with none wrong; misses are figures a
+release does not print (JPM's balance sheet is in a separate supplement).
+
 ## Institutional ownership: filings_13f, holdings_13f, issuer_cusips (launch plan E-1)
 
 Source: the SEC's Form 13F data sets (sec.gov/data-research/sec-markets-data/form-13f-data-sets),

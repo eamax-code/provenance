@@ -307,6 +307,34 @@ class InsiderActivity(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class FirstReported(Base):
+    """A figure an 8-K item 2.02 earnings release stated before the 10-Q or 10-K that reported
+    it (launch plan E-2): the same value, at the release's stated precision, on a line labelled
+    for the metric. Point-in-time queries count the figure as known from the release date."""
+
+    __tablename__ = "first_reported"
+    __table_args__ = (
+        UniqueConstraint("cik", "metric", "unit", "period_start", "period_end", "fact_accession",
+                         name="uq_first_reported_fact"),
+        Index("ix_first_reported_fact", "fact_accession", "metric"),
+    )  # fmt: skip
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    metric: Mapped[str] = mapped_column(Text, nullable=False)
+    unit: Mapped[str] = mapped_column(Text, nullable=False)
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    value: Mapped[Decimal] = mapped_column(Numeric(38, 6), nullable=False)
+    fact_accession: Mapped[str] = mapped_column(String(25), nullable=False)  # the 10-Q or 10-K
+    release_accession: Mapped[str] = mapped_column(String(25), nullable=False)
+    release_filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    release_url: Mapped[str] = mapped_column(Text, nullable=False)  # the exhibit 99.1 document
+    stated_as: Mapped[str] = mapped_column(Text, nullable=False)  # millions, thousands, ...
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)  # the line, as printed
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class IssuerCusip(Base):
     """Internal only (launch plan E-1): which company a CUSIP belongs to, to join Form 13F
     positions to companies. A CUSIP never appears in a response (owner rule).

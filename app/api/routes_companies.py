@@ -24,10 +24,11 @@ from app.schemas.companies import (
     FactOut,
     FilingList,
     FilingOut,
+    FirstReportedOut,
     FreshnessOut,
 )
+from app.services import first_reported, periods, ratios
 from app.services import freshness as freshness_service
-from app.services import periods, ratios
 from app.services.company_lookup import search_companies
 from app.services.fact_normalizer import (
     MAPPING_VERSION,
@@ -406,6 +407,14 @@ def facts(
     )
     total = len(selected)
     page = selected[offset : offset + limit]
+    stated = first_reported.lookup(db, cik, {f.accession_number for f in page
+                                             if f.accession_number and not f.derived})  # fmt: skip
+    for f in page:
+        hit = stated.get((f.accession_number, f.metric, f.unit, f.period_start, f.period_end))
+        if hit is not None and not f.derived:
+            f.first_reported = FirstReportedOut(**first_reported.as_dict(hit))
+    if stated:
+        notes.append(first_reported.NOTE)
     for f in page:  # the period's own fiscal year, whatever filing reported it
         f.period_fiscal_year = periods.fiscal_year(f.period_end, company.fiscal_year_end)
         f.calendar_period = periods.calendar_period(f.period_start, f.period_end, f.period_class)

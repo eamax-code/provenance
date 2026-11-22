@@ -1,0 +1,61 @@
+#!/usr/bin/env python
+"""First-reported dates from 8-K item 2.02 earnings releases (launch plan E-2).
+
+  python scripts/read_releases.py --years 2 --min-revenue 1e9   # active $1B+ companies
+  python scripts/read_releases.py --cik 320193 --years 5
+
+Reads each earnings release (exhibit 99.1) once (two SEC requests: the filing index and the
+exhibit; needs SEC_USER_AGENT), stores its text like other filing text, then records each 10-Q
+and 10-K figure the release stated with the same value (app.services.first_reported).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import date, timedelta
+
+from _bootstrap import bootstrap
+from sqlalchemy import select
+
+from app.db.models import Filing, MartCompany
+from app.services import first_reported, releases
+from app.services.sec_client import SecClient, normalize_cik
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--cik", action="append", default=[])
+    ap.add_argument("--years", type=float, default=2)
+    ap.add_argument("--min-revenue", type=float, default=None)
+    ap.add_argument("--no-fetch", action="store_true", help="Match stored releases only")
+    args = ap.parse_args()
+    settings, Session = bootstrap()
+    db = Session()
+    since = date.today() - timedelta(days=int(args.years * 365))
+    ciks = [normalize_cik(c) for c in args.cik]
+    if args.min_revenue is not None:
+        ciks += list(db.scalars(select(MartCompany.cik).where(
+            MartCompany.latest_revenue >= args.min_revenue,
+            MartCompany.latest_annual_report_date >= date.today() - timedelta(days=730),
+        )))  # fmt: skip
+    sec = None if args.no_fetch else SecClient(settings)
+    out = {"companies": 0, "releases_read": 0, "figures_matched": 0}
+    for cik in dict.fromkeys(ciks):
+        todo = db.scalars(select(Filing).where(
+            Filing.cik == cik, Filing.form_type.like("8-K%"),
+            Filing.items.like(f"%{releases.EARNINGS_ITEM}%"), Filing.filing_date >= since,
+        )).all()  # fmt: skip
+        for f in todo:
+            out["releases_read"] += releases.ensure_read(db, f, sec) == "read"
+        out["figures_matched"] += first_reported.match_company(db, cik, since - timedelta(days=200))
+        out["companies"] += 1
+        if out["companies"] % 50 == 0:
+            print(json.dumps(out), flush=True)
+    print(json.dumps(out))
+    db.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
