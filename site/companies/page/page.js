@@ -51,11 +51,19 @@
   P.address = function (a) {
     if (!a) return null;
     var street = [a.street1, a.street2].filter(Boolean).map(P.title).join(', ');
+    var abroad = ABROAD[a.stateOrCountry];
+    if (abroad) { // EDGAR fills these as city "JAPAN", zip "00000", country "United States"
+      var place = [a.city, a.zipCode].filter(function (x) { return x && !/^0+$/.test(x) && abroad.toLowerCase().indexOf(x.toLowerCase()) < 0; }).map(P.title).join(' ');
+      return [street, place, abroad].filter(Boolean);
+    }
     var city = [P.title(a.city), a.stateOrCountry && a.stateOrCountry.length === 2 ? a.stateOrCountry : null, a.zipCode].filter(Boolean).join(' ');
     return [street, city, a.country !== 'United States' ? a.country : null].filter(Boolean);
   };
   var STATES = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', DC: 'District of Columbia', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', PR: 'Puerto Rico' };
-  P.state = function (code) { return code ? STATES[code] || code : null; };
+  /* EDGAR's codes for places outside the US (M0 Japan, 2M Germany, A6 Ontario); an unknown code is
+     left out rather than shown raw */
+  var ABROAD = { A0: 'Alberta, Canada', A1: 'British Columbia, Canada', A2: 'Manitoba, Canada', A3: 'New Brunswick, Canada', A4: 'Newfoundland, Canada', A5: 'Nova Scotia, Canada', A6: 'Ontario, Canada', A7: 'Prince Edward Island, Canada', A8: 'Quebec, Canada', A9: 'Saskatchewan, Canada', B0: 'Yukon, Canada', C3: 'Australia', D0: 'Bermuda', D5: 'Brazil', E9: 'Cayman Islands', F4: 'China', F5: 'Taiwan', G7: 'Denmark', I0: 'France', K3: 'Hong Kong', K7: 'India', L2: 'Ireland', L3: 'Israel', L6: 'Italy', M0: 'Japan', M5: 'South Korea', N4: 'Luxembourg', O5: 'Mexico', P7: 'Netherlands', U0: 'Singapore', U3: 'Spain', V7: 'Sweden', V8: 'Switzerland', X0: 'United Kingdom', '2M': 'Germany' };
+  P.state = function (code) { return code ? STATES[code] || ABROAD[code] || null : null; };
   P.LABELS = { revenue: 'Revenue', operating_income: 'Operating income', net_income: 'Net income', total_assets: 'Total assets', operating_cash_flow: 'Operating cash flow' };
   P.link = function (text, url, cls) {
     if (!url || url.indexOf('https://www.sec.gov/') !== 0) return P.el('span', { text: text, class: cls });
