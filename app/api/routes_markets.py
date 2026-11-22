@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import db_session, require_reader
+from app.api.dependencies import db_session, require_reader, strict_query
 from app.core.errors import APIError
 from app.db.models import Issuer, ListedInstrument, ListingEvent, Market
 from app.schemas.common import ErrorEnvelope, PageMeta
@@ -177,9 +177,15 @@ def instrument(
     response_model=ListingEventList,
     responses=_ERRORS,
     summary="New listings, delistings, suspensions and changes",
+    dependencies=[Depends(strict_query)],
 )
 def events(
-    type: str | None = Query(None, alias="type", description=", ".join(EVENT_TYPES)),
+    types: str | None = Query(
+        None, description="Comma-separated event types: " + ", ".join(EVENT_TYPES)
+    ),
+    type: str | None = Query(
+        None, description="Alias of `types`, kept for existing clients. Both may be given."
+    ),
     mic: str | None = Query(None, min_length=4, max_length=4),
     region: str | None = Query(None, pattern="^(canada|europe|uk)$"),
     isin: str | None = Query(None, min_length=12, max_length=12, description="One instrument"),
@@ -190,11 +196,17 @@ def events(
     db: Session = Depends(db_session),
     _key=Depends(require_reader),
 ):
-    if type is not None and type not in EVENT_TYPES:
-        raise APIError(422, "invalid_parameter", f"type must be one of: {', '.join(EVENT_TYPES)}.")
+    wanted = [t.strip() for v in (types, type) if v for t in v.split(",") if t.strip()]
+    bad = sorted(set(wanted) - set(EVENT_TYPES))
+    if bad:
+        raise APIError(
+            422,
+            "invalid_parameter",
+            f"Unknown event type: {', '.join(bad)}. types must be among: {', '.join(EVENT_TYPES)}.",
+        )
     stmt = select(ListingEvent).join(Market, Market.mic == ListingEvent.mic)
-    if type:
-        stmt = stmt.where(ListingEvent.event_type == type)
+    if wanted:
+        stmt = stmt.where(ListingEvent.event_type.in_(sorted(set(wanted))))
     if mic:
         stmt = stmt.where(ListingEvent.mic == mic.upper())
     if region:

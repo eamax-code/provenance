@@ -301,7 +301,7 @@ TOOLS: dict[str, dict[str, Any]] = {
         "new_listing is an instrument first traded on a venue, not an IPO determination.",
         "path": "/v1/markets/events",
         "params": {
-            "type": "type",
+            "types": "types",
             "region": "region",
             "mic": "mic",
             "since": "since",
@@ -310,8 +310,9 @@ TOOLS: dict[str, dict[str, Any]] = {
         "schema": {
             "type": "object",
             "properties": {
-                "type": {
+                "types": {
                     "type": "string",
+                    "description": "One event type per call",
                     "enum": [
                         "new_listing",
                         "delisting",

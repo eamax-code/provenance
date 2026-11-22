@@ -152,6 +152,25 @@ def test_instrument_detail_and_issuer(client, auth, db):
     assert client.get("/v1/markets/issuers/0000000000000000000X", headers=auth).status_code == 404
 
 
+def test_events_take_types_with_type_as_alias_and_refuse_unknown_parameters(client, auth, db):
+    _seed(db)
+
+    def kinds(query):
+        r = client.get(f"/v1/markets/events?{query}", headers=auth)
+        assert r.status_code == 200, r.text
+        return {e["event_type"] for e in r.json()["data"]}
+
+    assert kinds("types=new_listing") == {"new_listing"}
+    assert kinds("type=new_listing") == {"new_listing"}  # the documented alias
+    assert kinds("types=new_listing,delisting") == {"new_listing", "delisting"}
+    assert kinds("types=new_listing&type=delisting") == {"new_listing", "delisting"}
+    bad = client.get("/v1/markets/events?types=new_listing,merger", headers=auth)
+    assert bad.status_code == 422 and "merger" in bad.json()["error"]["message"]
+    r = client.get("/v1/markets/events?event_types=new_listing", headers=auth)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "unknown_parameter"
+    assert "types" in r.json()["error"]["message"]
+
+
 def test_events_listing_and_filters(client, auth, db):
     _seed(db)
     r = client.get("/v1/markets/events", headers=auth)
