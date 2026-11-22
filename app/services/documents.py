@@ -68,6 +68,8 @@ def _money(v: float | None, currency: str | None = "USD") -> str:
         return "not reported"
     sym = "$" if currency in (None, "USD") else f"{currency} "
     a, s = abs(v), f"-{sym}" if v < 0 else sym
+    if a >= 1e12:  # JPY, KRW, TWD reporters
+        return f"{s}{a / 1e12:,.1f} trillion"
     if a >= 1e9:
         return f"{s}{a / 1e9:,.1f} billion"
     if a >= 1e6:

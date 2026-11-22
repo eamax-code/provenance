@@ -84,6 +84,7 @@ def test_peers_rank_within_one_currency_and_fill_unranked(db, three_currencies):
 def test_chat_prints_the_currency_and_ranks_usd_reporters_only(db, three_currencies):
     assert conversation._money(36.8e9, "EUR") == "EUR 36.8 billion"
     assert conversation._money(9e9, "USD") == "$9.0 billion"
+    assert conversation._money(48_036_704_000_000, "JPY") == "JPY 48.0 trillion"
     p = conversation.Plan("rank", metric="revenue", limit=10)
     names = [row[0]["text"] for row in conversation._rank(db, p).widgets[0]["rows"]]
     assert names == ["Dollar Software Inc"]
