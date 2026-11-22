@@ -58,11 +58,14 @@ def main() -> int:
     settings, Session = bootstrap()
     db = Session()
     sec = SecClient(settings)
-    todo = latest_schedules(db, args.limit)
-    db.rollback()  # the list is all a fetch needs; hold no transaction while fetching
+    # plain values: reading ORM rows after the transaction ends would reload them and leave a
+    # transaction open for the whole fetch
+    todo = [
+        (_doc_url(f), f.accession_number, f.filing_date) for f in latest_schedules(db, args.limit)
+    ]
+    db.rollback()
     mapped = failed = 0
-    for i, f in enumerate(todo, 1):
-        url = _doc_url(f)
+    for i, (url, accession, filed) in enumerate(todo, 1):
         if url is None:
             continue
         try:
@@ -72,12 +75,11 @@ def main() -> int:
             continue
         if not args.fetch_only:
             try:
-                mapped += cusips.record_schedule(db, text, f.accession_number, f.filing_date)
+                mapped += cusips.record_schedule(db, text, accession, filed)
             except (ValueError, ElementTree.ParseError):
                 failed += 1
         if i % 500 == 0:
-            if not args.fetch_only:
-                db.commit()
+            db.commit()  # also ends the transaction in --fetch-only
             print(json.dumps({"schedules": i, "of": len(todo), "mapped": mapped}), flush=True)
     out = {"schedules": len(todo), "cusips_mapped": mapped, "failed": failed}
     if not args.fetch_only:
