@@ -75,6 +75,7 @@ def test_successor_overview_continues_the_history(db, reorganised):
     assert pred[0]["cik"] == OLD and pred[0]["evidence"]["form_type"] == "8-K12B"
     assert pred[0]["evidence"]["source_url"].endswith("0009999991-26-000001-index.html")
     assert pred[0]["quote"] == QUOTE and pred[0]["confidence"] == "high"
+    assert pred[0]["display_name"] == "Apple Inc."
     income = next(s for s in o["statements"]["sections"] if s["key"] == "income")
     cells = [c for row in income["rows"] for c in row["cells"] if c]
     assert cells and all(c["registrant_cik"] == OLD and c["predecessor"] for c in cells)

@@ -169,11 +169,14 @@ def successor(db: Session, cik: str) -> RegistrantSuccession | None:
 
 
 def as_dict(db: Session, r: RegistrantSuccession, side: str) -> dict:
+    from app.services.intel import display_name
+
     other = r.predecessor_cik if side == "predecessor" else r.successor_cik
-    name = db.scalar(select(Company.legal_name).where(Company.cik == other))
+    c = db.scalar(select(Company).where(Company.cik == other))
     return {
         "cik": other,
-        "name": name,
+        "name": c.legal_name if c else None,
+        "display_name": display_name(c.legal_name, c.ticker, c.registrant_name) if c else None,
         "effective_date": r.effective_date.isoformat(),
         "evidence": {
             "form_type": r.evidence_form,
