@@ -119,14 +119,17 @@
     var nums = $('own-nums'); nums.textContent = '';
     var tile = function (big, label, plain) { nums.appendChild(el('div', {}, [plain ? el('div', { class: 'own-flows' }, big) : el('b', {}, big), Array.isArray(label) ? el('span', {}, label) : el('span', { text: label })])); };
     tile([P.money(o.value_usd, null, 'USD')], 'held by institutions filing 13F');
-    tile([pct != null ? P.pct(pct) : 'not computed', pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : 'several share classes; shares are not added across them');
+    tile([pct != null ? P.pct(pct) : el('span', { class: 'own-na', text: 'No single %' }), pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : 'several share classes; holdings are valued, but shares aren\u2019t added across classes');
     tile([Number(o.holders_count).toLocaleString('en-US')], 'holders' + (o.holders_count_change != null ? ', ' + (o.holders_count_change >= 0 ? '+' : '−') + Math.abs(o.holders_count_change) + ' on the quarter before' : ''));
     var f = o.flows || {};
     tile([['new', 'new'], ['added', 'added'], ['reduced', 'reduced'], ['exited', 'exited']].map(function (k) { return el('span', {}, [el('strong', { text: Number(f[k[0]] || 0).toLocaleString('en-US') }), ' ' + k[1]]); }), // holders_count_change = new − exited − not_filed: last quarter's holders with no 13F for this one yet
       ['holders by change since ' + quarterName(o.previous_quarter)].concat(f.not_filed ? [el('br'), Number(f.not_filed).toLocaleString('en-US') + (f.not_filed === 1 ? ' holder hasn\u2019t' : ' holders haven\u2019t') + ' filed this quarter yet'] : []), true);
     $('own-flag').textContent = o.flows_note || ''; $('own-flag').hidden = !o.flows_note;
     var rows = o.top_holders || [];
-    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Holder' }), el('th', { scope: 'col', class: 'n', text: 'Value' }), el('th', { scope: 'col', class: 'n opt', text: 'Shares' }), el('th', { scope: 'col', class: 'n', text: '% of shares' }), el('th', { scope: 'col', text: 'Change' }), el('th', { scope: 'col', class: 'opt', text: '13F' })]);
+    // several share classes (Berkshire A and B): shares and % aren't added across classes, so the two
+    // columns go and the tile says why once, instead of "not added up" on every row
+    var multi = rows.length && rows.every(function (h) { return h.shares == null && h.pct_of_outstanding == null; });
+    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Holder' }), el('th', { scope: 'col', class: 'n', text: 'Value' }), multi ? null : el('th', { scope: 'col', class: 'n opt', text: 'Shares' }), multi ? null : el('th', { scope: 'col', class: 'n', text: '% of shares' }), el('th', { scope: 'col', text: 'Change' }), el('th', { scope: 'col', class: 'opt', text: '13F' })]);
     var tb = el('tbody');
     rows.forEach(function (h) {
       var ch = h.change ? el('span', { class: 'tag', text: CHANGE[h.change] || h.change }) : null;
@@ -134,8 +137,8 @@
       tb.appendChild(el('tr', {}, [
         el('th', { scope: 'row', text: P.orgName(h.name) }),
         el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd, null, 'USD') }),
-        el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
-        el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
+        multi ? null : el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
+        multi ? null : el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
         el('td', {}, [ch, chText]),
         el('td', { class: 'opt' }, [srcLink(h.form_type + ', ' + P.date(h.filing_date), h.filing_url, 'accession ' + (h.accession_number || ''))])
       ]));
