@@ -133,6 +133,7 @@
     ]));
     var acts = el('div', { class: 'ws-acts' }, [
       el('a', { class: 'btn small', href: chatLink('Tell me about ' + (c.display_name || '')), text: 'Ask about ' + (c.ticker || 'this company') }),
+      el('button', { type: 'button', class: 'btn small', text: '+ Watchlist', title: 'Add to your watchlist', on: { click: function () { if (window.ProvenanceWatchlists) window.ProvenanceWatchlists.add(c.cik); } } }),
       el('a', { class: 'btn small', href: '/companies/' + parseInt(c.cik, 10) + (S.as_of ? '?as_of=' + S.as_of : ''), text: 'Company page' })
     ]);
     var strip = null;

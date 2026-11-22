@@ -63,6 +63,7 @@
     open: function (cik) { openCompany(cik); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} },
     toast: function (m, k) { toast(m, k); },
     hasKey: function () { return !!state.key; },
+    key: function () { return state.key; },
     showExplore: function () { showView('explore'); },
     // a plain read for the workspace: no toast or sign-out, the caller words its own message
     raw: function (path, key) {
@@ -144,7 +145,7 @@
   function showView(name) {
     state.view = name;
     document.querySelectorAll('.view-btn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-view') === name)); });
-    $('explore').hidden = name !== 'explore'; $('console').hidden = name !== 'console'; $('listings').hidden = name !== 'listings'; $('screener').hidden = name !== 'screener';
+    $('explore').hidden = name !== 'explore'; $('console').hidden = name !== 'console'; $('listings').hidden = name !== 'listings'; $('screener').hidden = name !== 'screener'; $('watchlists-view').hidden = name !== 'watchlists';
     // the note under the view names the source of what it shows
     var note = $('page-note');
     if (note) {
@@ -155,10 +156,11 @@
     if (name === 'console' && window.ProvenanceConsole) window.ProvenanceConsole.load(api, toast);
     if (name === 'listings' && window.ProvenanceListings) window.ProvenanceListings.load(api, toast);
     if (name === 'screener' && window.ProvenanceScreener) window.ProvenanceScreener.load();
+    if (name === 'watchlists' && window.ProvenanceWatchlists) window.ProvenanceWatchlists.load();
     try { location.hash = name; } catch (e) {}
   }
   // the workspace and the screener work without a key (showcase, demo key); listings and the console need one
-  document.querySelectorAll('.view-btn').forEach(function (b) { b.addEventListener('click', function () { var v = b.getAttribute('data-view'); if (state.key || v === 'explore' || v === 'screener') showView(v); else { $('gate-status').textContent = 'Listings and the console need a key. Connect a free key above.'; $('key-input').focus(); } }); });
+  document.querySelectorAll('.view-btn').forEach(function (b) { b.addEventListener('click', function () { var v = b.getAttribute('data-view'); if (state.key || v === 'explore' || v === 'screener' || v === 'watchlists') showView(v); else { $('gate-status').textContent = 'Listings and the console need a key. Connect a free key above.'; $('key-input').focus(); } }); });
   // company tabs are handled by workspace.js (deep links, keyless overview)
 
   /* ---- search ---- */
@@ -322,6 +324,6 @@
   /* ---- boot ---- */
   var saved = storage(true);
   if (saved) { state.key = saved; api('/v1/developer/usage').then(function () { setKey(saved); }).catch(function () {}); }
-  var h = (location.hash || '').replace('#', ''); if (h === 'console' || h === 'listings' || h === 'screener') state.view = h;
-  if (!saved) { if (h === 'screener') showView('screener'); else $('explore').hidden = false; }
+  var h = (location.hash || '').replace('#', ''); if (h === 'console' || h === 'listings' || h === 'screener' || h === 'watchlists') state.view = h;
+  if (!saved) { if (h === 'screener' || h === 'watchlists') showView(h); else $('explore').hidden = false; }
 })();

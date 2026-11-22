@@ -421,3 +421,16 @@ td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }
 .ws-ident-t { display: none; }
 
 .prov-in { display: grid; gap: 2px; }
+
+/* watchlists */
+#watchlists-view:not([hidden]) { display: block; }
+.wl-grid { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; align-items: start; }
+.wl-side { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 10px; display: grid; gap: 8px; }
+.wl-side ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.wl-pick { width: 100%; text-align: left; border: 0; background: transparent; color: var(--fg); font: inherit; padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+.wl-pick[aria-pressed="true"] { background: var(--bg-2); } .wl-new input { flex: 1 1 120px; padding: 6px 8px; } .wl-side p { margin: 0; }
+.wl-main { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 12px 14px; display: grid; gap: 10px; min-width: 0; }
+.wl-main h3 { font-size: 1rem; } .wl-add input { flex: 1 1 260px; padding: 6px 10px; } .wl-sug li { padding: 6px 10px; } .wl-sug:empty { display: none; }
+.wl-table .x { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; } .wl-table th[scope=row] { text-align: left; font-weight: 500; }
+.wl-watch input { flex: 1 1 260px; padding: 6px 10px; } .wl-feed { margin: 0; }
+@media (max-width: 760px) { .wl-grid { grid-template-columns: minmax(0, 1fr); } }

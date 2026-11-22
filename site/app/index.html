@@ -83,6 +83,7 @@
     <nav class="views" aria-label="Views">
       <button type="button" class="view-btn" data-view="explore" aria-pressed="true">Explore</button>
       <button type="button" class="view-btn" data-view="screener" aria-pressed="false">Screener</button>
+      <button type="button" class="view-btn" data-view="watchlists" aria-pressed="false">Watchlists</button>
       <button type="button" class="view-btn" data-view="listings" aria-pressed="false">Listings</button>
       <button type="button" class="view-btn" data-view="console" aria-pressed="false">Console</button>
     </nav>
@@ -229,6 +230,11 @@
     <p class="muted small">Every figure is as filed and links its filing. Not investment advice.</p>
   </section>
 
+  <section id="watchlists-view" class="view" hidden aria-labelledby="wl-h">
+    <h2 id="wl-h" class="sr-only">Watchlists</h2>
+    <div id="watchlists"></div>
+  </section>
+
   <section id="listings" class="view" hidden>
     <section class="panel">
       <h2>Canada, Europe and UK listings</h2>
@@ -348,5 +354,6 @@
 <script src="/prov-card.js"></script>
 <script src="/app/workspace.js"></script>
 <script src="/app/screener.js"></script>
+<script src="/app/watchlists.js"></script>
 </body>
 </html>
