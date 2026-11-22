@@ -107,6 +107,10 @@
           <li>Exchange directories (TMX, CSE and others) are not used: their terms do not allow it without permission.</li>
         </ul>
       </section>
+      <section id="fx" aria-labelledby="fx-h">
+        <h2 id="fx-h">Exchange rates, for size bands only</h2>
+        <p><strong>Federal Reserve H.10</strong>, Foreign Exchange Rates (daily). Board of Governors of the Federal Reserve System; a US government work, in the public domain. Used only to group companies that report in different currencies into the same size bands (for example, revenue of $1 billion or more), at each fiscal year&rsquo;s average daily rate. Never used to convert or restate a company&rsquo;s own figures, which are always shown in the currency it reports in. Currencies H.10 does not cover are listed separately.</p>
+      </section>
       <section id="news" aria-labelledby="news-h">
         <h2 id="news-h">News headlines in chat forecasts</h2>
         <p>Forecast answers in chat may read recent headlines to inform an estimate, and cite each one. In production they come from the <a href="https://www.gdeltproject.org/">GDELT Project</a>'s open news index, which may be used commercially with attribution. Development copies may use Google News RSS, which is for personal, non-commercial use and is refused in production. Only the headline, publisher, date and link are read, never the article. Headlines are not stored as data or served through the API, and a headline is never treated as a fact.</p>
@@ -115,7 +119,7 @@
         <h2 id="not-h">What is not here</h2>
         <ul>
           <li>No stock prices or market data, no analyst estimates, and no data bought from vendors.</li>
-          <li>No figures for non-US companies' financial statements yet.</li>
+          <li>No financial statements for companies that do not file with the SEC. Foreign companies that do (annual reports on Form 20-F or 40-F) are shown in the currency they report in.</li>
         </ul>
       </section>
       <section aria-labelledby="type-h">
@@ -134,7 +138,7 @@
   <div class="site-board">
     <div class="site-tile statement">
       <p>Public company intelligence. Built for humans and AI.</p>
-      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA or GLEIF. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA, GLEIF or the Federal Reserve. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF; Federal Reserve H.10 exchange rates are used only for size bands. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance.</p>
     </div>
     <nav class="site-tile links" aria-label="Site">
       <div class="cols">
