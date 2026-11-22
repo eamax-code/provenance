@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-"""Fail when any stored fact is on a mapping version other than the current one.
+"""Fail when a stored fact is on an older mapping and is not a reviewed exception.
 
-  python scripts/check_mapping.py      # exit 1 and list the companies when some are
+  python scripts/check_mapping.py      # exit 1 and list what is unexpected
 
-Run after a full pass: a fact left on an older mapping means its company was not in the pass
-(for example a registrant not yet in the companyfacts archive) and needs a per-company refresh.
+Run after a full pass. Old rows the SEC no longer publishes are listed after review in
+app/data/mapping_exceptions.csv; anything else on an older mapping means its company was not in
+the pass and needs a per-company refresh (scripts/ingest_company.py).
 """
 
 from __future__ import annotations
@@ -13,25 +14,15 @@ import json
 import sys
 
 from _bootstrap import bootstrap
-from sqlalchemy import func, select
 
-from app.db.models import FinancialFact
-from app.services.fact_normalizer import MAPPING_VERSION
+from app.services import mapping_check
 
 
 def main() -> int:
     _, Session = bootstrap()
-    db = Session()
-    rows = db.execute(
-        select(FinancialFact.cik, FinancialFact.mapping_version, func.count())
-        .where(FinancialFact.mapping_version != MAPPING_VERSION)
-        .group_by(FinancialFact.cik, FinancialFact.mapping_version)
-    ).all()
-    companies = [{"cik": c, "mapping_version": v, "rows": n} for c, v, n in rows]
-    out = {"current": MAPPING_VERSION, "old_rows": sum(n for _, _, n in rows),
-           "companies": companies}  # fmt: skip
+    out = mapping_check.check(Session())
     print(json.dumps(out))
-    return 1 if rows else 0
+    return 0 if out["ok"] else 1
 
 
 if __name__ == "__main__":

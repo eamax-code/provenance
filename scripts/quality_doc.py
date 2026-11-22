@@ -243,12 +243,15 @@ def main() -> int:
               "AllocatedShareBasedCompensationExpense beside ShareBasedCompensation).",
               ""]  # fmt: skip
 
+    from app.services import mapping_check
+
     old_sql = "select count(*), count(distinct cik) from financial_facts where mapping_version<>:v"
     old_rows = db.execute(text(old_sql), {"v": MAPPING_VERSION}).one()
-    lines += [f"Facts on an older mapping: {old_rows[0]:,} rows at {old_rows[1]:,} companies "
-              "(observations the SEC's company facts no longer publish, so no pass can re-read "
-              "them; kept as reported, on the mapping that read them; listed by "
-              "scripts/check_mapping.py).", ""]  # fmt: skip
+    lines += [f"Facts on an older mapping: {old_rows[0]:,} rows at {old_rows[1]:,} companies; "
+              f"check_mapping: {mapping_check.check(db)['summary']}. The reviewed exceptions "
+              "(app/data/mapping_exceptions.csv) are observations the SEC's company facts no "
+              "longer publish, so no pass can re-read them; they are kept as reported, on the "
+              "mapping that read them.", ""]  # fmt: skip
 
     n, c = db.execute(text(CONFLICTS)).one()
     lines += ["## Revenue tag conflicts", "",

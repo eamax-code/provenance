@@ -220,10 +220,11 @@ wait on something are written here, not remembered.
 
 1. `alembic current` equals head; every create-table migration merged since the chain started
    is applied (the schema guard refuses jobs otherwise).
-2. `python scripts/check_mapping.py`: no facts on an older mapping, other than the known rows
-   the SEC's company facts no longer publish (122 rows at 5 co-registrants and a SPAC after the
-   1.4.1 pass; re-ingesting them from the SEC changes nothing). Any other company listed was
-   missed by the pass.
+2. `python scripts/check_mapping.py` reports "0 unexpected old rows (N reviewed exceptions)"
+   and exits 0. Reviewed exceptions are listed in `app/data/mapping_exceptions.csv` (company,
+   mapping, row count, reason, date checked): rows the SEC's company facts no longer publish (122
+   at 5 co-registrants and a SPAC after the 1.4.1 pass; re-ingesting them changed nothing). Any
+   other old row, or more rows than reviewed, fails the check: the pass missed that company.
 3. Marts rebuilt (`scripts/build_marts.py`), coverage snapshot refreshed; mart counts compared
    with the previous run.
 4. `python scripts/quality_doc.py --out docs/data-quality-<date>.md`; spot check all "same".
