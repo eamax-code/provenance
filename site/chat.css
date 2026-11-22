@@ -269,3 +269,6 @@
 .cx-ipo-value{font:700 18px var(--font-body);letter-spacing:-.02em}
 .cx-ipo-item[open]{grid-column:1/-1}
 .cx-ipo-item blockquote{margin:8px 0 4px;padding-left:10px;border-left:3px solid var(--red);font-size:14px}
+
+.cx-how{margin-top:10px;font-size:.88rem;color:var(--muted)} .cx-how summary{cursor:pointer} .cx-how pre{margin:6px 0 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;overflow-x:auto;font-size:.8rem}
+.cx-tile-value .door{font:inherit}

@@ -206,12 +206,27 @@
     s.appendChild(line);
     return s;
   }
-  function tile(t, byN, i) {
+  // C-01: a figure in an answer opens the same provenance card as the Explorer
+  function chip(text, info) { return window.ProvCard && info ? window.ProvCard.door(text, info) : document.createTextNode(text); }
+  function pointInfo(w, p, label) {
+    return { label: label || String(w.title || '').split(' by ')[0], metric: w.metric, currency: w.currency, fiscal_label: p.label, period_end: p.period_end, form_type: p.form_type, filed_date: p.filed_date, source_url: p.source_url, accession_number: p.accession_number, source_tag: p.source_tag, mapping_version: p.mapping_version, quality_status: p.quality_status, cik: state.cik };
+  }
+  if (window.ProvCard) window.ProvCard.configure({
+    asOf: function () { return $('cx-asof') && $('cx-asof').value || null; },
+    actions: function (i) {
+      if (!i.cik) return [];
+      var q = new URLSearchParams(); q.set('c', String(parseInt(i.cik, 10))); if (i.metric) { q.set('tab', 'chart'); q.set('m', i.metric); }
+      var a = $('cx-asof') && $('cx-asof').value; if (/^\d{4}-\d{2}-\d{2}$/.test(a || '')) q.set('as_of', a);
+      var link = document.createElement('a'); link.className = 'btn small'; link.href = '/app/?' + q.toString(); link.textContent = 'Open in Explorer';
+      return [link];
+    }
+  });
+  function tile(t, byN, i, info) {
     var box = el('div', 'cx-tile'); box.style.animationDelay = (0.05 * i) + 's';
     // a non-USD tile names its currency, unless the value already carries the code
     var tc = /^[A-Z]{3}$/.test(t.currency || '') && t.currency !== 'USD' && String(t.value).indexOf(t.currency) < 0 ? ' · ' + t.currency : '';
     box.appendChild(el('div', 'cx-tile-label', t.label + tc));
-    var v = el('div', 'cx-tile-value', t.value); box.appendChild(v);
+    var v = el('div', 'cx-tile-value'); v.appendChild(chip(human(String(t.value)), info)); box.appendChild(v);
     var sub = el('div', 'cx-tile-sub');
     var d = delta(t.change_pct); if (d) sub.appendChild(d);
     if (t.sub) sub.appendChild(document.createTextNode(human(t.sub)));
@@ -236,7 +251,8 @@
     head.appendChild(el('span', 'cx-widget-sub', pts[0].label + ' – ' + pts[pts.length - 1].label + ' · from annual reports'));
     box.appendChild(head);
     var grid = el('div', 'cx-tiles');
-    (w.stats || []).forEach(function (t, i) { grid.appendChild(tile(t, byN, i)); });
+    var byCite = {}; (w.points || []).forEach(function (p) { if (p.citation) byCite[p.citation] = p; });
+    (w.stats || []).forEach(function (t, i) { var p = t.citation && byCite[t.citation]; grid.appendChild(tile(t, byN, i, p && !/%$/.test(String(t.value)) ? pointInfo(w, p) : null)); });
     box.appendChild(grid);
     var wrap = el('div', 'cx-chart'), canvas = el('canvas');
     canvas.setAttribute('role', 'img');
@@ -254,7 +270,7 @@
     var tb = el('tbody');
     pts.forEach(function (p) {
       var r = el('tr');
-      r.appendChild(el('td', null, p.period_end)); r.appendChild(el('td', null, p.display));
+      r.appendChild(el('td', null, p.period_end)); var vc = el('td'); vc.appendChild(chip(p.display, pointInfo(w, p))); r.appendChild(vc);
       r.appendChild(el('td', null, p.change_pct == null ? '—' : (p.change_pct > 0 ? '+' : '') + p.change_pct.toFixed(1) + '%'));
       var src = el('td'); inline(p.form_type + ' ' + p.filed_date + ' [' + p.citation + ']', byN, src); r.appendChild(src);
       tb.appendChild(r);
@@ -520,6 +536,18 @@
       if (reply.answered_by !== 'data' && !(c.citations_used || []).length) problems.push('no citations');
       var badge = el('span', 'cx-badge ' + (ok ? 'ok' : 'warn'), ok ? '✓ Checked against SEC data' : 'Check: ' + problems.join('; '));
       row.appendChild(badge);
+    }
+    // C-01: how I got this — the same data as one API call, so anyone can check it
+    if (reply.company && reply.company.cik) {
+      var hm = (reply.widgets || []).map(function (w) { return w.metric; }).filter(function (m) { return /^[a-z_]{2,40}$/.test(m || ''); })[0];
+      if (hm) {
+        var ck = String(parseInt(reply.company.cik, 10)), ao = (reply.brief && reply.brief.as_of) || $('cx-asof').value, hasAo = /^\d{4}-\d{2}-\d{2}$/.test(ao || '');
+        var how = el('details', 'cx-how'); how.appendChild(el('summary', null, 'How I got this'));
+        how.appendChild(el('p', 'cx-note', 'Read from the annual reports cited above for CIK ' + ck + ' (' + displayName(reply.company.legal_name) + '): ' + hm.replace(/_/g, ' ') + ', annual, ' + (hasAo ? 'as known on ' + human(ao) : 'latest data') + '. The same figures in one request:'));
+        var code = el('code'); code.textContent = 'GET /v1/companies/' + ck + '/facts?metric=' + hm + '&period=annual' + (hasAo ? '&as_of=' + ao : '');
+        var pre = el('pre'); pre.appendChild(code); how.appendChild(pre);
+        bot.body.appendChild(how);
+      }
     }
     // C-02: the same view in the Explorer (company, metric, as-of)
     if (reply.company && reply.company.cik) {

@@ -104,41 +104,16 @@
     }
   }
 
-  /* ---- the provenance card (§2.2): every number is a door ---- */
-  var card = null, cardFor = null;
-  function door(text, info, cls) {
-    var b = el('button', { type: 'button', class: 'door' + (cls ? ' ' + cls : ''), text: text, 'aria-haspopup': 'dialog' });
-    b._prov = info;
-    b.addEventListener('click', function (e) { e.stopPropagation(); if (cardFor === b) closeCard(); else openCard(b); });
-    return b;
-  }
-  function openCard(b) {
-    closeCard(); cardFor = b; var i = b._prov || {};
-    var rows = [];
-    var kv = function (k, v) { if (v != null && v !== '') rows.push(el('dt', { text: k }), el('dd', {}, [v])); };
-    kv('Period', [i.fiscal_label, i.period_end ? 'ended ' + day(i.period_end) : null].filter(Boolean).join(', '));
-    if (i.source_url && ARCHIVE.test(i.source_url)) kv('Filing', el('a', { href: i.source_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + (i.filed_date ? ' filed ' + day(i.filed_date) : '') + ' ↗' }));
-    kv('Accession', i.accession_number);
-    kv('Tag', i.source_tag);
-    kv('Mapping', i.mapping_version);
-    kv('Quality', i.quality_status ? i.quality_status.replace(/_/g, ' ') : null);
-    if (i.derived) kv('Derived', (i.formula || 'worked out here from reported figures') + (i.inputs && i.inputs.length ? ': ' + i.inputs.map(function (x) { return (x.metric || x.name || '').replace(/_/g, ' ') + ' ' + money(x.value, i.currency); }).join(', ') : ''));
-    if (i.predecessor) kv('Registrant', i.registrant_label || 'Reported by the predecessor registrant (CIK ' + i.registrant_cik + ')');
-    kv('As known on', S.as_of ? day(S.as_of) : 'latest');
-    var ask = el('a', { class: 'btn small', href: chatLink((i.label || '') + (i.fiscal_label ? ' ' + i.fiscal_label : '')), text: 'Ask about this' });
-    var chartIt = i.metric ? el('button', { type: 'button', class: 'btn small', text: 'Chart it', on: { click: function () { closeCard(); S.m = [i.metric]; go('chart'); } } }) : null;
-    card = el('div', { class: 'prov-card', role: 'dialog', 'aria-label': 'Where this figure comes from', tabindex: '-1' }, [
-      el('p', { class: 'prov-v' }, [el('b', { text: b.textContent }), i.label ? ' ' + i.label : '']),
-      el('dl', {}, rows), el('div', { class: 'prov-act' }, [ask, chartIt])
-    ]);
-    document.body.appendChild(card);
-    var r = b.getBoundingClientRect(), w = Math.min(340, window.innerWidth - 24), left = Math.max(12, Math.min(r.left + window.scrollX, window.scrollX + window.innerWidth - w - 12));
-    card.style.width = w + 'px'; card.style.left = left + 'px'; card.style.top = (r.bottom + window.scrollY + 6) + 'px';
-    b.setAttribute('aria-expanded', 'true'); card.focus({ preventScroll: true });
-  }
-  function closeCard() { if (card) { card.remove(); card = null; } if (cardFor) { cardFor.setAttribute('aria-expanded', 'false'); var f = cardFor; cardFor = null; return f; } }
-  document.addEventListener('click', function (e) { if (card && !card.contains(e.target)) closeCard(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && card) { var f = closeCard(); if (f) f.focus(); } });
+  /* ---- the provenance card (§2.2): every number is a door; the card itself is shared with chat ---- */
+  function door(text, info, cls) { return window.ProvCard.door(text, info, cls); }
+  function closeCard() { return window.ProvCard.close(); }
+  window.ProvCard.configure({
+    asOf: function () { return S.as_of; },
+    actions: function (i, close) {
+      return [el('a', { class: 'btn small', href: chatLink((i.label || '') + (i.fiscal_label ? ' ' + i.fiscal_label : '')), text: 'Ask about this' }),
+        i.metric ? el('button', { type: 'button', class: 'btn small', text: 'Chart it', on: { click: function () { close(); S.m = [i.metric]; go('chart'); } } }) : null];
+    }
+  });
 
   function chatLink(q) {
     var p = new URLSearchParams(); p.set('q', q.trim()); if (S.cik) p.set('cik', S.cik); if (S.as_of) p.set('as_of', S.as_of);
