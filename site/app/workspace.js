@@ -767,6 +767,6 @@
     var o = readURL(); if (asof && o.as_of) asof.value = o.as_of;
     apply(o, false);
   }
-  window.Workspace = { open: function (cik) { apply(Object.assign({}, S, { cik: String(parseInt(cik, 10)), tab: 'overview' }), true); }, palette: palette, state: S, reload: function () { if (S.cik) { S.cik = null; apply(readURL(), false); } } };
+  window.Workspace = { orgName: function (n) { return orgName(n); }, open: function (cik) { apply(Object.assign({}, S, { cik: String(parseInt(cik, 10)), tab: 'overview' }), true); }, palette: palette, state: S, reload: function () { if (S.cik) { S.cik = null; apply(readURL(), false); } } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

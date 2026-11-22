@@ -383,3 +383,9 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 700; border-top: 2px
 
 .tl li.upcoming { opacity: .8; } .tl li.upcoming .tag { border-color: var(--warn); color: var(--warn); }
 .tl .tl-t .small { font-size: .82rem; }
+
+/* screener */
+#screener { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; } .scr-ctl .ch-bar > * { max-width: 100%; } #screener[hidden] { display: none !important; }
+.scr-ctl { display: grid; gap: 6px; } .scr-ctl .ch-bar { margin: 0; } .scr-l { display: inline-flex; gap: 6px; align-items: center; font-size: .88rem; color: var(--muted); }
+.scr-ctl select, .scr-ctl input { padding: 5px 8px; font-size: .88rem; }
+.scr-table { font-size: .86rem; } .scr-table th[scope=row] { text-align: left; font-weight: 500; white-space: normal; min-width: 12em; } .scr-table td, .scr-table th { padding: 4px 8px; }

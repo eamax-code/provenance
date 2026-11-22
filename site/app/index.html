@@ -82,6 +82,7 @@
     <h1 class="toolbar-title">Explorer</h1>
     <nav class="views" aria-label="Views">
       <button type="button" class="view-btn" data-view="explore" aria-pressed="true">Explore</button>
+      <button type="button" class="view-btn" data-view="screener" aria-pressed="false">Screener</button>
       <button type="button" class="view-btn" data-view="listings" aria-pressed="false">Listings</button>
       <button type="button" class="view-btn" data-view="console" aria-pressed="false">Console</button>
     </nav>
@@ -221,6 +222,13 @@
     </section>
   </section>
 
+  <section id="screener" class="view" hidden aria-labelledby="scr-h">
+    <h2 id="scr-h" class="sr-only">Screener</h2>
+    <div id="scr-ctl"></div>
+    <div id="scr-out"></div>
+    <p class="muted small">Every figure is as filed and links its filing. Not investment advice.</p>
+  </section>
+
   <section id="listings" class="view" hidden>
     <section class="panel">
       <h2>Canada, Europe and UK listings</h2>
@@ -339,5 +347,6 @@
 <script src="/app/graph.js"></script>
 <script src="/prov-card.js"></script>
 <script src="/app/workspace.js"></script>
+<script src="/app/screener.js"></script>
 </body>
 </html>
