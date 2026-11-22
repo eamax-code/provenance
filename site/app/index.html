@@ -87,7 +87,7 @@
     </nav>
     <div class="ws-bar" id="ws-bar">
       <button type="button" class="ws-k" id="ws-k" aria-keyshortcuts="Meta+K Control+K"><span>Jump to a company, tab, metric or date</span><kbd>⌘K</kbd></button>
-      <div class="ws-asof"><label for="ws-asof">As known on</label><input type="date" id="ws-asof" min="1993-01-01"><button type="button" class="btn small" id="ws-asof-clear">Latest</button></div>
+      <div class="ws-asof"><button type="button" class="btn small" id="ws-asof-btn" aria-expanded="false" aria-controls="ws-asof-pop"><span class="muted">As known on </span><b>latest</b></button><div class="ws-asof-pop" id="ws-asof-pop" hidden><label for="ws-asof">Show the data as known on</label><input type="date" id="ws-asof" min="1993-01-01"><span class="row"><button type="button" class="btn small" id="ws-asof-go">Apply</button><button type="button" class="btn small" id="ws-asof-clear">Latest</button></span></div></div>
     </div>
     <div class="session">
       <span class="status-pill" id="key-pill"><i></i><span id="key-label">no key</span></span>

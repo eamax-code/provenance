@@ -214,7 +214,7 @@
     var v = el('div', 'cx-tile-value', t.value); box.appendChild(v);
     var sub = el('div', 'cx-tile-sub');
     var d = delta(t.change_pct); if (d) sub.appendChild(d);
-    if (t.sub) sub.appendChild(document.createTextNode(t.sub));
+    if (t.sub) sub.appendChild(document.createTextNode(human(t.sub)));
     if (t.citation) inline(' [' + t.citation + ']', byN, sub);
     box.appendChild(sub);
     var sp = sparkline(t.spark); if (sp) box.appendChild(sp);
@@ -290,13 +290,13 @@
           tooltip: {
             backgroundColor: css('--ink'), titleColor: css('--bg'), bodyColor: css('--bg'), padding: 10, cornerRadius: 10, titleFont: font, bodyFont: font,
             callbacks: {
-              title: function (items) { return 'Fiscal year ended ' + pts[items[0].dataIndex].period_end; },
+              title: function (items) { return 'Fiscal year ended ' + human(pts[items[0].dataIndex].period_end); },
               label: function (item) {
                 var p = pts[item.dataIndex];
                 if (item.datasetIndex === 0) return ' ' + p.display;
                 return p.change_pct == null ? null : ' ' + (p.change_pct > 0 ? '+' : '') + p.change_pct.toFixed(1) + '% from prior year';
               },
-              footer: function (items) { var p = pts[items[0].dataIndex]; return p.form_type + ' filed ' + p.filed_date + ' · click to open'; }
+              footer: function (items) { var p = pts[items[0].dataIndex]; return p.form_type + ' filed ' + human(p.filed_date) + ' · click to open'; }
             }
           }
         },
@@ -394,7 +394,7 @@
             backgroundColor: css('--ink'), titleColor: css('--bg'), bodyColor: css('--bg'), padding: 10, cornerRadius: 10, titleFont: font, bodyFont: font,
             filter: function (item) { return item.raw != null && !(item.dataIndex === nh - 1 && item.datasetIndex > 1); },
             callbacks: {
-              title: function (items) { var i = items[0].dataIndex; return i < nh ? 'Fiscal year ended ' + hist[i].period_end : fc[i - nh].label + ' (forecast)'; },
+              title: function (items) { var i = items[0].dataIndex; return i < nh ? 'Fiscal year ended ' + human(hist[i].period_end) : fc[i - nh].label + ' (forecast)'; },
               label: function (item) {
                 var i = item.dataIndex;
                 if (i < nh) return ' Reported ' + hist[i].display;
@@ -521,8 +521,17 @@
       var badge = el('span', 'cx-badge ' + (ok ? 'ok' : 'warn'), ok ? '✓ Checked against SEC data' : 'Check: ' + problems.join('; '));
       row.appendChild(badge);
     }
+    // C-02: the same view in the Explorer (company, metric, as-of)
+    if (reply.company && reply.company.cik) {
+      var wm = (reply.widgets || []).map(function (w) { return w.metric; }).filter(function (m) { return /^[a-z_]{2,40}$/.test(m || ''); })[0];
+      var xp = new URLSearchParams(); xp.set('c', String(parseInt(reply.company.cik, 10)));
+      if (wm) { xp.set('tab', 'chart'); xp.set('m', wm); }
+      var asOf = (reply.brief && reply.brief.as_of) || $('cx-asof').value; if (/^\d{4}-\d{2}-\d{2}$/.test(asOf || '')) xp.set('as_of', asOf);
+      var ox = el('a', 'cx-act cx-open', 'Open in Explorer'); ox.href = '/app/?' + xp.toString();
+      row.appendChild(ox);
+    }
     var by = reply.answered_by === 'data' ? 'Read from filings' : (reply.model ? reply.model + ' (local)' : null);
-    if (by) row.appendChild(el('span', null, by + (reply.brief && reply.brief.as_of ? ' · as of ' + reply.brief.as_of : '')));
+    if (by) row.appendChild(el('span', null, by + (reply.brief && reply.brief.as_of ? ' · as of ' + human(reply.brief.as_of) : '')));
     if (reply.answer) {
       var copy = el('button', 'cx-act'); copy.type = 'button'; copy.title = 'Copy answer'; copy.setAttribute('aria-label', 'Copy answer');
       copy.appendChild(svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>'));
@@ -814,7 +823,9 @@
   setAccount();
   var saved = load('prov_key');
   var hashId = (/^#s=([0-9a-f-]{36})$/.exec(location.hash) || [])[1];
-  var q0 = new URLSearchParams(location.search).get('q');
+  var qs0 = new URLSearchParams(location.search), q0 = qs0.get('q');
+  if (/^\d{1,10}$/.test(qs0.get('cik') || '')) state.cik = qs0.get('cik');
+  var a0 = qs0.get('as_of'); if (/^\d{4}-\d{2}-\d{2}$/.test(a0 || '') && $('cx-asof')) { $('cx-asof').value = a0; try { $('cx-asof').dispatchEvent(new Event('change')); } catch (e) {} }
   var ready = saved && saved !== DEMO ? connect(saved).catch(function () { store('prov_key', null); }) : Promise.resolve();
   ready.then(function () {
     loadSessions();

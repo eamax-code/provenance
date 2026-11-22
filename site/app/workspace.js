@@ -25,7 +25,7 @@
     if (a >= 1e12) return p + (a / 1e12).toFixed(d) + 'T'; if (a >= 1e9) return p + (a / 1e9).toFixed(d) + 'B';
     if (a >= 1e6) return p + (a / 1e6).toFixed(d) + 'M'; if (a >= 1e3) return p + (a / 1e3).toFixed(0) + 'K'; return p + a.toFixed(0);
   }
-  function pct(v, sign) { return v == null || !isFinite(v) ? '—' : (sign && v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + '%'; }
+  function pct(v, sign) { if (v == null || !isFinite(v)) return '—'; var r = Math.abs(v).toFixed(1); return (r === '0.0' ? '' : sign && v > 0 ? '+' : v < 0 ? '−' : '') + r + '%'; }
   function count(v) { var a = Math.abs(v); return a >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : a >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : Number(v).toLocaleString('en-US'); }
   /* a value in its row's unit: currency codes as filed, never converted */
   function fmtv(v, unit, cur) {
@@ -169,7 +169,7 @@
     }
     $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [el('h2', { text: c.display_name || c.legal_name || 'CIK ' + c.cik }), chips, acts]), strip,
       S.asofNote ? el('p', { class: 'ws-note', role: 'status', text: S.asofNote }) : null].filter(Boolean));
-    var ai = $('ws-asof'); if (ai) ai.value = S.as_of || '';
+    var ai = $('ws-asof'); if (ai) ai.value = S.as_of || ''; var ab = $('ws-asof-btn'); if (ab) ab.lastChild.textContent = S.as_of ? day(S.as_of) : 'latest';
     document.title = (c.display_name || 'Company') + (c.ticker ? ' (' + c.ticker + ')' : '') + ' · Explorer · Provenance';
   }
   var STATES = { DE: 'Delaware', CA: 'California', NY: 'New York', NV: 'Nevada', TX: 'Texas', MD: 'Maryland', PA: 'Pennsylvania', OH: 'Ohio', NJ: 'New Jersey', WA: 'Washington', MA: 'Massachusetts', FL: 'Florida', IL: 'Illinois', VA: 'Virginia', GA: 'Georgia', MN: 'Minnesota', NC: 'North Carolina', MI: 'Michigan', IN: 'Indiana', CO: 'Colorado', MO: 'Missouri', WI: 'Wisconsin', OR: 'Oregon', TN: 'Tennessee', AZ: 'Arizona', UT: 'Utah', CT: 'Connecticut', M0: 'Japan', '2M': 'Germany', F5: 'Taiwan', X0: 'United Kingdom', V8: 'Switzerland', P7: 'Netherlands', L2: 'Ireland', D0: 'Bermuda', E9: 'Cayman Islands', K3: 'Hong Kong', F4: 'China', I0: 'France', A6: 'Ontario, Canada' };
@@ -217,14 +217,18 @@
   /* ---- X-01 Overview ---- */
   var KEYS = [['revenue', 'Revenue'], ['gross_profit', 'Gross profit'], ['operating_income', 'Operating income'], ['net_income', 'Net income'], ['eps_diluted', 'EPS, diluted'], ['operating_cash_flow', 'Operating cash flow'], ['free_cash_flow', 'Free cash flow'], ['cash_and_equivalents', 'Cash and equivalents'], ['total_assets', 'Total assets'], ['long_term_debt', 'Long-term debt'], ['stockholders_equity', 'Stockholders’ equity'], ['return_on_equity', 'Return on equity']];
   var MARGIN = { gross_profit: 1, operating_income: 1, net_income: 1, operating_cash_flow: 1, free_cash_flow: 1 };
+  // green and red only where more is plainly more (flows); balance-sheet lines and ratios stay neutral
+  var FLOW = { revenue: 1, gross_profit: 1, operating_income: 1, net_income: 1, eps_diluted: 1, operating_cash_flow: 1, free_cash_flow: 1 };
+  function tone(metric, v) { return v == null || !FLOW[metric] ? 'muted' : v >= 0 ? 'up' : 'down'; }
   function growth(a, b) { return a != null && b != null && b > 0 && a >= 0 ? 100 * (a - b) / b : null; }
   function overview() {
     var d = S.d, cur = (d.company || {}).reporting_currency || 'USD', rows = statementRows(), fy = (d.statements || {}).fiscal_years || [];
     var last = fy.length - 1, rev = rows.revenue;
-    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Annual, as filed' }), el('th', { scope: 'col', class: 'n', text: fy[last] || 'Latest' }), el('th', { scope: 'col', class: 'n', title: 'Trailing twelve months, from quarterly filings', text: 'TTM' }), el('th', { scope: 'col', class: 'n', text: 'YoY' }), el('th', { scope: 'col', class: 'n', text: (last > 0 ? last : '') + 'y CAGR' }), el('th', { scope: 'col', class: 'n', text: 'Margin' }), el('th', { scope: 'col', class: 'spark-h', text: 'Trend' })]);
+    var ttm = (d.ttm && typeof d.ttm === 'object') ? d.ttm : null, hasTTM = !!ttm && KEYS.some(function (k) { return ttm[k[0]] && ttm[k[0]].value != null; });
+    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Annual, as filed' }), el('th', { scope: 'col', class: 'n', text: fy[last] || 'Latest' }), hasTTM ? el('th', { scope: 'col', class: 'n c-ttm', title: 'Trailing twelve months, from quarterly filings', text: 'TTM' }) : null, el('th', { scope: 'col', class: 'n c-yoy', text: 'YoY' }), el('th', { scope: 'col', class: 'n c-cagr', text: (last > 0 ? last : '') + 'y CAGR' }), el('th', { scope: 'col', class: 'n c-mg', text: 'Margin' }), el('th', { scope: 'col', class: 'spark-h', text: 'Trend' })]);
     var body = KEYS.map(function (k) {
       var r = rows[k[0]];
-      if (!r) return el('tr', { class: 'na' }, [el('th', { scope: 'row', text: k[1] }), el('td', { class: 'n muted', colspan: '6', title: 'not reported', text: '— not reported' })]);
+      if (!r) return el('tr', { class: 'na' }, [el('th', { scope: 'row', text: k[1] }), el('td', { class: 'n muted', colspan: hasTTM ? '6' : '5', title: 'not reported', text: '— not reported' })]);
       var cells = r.cells, c = cells[last], p = cells[last - 1], f = cells.filter(function (x) { return x && x.value != null; })[0];
       var yoy = c && p ? growth(c.value, p.value) : null;
       var n = f ? last - cells.indexOf(f) : 0, cagr = c && f && n > 0 && f.value > 0 && c.value > 0 ? 100 * (Math.pow(c.value / f.value, 1 / n) - 1) : null;
@@ -234,17 +238,17 @@
       return el('tr', {}, [
         el('th', { scope: 'row' }, [r.label || k[1], r.derived ? el('span', { class: 'tag', title: r.formula || 'Worked out here from reported figures', text: 'derived' }) : null]),
         el('td', { class: 'n strong' }, [c && c.value != null ? door(fmtv(c.value, unit, cur), cellInfo(r, c, cur)) : el('span', { class: 'muted', title: 'not reported', text: '—' })]),
-        el('td', { class: 'n muted', title: 'not reported', text: '—' }),
-        el('td', { class: 'n ' + (yoy == null || unit === '%' ? 'muted' : yoy >= 0 ? 'up' : 'down'), text: unit === '%' ? '—' : pct(yoy, true) }),
-        el('td', { class: 'n muted', text: unit === '%' ? '—' : pct(cagr, true) }),
-        el('td', { class: 'n muted', text: mg == null ? '' : pct(mg) }),
+        hasTTM ? (ttm[k[0]] && ttm[k[0]].value != null ? el('td', { class: 'n c-ttm' }, [door(fmtv(ttm[k[0]].value, unit, cur), Object.assign({ label: (r.label || k[1]) + ', TTM', metric: k[0], currency: cur }, ttm[k[0]]))]) : el('td', { class: 'n c-ttm muted', title: 'not reported', text: '—' })) : null,
+        el('td', { class: 'n c-yoy ' + tone(k[0], unit === '%' ? null : yoy), text: unit === '%' ? '—' : pct(yoy, true) }),
+        el('td', { class: 'n c-cagr muted', text: unit === '%' ? '—' : pct(cagr, true) }),
+        el('td', { class: 'n c-mg muted', text: mg == null ? '' : pct(mg) }),
         el('td', { class: 'spark-c' }, [s ? spark(s.pts.map(function (x) { return x.v; })) : null])
       ]);
     });
     var figs = el('section', { class: 'ov-figs', 'aria-labelledby': 'ov-figs-h' }, [
       el('h3', { id: 'ov-figs-h', text: 'Key figures' }),
       el('div', { class: 'tw' }, [el('table', { class: 'ov-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
-      el('p', { class: 'muted small', text: 'In ' + cur + ', as reported. Click any figure for its filing, tag and mapping. Growth only between positive years. TTM needs quarterly filings and fills in with the statements view.' })
+      el('p', { class: 'muted small', text: 'In ' + cur + ', as reported. Click any figure for its filing, tag and mapping. Growth only between positive years; green and red only on flows.' })
     ]);
     // events: the API's own labels (a Form 25 says what it is), information, not signals
     var evs = (d.events || []).slice(0, 7);
@@ -261,7 +265,7 @@
       own = [el('p', { class: 'ov-big' }, [o.institutional_pct != null ? door(pct(o.institutional_pct), { label: 'held by institutions (13F)', derived: true, formula: o.institutional_pct_derived && o.institutional_pct_derived.formula }) : el('span', { text: adr ? 'No %' : 'No single %' }), ' institutional · ', el('b', { text: Number(o.holders_count).toLocaleString('en-US') }), ' holders' + (o.holders_count_change != null ? ' (' + (o.holders_count_change >= 0 ? '+' : '−') + Math.abs(o.holders_count_change) + ')' : ''), adr ? el('span', { class: 'tag', text: 'held as ADRs' }) : null]),
         el('ul', { class: 'ov-list' }, (o.top_holders || []).slice(0, 4).map(function (h) { return el('li', {}, [el('span', { text: orgName(h.name) }), el('span', { class: 'n', text: h.pct_of_outstanding != null ? pct(h.pct_of_outstanding) : money(h.value_usd, 'USD') }), ARCHIVE.test(h.filing_url || '') ? el('a', { href: h.filing_url, target: '_blank', rel: 'noopener', text: '13F ↗' }) : null]); })),
         el('p', { class: 'muted small', text: [f2.new, 'new', f2.added, 'added', f2.reduced, 'reduced', f2.exited, 'exited'].reduce(function (a, v, i) { return i % 2 ? a + ' ' + v + (i < 7 ? ' · ' : '') : a + Number(v || 0).toLocaleString('en-US'); }, '') })];
-    } else own = [el('p', { class: 'muted', text: 'No 13F holders matched yet.' })];
+    } else own = [el('p', { class: 'muted', text: S.as_of ? '13F holdings show for the latest quarter only, not for a past date.' : 'No 13F holders matched yet.' })];
     var ownership = el('section', { class: 'ov-own', 'aria-labelledby': 'ov-own-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ov-own-h', text: 'Ownership' + (o && o.quarter ? ' · 13F, ' + qname(o.quarter) : '') })])].concat(own));
     // the main chart: revenue bars and operating margin, ten years, with event markers
     var ch = el('section', { class: 'ov-chart', 'aria-labelledby': 'ov-ch-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ov-ch-h', text: 'Revenue and operating margin' }), el('button', { type: 'button', class: 'linkish', text: 'Open in Chart', on: { click: function () { S.m = ['revenue', 'operating_margin']; go('chart'); } } })])]);
@@ -514,11 +518,13 @@
   function init() {
     var k = $('ws-k'); if (k) k.addEventListener('click', palette);
     document.querySelectorAll('#ws-tabs .tab').forEach(function (b) { b.addEventListener('click', function () { go(b.getAttribute('data-tab')); }); });
-    var asof = $('ws-asof'), clear = $('ws-asof-clear');
+    var asof = $('ws-asof'), clear = $('ws-asof-clear'), btn = $('ws-asof-btn'), pop = $('ws-asof-pop');
     if (asof) {
       asof.max = new Date().toISOString().slice(0, 10);
-      asof.addEventListener('change', function () { var v = asof.value; if (!S.cik) return; apply(Object.assign({}, S, { as_of: /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null, asofNote: '' }), true); });
-      clear.addEventListener('click', function () { asof.value = ''; if (S.cik) apply(Object.assign({}, S, { as_of: null, asofNote: '' }), true); });
+      btn.addEventListener('click', function () { pop.hidden = !pop.hidden; btn.setAttribute('aria-expanded', String(!pop.hidden)); if (!pop.hidden) asof.focus(); });
+      $('ws-asof-go').addEventListener('click', function () { var v = asof.value; pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (S.cik && /^\d{4}-\d{2}-\d{2}$/.test(v)) apply(Object.assign({}, S, { as_of: v, asofNote: '' }), true); });
+      clear.addEventListener('click', function () { asof.value = ''; pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); if (S.cik) apply(Object.assign({}, S, { as_of: null, asofNote: '' }), true); });
+      document.addEventListener('click', function (e) { if (!pop.hidden && !e.target.closest('.ws-asof')) { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); } });
     }
     var o = readURL(); if (asof && o.as_of) asof.value = o.as_of;
     apply(o, false);
