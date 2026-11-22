@@ -522,3 +522,39 @@ def test_e4d_one_basis_for_all_segments_and_no_reconciling_subtotals():
     assert "ConsolidationItems=IntersegmentElimination" not in kept
     assert "ConsolidationItems=EliminationsAndReconcilingItems" not in kept
     assert sum(kept.values()) == D(-6693)
+
+
+def test_e4d_a_reviewed_override_keeps_a_block_unreconciled_with_its_members(tmp_path):
+    """ACI Worldwide FY2025: the product sides each add up within 0.1% but mix solution lines
+    with revenue types. The hand-check override keeps the block unreconciled, as tagged."""
+    import zipfile
+
+    adsh, cik = "0000935036-26-000011", "0000935036"
+    sub = ("adsh\tcik\tname\tform\tperiod\tfy\tfp\tfiled\n"
+           f"{adsh}\t935036\tACI WORLDWIDE\t10-K\t20251231\t2025\tFY\t20260220\n")  # fmt: skip
+    facts = [("", 1760), ("ProductOrService=BillPayments;", 818),
+             ("ProductOrService=License;", 462),
+             ("ProductOrService=Maintenance;", 201), ("ProductOrService=RealTime;", 138),
+             ("ProductOrService=Services;", 88), ("ProductOrService=Intelligence;", 53),
+             ("ProductOrService=Issuing;", 580), ("ProductOrService=Merchant;", 171),
+             ("ProductOrService=SaaS;", 1009)]  # fmt: skip
+    hashes = {s: f"0x{i:032x}" for i, (s, _) in enumerate(facts, 1) if s}
+    num = ["adsh\ttag\tversion\tddate\tqtrs\tuom\tdimh\tiprx\tvalue\tfootnote\tfootlen\tdimn"
+           "\tcoreg\tdurp\tdatp\tdcml"]  # fmt: skip
+    for segs, v in facts:
+        num.append("\t".join((adsh, "Revenues", "us-gaap/2025", "20251231", "4", "USD",
+                              hashes.get(segs, "0x00"), "0", f"{v * 1000000}", "", "0",
+                              str(segs.count("=")), "", "0", "0", "-6")))  # fmt: skip
+    path = tmp_path / "2026_02_notes.zip"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("sub.tsv", sub)
+        z.writestr("num.tsv", "\n".join(num) + "\n")
+        z.writestr("dim.tsv", "dimhash\tsegments\tsegt\n"
+                   + "\n".join(f"{h}\t{s}\t0" for s, h in hashes.items()) + "\n")  # fmt: skip
+    free = _latest(segments.parse_notes_zip(path, overrides=set()), "product", "revenue")
+    assert all(v[2] == "ok" for v in free.values()) and len(free) < 10  # a side was chosen
+    held = _latest(segments.parse_notes_zip(path, overrides={(cik, 2025, "product")}),
+                   "product", "revenue")  # fmt: skip
+    assert all(v[2] == "unreconciled" for v in held.values())
+    assert len([k for k, v in held.items() if v[0] == "segment"]) == 9  # members as tagged
+    assert (cik, 2025, "product") in segments.reviewed_overrides()

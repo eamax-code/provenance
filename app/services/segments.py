@@ -326,8 +326,22 @@ def _ymd(v: str) -> date | None:
         return None
 
 
-def parse_notes_zip(path: str | Path) -> list[dict]:
+OVERRIDES = Path(__file__).resolve().parents[1] / "data" / "segment_overrides.csv"
+
+
+def reviewed_overrides(path: Path = OVERRIDES) -> set[tuple[str, int, str]]:
+    """{(cik, fiscal year, kind)} a hand-check found wrong: kept unreconciled, members as tagged,
+    no breakdown chosen (app/data/segment_overrides.csv, each with its reason and date)."""
+    if not path.exists():
+        return set()
+    with path.open(newline="", encoding="utf-8") as fh:
+        return {(normalize_cik(r["cik"]), int(r["fiscal_year"]), r["kind"])
+                for r in csv.DictReader(fh)}  # fmt: skip
+
+
+def parse_notes_zip(path: str | Path, overrides: set | None = None) -> list[dict]:
     """Segment rows (and their reconciling and consolidated figures) from one data set."""
+    overrides = reviewed_overrides() if overrides is None else overrides
     source = "sec:fsn:" + Path(path).stem
     with zipfile.ZipFile(path) as z:
 
@@ -390,17 +404,14 @@ def parse_notes_zip(path: str | Path) -> list[dict]:
         adsh, kind, _, tag, ddate, unit = k
         total = consolidated.get((adsh, tag, ddate, unit))
         recon = g["reconciling"] if kind == "business" else {}
+        if any(not is_total(m) and "AllOther" not in m for m in {**parts, **g["segment"]}):
+            # the all-segments total is dropped beside real segments below (not beside "all
+            # other" alone: Lamar, Motorcar Parts); judged without it
+            parts = {m: v for m, v in parts.items() if not is_total(m)}
         own, other = {**parts, **g["segment"]}, {**g["segment"], **parts}
-        # members with an operating figure and no own total; an all-segments total or a zero
-        # does not make two bases (California Resources, Watts)
-        extra = {m for m in set(parts) - set(g["segment"]) if parts[m] and not is_total(m)}
-        if extra and set(parts) & set(g["segment"]):
-            # own totals for only some members would mix two bases (Caterpillar: Power & Energy
-            # external, the others gross of intersegment sales): the parts, unless only the
-            # own totals add up
-            only_own = adds_up(own, total, recon) and not adds_up(other, total, recon)
-            g["segment"] = own if only_own else other
-            continue
+        # Caterpillar mixes Power & Energy's own total (external) with the others' gross figures;
+        # once its reconciling subtotals are dropped, only the gross figures add up, so they win.
+        # A change that does not add up is never taken (Pennant, Tri Pointe keep their totals).
         g["segment"] = (
             other if adds_up(other, total, recon) and not adds_up(own, total, recon) else own
         )
@@ -475,9 +486,11 @@ def parse_notes_zip(path: str | Path) -> list[dict]:
         total = consolidated.get((adsh, tag, ddate, unit))
         recon = g["reconciling"] if kind == "business" else {}
         segs = drop_subtotals(g["segment"], total, sum(recon.values(), Decimal(0)))
-        if kind != "business":
+        fy = int(sub["fy"]) if (sub.get("fy") or "").isdigit() else None
+        held = (normalize_cik(sub["cik"]), fy, kind) in overrides
+        if kind != "business" and not held:
             segs = one_breakdown(segs, total, signed=metric != "revenue")
-        ok = total is not None and (_close(sum(segs.values()), total) or bool(recon))
+        ok = not held and total is not None and (_close(sum(segs.values()), total) or bool(recon))
         status = "ok" if ok else "unreconciled"
         base = {"accession_number": adsh, "kind": kind, "metric": metric, "period_end": end,
                 "cik": normalize_cik(sub["cik"]), "form_type": sub["form"].upper(),
