@@ -174,16 +174,20 @@ async function view(page, theme, width) {
       listeners.push({ session: sessionId, method: 'Fetch.requestPaused', fn: async (ev) => {
         const stub = page.stubs.find((st) => new RegExp(st.match).test(ev.request.url));
         const atResponse = ev.responseStatusCode !== undefined;
-        if (!stub || (stub.merge ? !atResponse : atResponse)) { send('Fetch.continueRequest', { requestId: ev.requestId }, sessionId).catch(() => {}); return; }
+        const late = stub && (stub.merge || stub.transform);
+        if (!stub || (late ? !atResponse : atResponse)) { send('Fetch.continueRequest', { requestId: ev.requestId }, sessionId).catch(() => {}); return; }
         let payload = stub.body;
-        if (stub.merge) {
+        if (late) {
           try {
             const got = await send('Fetch.getResponseBody', { requestId: ev.requestId }, sessionId);
-            payload = Object.assign(JSON.parse(got.base64Encoded ? Buffer.from(got.body, 'base64').toString() : got.body), stub.merge);
+            payload = JSON.parse(got.base64Encoded ? Buffer.from(got.body, 'base64').toString() : got.body);
+            if (stub.merge) payload = Object.assign(payload, stub.merge);
+            // transform: the body of a function of the parsed response (b) that returns it; from pages.json only
+            if (stub.transform) payload = new Function('b', stub.transform)(payload);
           } catch { send('Fetch.continueRequest', { requestId: ev.requestId }, sessionId).catch(() => {}); return; }
         }
         const body = Buffer.from(JSON.stringify(payload)).toString('base64');
-        send('Fetch.fulfillRequest', { requestId: ev.requestId, responseCode: stub.status || (stub.merge ? ev.responseStatusCode : 200), responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body }, sessionId).catch(() => {});
+        send('Fetch.fulfillRequest', { requestId: ev.requestId, responseCode: stub.status || (late ? ev.responseStatusCode : 200), responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body }, sessionId).catch(() => {});
       } });
     }
     const loaded = new Promise((r) => listeners.push({ session: sessionId, method: 'Page.loadEventFired', fn: r }));

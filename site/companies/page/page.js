@@ -90,8 +90,8 @@
       var src = y.sources && y.sources.revenue; if (src) { a.setAttribute('href', src); a.setAttribute('target', '_blank'); }
       var r = document.createElementNS(NS, 'rect');
       r.setAttribute('x', x); r.setAttribute('y', padT + plotH - h); r.setAttribute('width', bw); r.setAttribute('height', Math.max(1, h));
-      r.setAttribute('class', i === ys.length - 1 ? 'col latest' : 'col');
-      var t = document.createElementNS(NS, 'title'); t.textContent = y.fiscal_label + ': revenue ' + P.money(y.revenue) + (y.operating_margin_pct != null ? ', operating margin ' + P.pct(y.operating_margin_pct) : '');
+      r.setAttribute('class', (i === ys.length - 1 ? 'col latest' : 'col') + (y.predecessor ? ' pred' : ''));
+      var t = document.createElementNS(NS, 'title'); t.textContent = y.fiscal_label + ': revenue ' + P.money(y.revenue) + (y.operating_margin_pct != null ? ', operating margin ' + P.pct(y.operating_margin_pct) : '') + (y.predecessor ? '. ' + (y.registrant_label || 'Reported by predecessor registrant (CIK ' + y.registrant_cik + ')') : '');
       r.appendChild(t); a.appendChild(r); svg.appendChild(a);
       if (opts.values && (i === ys.length - 1 || i === 0)) {
         var v = document.createElementNS(NS, 'text'); v.setAttribute('x', x + bw / 2); v.setAttribute('y', padT + plotH - h - 5); v.setAttribute('text-anchor', 'middle'); v.setAttribute('class', 'val'); v.textContent = P.money(y.revenue, 0); svg.appendChild(v);

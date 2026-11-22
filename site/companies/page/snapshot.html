@@ -125,6 +125,13 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
 .own-table { font-size: 14.5px; }
 .own-table td.n, .own-table th.n { text-align: right; white-space: nowrap; }
 @media (max-width: 760px) { .own-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); } .own-table .opt { display: none; } }
+.succession { font-size: 15px; padding: 8px 12px; background: var(--surface); border-radius: 4px; justify-self: start; }
+.succession.is-old { background: var(--field); color: var(--field-ink); }
+.succession.is-old a { color: var(--field-ink); }
+table.fin td.pred { background: color-mix(in srgb, var(--slate, #627b8c) 22%, transparent); }
+.pred-note { color: var(--muted); font-size: 13.5px; margin: 8px 2px 0; display: flex; gap: 8px; align-items: center; }
+.pred-swatch { width: 14px; height: 14px; border-radius: 3px; background: color-mix(in srgb, var(--slate, #627b8c) 22%, transparent); flex: none; }
+.rev-chart .col.pred { fill-opacity: .4; }
 .notes { color: var(--muted); font-size: 13.5px; max-width: 90ch; }
 @media (max-width: 1100px) {
   .co-story { grid-template-columns: minmax(0, 1fr); }
@@ -195,6 +202,7 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
       <h1 id="name"></h1>
       <p class="co-chips" id="chips"></p>
       <p class="co-meta" id="meta"></p>
+      <p class="succession" id="succession" hidden></p>
     </div>
     <div class="co-actions">
       <a class="btn" id="ask" href="/chat/">Ask about this company</a>
@@ -225,7 +233,7 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
       <p class="finding" id="finding"></p>
     </div>
     <div class="kpis" id="kpis"></div>
-    <figure class="story-chart"><figcaption>Revenue by fiscal year; the line is operating margin. Each bar opens its annual report.</figcaption><div id="chart"></div></figure>
+    <figure class="story-chart"><figcaption id="chart-cap">Revenue by fiscal year; the line is operating margin. Each bar opens its annual report.</figcaption><div id="chart"></div></figure>
   </section>
 
   <section class="co-sec" id="financials" aria-labelledby="t-fin" hidden>

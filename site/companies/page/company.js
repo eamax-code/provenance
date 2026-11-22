@@ -54,6 +54,20 @@
     if (ipo) chips.appendChild(el('span', { class: 'chip quiet-chip' }, [srcLink('IPO priced ' + P.date(ipo.filing_date), ipo.source_url)]));
     if (d.as_of) chips.appendChild(el('span', { class: 'chip asof-chip', text: 'Point in time: ' + P.date(d.as_of) }));
     var addr = P.address(c.business_address);
+    var succ = $('succession'); succ.textContent = ''; succ.hidden = true;
+    var pred = (c.predecessors || [])[0];
+    if (pred) {
+      succ.hidden = false;
+      succ.append('Successor to ', el('a', { href: '/companies/' + parseInt(pred.cik, 10), text: P.title(pred.name) + ' (CIK ' + pred.cik + ')' }), ' since ' + P.date(pred.effective_date) + ', ');
+      succ.appendChild(srcLink(pred.evidence ? pred.evidence.form_type : '8-K12B', pred.evidence && pred.evidence.source_url, 'The filing that made it the successor registrant'));
+      succ.append('. Its earlier figures continue below.');
+    }
+    if (c.successor) {
+      succ.hidden = false; succ.classList.add('is-old');
+      succ.append('Continues as ', el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.title(c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' since ' + P.date(c.successor.effective_date) + ', ');
+      succ.appendChild(srcLink(c.successor.evidence ? c.successor.evidence.form_type : '8-K12B', c.successor.evidence && c.successor.evidence.source_url, 'The filing that named the successor registrant'));
+      succ.append('. New filings and figures are on its page.');
+    }
     $('meta').textContent = [c.sic_description, P.state(c.state_of_incorporation) && 'incorporated in ' + P.state(c.state_of_incorporation), c.fiscal_year_end_month && 'fiscal year ends ' + c.fiscal_year_end_month, addr && addr[addr.length - 1], 'CIK ' + c.cik].filter(Boolean).join(DOT);
     $('ask').href = P.chatUrl(d);
     $('edgar').href = c.filings_url;
@@ -121,6 +135,7 @@
     });
     var ch = $('chart'); ch.textContent = '';
     ch.appendChild(P.revenueChart(d.years, { width: 560, height: 220, values: true }));
+    $('chart-cap').textContent = 'Revenue by fiscal year; the line is operating margin. Each bar opens its annual report.' + (d.years.some(function (y) { return y.predecessor; }) ? ' Paler bars were reported by the predecessor registrant.' : '');
   }
 
   /* ---- financial statements ---- */
@@ -145,7 +160,7 @@
     var hr = el('tr', {}, [el('th', { scope: 'col', class: 'fin-name', text: sec.key === 'ratios' ? 'Ratio' : 'Line item' })]);
     idx.forEach(function (i) { hr.appendChild(el('th', { scope: 'col', class: 'n', text: st.fiscal_years[i] })); });
     t.appendChild(el('thead', {}, [hr]));
-    var tb = el('tbody');
+    var tb = el('tbody'), predCiks = {};
     sec.rows.forEach(function (r) {
       var name = el('th', { scope: 'row', class: 'fin-name' }, [r.label]);
       if (r.derived) name.appendChild(el('span', { class: 'tag', title: (r.formula || 'Derived') + '. Computed here from two reported figures of the same fiscal year.', text: 'derived' }));
@@ -158,15 +173,21 @@
           ? (r.formula || '') + (c.inputs ? ': ' + c.inputs.map(function (x) { return x.metric.replace(/_/g, ' ') + ' ' + P.money(x.value) + ' (' + x.accession_number + ')'; }).join(', ') : '')
           : (c.form_type || '') + ' filed ' + P.date(c.filed_date) + DOT + 'accession ' + (c.accession_number || '') + DOT + 'period ended ' + P.date(c.period_end);
         var link = c.source_url || (c.inputs && c.inputs[0] && c.inputs[0].source_url);
+        if (c.predecessor) { title = (c.registrant_label || 'Reported by predecessor registrant (CIK ' + c.registrant_cik + ')') + DOT + title; predCiks[c.registrant_cik] = 1; }
         var kids = [srcLink(v, link, title)];
         if (c.quality_status && c.quality_status !== 'ok') kids.push(el('span', { class: 'tag', title: 'Quality: ' + c.quality_status.replace(/_/g, ' ') + '. Check the filing before relying on it.', text: c.quality_status === 'ambiguous_mapping' ? 'ambiguous' : c.quality_status.replace(/_/g, ' ') }));
         if (c.derived && !r.derived) kids.push(el('span', { class: 'tag', text: 'derived' }));
-        tr.appendChild(el('td', { class: 'n' }, kids));
+        tr.appendChild(el('td', { class: 'n' + (c.predecessor ? ' pred' : '') }, kids));
       });
       tb.appendChild(tr);
     });
     t.appendChild(tb);
+    var pc = Object.keys(predCiks);
     box.replaceChildren(t);
+    if (pc.length) {
+      var who = (d.company.predecessors || []).filter(function (p) { return pc.indexOf(String(p.cik)) > -1 || pc.indexOf(String(parseInt(p.cik, 10))) > -1; })[0];
+      box.appendChild(el('p', { class: 'pred-note' }, [el('span', { class: 'pred-swatch', 'aria-hidden': 'true' }), 'Shaded figures were reported by the predecessor registrant' + (who ? ', ' + P.title(who.name) : '') + ' (CIK ' + pc.join(', ') + '), each linked to its own filing.']));
+    }
   }
   narrow.addEventListener && narrow.addEventListener('change', function () { if (data) statements(data); });
 
@@ -318,6 +339,8 @@
     var c = d.company, dl = $('ident'); dl.textContent = '';
     var kv = function (k, v) { if (v == null || v === '' || (Array.isArray(v) && !v.length)) return; var dd = el('dd'); (Array.isArray(v) ? v : [v]).forEach(function (line, i) { if (i) dd.appendChild(el('br')); dd.appendChild(typeof line === 'string' ? document.createTextNode(line) : line); }); dl.appendChild(el('dt', { text: k })); dl.appendChild(dd); };
     kv('CIK', c.cik);
+    (c.predecessors || []).forEach(function (p) { kv('Predecessor', [el('a', { href: '/companies/' + parseInt(p.cik, 10), text: P.title(p.name) + ' (CIK ' + p.cik + ')' }), ' until ' + P.date(p.effective_date)]); });
+    if (c.successor) kv('Successor', [el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.title(c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' from ' + P.date(c.successor.effective_date)]);
     kv('Tickers', (c.tickers.length ? c.tickers : [c.ticker]).filter(Boolean).map(function (t, i) { return t + (c.exchanges[i] ? ' on ' + c.exchanges[i] : ''); }).join(', '));
     kv('LEI', c.lei || 'Not filed with the SEC');
     (d.listings || []).forEach(function (l) { kv('Also listed', [l.isin, l.venue || l.mic].filter(Boolean).join(' on ')); });
