@@ -24,12 +24,27 @@ from app.services import first_reported, releases
 from app.services.sec_client import SecClient, normalize_cik
 
 
+def save_progress(db, key: str, value: dict) -> None:
+    from app.db.models import JobState, utcnow
+
+    row = db.get(JobState, key)
+    text = json.dumps({**value, "at": utcnow().isoformat()})
+    if row is None:
+        db.add(JobState(name=key, value=text, updated_at=utcnow()))
+    else:
+        row.value, row.updated_at = text, utcnow()
+    db.commit()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--cik", action="append", default=[])
     ap.add_argument("--years", type=float, default=2)
     ap.add_argument("--min-revenue", type=float, default=None)
     ap.add_argument("--no-fetch", action="store_true", help="Match stored releases only")
+    ap.add_argument("--progress-key", default=None,
+                    help="job_state name to record progress under (resumable: stored releases "
+                    "are skipped, matching is idempotent)")  # fmt: skip
     ap.add_argument(
         "--top",
         type=int,
@@ -46,6 +61,7 @@ def main() -> int:
     if args.min_revenue is not None:
         ciks += list(db.scalars(select(MartCompany.cik).where(
             MartCompany.latest_revenue >= args.min_revenue,
+            MartCompany.reporting_currency == "USD",
             MartCompany.latest_annual_report_date >= date.today() - timedelta(days=730),
         )))  # fmt: skip
     if args.top:
@@ -57,7 +73,8 @@ def main() -> int:
         ))  # fmt: skip
     sec = None if args.no_fetch else SecClient(settings)
     out = {"companies": 0, "releases_read": 0, "figures_matched": 0}
-    for cik in dict.fromkeys(ciks):
+    ciks = list(dict.fromkeys(ciks))
+    for cik in ciks:
         todo = db.scalars(select(Filing).where(
             Filing.cik == cik, Filing.form_type.like("8-K%"),
             Filing.items.like(f"%{releases.EARNINGS_ITEM}%"), Filing.filing_date >= since,
@@ -68,7 +85,11 @@ def main() -> int:
         out["companies"] += 1
         if out["companies"] % 50 == 0:
             print(json.dumps(out), flush=True)
+            if args.progress_key:
+                save_progress(db, args.progress_key, {**out, "of": len(ciks)})
     print(json.dumps(out))
+    if args.progress_key:
+        save_progress(db, args.progress_key, {**out, "of": len(ciks), "done": True})
     db.close()
     return 0
 
