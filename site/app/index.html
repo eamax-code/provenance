@@ -85,6 +85,10 @@
       <button type="button" class="view-btn" data-view="listings" aria-pressed="false">Listings</button>
       <button type="button" class="view-btn" data-view="console" aria-pressed="false">Console</button>
     </nav>
+    <div class="ws-bar" id="ws-bar">
+      <button type="button" class="ws-k" id="ws-k" aria-keyshortcuts="Meta+K Control+K"><span>Jump to a company, tab, metric or date</span><kbd>⌘K</kbd></button>
+      <div class="ws-asof"><label for="ws-asof">As known on</label><input type="date" id="ws-asof" min="1993-01-01"><button type="button" class="btn small" id="ws-asof-clear">Latest</button></div>
+    </div>
     <div class="session">
       <span class="status-pill" id="key-pill"><i></i><span id="key-label">no key</span></span>
       <div class="profile">
@@ -99,50 +103,50 @@
     </div>
   </div>
 
-  <section class="panel gate" id="gate">
-    <h2 class="gate-title">Paste your API key to start.</h2>
-    <p class="muted">The key stays in this browser only (localStorage) and is sent as <code>X-API-Key</code> to this host. No key yet? <a href="/account/">Create one free</a>.</p>
+  <section class="keybar" id="gate" aria-label="Connect a key">
+    <p><b>Connect a free key to open any company.</b> <span class="muted">Without one, the showcase companies open here. The key stays in this browser and is sent as <code>X-API-Key</code>. <a href="/account/">Create one free</a>.</span></p>
     <form id="key-form" class="row">
       <label for="key-input" class="sr-only">API key</label>
       <input id="key-input" type="password" autocomplete="off" spellcheck="false" placeholder="prv_live_…" required>
-      <button class="btn primary" type="submit">Connect</button>
+      <button class="btn" type="submit">Connect</button>
     </form>
     <p class="muted small" id="gate-status" role="status" aria-live="polite"></p>
   </section>
 
-  <section class="panel" id="gate-showcase" aria-labelledby="gate-showcase-title">
-    <h2 id="gate-showcase-title">No key yet? Open a showcase company</h2>
-    <p class="muted">These pages need no key: filings, financial statements and freshness, each value linked to its filing. The <a href="/playground/">playground</a> runs live requests with the demo key.</p>
-    <ul class="results" id="gate-cards" aria-live="polite"><li class="muted">Loading the showcase companies…</li></ul>
-  </section>
-
   <section id="explore" class="view" hidden>
-    <section class="panel">
+
+    <section class="panel" id="ws-empty">
       <form id="search-form" class="row">
         <label for="q" class="sr-only">Search</label>
         <input id="q" type="search" placeholder="Ticker, CIK or company name (e.g. AAPL, 320193, Microsoft)" autocomplete="off" required>
-        <button class="btn primary" type="submit">Search</button>
+        <button class="btn" type="submit">Search</button>
       </form>
       <ul id="results" class="results" aria-live="polite"></ul>
+      <div id="gate-showcase" aria-labelledby="gate-showcase-title">
+        <h2 id="gate-showcase-title">Showcase companies</h2>
+        <p class="muted small">Open with no key: figures, statements, events, ownership and segments, each value linked to its filing.</p>
+        <ul class="results" id="gate-cards" aria-live="polite"><li class="muted">Loading the showcase companies…</li></ul>
+      </div>
     </section>
 
     <section id="company" class="company" hidden>
-      <header class="company-head">
-        <div>
-          <p class="eyebrow" id="c-cik">CIK</p>
-          <h2 id="c-name">Company</h2>
-          <p class="muted" id="c-meta"></p>
-        </div>
-        <div class="badges" id="c-badges"></div>
-      </header>
-      <nav class="tabs" aria-label="Company sections">
-        <button type="button" class="tab" data-tab="facts" aria-pressed="true">Facts</button>
+      <header class="ws-head" id="ws-head"></header>
+      <nav class="tabs" id="ws-tabs" aria-label="Company sections">
+        <button type="button" class="tab" data-tab="overview" aria-pressed="true">Overview</button>
+        <button type="button" class="tab" data-tab="statements" aria-pressed="false">Statements</button>
+        <button type="button" class="tab" data-tab="chart" aria-pressed="false">Chart</button>
+        <button type="button" class="tab" data-tab="timeline" aria-pressed="false">Timeline</button>
         <button type="button" class="tab" data-tab="filings" aria-pressed="false">Filings</button>
         <button type="button" class="tab" data-tab="connections" aria-pressed="false">Connections</button>
         <button type="button" class="tab" data-tab="freshness" aria-pressed="false">Freshness</button>
+        <button type="button" class="tab" data-tab="facts" aria-pressed="false">Observations</button>
       </nav>
+      <section class="tabpane" id="pane-overview"></section>
+      <section class="tabpane" id="pane-statements" hidden></section>
+      <section class="tabpane" id="pane-chart" hidden></section>
+      <section class="tabpane" id="pane-timeline" hidden></section>
 
-      <section class="tabpane" id="pane-facts">
+      <section class="tabpane" id="pane-facts" hidden>
         <div class="controls">
           <label>Metric <select id="f-metric">
             <optgroup label="Income statement"><option value="revenue">Revenue</option><option value="cost_of_revenue">Cost of revenue</option><option value="gross_profit">Gross profit</option><option value="r_and_d">Research and development</option><option value="sga">Selling, general and administrative</option><option value="operating_income">Operating income</option><option value="interest_expense">Interest expense</option><option value="net_interest_income">Net interest income</option><option value="pretax_income">Income before taxes</option><option value="income_tax">Income tax</option><option value="net_income">Net income</option><option value="eps_basic">EPS, basic</option><option value="eps_diluted">EPS, diluted</option><option value="shares_basic_weighted">Weighted shares, basic</option><option value="shares_diluted_weighted">Weighted shares, diluted</option><option value="d_and_a">Depreciation and amortization</option></optgroup><optgroup label="Balance sheet"><option value="cash_and_equivalents">Cash and equivalents</option><option value="current_assets">Current assets</option><option value="total_assets">Total assets</option><option value="current_liabilities">Current liabilities</option><option value="total_liabilities">Total liabilities</option><option value="long_term_debt">Long-term debt</option><option value="long_term_debt_current">Long-term debt, current part</option><option value="stockholders_equity">Stockholders' equity</option><option value="retained_earnings">Retained earnings</option></optgroup><optgroup label="Cash flow"><option value="operating_cash_flow">Operating cash flow</option><option value="capex">Capital expenditure</option><option value="dividends_paid">Dividends paid</option><option value="share_repurchases">Share repurchases</option><option value="sbc">Stock-based compensation</option></optgroup><optgroup label="Cover page"><option value="shares_outstanding">Shares outstanding</option><option value="public_float">Public float</option></optgroup><optgroup label="Ratios, derived here"><option value="gross_margin">Gross margin</option><option value="operating_margin">Operating margin</option><option value="net_margin">Net margin</option><option value="return_on_assets">Return on assets</option><option value="return_on_equity">Return on equity</option><option value="free_cash_flow">Free cash flow</option><option value="debt_to_equity">Debt to equity</option><option value="current_ratio">Current ratio</option><option value="book_value_per_share">Book value per share</option></optgroup>
@@ -327,5 +331,6 @@
 <script src="/app/listings.js"></script>
 <script src="/app/app.js"></script>
 <script src="/app/graph.js"></script>
+<script src="/app/workspace.js"></script>
 </body>
 </html>

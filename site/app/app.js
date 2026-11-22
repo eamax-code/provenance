@@ -58,12 +58,29 @@
   }
 
   /* Shared with the connections graph (graph.js), which opens companies in this Explorer. */
-  window.ProvenanceExplorer = { api: function (p, o) { return api(p, o); }, open: function (cik) { openCompany(cik); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} }, toast: function (m, k) { toast(m, k); } };
+  window.ProvenanceExplorer = {
+    api: function (p, o) { return api(p, o); },
+    open: function (cik) { openCompany(cik); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} },
+    toast: function (m, k) { toast(m, k); },
+    hasKey: function () { return !!state.key; },
+    // a plain read for the workspace: no toast or sign-out, the caller words its own message
+    raw: function (path) {
+      var headers = { Accept: 'application/json' }; if (state.key) headers['X-API-Key'] = state.key;
+      return fetch(path, { headers: headers }).then(function (r) { return r.text().then(function (t) { var b = null; try { b = t ? JSON.parse(t) : null; } catch (e) {} return { ok: r.ok, status: r.status, body: b }; }); });
+    },
+    // the keyed tabs (filings, connections, freshness, observations) read the keyed company record
+    legacy: function (cik, tab) {
+      if (!state.key) return;
+      state.tab = tab;
+      if (state.company && String(parseInt(state.company.cik, 10)) === String(cik)) { loadTab(); return; }
+      api('/v1/companies/' + encodeURIComponent(cik)).then(function (res) { state.company = res.body; loadTab(); }).catch(function () {});
+    }
+  };
 
   /* ---- session ---- */
   function setKey(key) {
     state.key = key; storage(false, key);
-    $('gate').hidden = true; $('gate-showcase').hidden = true; $('signout').hidden = false;
+    $('gate').hidden = true; $('signout').hidden = false;
     $('key-pill').classList.add('on'); $('key-label').textContent = key.slice(0, 17) + '…';
     window.Shell.syncTheme(key).then(function (p) {
       if (p) $('profile-who').textContent = (p.label || p.key_prefix) + ' · ' + p.plan + ' plan';
@@ -74,12 +91,15 @@
     state.key = null; storage(false, null); state.company = null;
     $('gate').hidden = false; $('gate-showcase').hidden = false; $('signout').hidden = true; $('key-pill').classList.remove('on'); $('key-label').textContent = 'no key';
     $('profile-who').textContent = 'Not connected. Your theme is kept in this browser.';
-    $('explore').hidden = true; $('console').hidden = true; $('listings').hidden = true; $('company').hidden = true;
+    $('console').hidden = true; $('listings').hidden = true; $('explore').hidden = false;
+    document.querySelectorAll('.view-btn').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-view') === 'explore')); });
     if (message) { $('gate-status').textContent = message; }
+    if (window.Workspace) window.Workspace.reload();
   }
   $('key-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var key = $('key-input').value.trim(); if (!key) return;
+    if (key === 'demo') { $('key-input').value = ''; $('gate-status').textContent = 'The demo key is for the playground. The showcase companies below open here without any key; a free key opens every company.'; return; }
     $('gate-status').textContent = 'Checking key…';
     state.key = key;
     api('/v1/developer/usage').then(function (res) {
@@ -110,7 +130,8 @@
     if (!d || !d.data.length) { list.appendChild(el('li', { class: 'muted', text: 'No showcase companies are loaded yet.' })); return; }
     d.data.forEach(function (c) {
       var rev = c.latest_annual_revenue;
-      var link = el('a', { href: '/companies/' + parseInt(c.cik, 10), text: c.display_name || c.legal_name });
+      var link = el('a', { href: '/app/?c=' + parseInt(c.cik, 10), text: c.display_name || c.legal_name });
+      link.addEventListener('click', function (e) { if (window.Workspace && !e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(c.cik); } });
       list.appendChild(el('li', {}, [
         el('span', {}, [link, el('span', { class: 'muted', text: ' · ' + [c.ticker, c.exchange].filter(Boolean).join(' · ') })]),
         el('span', { text: rev ? 'Revenue ' + fmtUnit(rev.value, rev.unit) + ', ' + (rev.period_label || 'year ended ' + day(rev.period_end)) : 'No annual revenue mapped yet' })
@@ -135,32 +156,26 @@
     try { location.hash = name; } catch (e) {}
   }
   document.querySelectorAll('.view-btn').forEach(function (b) { b.addEventListener('click', function () { if (state.key) showView(b.getAttribute('data-view')); }); });
-  document.querySelectorAll('.tab').forEach(function (b) {
-    b.addEventListener('click', function () {
-      state.tab = b.getAttribute('data-tab');
-      document.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-pressed', String(t === b)); });
-      ['facts', 'filings', 'connections', 'freshness'].forEach(function (p) { $('pane-' + p).hidden = p !== state.tab; });
-      loadTab();
-    });
-  });
+  // company tabs are handled by workspace.js (deep links, keyless overview)
 
   /* ---- search ---- */
   $('search-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var q = $('q').value.trim(); if (!q) return;
     var list = $('results'); list.innerHTML = ''; list.appendChild(el('li', { class: 'skeleton', text: 'Searching…' }));
-    api('/v1/companies/search?q=' + encodeURIComponent(q) + '&limit=10').then(function (res) {
+    (state.key ? api('/v1/companies/search?q=' + encodeURIComponent(q) + '&limit=10') : window.ProvenanceExplorer.raw('/v1/public/companies/search?q=' + encodeURIComponent(q)).then(function (r) { if (!r.ok) throw new Error('search'); r.body.data = (r.body.data || []).filter(function (c) { return c.is_public_page; }); return r; })).then(function (res) {
       list.innerHTML = '';
       var data = res.body.data;
       if (!data.length) {
-        list.appendChild(el('li', { class: 'skeleton', text: 'No match in this deployment. If you know the CIK, open it directly:' }));
+        list.appendChild(el('li', { class: 'skeleton', text: state.key ? 'No match in this deployment. If you know the CIK, open it directly:' : 'No showcase company matches. Connect a free key to search every company.' }));
+        if (!state.key) return;
         if (/^\d{1,10}$/.test(q)) { var open = el('button', { class: 'btn small', type: 'button', text: 'Open CIK ' + q }); open.addEventListener('click', function () { openCompany(q); }); list.appendChild(el('li', {}, [open])); }
         return;
       }
       data.forEach(function (c) {
         var li = el('li', {}, [
-          el('div', {}, [el('strong', { text: c.legal_name || '(name pending ingestion)' }), ' ', el('span', { class: 'mono', text: (c.ticker || '—') + ' · ' + (c.exchange || '—') + ' · CIK ' + c.cik })]),
-          el('span', { class: 'badge ' + (c.ingestion_status === 'complete' ? 'ok' : c.ingestion_status), text: c.match_type + ' · ' + c.ingestion_status })
+          el('div', {}, [el('strong', { text: c.display_name || c.legal_name || '(name pending ingestion)' }), ' ', el('span', { class: 'mono', text: (c.ticker || '—') + ' · ' + (c.exchange || '—') + ' · CIK ' + c.cik })]),
+          c.ingestion_status ? el('span', { class: 'badge ' + (c.ingestion_status === 'complete' ? 'ok' : c.ingestion_status), text: (c.match_type || '') + ' · ' + c.ingestion_status }) : el('span', { class: 'mono', text: (c.match_type || '').replace(/_/g, ' ') })
         ]);
         li.addEventListener('click', function () { openCompany(c.cik); });
         list.appendChild(li);
@@ -170,6 +185,7 @@
 
   /* ---- company ---- */
   function openCompany(cik) {
+    if (window.Workspace) { $('results').innerHTML = ''; window.Workspace.open(cik); return; }
     clearTimeout(state.polling);
     $('company').hidden = false; $('results').innerHTML = '';
     $('c-name').textContent = 'Loading…'; $('c-cik').textContent = 'CIK ' + cik; $('c-meta').textContent = ''; $('c-badges').innerHTML = '';
@@ -304,4 +320,5 @@
   var saved = storage(true);
   if (saved) { state.key = saved; api('/v1/developer/usage').then(function () { setKey(saved); }).catch(function () {}); }
   var h = (location.hash || '').replace('#', ''); if (h === 'console' || h === 'listings') state.view = h;
+  if (!saved) { $('explore').hidden = false; }
 })();

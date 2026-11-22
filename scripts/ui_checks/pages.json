@@ -43,6 +43,10 @@
         { "label": "upgrade note links to /#pricing", "js": "(function(e){return !!e && !e.hidden && !!e.querySelector('a[href=\"/#pricing\"]')})(document.getElementById('tw-upgrade'))" }
       ] },
     { "path": "/app/", "themes": ["dark", "light", "ledger", "terminal"] },
+    {"path": "/app/?c=320193", "label": "Explorer overview without a key (showcase)", "themes": ["dark", "light"], "expect": [{"label": "key figures grid with doors", "js": "document.querySelectorAll('#pane-overview .ov-table .door').length >= 10"}, {"label": "events framed as information", "js": "/Information, not signals/.test(document.getElementById('pane-overview').textContent)"}, {"label": "identity strip on overview", "js": "/LEI /.test(document.querySelector('.ws-ident').textContent)"}]},
+    {"path": "/app/?c=320193&tab=chart&m=revenue%2Coperating_margin", "label": "Explorer chart from a deep link", "expect": [{"label": "two series, revenue bars and margin line", "js": "document.querySelectorAll('#pane-chart svg.ws-chart rect.bar').length >= 5 && !!document.querySelector('#pane-chart svg.ws-chart path.line')"}, {"label": "chart tab selected from the URL", "js": "document.querySelector('#ws-tabs [data-tab=chart]').getAttribute('aria-pressed')==='true'"}]},
+    {"path": "/app/?c=320193&tab=statements", "label": "Explorer statements", "expect": [{"label": "statement table with doors", "js": "document.querySelectorAll('#pane-statements .st-table .door').length >= 20"}]},
+    {"path": "/app/?c=320193&tab=timeline&as_of=bogus", "label": "Explorer timeline; a bad as_of falls back with a note", "expect": [{"label": "timeline rows link sec.gov", "js": "document.querySelectorAll('#pane-timeline .tl a[href^=\"https://www.sec.gov/Archives/\"]').length >= 5"}, {"label": "bad as_of noted", "js": "/isn’t a valid past date/.test(document.querySelector('.ws-note').textContent)"}]},
     { "path": "/chat/", "themes": ["dark", "light", "ledger", "terminal"] },
     { "path": "/account/", "allowConsole": ["status of 401"] },
     { "path": "/contact/" },
