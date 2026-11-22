@@ -12,6 +12,10 @@ from app.services import successions
 
 OLD, NEW = "0000320193", "0009999991"
 DAY = date(2026, 7, 1)
+QUOTE = "Apple Inc. completed a holding company reorganization."
+REVIEWS = {(OLD, NEW): {"decision": "store", "match_method": "holding_company_reorganization",
+                        "confidence": "high", "quote": QUOTE,
+                        "quote_url": "https://www.sec.gov/Archives/edgar/data/9999991/x.htm"}}
 
 
 def _filing(cik, acc, form, day, items=None):
@@ -49,14 +53,20 @@ def test_detect_and_store(db, reorganised):
     assert [(p["predecessor_cik"], p["successor_cik"]) for p in pairs] == [(OLD, NEW)]
     p = pairs[0]
     assert p["effective_date"] == DAY and p["evidence_form"] == "8-K12B"
-    assert p["predecessor_form"] == "25-NSE" and p["confidence"] == "high"
-    assert successions.store(db, pairs) == 1 and successions.store(db, pairs) == 0
+    assert p["predecessor_form"] == "25-NSE"
+    # nothing is stored before a review; a rejection is counted, never stored
+    assert successions.store(db, pairs, {})["not_reviewed"] == [[OLD, NEW]]
+    assert successions.predecessors(db, NEW) == []
+    rejected = {(OLD, NEW): {**REVIEWS[(OLD, NEW)], "decision": "reject"}}
+    assert successions.store(db, pairs, rejected)["rejected"] == 1
+    assert successions.store(db, pairs, REVIEWS)["stored_new"] == 1
+    assert successions.store(db, pairs, REVIEWS)["updated"] == 1
     assert [r.predecessor_cik for r in successions.predecessors(db, NEW)] == [OLD]
     assert successions.successor(db, OLD).successor_cik == NEW
 
 
 def test_successor_overview_continues_the_history(db, reorganised):
-    successions.store(db, successions.detect(db))
+    successions.store(db, successions.detect(db), REVIEWS)
     from app.services import company_overview
 
     o = company_overview.build(db, NEW)
@@ -64,6 +74,7 @@ def test_successor_overview_continues_the_history(db, reorganised):
     pred = o["company"]["predecessors"]
     assert pred[0]["cik"] == OLD and pred[0]["evidence"]["form_type"] == "8-K12B"
     assert pred[0]["evidence"]["source_url"].endswith("0009999991-26-000001-index.html")
+    assert pred[0]["quote"] == QUOTE and pred[0]["confidence"] == "high"
     income = next(s for s in o["statements"]["sections"] if s["key"] == "income")
     cells = [c for row in income["rows"] for c in row["cells"] if c]
     assert cells and all(c["registrant_cik"] == OLD and c["predecessor"] for c in cells)
@@ -73,3 +84,14 @@ def test_successor_overview_continues_the_history(db, reorganised):
     assert old["company"]["successor"]["cik"] == NEW
     own = next(s for s in old["statements"]["sections"] if s["key"] == "income")
     assert all(not c["predecessor"] for row in own["rows"] for c in row["cells"] if c)
+
+
+def test_the_reviewed_file_is_complete_and_quotes_every_stored_pair():
+    rows = successions.reviewed()
+    stored = [r for r in rows.values() if r["decision"] == "store"]
+    assert len(rows) == 23 and len(stored) == 12
+    assert all(r["quote"] and r["quote_url"].startswith("https://www.sec.gov/Archives/")
+               for r in stored)  # fmt: skip
+    assert rows[("0000034088", "0002115436")]["confidence"] == "high"  # ExxonMobil
+    assert rows[("0000884905", "0001707925")]["match_method"] == "accounting_predecessor"  # Linde
+    assert rows[("0000701374", "0001999001")]["decision"] == "reject"  # Six Flags: Cedar Fair

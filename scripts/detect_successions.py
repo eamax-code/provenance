@@ -39,8 +39,8 @@ def main() -> int:
     for p in sorted(pairs, key=rev, reverse=True):
         print(json.dumps({**p, "effective_date": p["effective_date"].isoformat(),
                           "latest_revenue": rev(p) or None}))  # fmt: skip
-    stored = 0 if args.dry_run else successions.store(db, pairs)
-    print(json.dumps({"pairs": len(pairs), "stored_new": stored}))
+    result = {} if args.dry_run else successions.store(db, pairs)
+    print(json.dumps({"pairs": len(pairs), **result}))
     db.close()
     return 0
 

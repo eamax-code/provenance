@@ -9,6 +9,12 @@ Detection, from filings already indexed:
 - the two names are the same once legal-form words are removed (Corp, Inc, Holdings, Group,
   New, Old, ...), and exactly one company qualifies.
 
+A detected pair is stored only once reviewed (app/data/successions_reviewed.csv): a holding
+company reorganisation or redomicile the successor's report describes (high), or a merger whose
+report names the predecessor as the accounting acquirer (accounting_predecessor, medium), each
+with the sentence quoted. A merger whose accounting acquirer was another company is rejected:
+its history is not the predecessor's. A doubtful link is worse than none.
+
 Facts stay under the CIK that filed them; readers join the predecessor's rows at query time,
 labelled with their own registrant CIK and filing. Point in time stays honest: before D, the
 predecessor's rows were the ones filed.
@@ -16,8 +22,10 @@ predecessor's rows were the ones filed.
 
 from __future__ import annotations
 
+import csv
 import re
 from datetime import date, timedelta
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,7 +37,19 @@ SUCCESSOR_FORMS = ("8-K12B", "8-K12G3", "8-K12B/A", "8-K12G3/A")
 EXIT_FORMS = ("25-NSE", "25", "15-12B", "15-12G", "15-15D")
 EXIT_ITEMS = ("3.01", "3.03", "2.01")
 STORED = ("effective_date", "evidence_accession", "evidence_form", "predecessor_accession",
-          "predecessor_form", "match_method", "confidence")  # fmt: skip
+          "predecessor_form")  # fmt: skip
+REVIEWED = Path(__file__).resolve().parents[1] / "data" / "successions_reviewed.csv"
+
+
+def reviewed(path: Path = REVIEWED) -> dict[tuple[str, str], dict]:
+    """(predecessor_cik, successor_cik) -> the review: decision, match_method, confidence,
+    quote and quote_url (for a rejection, the reason in quote)."""
+    if not path.exists():
+        return {}
+    with open(path, newline="", encoding="utf-8") as fh:
+        return {(r["predecessor_cik"], r["successor_cik"]): r for r in csv.DictReader(fh)}
+
+
 BEFORE, AFTER = timedelta(days=3), timedelta(days=30)
 _FORM_WORDS = {
     "CORP", "CORPORATION", "INC", "INCORPORATED", "CO", "COMPANY", "LTD", "LIMITED", "PLC", "LLC",
@@ -98,20 +118,33 @@ def detect(db: Session, since: date | None = None) -> list[dict]:
     return found
 
 
-def store(db: Session, pairs: list[dict]) -> int:
-    n = 0
+def store(db: Session, pairs: list[dict], reviews: dict | None = None) -> dict:
+    """Store the reviewed pairs ("store"); report the rejected and the not yet reviewed."""
+    reviews = reviewed() if reviews is None else reviews
+    out = {"stored_new": 0, "updated": 0, "rejected": 0, "not_reviewed": []}
     for p in pairs:
+        r = reviews.get((p["predecessor_cik"], p["successor_cik"]))
+        if r is None:
+            out["not_reviewed"].append([p["predecessor_cik"], p["successor_cik"]])
+            continue
+        if r["decision"] != "store":
+            out["rejected"] += 1
+            continue
         row = db.get(RegistrantSuccession, (p["predecessor_cik"], p["successor_cik"]))
         if row is None:
             row = RegistrantSuccession(predecessor_cik=p["predecessor_cik"],
                                        successor_cik=p["successor_cik"])  # fmt: skip
             db.add(row)
-            n += 1
+            out["stored_new"] += 1
+        else:
+            out["updated"] += 1
         for k in STORED:
             setattr(row, k, p[k])
+        row.match_method, row.confidence = r["match_method"], r["confidence"]
+        row.quote, row.quote_url = r["quote"] or None, r["quote_url"] or None
         row.updated_at = utcnow()
     db.commit()
-    return n
+    return out
 
 
 def predecessors(db: Session, cik: str, as_of: date | None = None) -> list[RegistrantSuccession]:
@@ -149,4 +182,6 @@ def as_dict(db: Session, r: RegistrantSuccession, side: str) -> dict:
         },
         "match_method": r.match_method,
         "confidence": r.confidence,
+        "quote": r.quote,
+        "quote_url": r.quote_url,
     }

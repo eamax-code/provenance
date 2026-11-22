@@ -455,7 +455,13 @@ A company continuing under a new registrant (a new holding company, a redomicile
 `evidence_accession` and `evidence_form`, the predecessor's exit filing (`predecessor_accession`,
 `predecessor_form`: Form 25 or 15, or 8-K item 3.01, 3.03 or 2.01 from 3 days before to 30
 after), `match_method` (`successor_filing_name`: the names agree once legal-form words are
-removed and exactly one company qualifies) and `confidence`. Facts stay under the CIK that filed
+removed and exactly one company qualifies) and `confidence`. A detected pair is stored only once
+reviewed in `app/data/successions_reviewed.csv`, with the sentence that shows it (`quote`,
+`quote_url`): `holding_company_reorganization` (high) when the successor's report describes a
+holding company reorganisation or redomicile, `accounting_predecessor` (medium) when a merger's
+report names the predecessor as the accounting acquirer; a merger whose accounting acquirer was
+another company is rejected (Six Flags 2024: Cedar Fair; Baker Hughes 2017: GE Oil & Gas). Of
+23 pairs found in ten years, 12 are stored. Facts stay under the CIK that filed
 them. The overview joins the predecessors' annual figures at query time: every statement cell and
 year carries `registrant_cik` and `predecessor` (with `registrant_label`, "Reported by predecessor
 registrant (CIK 34088)", on a predecessor's rows); the company's own filing wins for a fiscal year

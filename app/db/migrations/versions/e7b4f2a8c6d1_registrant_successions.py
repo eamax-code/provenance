@@ -27,6 +27,8 @@ def upgrade() -> None:
         sa.Column("predecessor_form", sa.Text(), nullable=True),
         sa.Column("match_method", sa.Text(), nullable=False),
         sa.Column("confidence", sa.Text(), nullable=False),
+        sa.Column("quote", sa.Text(), nullable=True),
+        sa.Column("quote_url", sa.Text(), nullable=True),
         sa.Column("updated_at", UTCDateTime(), nullable=False),
     )
     op.create_index(

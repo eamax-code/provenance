@@ -374,6 +374,8 @@ class RegistrantSuccession(Base):
     predecessor_form: Mapped[str | None] = mapped_column(Text, nullable=True)
     match_method: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[str] = mapped_column(Text, nullable=False)
+    quote: Mapped[str | None] = mapped_column(Text, nullable=True)  # the reviewed sentence
+    quote_url: Mapped[str | None] = mapped_column(Text, nullable=True)  # the document it is in
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
