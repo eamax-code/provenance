@@ -38,7 +38,7 @@ def normalize(name: str | None) -> str:
 _VARIANTS = (
     (r"\bincorporated\b", "inc"), (r"\bcorporation\b", "corp"), (r"\bcompany\b", "co"),
     (r"\blimited\b", "ltd"), (r"\bn v\b", "nv"), (r"\bs a\b", "sa"), (r"\bs p a\b", "spa"),
-    (r"\baktiengesellschaft\b", "ag"), (r"\bpublic limited co\b", "plc"),
+    (r"\baktiengesellschaft\b", "ag"), (r"\bpublic ltd co\b", "plc"),
     (r"\bp l c\b", "plc"), (r"\bl l c\b", "llc"), (r"\bl p\b", "lp"),
 )  # fmt: skip
 US_STATES = set(
@@ -51,6 +51,7 @@ def strict_key(name: str | None) -> str:
     """The full legal name, legal form included, with spelling variants unified: "Unilever N.V."
     and "Unilever PLC" stay different; "Banco Santander, S.A." and "BANCO SANTANDER SA" agree."""
     text = re.sub(r"&", " and ", (name or "").lower())
+    text = re.sub(r"['’`]", "", text)  # "Lowe's" and "LOWES" agree
     text = re.sub(r"[^a-z0-9 ]+", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     for pattern, short in _VARIANTS:
@@ -81,8 +82,32 @@ def _jurisdiction_matches(issuer: Issuer, company: Company) -> bool:
     return bool(j and state) and (j == state or j.endswith("-" + state))
 
 
+OVERRIDES_FILE = (
+    __import__("pathlib").Path(__file__).resolve().parents[1] / "data" / "lei_overrides.csv"
+)
+
+
+def load_overrides(db: Session, path=OVERRIDES_FILE) -> int:
+    """Hand-checked links kept in the repo (app/data/lei_overrides.csv), so a rebuilt database
+    keeps them. An empty lei means no link: confirmed none, or needs review (said in the note)."""
+    import csv
+
+    if not path.exists():
+        return 0
+    n = 0
+    with open(path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            o = db.get(LeiOverride, row["cik"]) or LeiOverride(cik=row["cik"])
+            o.lei, o.note = row["lei"] or None, row["note"]
+            db.add(o)
+            n += 1
+    db.commit()
+    return n
+
+
 def match_all(db: Session) -> dict:
     """Rebuild company_lei from the overrides, SEC LEIs and GLEIF names. Returns counts."""
+    load_overrides(db)
     now = utcnow()
     overrides = {o.cik: o for o in db.scalars(select(LeiOverride))}
     issuers = list(db.scalars(select(Issuer).where(Issuer.lei.is_not(None))))
