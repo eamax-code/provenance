@@ -65,6 +65,21 @@ def test_display_names_k06():
     assert display_name("APPLE INC", "AAPL", "Apple Inc.") == "Apple Inc."
     # an all-caps cover name says nothing about casing: the conformed name is used
     assert display_name("MICROSOFT CORP", "MSFT", "MICROSOFT CORPORATION") == "Microsoft Corp"
+    # "/S" of a legal form is not a state suffix; words glued by the data sets get their space
+    assert display_name("NOVO NORDISK A S", "NVO", "Novo Nordisk A/S") == "Novo Nordisk A/S"
+    assert display_name("BANCO BRADESCO S/A") == "Banco Bradesco S/A"
+    assert display_name("NIO Inc.", "NIO", "NIOInc.") == "NIO Inc."
+    assert display_name("PDD Holdings Inc.", "PDD", "PDD HoldingsInc.") == "PDD Holdings Inc."
+    assert display_name("X", None, "Stephenson Fournier, PLLC") == "Stephenson Fournier, PLLC"
+    assert display_name("QUALCOMM INC/DE") == "Qualcomm Inc"  # a state suffix still goes
+
+
+def test_a_registrant_name_glued_by_the_data_sets_is_stored_with_its_space(db, ingested_aapl):
+    rows = [{**_row("AAPL", date(2025, 11, 1)), "registrant": "AppleInc."}]
+    assert ticker_history.apply_registrant_names(db, rows) == 1
+    from app.db.models import Company
+
+    assert db.query(Company).filter(Company.cik == CIK).one().registrant_name == "Apple Inc."
 
 
 def test_registrant_names_are_stored_as_filed(db, ingested_aapl):

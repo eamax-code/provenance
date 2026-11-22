@@ -112,13 +112,16 @@ def dated(rows: list[dict], cik: str) -> list[tuple[str, date, date]]:
 
 def apply_registrant_names(db: Session, rows: list[dict]) -> int:
     """K-06: each company's name as written on the cover of its latest report
-    (dei:EntityRegistrantName), stored exactly as filed."""
+    (dei:EntityRegistrantName), stored as filed; only the space the SEC's data sets lose between
+    HTML tags before a legal form is put back ("NIOInc." is "NIO Inc." on the cover)."""
+    from app.services.cover_names import unglue
+
     latest: dict[str, tuple] = {}
     for r in rows:
         if r.get("registrant") and r.get("filed_date"):
             cur = latest.get(r["cik"])
             if cur is None or r["filed_date"] > cur[0]:
-                latest[r["cik"]] = (r["filed_date"], r["registrant"], r["accession_number"])
+                latest[r["cik"]] = (r["filed_date"], unglue(r["registrant"]), r["accession_number"])
     n = 0
     for c in db.scalars(select(Company).where(Company.cik.in_(list(latest)))):
         _, name, accession = latest[c.cik]
