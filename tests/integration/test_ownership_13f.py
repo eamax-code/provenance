@@ -298,3 +298,61 @@ def test_13f_issuer_name_rule_maps_unique_exact_names_only(db, ingested_aapl):
     assert stored == {("0000019617", "46625H100"), ("0001067983", "084670702"),
                       ("0001067983", "084670108")}  # fmt: skip
     assert db.get(IssuerCusip, "46625H100").method == "13f_issuer_name"
+
+
+SUBMISSION = """<SEC-DOCUMENT>
+<DOCUMENT>
+<TYPE>13F-HR
+<TEXT>
+<XML>
+<edgarSubmission xmlns="http://www.sec.gov/edgar/thirteenffiler">
+ <formData><coverPage><reportCalendarOrQuarter>09-30-2026</reportCalendarOrQuarter>
+  <filingManager><name>Alpha Capital</name></filingManager>
+  <reportType>13F HOLDINGS REPORT</reportType></coverPage>
+  <summaryPage><tableEntryTotal>3</tableEntryTotal><tableValueTotal>50000</tableValueTotal>
+  </summaryPage></formData>
+ <headerData><filerInfo><periodOfReport>09-30-2026</periodOfReport></filerInfo></headerData>
+</edgarSubmission>
+</XML>
+</TEXT>
+</DOCUMENT>
+<DOCUMENT>
+<TYPE>INFORMATION TABLE
+<TEXT>
+<XML>
+<informationTable xmlns="http://www.sec.gov/edgar/document/thirteenf/informationtable">
+ <infoTable><nameOfIssuer>APPLE INC</nameOfIssuer><titleOfClass>COM</titleOfClass>
+  <cusip>037833100</cusip><value>40000</value>
+  <shrsOrPrnAmt><sshPrnamt>200</sshPrnamt><sshPrnamtType>SH</sshPrnamtType></shrsOrPrnAmt>
+ </infoTable>
+ <infoTable><nameOfIssuer>APPLE INC</nameOfIssuer><titleOfClass>COM</titleOfClass>
+  <cusip>037833100</cusip><value>9000</value><putCall>Put</putCall>
+  <shrsOrPrnAmt><sshPrnamt>50</sshPrnamt><sshPrnamtType>SH</sshPrnamtType></shrsOrPrnAmt>
+ </infoTable>
+ <infoTable><nameOfIssuer>APPLE INC</nameOfIssuer><titleOfClass>COM</titleOfClass>
+  <cusip>037833100</cusip><value>10000</value>
+  <shrsOrPrnAmt><sshPrnamt>50</sshPrnamt><sshPrnamtType>SH</sshPrnamtType></shrsOrPrnAmt>
+ </infoTable>
+</informationTable>
+</XML>
+</TEXT>
+</DOCUMENT>
+</SEC-DOCUMENT>"""
+
+
+def test_edgar_13f_submission_is_read_like_the_data_sets():
+    from app.services import thirteenf_edgar
+
+    idx = ("Form Type   Company Name   CIK   Date Filed  File Name\n"
+           "13F-HR           ALPHA CAPITAL                       1001        2026-11-10  "
+           "edgar/data/1001/0000001001-26-000099.txt\n"
+           "13F-HR           OLDER                               1002        2026-08-20  "
+           "edgar/data/1002/0000001002-26-000001.txt\n"
+           "10-K             SOMEONE                             1003        2026-11-10  "
+           "edgar/data/1003/0000001003-26-000001.txt\n")  # fmt: skip
+    items = thirteenf_edgar.list_filings(idx, after=date(2026, 8, 31))
+    assert [i["accession"] for i in items] == ["0000001001-26-000099"]  # after the data sets
+    filing, rows = thirteenf_edgar.parse_submission(SUBMISSION, items[0])
+    assert filing["report_period"] == date(2026, 9, 30) and filing["filer_name"] == "Alpha Capital"
+    assert filing["entry_total"] == 3 and filing["source"] == "sec:13f-edgar"
+    assert len(rows) == 1 and rows[0]["shares"] == 250 and rows[0]["value_usd"] == 50000  # no put
