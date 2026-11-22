@@ -371,3 +371,12 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 700; border-top: 2px
 .ws-chart .stk { stroke: var(--panel); stroke-width: 1; } .ws-chart .lg { fill: var(--fg); }
 .ins-table th[scope="row"] { white-space: normal; font-weight: 500; }
 @media (max-width: 760px) { .own-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); } .own-table .opt { display: none; } }
+
+/* compare */
+.cmp-table th.cmp-h { white-space: nowrap; } .cmp-table th.cmp-h a { font-weight: 700; margin-right: 6px; } .cmp-table th.cmp-h .x { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; }
+.cmp-table td .small { font-size: .74rem; }
+.cmp-banner { border-left: 3px solid var(--warn); padding: 6px 10px; background: var(--bg-2); color: var(--fg); margin-bottom: 10px; }
+.cmp-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; } .cmp-charts .ws-sec { margin: 0; }
+.ws-chart .line.c0 { stroke: var(--accent-hi); } .ws-chart .line.c1 { stroke: var(--fg); } .ws-chart .line.c2 { stroke: var(--good); } .ws-chart .line.c3 { stroke: var(--warn); } .ws-chart .line.c4 { stroke: color-mix(in srgb, var(--muted) 90%, transparent); stroke-dasharray: 4 3; }
+.ws-chart .lg.c0 { fill: var(--accent-hi); } .ws-chart .lg.c2 { fill: var(--good); } .ws-chart .lg.c3 { fill: var(--warn); }
+@media (max-width: 760px) { .cmp-charts { grid-template-columns: minmax(0, 1fr); } .cmp-table td .small { display: none; } .cmp-table tbody th { white-space: normal; min-width: 7.5em; } }

@@ -36,9 +36,9 @@
   }
 
   var X = window.ProvenanceExplorer;
-  var TABS = ['overview', 'statements', 'chart', 'timeline', 'ownership', 'segments', 'filings', 'connections', 'freshness', 'facts'];
+  var TABS = ['overview', 'statements', 'chart', 'timeline', 'ownership', 'segments', 'compare', 'filings', 'connections', 'freshness', 'facts'];
   var KEYED = { filings: 1, connections: 1, freshness: 1, facts: 1 };
-  var S = { cik: null, d: null, tab: 'overview', m: ['revenue', 'operating_margin'], p: 'annual', scale: 'linear', mk: ['8k', 'officer', 'auditor'], st: 'income', show: 'values', as_of: null, asofNote: '' };
+  var S = { cmp: [], cik: null, d: null, tab: 'overview', m: ['revenue', 'operating_margin'], p: 'annual', scale: 'linear', mk: ['8k', 'officer', 'auditor'], st: 'income', show: 'values', as_of: null, asofNote: '' };
 
   /* ---- one state, one URL (X-10). Every parameter is validated; a key never goes in a URL. ---- */
   var METRIC = /^[a-z_]{2,40}$/;
@@ -50,6 +50,7 @@
     o.p = q.get('p') === 'quarterly' ? 'quarterly' : 'annual';
     o.scale = q.get('scale') === 'log' ? 'log' : 'linear';
     var mk = q.get('mk'); o.mk = mk == null ? ['8k', 'officer', 'auditor'] : mk.split(',').filter(function (x) { return ['8k', 'officer', 'auditor'].indexOf(x) > -1; });
+    o.cmp = (q.get('cmp') || '').split(',').filter(function (x) { return /^\d{1,10}$/.test(x); }).map(function (x) { return String(parseInt(x, 10)); }).filter(function (x, i, a) { return x !== o.cik && a.indexOf(x) === i; }).slice(0, 4);
     o.st = ['income', 'balance', 'cash_flow', 'ratios'].indexOf(q.get('st')) > -1 ? q.get('st') : 'income';
     o.show = ['values', 'yoy', 'common'].indexOf(q.get('show')) > -1 ? q.get('show') : 'values';
     var a = q.get('as_of'); o.as_of = null; o.asofNote = '';
@@ -61,6 +62,7 @@
     if (S.cik) q.set('c', S.cik);
     if (S.tab !== 'overview') q.set('tab', S.tab);
     if (S.tab === 'chart') { q.set('m', S.m.join(',')); if (S.scale === 'log') q.set('scale', 'log'); if (S.mk.join(',') !== '8k,officer,auditor') q.set('mk', S.mk.join(',')); }
+    if (S.tab === 'compare' && S.cmp.length) q.set('cmp', S.cmp.join(','));
     if (S.tab === 'statements') { if (S.st !== 'income') q.set('st', S.st); if (S.show !== 'values') q.set('show', S.show); }
     if ((S.tab === 'chart' || S.tab === 'statements') && S.p === 'quarterly') q.set('p', 'quarterly');
     if (S.as_of) q.set('as_of', S.as_of);
@@ -185,7 +187,7 @@
     if (!S.d) return;
     showPanes(S.tab);
     if (KEYED[S.tab] && !X.hasKey()) { var p = $('pane-' + S.tab); keyNeeded(p); return; }
-    if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab();
+    if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
   }
   function keyNeeded(p) {
     if (!p) return; var n = p.querySelector('.ws-keyneeded');
@@ -549,6 +551,77 @@
     host.appendChild(svg);
   }
 
+  /* ---- X-06 compare: up to five companies, each in its own currency; growth indexed, never summed ---- */
+  var cmpCache = {};
+  function overviewOf(cik) {
+    var key = cik + '|' + (S.as_of || '') + '|' + (X.hasKey() ? 'k' : 'p');
+    if (cmpCache[key]) return cmpCache[key];
+    var qs = S.as_of ? '?as_of=' + S.as_of : '';
+    cmpCache[key] = X.raw((X.hasKey() ? '/v1/companies/' : '/v1/public/companies/') + cik + '/overview' + qs).then(function (r) { return r.ok ? r.body : (X.hasKey() ? X.raw('/v1/public/companies/' + cik + '/overview' + qs).then(function (r2) { return r2.ok ? r2.body : null; }) : null); });
+    return cmpCache[key];
+  }
+  var CMP = [['revenue', 'Revenue', 'v'], ['revenue', 'Revenue growth, latest year', 'yoy'], ['revenue', 'Revenue CAGR', 'cagr'], ['operating_income', 'Operating income', 'v'], ['operating_margin', 'Operating margin', 'r'], ['net_income', 'Net income', 'v'], ['net_margin', 'Net margin', 'r'], ['free_cash_flow', 'Free cash flow', 'v'], ['total_assets', 'Total assets', 'v'], ['return_on_equity', 'Return on equity', 'r']];
+  function compareTab() {
+    var pane = $('pane-compare'), ciks = [S.cik].concat(S.cmp), my = ++seq2;
+    var add = el('button', { type: 'button', class: 'btn small', text: ciks.length < 5 ? '+ Add a company' : 'Five companies at most', on: { click: function () { palette('compare'); } } }); if (ciks.length >= 5) add.disabled = true;
+    pane.replaceChildren(el('div', { class: 'ch-bar' }, [el('span', { class: 'muted small', text: 'Up to five companies, each in the currency it reports in.' }), el('span', { class: 'ch-acts' }, [add, el('button', { type: 'button', class: 'btn small', text: 'Copy link', on: { click: function (e) { try { navigator.clipboard.writeText(location.href); e.target.textContent = 'Copied'; } catch (x) {} } } })])]), el('p', { class: 'muted', text: 'Loading…' }));
+    Promise.all(ciks.map(overviewOf)).then(function (list) {
+      if (my !== seq2 || S.tab !== 'compare') return;
+      var cos = list.map(function (d, i) { return { cik: ciks[i], d: d }; });
+      var curs = cos.filter(function (c) { return c.d; }).map(function (c) { return c.d.company.reporting_currency || 'USD'; }), mixed = curs.some(function (c) { return c !== curs[0]; });
+      var head = el('tr', {}, [el('th', { scope: 'col', text: '' })].concat(cos.map(function (c, i) {
+        var nm = c.d ? (c.d.company.display_name || c.d.company.legal_name) : 'CIK ' + c.cik + ' (not available' + (X.hasKey() ? ')' : ' without a key)');
+        return el('th', { scope: 'col', class: 'n cmp-h' }, [el('a', { href: '/app/?c=' + c.cik, text: c.d && c.d.company.ticker || nm, title: nm }), c.d ? el('span', { class: 'chip', text: c.d.company.reporting_currency || 'USD' }) : null,
+          i ? el('button', { type: 'button', class: 'x', 'aria-label': 'Remove ' + nm, text: '×', on: { click: function () { S.cmp = S.cmp.filter(function (x) { return x !== c.cik; }); go('compare'); } } }) : null]);
+      })));
+      var body = CMP.map(function (row) {
+        return el('tr', {}, [el('th', { scope: 'row', text: row[1] })].concat(cos.map(function (c) {
+          if (!c.d) return el('td', { class: 'n muted', text: '—' });
+          var saved = S.d; S.d = c.d; var sr = series(row[0]); S.d = saved;
+          var cur = c.d.company.reporting_currency || 'USD';
+          if (!sr || !sr.pts.length) return el('td', { class: 'n muted', title: 'not reported', text: '—' });
+          var a = sr.pts[sr.pts.length - 1], b = sr.pts[sr.pts.length - 2], f = sr.pts[0], n = sr.pts.length - 1;
+          if (row[2] === 'yoy') return el('td', { class: 'n ' + tone('revenue', b ? growth(a.v, b.v) : null), text: pct(b ? growth(a.v, b.v) : null, true) });
+          if (row[2] === 'cagr') return el('td', { class: 'n muted', text: n > 0 && f.v > 0 && a.v > 0 ? pct(100 * (Math.pow(a.v / f.v, 1 / n) - 1), true) + ' (' + n + 'y)' : '—' });
+          return el('td', { class: 'n' }, [door(fmtv(a.v, sr.unit, cur), a.info), el('span', { class: 'muted small', text: ' ' + a.x })]);
+        })));
+      });
+      var table = el('div', { class: 'tw' }, [el('table', { class: 'ov-table cmp-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
+      var g = el('div', { class: 'chart-host' }), m = el('div', { class: 'chart-host' });
+      pane.replaceChildren(pane.firstChild,
+        mixed ? el('p', { class: 'ws-note cmp-banner', role: 'note', text: 'These companies report in different currencies (' + curs.filter(function (c, i, a) { return a.indexOf(c) === i; }).join(', ') + '). Each figure is in its company’s own currency; only growth and margins are compared, and nothing is summed or converted.' }) : null,
+        table, el('div', { class: 'cmp-charts' }, [el('section', { class: 'ws-sec' }, [el('h3', { text: 'Revenue, indexed to 100 at the first year shown' }), g]), el('section', { class: 'ws-sec' }, [el('h3', { text: 'Operating margin' }), m])]),
+        el('p', { class: 'muted small', text: 'Fiscal years as each company defines them, aligned by fiscal-year number. Click any figure for its filing.' }));
+      multiLine(g, cos, 'revenue', true); multiLine(m, cos, 'operating_margin', false);
+    });
+  }
+  var seq2 = 0;
+  function multiLine(host, cos, metric, indexed) {
+    var lines = cos.filter(function (c) { return c.d; }).map(function (c, i) {
+      var saved = S.d; S.d = c.d; var sr = series(metric); S.d = saved; if (!sr || !sr.pts.length) return null;
+      var pts = sr.pts.map(function (p) { return { fy: parseInt(String(p.x).replace(/\D/g, ''), 10), v: p.v }; }).filter(function (p) { return isFinite(p.fy); });
+      if (indexed) { var b = pts.filter(function (p) { return p.v > 0; })[0]; if (!b) return null; pts = pts.filter(function (p) { return p.fy >= b.fy; }).map(function (p) { return { fy: p.fy, v: 100 * p.v / b.v }; }); }
+      return { label: c.d.company.ticker || c.d.company.display_name, pts: pts, k: i };
+    }).filter(Boolean);
+    host.textContent = ''; if (!lines.length) { host.appendChild(el('p', { class: 'muted', text: 'Nothing to chart.' })); return; }
+    var fys = []; lines.forEach(function (l) { l.pts.forEach(function (p) { if (fys.indexOf(p.fy) < 0) fys.push(p.fy); }); }); fys.sort();
+    var vals = []; lines.forEach(function (l) { l.pts.forEach(function (p) { vals.push(p.v); }); });
+    var lo = Math.min(indexed ? 100 : 0, Math.min.apply(null, vals)), hi = Math.max.apply(null, vals); if (hi === lo) hi = lo + 1;
+    var W = Math.max(300, host.clientWidth || 600), H = 220, padL = 44, padR = 60, padT = 10, padB = 22;
+    var x = function (fy) { return padL + (fys.length < 2 ? 0 : (fys.indexOf(fy)) * (W - padL - padR) / (fys.length - 1)); }, y = function (v) { return padT + (H - padT - padB) * (hi - v) / (hi - lo); };
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, class: 'ws-chart', role: 'img', 'aria-label': (indexed ? 'Revenue indexed to 100' : 'Operating margin') + ': ' + lines.map(function (l) { var e = l.pts[l.pts.length - 1]; return l.label + ' ' + (indexed ? Math.round(e.v) : pct(e.v)) + ' in FY' + e.fy; }).join('; ') });
+    [lo, (lo + hi) / 2, hi].forEach(function (v) { svg.appendChild(sv('line', { x1: padL, x2: W - padR, y1: y(v), y2: y(v), class: 'grid' })); svg.appendChild(sv('text', { x: padL - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'axis' }, indexed ? String(Math.round(v)) : pct(v))); });
+    fys.forEach(function (fy, i) { if (i % Math.ceil(fys.length / 6) === 0 || i === fys.length - 1) svg.appendChild(sv('text', { x: x(fy), y: H - 6, 'text-anchor': 'middle', class: 'axis' }, "'" + String(fy).slice(2))); });
+    var ends = [];
+    lines.forEach(function (l) {
+      svg.appendChild(sv('path', { d: l.pts.map(function (p, j) { return (j ? 'L' : 'M') + x(p.fy).toFixed(1) + ' ' + y(p.v).toFixed(1); }).join(' '), class: 'line c' + l.k }));
+      var e = l.pts[l.pts.length - 1]; ends.push({ l: l, x: x(e.fy) + 6, y: y(e.v) + 4 });
+    });
+    // end labels never overlap: keep at least 12px between them, in order down the chart
+    ends.sort(function (a, b) { return a.y - b.y; }).forEach(function (e, i, a) { if (i && e.y - a[i - 1].y < 12) e.y = a[i - 1].y + 12; svg.appendChild(sv('text', { x: e.x, y: e.y, class: 'axis lg c' + e.l.k }, e.l.label)); });
+    host.appendChild(svg);
+  }
+
   /* ---- empty state: the showcase companies, opened in the workspace ---- */
   function showEmpty() {
     $('company').hidden = true; $('ws-empty').hidden = false; S.d = null;
@@ -557,7 +630,9 @@
 
   /* ---- ⌘K palette (X-10): companies, tabs, metrics, as-of ---- */
   var pal = null;
-  function palette() {
+  var palMode = null;
+  function palette(mode) {
+    palMode = mode === 'compare' ? 'compare' : null;
     if (pal) { pal.querySelector('input').focus(); return; }
     var input = el('input', { type: 'search', 'aria-label': 'Jump to a company, tab, metric or date', placeholder: 'Company, ticker or CIK · a tab · a metric · "as of 2024-06-30"', autocomplete: 'off', role: 'combobox', 'aria-expanded': 'true', 'aria-controls': 'pal-list' });
     var list = el('ul', { id: 'pal-list', role: 'listbox' }), items = [], sel = 0, timer;
@@ -584,7 +659,7 @@
         var path = (X.hasKey() ? '/v1/companies/search?limit=8&q=' : '/v1/public/companies/search?q=') + encodeURIComponent(q.trim());
         X.raw(path).then(function (r) {
           if (!r.ok || input.value !== q) return;
-          var cos = (r.body.data || []).filter(function (c) { return X.hasKey() || c.is_public_page !== false; }).slice(0, 8).map(function (c) { return { label: c.display_name || c.legal_name || 'CIK ' + c.cik, hint: [c.ticker, c.exchange, 'CIK ' + parseInt(c.cik, 10)].filter(Boolean).join(' · ') + (c.matched_former_name ? ' · formerly ' + c.matched_former_name : ''), fn: function () { apply(Object.assign({}, S, { cik: String(parseInt(c.cik, 10)), tab: 'overview', as_of: S.as_of }), true); } }; });
+          var cos = (r.body.data || []).filter(function (c) { return X.hasKey() || c.is_public_page !== false; }).slice(0, 8).map(function (c) { return { label: c.display_name || c.legal_name || 'CIK ' + c.cik, hint: [c.ticker, c.exchange, 'CIK ' + parseInt(c.cik, 10)].filter(Boolean).join(' · ') + (c.matched_former_name ? ' · formerly ' + c.matched_former_name : ''), fn: function () { var ck = String(parseInt(c.cik, 10)); if (palMode === 'compare') { if (ck !== S.cik && S.cmp.indexOf(ck) < 0 && S.cmp.length < 4) S.cmp.push(ck); go('compare'); return; } apply(Object.assign({}, S, { cik: ck, tab: 'overview', as_of: S.as_of }), true); } }; });
           if (!X.hasKey() && !cos.length && /\S/.test(q)) cos.push({ label: 'Connect a key to search every company', hint: 'without a key the Explorer opens the showcase', fn: function () { var k = $('key-input'); if (k) k.focus(); } });
           items = cos.concat(local(q)); sel = 0; render();
         });
