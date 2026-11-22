@@ -30,6 +30,9 @@
       mbox.appendChild(b);
     });
     var M = K.metrics[segMetric] || {}, periods = K.periods || [];
+    // lines that don't add up to the total (overlapping product lines, Microsoft's product view) have
+    // no meaningful share: shares would sum past 100%, so the column goes and one line says why
+    var unrec = !!(M.status && M.status[periods[0]] === 'unreconciled'), share = segMetric === 'revenue' && !unrec;
     var cell = function (v, extraTitle) {
       if (v == null) return el('td', { class: 'n na', text: 'not reported' });
       return el('td', { class: 'n' }, [srcLink(P.money(v), f.source_url, (SEGM[segMetric] || segMetric) + DOT + 'from the ' + (f.form_type || '10-K') + ' filed ' + P.date(f.filed_date) + (extraTitle ? DOT + extraTitle : ''))]);
@@ -37,13 +40,13 @@
     var head = el('tr', {}, [el('th', { scope: 'col', class: 'fin-name', text: KIND[K.kind] ? KIND[K.kind] + ' segment' : 'Segment' })].concat(periods.map(function (p) {
       var st = M.status && M.status[p];
       return el('th', { scope: 'col', class: 'n' }, ['Year to ' + P.date(p), st === 'unreconciled' ? el('span', { class: 'tag', title: 'The segments do not add up to the consolidated figure within 1%, and the filing tags no reconciling item.', text: 'unreconciled' }) : null]);
-    })).concat(segMetric === 'revenue' ? [el('th', { scope: 'col', class: 'n', text: 'Share of revenue' })] : []));
+    })).concat(share ? [el('th', { scope: 'col', class: 'n', text: 'Share of revenue' })] : []));
     var tb = el('tbody');
     (K.segments || []).forEach(function (sg) {
       var vals = (sg.values || {})[segMetric] || {};
       var nameCell = sg.label_source === 'member_name' ? el('th', { scope: 'row', class: 'fin-name member-name', title: 'Name from the XBRL member, not the company\'s own label', text: sg.label }) : el('th', { scope: 'row', class: 'fin-name', text: sg.label });
       var row = el('tr', {}, [nameCell].concat(periods.map(function (p) { return cell(vals[p]); })));
-      if (segMetric === 'revenue') {
+      if (share) {
         var pct = sg.share_of_revenue_pct;
         row.appendChild(el('td', { class: 'n share' }, pct == null ? ['—'] : [el('span', { class: 'seg-bar', style: 'width:' + Math.max(2, Math.min(100, pct)) * 0.6 + 'px', 'aria-hidden': 'true' }), P.pct(pct)]));
       }
@@ -53,13 +56,13 @@
       var vals = (rc.values || {})[segMetric] || {};
       if (!periods.some(function (p) { return vals[p] != null; })) return;
       var row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: rc.label })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
-      if (segMetric === 'revenue') row.appendChild(el('td'));
+      if (share) row.appendChild(el('td'));
       tb.appendChild(row);
     });
     var tot = el('tr', { class: 'total' }, [el('th', { scope: 'row', class: 'fin-name', text: 'Consolidated' })].concat(periods.map(function (p) { return cell((M.consolidated || {})[p], 'the company as a whole'); })));
-    if (segMetric === 'revenue') tot.appendChild(el('td', { class: 'n', text: '100%' }));
+    if (share) tot.appendChild(el('td', { class: 'n', text: '100%' }));
     tb.appendChild(tot);
-    $('seg-table').replaceChildren(el('table', { class: 'fin seg' }, [el('caption', { class: 'vh', text: (KIND[K.kind] || K.kind) + ' segments, ' + (SEGM[segMetric] || segMetric) }), el('thead', {}, [head]), tb]));
+    $('seg-table').replaceChildren(unrec ? el('p', { class: 'seg-warn', text: 'These lines overlap or leave part of the total out, so they don\u2019t add up to the consolidated figure' + (segMetric === 'revenue' ? '; shares of revenue are not shown.' : '.') }) : '', el('table', { class: 'fin seg' }, [el('caption', { class: 'vh', text: (KIND[K.kind] || K.kind) + ' segments, ' + (SEGM[segMetric] || segMetric) }), el('thead', {}, [head]), tb]));
     $('seg-notes').textContent = (S.notes || []).join(' ');
   }
 
@@ -128,7 +131,7 @@
       var ch = h.change ? el('span', { class: 'tag', text: CHANGE[h.change] || h.change }) : null;
       var chText = h.shares_change_pct != null && h.change !== 'new' && h.change !== 'exited' ? ' ' + P.pct(h.shares_change_pct, true) : '';
       tb.appendChild(el('tr', {}, [
-        el('th', { scope: 'row', text: holderName(h.name) }),
+        el('th', { scope: 'row', text: P.orgName(h.name) }),
         el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd, null, 'USD') }),
         el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
         el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
@@ -160,21 +163,6 @@
       var nm = r.me ? el('b', { text: r.name }) : el('a', { href: '/companies/' + parseInt(r.cik, 10), text: r.name });
       box.appendChild(el('li', { class: (r.me ? 'me' : '') + (r.ranked ? '' : ' unranked') }, [el('span', { class: 'pn' }, [el('span', {}, [nm, r.ticker ? el('span', { class: 'muted', text: ' ' + r.ticker }) : null]), bar]), el('span', { class: 'n', text: P.money(r.v, null, r.cur) + ' ' + (r.label || '') })]));
     });
-  }
-  /* 13F filer names come in capitals ("FMR LLC", "BANK OF AMERICA CORP /DE/"): title case them but keep
-     legal forms and initialisms, drop EDGAR's state suffix; names filed in mixed case stay as filed */
-  var KEEP = { LLC: 1, LP: 1, LLP: 1, PLC: 1, NA: 1, AG: 1, SA: 1, SE: 1, NV: 1, ASA: 1, AB: 1, FMR: 1, UBS: 1, BNY: 1, TIAA: 1, CIBC: 1, RBC: 1, HSBC: 1, ABN: 1, AMRO: 1, BNP: 1, II: 1, III: 1, USA: 1, US: 1 };
-  var LOWER = { OF: 1, AND: 1, THE: 1, FOR: 1, DE: 1 };
-  function holderName(n) {
-    n = String(n || '').replace(/\s*\/[A-Z]{2,3}\/?\s*$/, '').trim();
-    if (n !== n.toUpperCase()) return n;
-    return n.split(/(\s+|[,.&()-])/).map(function (w, i) {
-      if (!/[A-Z]/.test(w)) return w;
-      if (KEEP[w]) return w;
-      if (i && LOWER[w]) return w.toLowerCase();
-      if (w === 'JPMORGAN') return 'JPMorgan';
-      return w.charAt(0) + w.slice(1).toLowerCase();
-    }).join('');
   }
   window.CompanyLower = { segments: segments, people: people, ownership: ownership, peers: peers };
 })();

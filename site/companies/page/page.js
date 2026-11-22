@@ -64,6 +64,21 @@
      left out rather than shown raw */
   var ABROAD = { A0: 'Alberta, Canada', A1: 'British Columbia, Canada', A2: 'Manitoba, Canada', A3: 'New Brunswick, Canada', A4: 'Newfoundland, Canada', A5: 'Nova Scotia, Canada', A6: 'Ontario, Canada', A7: 'Prince Edward Island, Canada', A8: 'Quebec, Canada', A9: 'Saskatchewan, Canada', B0: 'Yukon, Canada', C3: 'Australia', D0: 'Bermuda', D5: 'Brazil', E9: 'Cayman Islands', F4: 'China', F5: 'Taiwan', G7: 'Denmark', I0: 'France', K3: 'Hong Kong', K7: 'India', L2: 'Ireland', L3: 'Israel', L6: 'Italy', M0: 'Japan', M5: 'South Korea', N4: 'Luxembourg', O5: 'Mexico', P7: 'Netherlands', U0: 'Singapore', U3: 'Spain', V7: 'Sweden', V8: 'Switzerland', X0: 'United Kingdom', '2M': 'Germany' };
   P.state = function (code) { return code ? STATES[code] || ABROAD[code] || null : null; };
+  /* Organisation names filed in capitals (13F filers, audit firms) ("FMR LLC", "BANK OF AMERICA CORP /DE/"): title case them but keep
+     legal forms and initialisms, drop EDGAR's state suffix; names filed in mixed case stay as filed */
+  var KEEP = { LLC: 1, LP: 1, LLP: 1, PLC: 1, NA: 1, AG: 1, SA: 1, SE: 1, NV: 1, ASA: 1, AB: 1, FMR: 1, UBS: 1, BNY: 1, TIAA: 1, CIBC: 1, RBC: 1, HSBC: 1, ABN: 1, AMRO: 1, BNP: 1, II: 1, III: 1, USA: 1, US: 1 };
+  var LOWER = { OF: 1, AND: 1, THE: 1, FOR: 1, DE: 1 };
+  P.orgName = function (n) {
+    n = String(n || '').replace(/\s*\/[A-Z]{2,3}\/?\s*$/, '').trim();
+    if (n !== n.toUpperCase()) return n;
+    return n.split(/(\s+|[,.&()-])/).map(function (w, i) {
+      if (!/[A-Z]/.test(w)) return w;
+      if (KEEP[w]) return w;
+      if (i && LOWER[w]) return w.toLowerCase();
+      if (w === 'JPMORGAN') return 'JPMorgan';
+      return w.charAt(0) + w.slice(1).toLowerCase();
+    }).join('');
+  };
   P.LABELS = { revenue: 'Revenue', operating_income: 'Operating income', net_income: 'Net income', total_assets: 'Total assets', operating_cash_flow: 'Operating cash flow' };
   P.link = function (text, url, cls) {
     if (!url || url.indexOf('https://www.sec.gov/') !== 0) return P.el('span', { text: text, class: cls });

@@ -284,9 +284,13 @@
     (c.predecessors || []).forEach(function (p) { kv('Predecessor', [el('a', { href: '/companies/' + parseInt(p.cik, 10), text: P.title(p.name) + ' (CIK ' + p.cik + ')' }), ' until ' + P.date(p.effective_date)]); });
     if (c.successor) kv('Successor', [el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.title(c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' from ' + P.date(c.successor.effective_date)]);
     kv('Tickers', (c.tickers.length ? c.tickers : [c.ticker]).filter(Boolean).map(function (t, i) { return t + (c.exchanges[i] ? ' on ' + c.exchanges[i] : ''); }).join(', '));
+    kv('Formerly traded as', (c.former_tickers || []).map(function (t) { return t.ticker + (t.to ? ' (until ' + P.date(t.to) + ')' : ''); }).join(', '));
     kv('LEI', c.lei || 'Not filed with the SEC');
     (d.listings || []).forEach(function (l) { kv('Also listed', [l.isin, l.venue || l.mic].filter(Boolean).join(' on ')); });
     kv('Industry', c.sic_code ? 'SIC ' + c.sic_code + (c.sic_description ? ', ' + c.sic_description : '') : null);
+    // the current audit firm only, as tagged on its latest annual report; no "since" until the history is backfilled
+    var au = d.auditor && d.auditor.current;
+    if (au) kv('Auditor', [au.latest_report ? srcLink(P.orgName(au.name), au.latest_report.source_url, 'Named on the ' + au.latest_report.form_type + ' filed ' + P.date(au.latest_report.filed_date)) : P.orgName(au.name), (au.location ? ', ' + au.location : '') + (au.pcaob_firm_id ? ' (PCAOB firm ' + au.pcaob_firm_id + ')' : '')]);
     kv('Incorporated', P.state(c.state_of_incorporation));
     kv('Address', P.address(c.business_address));
     kv('Phone', P.phone(c.phone));
