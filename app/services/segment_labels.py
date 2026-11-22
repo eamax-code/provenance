@@ -106,6 +106,8 @@ def apply_filing(db: Session, sec: SecClient, cik: str, accession: str) -> int:
         ).distinct()
     ).scalars()  # fmt: skip
     for member in list(rows):
+        if member.startswith(segments.UNALLOCATED):
+            continue  # a derived row keeps its plain label
         name = _member_name(member)
         text = labels.get(name) or labels.get(name.removesuffix("Segment"))
         if not text:

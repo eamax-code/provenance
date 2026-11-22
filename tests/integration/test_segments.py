@@ -558,3 +558,33 @@ def test_e4d_a_reviewed_override_keeps_a_block_unreconciled_with_its_members(tmp
     assert all(v[2] == "unreconciled" for v in held.values())
     assert len([k for k, v in held.items() if v[0] == "segment"]) == 9  # members as tagged
     assert (cik, 2025, "product") in segments.reviewed_overrides()
+
+
+def test_not_allocated_by_geography_only_on_an_exact_match():
+    """Chevron: the regions (summed over its segments) are $644M short of the total, exactly All
+    Other, which has no geographic split: a derived row closes the gap. A near match adds none."""
+    D = Decimal
+    regions = {"Geographical=US": D(85918), "Geographical=NonUs": D(102469)}
+    cells = {"Geographical=US": {"UpstreamSegment": D(20005), "DownstreamSegment": D(65913)},
+             "Geographical=NonUs": {"UpstreamSegment": D(36545),
+                                    "DownstreamSegment": D(65924)}}  # fmt: skip
+    business = {"segment": {"BusinessSegments=UpstreamSegment": D(56550),
+                            "BusinessSegments=DownstreamSegment": D(131837),
+                            "BusinessSegments=AllOtherSegments": D(644)}}  # fmt: skip
+    assert segments.unallocated_segment(regions, D(189031), cells, business) == (
+        "BusinessSegments=AllOtherSegments",
+        D(644),
+    )
+    assert segments.unallocated_segment(regions, D(189032), cells, business) is None  # near
+    # a split segment never closes the gap, even at the right value
+    business["segment"]["BusinessSegments=AllOtherSegments"] = D(1)
+    cells["Geographical=US"]["Gap"] = D(1)
+    business["segment"]["BusinessSegments=Gap"] = D(644)
+    assert segments.unallocated_segment(regions, D(189031), cells, business) is None
+    # in the block: derived, with its inputs, and never hidden as a cancelling row
+    metrics = {"revenue": {"consolidated": {"2025-12-31": 189031.0}}}
+    segs = {"US": {"values": {"revenue": {"2025-12-31": 85918.0}}},
+            "NonUs": {"values": {"revenue": {"2025-12-31": 102469.0}}}}  # fmt: skip
+    recon = {"u": {"derived": True, "values": {"revenue": {"2025-12-31": 644.0}}}}
+    segments._drop_cancelling(metrics, segs, recon)
+    assert "u" in recon

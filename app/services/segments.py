@@ -212,6 +212,7 @@ def summed_over(
     total: Decimal | None,
     recon: dict[str, Decimal],
     base: dict[str, Decimal] | None = None,
+    used: list[str] | None = None,
 ) -> dict[str, Decimal] | None:
     """Segments from two-axis facts, summed over the other axis, beside any one-axis segments
     (`base`, which win member by member: Chevron's All Other is tagged alone, Upstream and
@@ -225,8 +226,28 @@ def summed_over(
             continue
         summed = {**base, **{m: sum(vals.values(), Decimal(0)) for m, vals in cells.items()}}
         if adds_up(summed, total, recon):
+            if used is not None:
+                used.append(other)
             return summed
     return None
+
+
+UNALLOCATED = "Unallocated=Geography"
+
+
+def unallocated_segment(
+    regions: dict[str, Decimal], total: Decimal, cells: dict, business: dict
+) -> tuple[str, Decimal] | None:
+    """(segment key, value) when the consolidated figure less the summed regions equals exactly
+    one business segment's reported figure (to the unit as tagged) and that segment has no
+    geographic split. Otherwise None: no row is made from a near match."""
+    gap = total - sum(regions.values(), Decimal(0))
+    if not gap:
+        return None
+    split = {seg for vals in cells.values() for seg in vals}
+    hits = [m for m, v in (business.get("segment") or {}).items()
+            if v == gap and m.split("=", 1)[-1] not in split and not is_total(m)]  # fmt: skip
+    return (hits[0], gap) if len(hits) == 1 else None
 
 
 def drop_reconciling_subtotals(recon: dict[str, Decimal]) -> dict[str, Decimal]:
@@ -357,6 +378,7 @@ def parse_notes_zip(path: str | Path, overrides: set | None = None) -> list[dict
         groups: dict[tuple, dict] = {}
         # the same key -> {other axis: {member: {other member: value}}} for two-axis facts
         pairs: dict[tuple, dict] = {}
+        unallocated: dict[tuple, tuple[str, Decimal]] = {}  # geographic group -> (segment, value)
         operating: dict[tuple, dict[str, Decimal]] = {}
         consolidated: dict[tuple, Decimal] = {}
         fh = z.open(next(n for n in z.namelist() if n.lower().endswith("num.tsv")))
@@ -426,9 +448,15 @@ def parse_notes_zip(path: str | Path, overrides: set | None = None) -> list[dict
         core = {m: v for m, v in base.items() if not is_total(m)}
         if base and core == base and adds_up(base, total, recon):
             continue  # the one-axis segments already add up: nothing to put together
-        summed = summed_over(by_other, total, recon, core)
+        used: list[str] = []
+        summed = summed_over(by_other, total, recon, core, used)
         if summed:
             groups.setdefault(k, {"segment": {}, "reconciling": {}})["segment"] = summed
+            if kind == "geographic" and used == ["BusinessSegments"] and total is not None:
+                found = unallocated_segment(summed, total, by_other["BusinessSegments"],
+                                            groups.get((adsh, "business", *k[2:]), {}))  # fmt: skip
+                if found:
+                    unallocated[k] = found
     # the all-segments total beside real segments would count them twice (Caterpillar): it
     # stays only where it is all there is besides "all other"
     for g in groups.values():
@@ -500,10 +528,19 @@ def parse_notes_zip(path: str | Path, overrides: set | None = None) -> list[dict
         for role, items in (("segment", segs), ("reconciling", recon)):
             for member, v in items.items():
                 out.append({**base, "member": member, "label": member_label(member),
-                            "role": role, "value": v})  # fmt: skip
+                            "role": role, "value": v, "label_source": LABEL_SOURCE})  # fmt: skip
+        gap = unallocated.get((adsh, kind, metric, tag, ddate, unit))
+        if gap:
+            # derived: the consolidated figure less the regions, equal to one segment's reported
+            # figure exactly, a segment the filing does not split by geography (Chevron's All
+            # Other); its inputs are the consolidated figure and that segment
+            out.append({**base, "member": f"{UNALLOCATED};{gap[0]}", "role": "reconciling",
+                        "label": "Not allocated by geography", "value": gap[1],
+                        "label_source": "derived"})  # fmt: skip
         if total is not None:
             out.append({**base, "member": "consolidated", "label": "Consolidated",
-                        "role": "consolidated", "value": total})  # fmt: skip
+                        "role": "consolidated", "value": total,
+                        "label_source": LABEL_SOURCE})  # fmt: skip
     return [r for r in out if r["filed_date"] is not None]
 
 
@@ -532,14 +569,16 @@ def _drop_cancelling(metrics: dict, segs: dict, recon: dict) -> None:
         cancel = True
         for p, total in cons.items():
             seg = sum(s["values"].get(metric, {}).get(p) or 0 for s in segs.values())
-            rec = sum(r["values"].get(metric, {}).get(p) or 0 for r in recon.values())
+            rec = sum(r["values"].get(metric, {}).get(p) or 0 for r in recon.values()
+                      if not r.get("derived"))  # fmt: skip
             tol = abs(total) * float(TOLERANCE)
             if abs(seg - total) > tol or abs(rec) > tol / 2:
                 cancel = False
                 break
         if cancel:
             for r in recon.values():
-                r["values"].pop(metric, None)
+                if not r.get("derived"):  # the unallocated row closes a gap; it never cancels
+                    r["values"].pop(metric, None)
     for key in [k for k, r in recon.items() if not r["values"]]:
         del recon[key]
 
@@ -577,6 +616,9 @@ def for_company(db: Session, cik: str, as_of: date | None = None, years: int = 3
             target = segs if r.role == "segment" else recon
             source = r.label_source or LABEL_SOURCE
             new = {"key": r.member, "label": r.label, "label_source": source, "values": {}}
+            if source == "derived":
+                seg = r.member.split(";", 1)[-1]
+                new.update(derived=True, inputs={"consolidated": "consolidated", "segment": seg})
             item = target.setdefault(r.member, new)
             item["values"].setdefault(r.metric, {})[p] = float(r.value)
         latest_p = periods[0].isoformat()
