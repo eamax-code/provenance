@@ -421,14 +421,17 @@
     statementsBulk(b);
   }
   var STN = { income: 'Income statement', balance: 'Balance sheet', cash_flow: 'Cash flow', ratios: 'Ratios' };
+  var STS = { income: 'Income', balance: 'Balance', cash_flow: 'Cash flow', ratios: 'Ratios', common: 'Common' };
+  // a long label for wide screens and screen readers, a short one shown on phones
+  function lab(long, short) { return short ? [el('span', { class: 'l-long', text: long }), el('span', { class: 'l-short', 'aria-hidden': 'true', text: short })] : [long]; }
   function stControls(cur, note, csvRows, csvName) {
-    var tabs = el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Statement' }, Object.keys(STN).map(function (k) { return el('button', { type: 'button', 'aria-pressed': String(S.st === k), text: STN[k], on: { click: function () { S.st = k; go('statements'); } } }); }));
+    var tabs = el('div', { class: 'seg-btns st-kinds', role: 'group', 'aria-label': 'Statement' }, Object.keys(STN).map(function (k) { return el('button', { type: 'button', 'aria-pressed': String(S.st === k), on: { click: function () { S.st = k; go('statements'); } } }, lab(STN[k], STS[k] !== STN[k] && STS[k])); }));
     var per = el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Period' }, [['annual', 'Annual'], ['quarterly', 'Quarterly']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String(S.p === v[0]), disabled: S.st === 'ratios' && v[0] === 'quarterly' ? 'disabled' : null, text: v[1], on: { click: function () { S.p = v[0]; go('statements'); } } }); }));
-    var shows = el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Show' }, [['values', 'Values'], ['yoy', 'YoY %'], ['common', 'Common size']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String(S.show === v[0]), text: v[1], disabled: v[0] === 'common' && S.st !== 'income' && S.st !== 'balance' ? 'disabled' : null, on: { click: function () { S.show = v[0]; go('statements'); } } }); }));
+    var shows = el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Show' }, [['values', 'Values'], ['yoy', 'YoY %'], ['common', 'Common size']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String(S.show === v[0]), title: v[0] === 'common' ? 'Each line as a share of ' + (S.st === 'balance' ? 'total assets' : 'revenue') : null, disabled: v[0] === 'common' && S.st !== 'income' && S.st !== 'balance' ? 'disabled' : null, on: { click: function () { S.show = v[0]; go('statements'); } } }, lab(v[1], v[0] === 'common' && STS.common)); }));
     var csv = el('button', { type: 'button', class: 'btn small', text: 'CSV', on: { click: function () {
       var a = el('a', { href: URL.createObjectURL(new Blob([csvRows().join('\n')], { type: 'text/csv' })), download: csvName }); document.body.appendChild(a); a.click(); a.remove();
     } } });
-    return el('div', { class: 'ch-bar' }, [tabs, per, shows, el('span', { class: 'muted small', text: note }), el('span', { class: 'ch-acts' }, [csv])]);
+    return el('div', { class: 'ch-bar st-bar' }, [tabs, per, shows, el('span', { class: 'muted small', text: note }), el('span', { class: 'ch-acts' }, [csv])]);
   }
   function statementsBulk(b) {
     var pane = $('pane-statements'), cur = b.reporting_currency || ((S.d.company || {}).reporting_currency) || 'USD';
@@ -441,7 +444,7 @@
     var baseRow = rows.filter(function (r) { return r.metric === base; })[0];
     // cells align with columns by position (keys can repeat when a filer reuses a period label); values may come as strings
     var at = function (r, j) { var c = null; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; return true; } return false; }); return c ? Object.assign({}, c, { value: Number(c.value) }) : null; };
-    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick', text: STN[S.st] })].concat(cols.map(function (c) { return el('th', { scope: 'col', class: 'n', title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
+    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c) { return el('th', { scope: 'col', class: 'n', title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
     var body = rows.map(function (r) {
       var ratio = r.unit_kind === 'ratio' || r.unit_kind === 'percent' || r.unit_kind === 'multiple';
       return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null])].concat(cols.map(function (col, i) {

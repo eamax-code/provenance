@@ -309,6 +309,7 @@ td.up { color: var(--good); } td.down { color: var(--bad); }
 .seg-btns { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .seg-btns button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .85rem; padding: 6px 10px; cursor: pointer; }
 .seg-btns button[aria-pressed="true"] { background: var(--bg-2); color: var(--fg); } .seg-btns button:disabled { opacity: .45; cursor: default; }
+.l-short { display: none; }
 .mk-toggles { display: flex; gap: 12px; flex-wrap: wrap; font-size: .85rem; } .mk-toggles .check { display: inline-flex; align-items: center; gap: 6px; }
 
 /* statements: sticky first column */
@@ -342,6 +343,9 @@ td.up { color: var(--good); } td.down { color: var(--bad); }
   .ws-k span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ws-k { min-height: 38px; flex-basis: 100%; }
   .tl li { grid-template-columns: 6.2em minmax(0, 1fr) auto; } .tl .tag { display: none; }
   .ch-acts { margin-left: 0; }
+  .l-long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .l-short { display: inline; }
+  .st-bar { gap: 8px; } .st-bar .st-kinds { display: flex; width: 100%; } .st-kinds button { flex: 1 1 0; white-space: nowrap; }
+  .st-bar .seg-btns button { padding: 6px 9px; }
   .ws-tip { position: static; width: auto; margin-top: 8px; }
 }
 
