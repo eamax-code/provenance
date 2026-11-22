@@ -91,6 +91,7 @@ class Brief:
     citations: list[dict] = field(default_factory=list)
     context_lines: list[str] = field(default_factory=list)
     coverage: dict = field(default_factory=dict)
+    facts: list = field(default_factory=list)  # C-01: the facts an answer cited, for its chips
 
     def cite(self, label: str, url: str) -> int:
         self.citations.append({"n": len(self.citations) + 1, "label": label, "url": url})
@@ -649,7 +650,10 @@ def asked_margin(text: str) -> str | None:
 
 def _cite_fact(b: Brief, f: FinancialFact) -> int:
     same = next((c["n"] for c in b.citations if c["url"] == f.source_url), None)
-    return same or b.cite(f"{f.form_type} filed {f.filed_date}", f.source_url)
+    n = same or b.cite(f"{f.form_type} filed {f.filed_date}", f.source_url)
+    if all(x is not f for x, _ in b.facts):
+        b.facts.append((f, n))
+    return n
 
 
 def annual_fact(db: Session, company: Company, metric: str, year: int | None,

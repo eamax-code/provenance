@@ -62,6 +62,8 @@ class DataAnswer:
     context: ConversationContext | None = None
     notes: list[str] = field(default_factory=list)
     citations: list[dict] = field(default_factory=list)  # {n, label, url}: each figure's filing
+    facts: list = field(default_factory=list)  # C-01: (fact, citation n) behind each figure chip
+    how: list[dict] = field(default_factory=list)  # C-01: the API calls that answer it
 
 
 def _cite(cites: list[dict], label: str, url: str | None) -> int | None:
@@ -249,6 +251,7 @@ def _ipos(db: Session, p: Plan, today: date) -> DataAnswer:
             "paper; it does not confirm that trading began."
         ],
         citations=cites,
+        how=[{"endpoint": "/v1/ipos", "parameters": {"days": p.days}}],
     )
 
 
@@ -379,6 +382,9 @@ def _rank(db: Session, p: Plan) -> DataAnswer:
             label=f"the {word} companies by {label.lower()}",
         ),
         citations=cites,
+        how=[
+            {"endpoint": "/v1/facts/screen", "parameters": {"metric": p.metric, "limit": p.limit}}
+        ],  # fmt: skip
     )
 
 
@@ -445,6 +451,7 @@ def _compare(db: Session, p: Plan) -> DataAnswer:
 
     comps = {c.cik: c for c in db.scalars(select(Company).where(Company.cik.in_(p.ciks)))}
     cites: list[dict] = []
+    facts: list = []
     margin = p.metric.split(":", 1)[1] if p.metric.startswith("margin:") else None
     label = f"{margin} margin" if margin else METRIC_LABELS[p.metric].lower()
     parts, ends = [], set()
@@ -464,6 +471,7 @@ def _compare(db: Session, p: Plan) -> DataAnswer:
                 parts.append(f"{name}: not available from the filings loaded here")
                 continue
             n = _cite(cites, f"{name}, {top.form_type} filed {top.filed_date}", top.source_url)
+            facts += [(num, n), (top, n)]
             pct = float(num.value) / float(top.value) * 100
             parts.append(f"{name} {pct:.1f}% (year ended {top.period_end}) [{n}]")
             ends.add(top.period_end.isoformat()[5:])
@@ -473,6 +481,7 @@ def _compare(db: Session, p: Plan) -> DataAnswer:
             parts.append(f"{name} not reported")
             continue
         n = _cite(cites, f"{name}, {f.form_type} filed {f.filed_date}", f.source_url)
+        facts.append((f, n))
         parts.append(f"{name} {intel.display(f.value, p.metric, f.unit)} (year ended "
                      f"{f.period_end}) [{n}]")  # fmt: skip
         ends.add(f.period_end.isoformat()[5:])
@@ -497,6 +506,17 @@ def _compare(db: Session, p: Plan) -> DataAnswer:
         widgets,
         ConversationContext(intent="compare", ciks=p.ciks, label="the companies compared"),
         citations=cites,
+        facts=facts,
+        how=[
+            {
+                "endpoint": f"/v1/companies/{cik}/facts",
+                "parameters": {
+                    "metric": f"{margin}_margin" if margin else p.metric,
+                    "period": "annual",
+                },
+            }
+            for cik in p.ciks
+        ],
     )
 
 

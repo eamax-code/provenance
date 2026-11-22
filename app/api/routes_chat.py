@@ -46,6 +46,7 @@ from app.services.sec_client import company_filings_url, normalize_cik
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
 chat_limiter = FixedWindowRateLimiter(window_seconds=60, name="chat-minute")
 chat_day_limiter = FixedWindowRateLimiter(window_seconds=86400, name="chat-day")
+REPLY_SCHEMA_VERSION = "2"  # C-01: blocks and how (docs/chat-reply-schema.md)
 HISTORY_TURNS = 2
 
 SYSTEM_PROMPT = """You are Provenance's company-intelligence assistant.
@@ -138,6 +139,51 @@ class ChatReply(BaseModel):
     context: conversation.ConversationContext | None = Field(
         None, description="Send this back with the next question to keep the conversation"
     )
+    schema_version: str = Field(
+        REPLY_SCHEMA_VERSION, description="2: adds blocks and how (docs/chat-reply-schema.md); "
+        "answer, citations and widgets are unchanged, so version-1 readers still work",
+    )  # fmt: skip
+    blocks: list[dict] = Field(
+        [], description="The answer in order: text, figure chips (each with its provenance "
+        "card fields), tables, charts and stats",
+    )  # fmt: skip
+    how: list[dict] = Field(
+        [], description="How I got this: the API calls that return the same data "
+        "({endpoint, parameters, as_of})",
+    )  # fmt: skip
+
+
+def _chip(f, n: int | None) -> dict:
+    """A figure chip: the value as shown, and what the provenance card needs (C-01)."""
+    from app.services.fact_normalizer import METRIC_LABELS
+
+    return {
+        "type": "figure", "metric": f.metric, "label": METRIC_LABELS.get(f.metric, f.metric),
+        "value": float(f.value), "unit": f.unit,
+        "display": intel.display(f.value, f.metric, f.unit),
+        "period_start": f.period_start.isoformat() if f.period_start else None,
+        "period_end": f.period_end.isoformat(), "form_type": f.form_type,
+        "filed_date": f.filed_date.isoformat() if f.filed_date else None,
+        "accession_number": f.accession_number, "source_url": f.source_url,
+        "source_tag": f.source_tag, "mapping_version": f.mapping_version,
+        "quality_status": f.quality_status, "derived": bool(f.derived), "citation": n,
+    }  # fmt: skip
+
+
+def _blocks(answer: str | None, citations: list[dict], widgets: list[dict], facts) -> list[dict]:
+    blocks = []
+    if answer:
+        cited = sorted({int(n) for n in re.findall(r"\[(\d+)\]", answer)})
+        blocks.append({"type": "text", "text": answer, "citations": cited})
+    blocks += [_chip(f, n) for f, n in facts]
+    blocks += [w for w in widgets if w.get("type") in ("table", "chart", "stats")]
+    return blocks
+
+
+def _how(cik: str, metric: str, as_of) -> dict:
+    return {"endpoint": f"/v1/companies/{int(cik)}/facts",
+            "parameters": {"metric": metric, "period": "annual"},
+            "as_of": as_of.isoformat() if as_of else None}  # fmt: skip
 
 
 def _company_dict(c: Company) -> dict:
@@ -406,6 +452,8 @@ def chat(
             raise APIError(403, "sessions_need_key", "Saved chats need your own API key.")
         session = chat_sessions.get_owned(db, saved, body.session_id)
     reply = _answer(body, request, db, settings)
+    if not reply.blocks:  # every reply carries blocks (C-01); chips only where facts are known
+        reply.blocks = _blocks(reply.answer, reply.citations, reply.widgets, [])
     if reply.context is None and reply.company:
         reply.context = conversation.ConversationContext(
             intent=reply.intent, cik=reply.company["cik"]
@@ -528,10 +576,13 @@ def _data_reply(found: conversation.DataAnswer) -> ChatReply:
         notes=found.notes
         or ["Answered from the filings loaded here; each row links to its filing."],
         context=found.context,
+        blocks=_blocks(answer, found.citations, found.widgets, found.facts if not checks else []),
+        how=found.how,
     )
 
 
-def _figure_reply(company, brief, brief_out, answer: str, notes: list[str]) -> ChatReply:
+def _figure_reply(company, brief, brief_out, answer: str, notes: list[str],
+                  how: list[dict] | None = None) -> ChatReply:  # fmt: skip
     return ChatReply(
         company=_company_dict(company),
         answer=answer,
@@ -542,6 +593,8 @@ def _figure_reply(company, brief, brief_out, answer: str, notes: list[str]) -> C
         answered_by="data",
         intent="figure",
         notes=notes,
+        blocks=_blocks(answer, brief.citations, [], brief.facts),
+        how=how or [],
     )
 
 
@@ -720,7 +773,8 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     margin = intel.asked_margin(body.message) if fresh else None
     if margin and not quoted and intel.is_figure_question(body.message.replace("margin", "")):
         answer = intel.margin_for(db, brief, margin, intel.asked_year(body.message), body.as_of)
-        return _figure_reply(company, brief, brief_out, answer, notes)
+        how = [_how(company.cik, f"{margin}_margin", body.as_of)]
+        return _figure_reply(company, brief, brief_out, answer, notes, how)
     if (
         fresh
         and plan.kind == "metric"
@@ -731,7 +785,8 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
         answer = intel.figure_for(
             db, brief, plan.metric, intel.asked_year(body.message), body.as_of
         )
-        return _figure_reply(company, brief, brief_out, answer, notes)
+        how = [_how(company.cik, plan.metric, body.as_of)]
+        return _figure_reply(company, brief, brief_out, answer, notes, how)
     # A plain figure question needs no model: one cited sentence from the brief.
     if plan.kind == "metric" and not quoted and intel.is_simple_lookup(body.message):
         figure = next((m for m in brief.metrics if m["metric"] == plan.metric), None)
