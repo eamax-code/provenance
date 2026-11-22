@@ -67,6 +67,24 @@ FORM_GROUPS = {
 }  # fmt: skip
 
 
+def _no_listed_shares(company: Company) -> dict | None:
+    """When a company has no 13F holders because it has no listed securities at all (no ticker
+    and no exchange listing: a debt-only filer, an operating partnership, a subsidiary), say so,
+    so the empty block is not read as a gap. A listed company we failed to match gets None."""
+    import json
+
+    def listed(raw):
+        try:
+            return [x for x in json.loads(raw or "[]") if x]
+        except ValueError:
+            return []
+
+    if company.ticker or listed(company.tickers) or listed(company.exchanges):
+        return None
+    return {"listed": False,
+            "note": "No listed common stock, so no Form 13F holders."}  # fmt: skip
+
+
 def _identity(db: Session, company: Company) -> dict:
     out = CompanyOut.model_validate(company).model_dump(mode="json")
     for hidden in ("match_type", "matched_name", "quality_status", "ingestion_status"):
@@ -443,7 +461,8 @@ def build(
         "insider_activity": live.insider_rows(
             db, anchor - timedelta(days=EVENT_DAYS), EVENTS, until=anchor, cik=cik
         ),
-        "ownership": thirteenf.for_company(db, company, as_of, today=today),
+        "ownership": thirteenf.for_company(db, company, as_of, today=today)
+        or _no_listed_shares(company),
         "auditor": auditors.for_company(db, cik, as_of),
         "segments": segments.for_company(db, cik, as_of),
         "risk_factors": risk,

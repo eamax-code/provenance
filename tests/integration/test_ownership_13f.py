@@ -377,3 +377,23 @@ def test_13f_abbreviations_and_the_same_name_tie_break_rules():
     assert cusips.legal_form("LAZARD LTD") == "LTD" and cusips.legal_form("Lazard, Inc.") == "INC"
     assert cusips.legal_form("WATERSTONE FINL INC MD") == "INC"
     assert cusips.legal_form("FARMERS & MERCHANTS BANCORP") is None
+
+
+def test_no_listed_shares_is_said_only_without_any_listing():
+    """Tampa Electric (debt only) has no 13F holders because it has no listed stock; a listed
+    company we failed to match must never read that way."""
+    from app.db.models import Company
+    from app.services.company_overview import _no_listed_shares
+
+    debt_only = Company(cik="0000096271", legal_name="TAMPA ELECTRIC CO", ticker=None,
+                        tickers="[]", exchanges="[]")  # fmt: skip
+    assert _no_listed_shares(debt_only) == {
+        "listed": False,
+        "note": "No listed common stock, so no Form 13F holders.",
+    }
+    listed = Company(cik="0000093751", legal_name="STATE STREET CORP", ticker="STT",
+                     tickers='["STT"]', exchanges='["NYSE"]')  # fmt: skip
+    assert _no_listed_shares(listed) is None
+    notes_only = Company(cik="0000068622", legal_name="QWEST CORP", ticker=None,
+                         tickers='["CTBB"]', exchanges='["NYSE"]')  # fmt: skip
+    assert _no_listed_shares(notes_only) is None  # a listing exists: not claimed as none
