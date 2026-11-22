@@ -142,7 +142,7 @@ def _former_name_matches(db: Session, name: str, limit: int) -> list[tuple[Compa
                 alias == name,
                 alias.like(_escape_like(name) + "%", escape="\\"),
                 alias.like("% " + _escape_like(name) + "%", escape="\\"),
-            )
+            ),
         )
         .order_by((alias == name).desc(), CompanyAlias.valid_to.desc().nulls_last())
         .limit(limit * 3)

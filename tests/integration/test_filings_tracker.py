@@ -66,9 +66,21 @@ def test_latest_feed_keeps_companies_not_reporting_people():
 
 
 def test_full_text_search_hits_name_each_company():
-    payload = {"hits": {"hits": [{"_source": {
-        "adsh": "0001628280-26-074944", "form": "424B4", "file_date": "2026-11-19",
-        "ciks": ["0002130357"], "display_names": ["Anthropic, PBC  (ANT)  (CIK 0002130357)"]}}]}}
+    payload = {
+        "hits": {
+            "hits": [
+                {
+                    "_source": {
+                        "adsh": "0001628280-26-074944",
+                        "form": "424B4",
+                        "file_date": "2026-11-19",
+                        "ciks": ["0002130357"],
+                        "display_names": ["Anthropic, PBC  (ANT)  (CIK 0002130357)"],
+                    }
+                }
+            ]
+        }
+    }
     got = filings_tracker.parse_search(payload)  # fmt: skip
     assert [(e.cik, e.company_name, e.form_type, e.role) for e in got] == [
         ("0002130357", "Anthropic, PBC", "424B4", "filer")
