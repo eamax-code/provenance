@@ -449,14 +449,14 @@ def import_ticker_mapping(db: Session, payload: dict, now: datetime | None = Non
 
 def _statement_context(db: Session, cik: str) -> dict | None:
     """Mapping 1.5.0's inputs: the revenue lines each filing shows on its income statement, and
-    whether the company is a bank or financial holding company (SIC 6000-6299)."""
+    whether the company is a bank or credit institution (SIC 6000-6199)."""
     from app.services import statement_tags
     from app.services.fact_normalizer import rules_1_5_0
 
     if not rules_1_5_0():
         return None
     sic = db.scalar(select(Company.sic_code).where(Company.cik == cik)) or ""
-    return {"tags": statement_tags.for_company(db, cik), "bank": "6000" <= sic <= "6299"}
+    return {"tags": statement_tags.for_company(db, cik), "bank": "6000" <= sic <= "6199"}
 
 
 def upsert_company(db: Session, rec: CompanyRecord, now: datetime, source_updated_at=None):

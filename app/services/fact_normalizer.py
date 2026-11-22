@@ -565,10 +565,10 @@ def normalize_company_facts(
     for metric, spec in CONCEPT_MAP.items():
         expected_ptype = spec["period_type"]
         tags = _ordered_tags(metric, spec)
-        if v150 and metric == "revenue":
-            bank = [("ifrs-full", t, True) for t in BANK_REVENUE_TAGS
-                    if t != "GrossProfit" or (statement or {}).get("bank")]  # fmt: skip
-            tags = tags + bank
+        if v150 and metric == "revenue" and (statement or {}).get("bank"):
+            # banks and credit institutions only (SIC 6000-6199): a biotech's "total operating
+            # income" (argenx) or a bullion trust's "total income" (Sprott) is not revenue
+            tags = tags + [("ifrs-full", t, True) for t in BANK_REVENUE_TAGS]
         primary = sum(1 for _, _, fallback in tags if not fallback)
         candidate_facts: list[tuple[int, NormalizedFact]] = []
         for precedence, (taxonomy, tag, _) in enumerate(tags):

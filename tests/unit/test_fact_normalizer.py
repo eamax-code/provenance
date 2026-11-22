@@ -520,3 +520,6 @@ def test_1_5_0_ifrs_bank_total_income_only_under_its_label(monkeypatch):
     assert not _by(normalize_company_facts(payload, "1089113", statement=off), "revenue")
     gp = {"tags": {acc: {"GrossProfit": "Total income"}}, "bank": False}  # not a bank
     assert not _by(normalize_company_facts(payload, "1089113", statement=gp), "revenue")
+    # a non-bank's "Total operating income" (argenx) is never revenue, either tag
+    ab = {"tags": {acc: {"RevenueAndOperatingIncome": "Total operating income"}}, "bank": False}
+    assert not _by(normalize_company_facts(payload, "1089113", statement=ab), "revenue")
