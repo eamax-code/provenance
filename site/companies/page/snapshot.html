@@ -125,6 +125,7 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
 .own-nums > div { background: var(--surface); border-radius: 4px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
 .own-nums b { font-size: clamp(1.5rem, 2.4vw, 2.1rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; }
 .own-nums span { color: var(--muted); font-size: 13px; }
+.own-flag { margin: 10px 0 0; padding: 8px 12px; border-left: 3px solid var(--accent-hi); background: var(--surface); font-size: 14.5px; max-width: 72ch; }
 .own-flows { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 15px; color: var(--muted); }
 .own-flows strong { font-size: clamp(1.5rem, 2.4vw, 2.1rem); font-weight: 800; letter-spacing: -0.04em; color: var(--ink); margin-right: 4px; }
 .own-table { font-size: 14.5px; }
@@ -278,6 +279,7 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 800; border-top: 2px
   <section class="co-sec" id="ownership" aria-labelledby="t-own" hidden>
     <div class="sec-head"><h2 id="t-own">Ownership</h2><p class="muted" id="own-when"></p></div>
     <div class="own-nums" id="own-nums"></div>
+    <p class="own-flag" id="own-flag" hidden></p>
     <div class="tw"><table class="own-table" id="own-table"></table></div>
     <p class="muted small" id="own-more" hidden>The full list of holders is in the API and the Explorer with a free key. <a href="/developers/#ownership">How to read it</a></p>
     <p class="notes" id="own-notes"></p>

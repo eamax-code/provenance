@@ -113,12 +113,14 @@
     var pct = o.institutional_pct;
     var pctTitle = o.institutional_pct_derived ? o.institutional_pct_derived.formula + (o.institutional_pct_derived.inputs || []).map(function (x) { return '; ' + x.name + ' ' + (x.value != null ? Number(x.value).toLocaleString('en-US') : '') + (x.quarter ? ' (' + quarterName(x.quarter) + ')' : x.as_of_date ? ' (' + P.date(x.as_of_date) + ')' : ''); }).join('') : '';
     var nums = $('own-nums'); nums.textContent = '';
-    var tile = function (big, label, plain) { nums.appendChild(el('div', {}, [plain ? el('div', { class: 'own-flows' }, big) : el('b', {}, big), el('span', { text: label })])); };
+    var tile = function (big, label, plain) { nums.appendChild(el('div', {}, [plain ? el('div', { class: 'own-flows' }, big) : el('b', {}, big), Array.isArray(label) ? el('span', {}, label) : el('span', { text: label })])); };
     tile([P.money(o.value_usd, null, 'USD')], 'held by institutions filing 13F');
     tile([pct != null ? P.pct(pct) : 'not computed', pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : 'several share classes; shares are not added across them');
     tile([Number(o.holders_count).toLocaleString('en-US')], 'holders' + (o.holders_count_change != null ? ', ' + (o.holders_count_change >= 0 ? '+' : '−') + Math.abs(o.holders_count_change) + ' on the quarter before' : ''));
     var f = o.flows || {};
-    tile([['new', 'new'], ['added', 'added'], ['reduced', 'reduced'], ['exited', 'exited']].map(function (k) { return el('span', {}, [el('strong', { text: Number(f[k[0]] || 0).toLocaleString('en-US') }), ' ' + k[1]]); }), 'holders by change since ' + quarterName(o.previous_quarter), true);
+    tile([['new', 'new'], ['added', 'added'], ['reduced', 'reduced'], ['exited', 'exited']].map(function (k) { return el('span', {}, [el('strong', { text: Number(f[k[0]] || 0).toLocaleString('en-US') }), ' ' + k[1]]); }), // holders_count_change = new − exited − not_filed: last quarter's holders with no 13F for this one yet
+      ['holders by change since ' + quarterName(o.previous_quarter)].concat(f.not_filed ? [el('br'), Number(f.not_filed).toLocaleString('en-US') + (f.not_filed === 1 ? ' holder hasn\u2019t' : ' holders haven\u2019t') + ' filed this quarter yet'] : []), true);
+    $('own-flag').textContent = o.flows_note || ''; $('own-flag').hidden = !o.flows_note;
     var rows = o.top_holders || [];
     var head = el('tr', {}, [el('th', { scope: 'col', text: 'Holder' }), el('th', { scope: 'col', class: 'n', text: 'Value' }), el('th', { scope: 'col', class: 'n opt', text: 'Shares' }), el('th', { scope: 'col', class: 'n', text: '% of shares' }), el('th', { scope: 'col', text: 'Change' }), el('th', { scope: 'col', class: 'opt', text: '13F' })]);
     var tb = el('tbody');
