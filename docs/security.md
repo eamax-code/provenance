@@ -25,7 +25,14 @@ Reviewed 2026-11-15. Each point is checked by a test in `tests/integration/test_
   set.
 - **Limits:** per-key and per-plan rate limits and monthly quotas. Per-address limits for the
   demo key and the public endpoints. Chat allows 10 questions a minute and 200 a day per key
-  (per address for the demo key), because every answer can run a model.
+  (per address for the demo key), because every answer can run a model. All demo-key callers
+  together share one ceiling (`DEMO_REQUESTS_PER_MINUTE_ALL`, 1,200 a minute), so rotating
+  addresses gains nothing.
+- **Counters hold no addresses** (2026-11-23): per-address and per-email limits are keyed on a
+  salted hash (SHA-256 with `API_KEY_PEPPER`), and counter rows are deleted after two days.
+  `tests/integration/test_rate_limit_privacy.py` fails if any counter key holds an IP or email
+  address. A database that served requests before this change runs
+  `scripts/purge_rate_limit_identifiers.py` once.
 - **Webhooks:** private, loopback, link-local and metadata addresses are refused when a watch is
   created, and again at delivery after DNS resolution. Redirects are not followed. Deliveries are
   signed with HMAC-SHA256 under a per-watch secret.

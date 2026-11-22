@@ -93,6 +93,7 @@ class Settings(BaseSettings):
     demo_key_enabled: bool = True
     demo_rate_limit_per_minute: int = 20
     demo_requests_per_day: int = 300
+    demo_requests_per_minute_all: int = 1200  # all demo callers together; 0 turns it off
     demo_max_limit: int = 10
     # Event feed (ADR 0007): rows reach readers only after settling, so no committed event is
     # skipped by a reader that has already moved past its publication time.

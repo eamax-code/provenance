@@ -149,3 +149,37 @@ def _warn_outage(exc: Exception) -> None:
             "rate-limit store unavailable; limits are per replica until it returns",
             extra={"extra_fields": {"error": type(exc).__name__}},
         )
+
+
+def holds_raw_identifier(key: str) -> bool:
+    """True when a counter key ends in an IP address or contains an email address.
+
+    Keys are "<limiter>:<prefix>:<caller>"; callers are API key ids or salted hashes
+    (dependencies.ip_key), never an address. Used by the purge and by the privacy test.
+    """
+    import ipaddress
+
+    if "@" in key:
+        return True
+    for i, ch in enumerate(key):
+        if ch == ":":
+            try:
+                ipaddress.ip_address(key[i + 1 :])
+                return True
+            except ValueError:
+                continue
+    return False
+
+
+def purge_raw_identifiers(engine) -> int:
+    """Delete counter rows whose key holds an IP or email address (2026-11-23 hashing change)."""
+    from sqlalchemy import delete, select
+
+    from app.db.models import RateLimitCounter
+
+    with engine.begin() as conn:
+        keys = {k for (k,) in conn.execute(select(RateLimitCounter.key).distinct())}
+        bad = sorted(k for k in keys if holds_raw_identifier(k))
+        for i in range(0, len(bad), 500):
+            conn.execute(delete(RateLimitCounter).where(RateLimitCounter.key.in_(bad[i : i + 500])))
+    return len(bad)

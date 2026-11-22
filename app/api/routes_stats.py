@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import client_ip, db_session, enforce_ip_limit, settings_dep
+from app.api.dependencies import db_session, enforce_ip_limit, ip_key, settings_dep
 from app.core.config import Settings
 from app.core.rate_limits import FixedWindowRateLimiter
 from app.schemas.common import ErrorEnvelope
@@ -30,7 +30,7 @@ def stats(
 ):
     enforce_ip_limit(
         ip_limiter,
-        "ip:" + client_ip(request),
+        "ip:" + ip_key(request),
         settings.stats_rate_limit_per_minute or STATS_RATE_LIMIT_PER_MINUTE,
         "Too many requests to /v1/stats from this address.",
     )

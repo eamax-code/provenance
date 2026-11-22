@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import client_ip, db_session, enforce_ip_limit, settings_dep
+from app.api.dependencies import db_session, enforce_ip_limit, ip_key, settings_dep
 from app.core.config import Settings, plan_limits
 from app.core.errors import APIError
 from app.core.rate_limits import FixedWindowRateLimiter
@@ -32,6 +32,7 @@ from app.schemas.common import ErrorEnvelope
 from app.services import accounts
 from app.services.api_keys import create_key_record, revoke_key
 from app.services.email_adapter import can_send, send_sign_in_email
+from app.services.key_requests import hash_ip
 from app.services.usage import requests_this_month
 
 # Cookie-only endpoints for the /account/ page: site-internal, so not in the public reference.
@@ -119,12 +120,15 @@ def sign_in(
     email = accounts.normalize_email(body.email)
     enforce_ip_limit(
         ip_limiter,
-        "sign-in-ip:" + client_ip(request),
+        "sign-in-ip:" + ip_key(request),
         settings.sign_in_per_ip_per_hour,
         "Too many sign-in requests from this address. Try again later.",
     )
     # Over the per-email limit, answer exactly as if a link was sent: no enumeration, no flood.
-    if email_limiter.check("sign-in-email:" + email, settings.sign_in_per_email_per_hour).allowed:
+    if email_limiter.check(
+        "sign-in-email:" + (hash_ip(email, settings.api_key_pepper) or ""),
+        settings.sign_in_per_email_per_hour,
+    ).allowed:
         raw = accounts.create_sign_in_token(db, settings, email)
         db.commit()
         link = f"{_base_url(request, settings)}/account/verify/#token={raw}"

@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import client_ip, db_session, enforce_ip_limit, settings_dep
+from app.api.dependencies import db_session, enforce_ip_limit, ip_key, settings_dep
 from app.core.config import Settings
 from app.core.errors import APIError
 from app.core.rate_limits import FixedWindowRateLimiter
@@ -32,7 +32,7 @@ def _guard(request: Request, response: Response) -> None:
     override = getattr(request.app.state.settings, "public_rate_limit_per_minute", 0)
     enforce_ip_limit(
         ip_limiter,
-        "public:" + client_ip(request),
+        "public:" + ip_key(request),
         override or PUBLIC_RATE_LIMIT_PER_MINUTE,
         "Too many requests to the public endpoints from this address.",
     )

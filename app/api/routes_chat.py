@@ -12,8 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import (
-    client_ip,
     db_session,
+    ip_key,
     require_api_key,
     require_reader,
     settings_dep,
@@ -436,7 +436,7 @@ def chat(
     settings: Settings = Depends(settings_dep),
     key=Depends(require_reader),
 ):
-    who = getattr(key, "id", None) or client_ip(request)
+    who = getattr(key, "id", None) or ip_key(request)
     decision = chat_limiter.check(f"chat:{who}", settings.chat_rate_limit_per_minute)
     if not decision.allowed:
         raise APIError(

@@ -106,6 +106,18 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def ip_key(request: Request) -> str:
+    """The caller's address as a rate-limit key: a salted hash, never the address itself.
+
+    Counters live up to two days (rate_limits.KEEP_SECONDS); hashing with the key pepper means
+    the table never holds an IP address.
+    """
+    from app.services.key_requests import hash_ip
+
+    pepper = getattr(request.app.state.settings, "api_key_pepper", "")
+    return hash_ip(client_ip(request), pepper) or "unknown"
+
+
 def enforce_ip_limit(limiter: FixedWindowRateLimiter, key: str, limit: int, message: str) -> None:
     decision = limiter.check(key, limit)
     if not decision.allowed:
@@ -122,6 +134,7 @@ def enforce_ip_limit(limiter: FixedWindowRateLimiter, key: str, limit: int, mess
 DEMO_KEY = "demo"
 demo_minute_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-minute")
 demo_day_limiter = FixedWindowRateLimiter(window_seconds=86400, name="demo-day")
+demo_all_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-all")
 DEMO_UPGRADE = "Create a free account at /account/ for your own key and full access."
 
 
@@ -151,7 +164,15 @@ def require_reader(
         return require_api_key(request, raw_key, db, settings)
     if not settings.demo_key_enabled:
         raise APIError(401, "invalid_api_key", "The demo key is disabled on this deployment.")
-    ip = client_ip(request)
+    if settings.demo_requests_per_minute_all:
+        # one ceiling for every keyless visitor together, so rotating addresses gains nothing
+        enforce_ip_limit(
+            demo_all_limiter,
+            "demo-all",
+            settings.demo_requests_per_minute_all,
+            f"The demo key is busy. Try again in a minute, or use your own key: {DEMO_UPGRADE}",
+        )
+    ip = ip_key(request)
     enforce_ip_limit(
         demo_minute_limiter,
         "demo-min:" + ip,

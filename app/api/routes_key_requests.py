@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import client_ip, db_session, enforce_ip_limit, settings_dep
+from app.api.dependencies import client_ip, db_session, enforce_ip_limit, ip_key, settings_dep
 from app.core.config import SELF_SERVE_PLANS, Settings
 from app.core.rate_limits import FixedWindowRateLimiter
 from app.schemas.common import ErrorEnvelope
@@ -55,7 +55,7 @@ def request_key(
     ip = client_ip(request)
     enforce_ip_limit(
         ip_limiter,
-        "keyreq:" + ip,
+        "keyreq:" + ip_key(request),
         KEY_REQUEST_RATE_LIMIT_PER_HOUR,
         "Too many key requests from this address. Try again later.",
     )
