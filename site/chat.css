@@ -272,3 +272,4 @@
 
 
 .cx-chips{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 2px;font-size:.9rem}.cx-chip{display:inline-flex;align-items:baseline;gap:4px}.cx-chip .door{font-weight:600}
+.cx-cite.cx-named{cursor:help;text-decoration:none}

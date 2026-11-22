@@ -49,8 +49,11 @@
     text.split(/(\[\d{1,3}\])/).forEach(function (part) {
       var m = /^\[(\d{1,3})\]$/.exec(part);
       if (m && byN[m[1]]) {
-        var a = link(byN[m[1]].url, '[' + m[1] + ']', 'cx-cite'); a.title = human(byN[m[1]].label) + ' (opens on sec.gov)';
-        a.setAttribute('aria-label', 'Source ' + m[1] + ': ' + human(byN[m[1]].label)); parent.appendChild(a);
+        // only sec.gov/Archives filings are links; a named source (url null: EDGAR's company record, GLEIF) is text
+        var src = byN[m[1]], isFiling = /^https:\/\/www\.sec\.gov\/Archives\//.test(src.url || '');
+        var a = isFiling ? link(src.url, '[' + m[1] + ']', 'cx-cite') : el('span', 'cx-cite cx-named', '[' + m[1] + ']');
+        a.title = human(src.label) + (isFiling ? ' (opens on sec.gov)' : '');
+        a.setAttribute('aria-label', 'Source ' + m[1] + ': ' + human(src.label)); parent.appendChild(a);
       } else if (part) parent.appendChild(document.createTextNode(human(part)));
     });
   }
