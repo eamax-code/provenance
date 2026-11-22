@@ -10,12 +10,18 @@ change that breaks a client is a new major version and never an edit to `/v1`.
   `unknown_parameter` with the closest real names and the full list of accepted ones. Before this,
   `/v1/events?type=…` was silently ignored and returned the whole feed. Any new list endpoint that
   filters takes `Depends(strict_query)`.
-- **`/v1/markets/events` takes `types` (2026-11-22).** A comma-separated list of listing event
-  types, matching the feed's plural name. `type` stays as a documented alias and may be combined
-  with `types`; existing calls such as `?type=new_listing` keep working. Unknown parameters get the
-  same 422 `unknown_parameter`, and an unknown event type gets 422 `invalid_parameter`. The MCP
-  tool `listing_events` takes `types`; the Python client passes either through.
+- **One meaning per parameter name (2026-11-22).** On both feeds `event_type` holds specific
+  event types (`new_listing`, `sec.restatement`, …), comma-separated, and `types` holds kinds only
+  (`filing`, `listing`, `insider`, `calendar`, `leadership`), on `/v1/events`.
+  `/v1/markets/events` takes `event_type`; an unknown event type gets 422 `invalid_parameter` and
+  an unknown parameter 422 `unknown_parameter`. The MCP tool `listing_events` takes `event_type`.
+
+## Deprecated, removed at 1.0
+
+- **`type` and `types` on `/v1/markets/events`.** Both are aliases of `event_type` there, marked
+  `deprecated` in OpenAPI, and may be combined with it. They are removed when 1.0 is public, after
+  which they get 422 `unknown_parameter` like any other unknown name.
 
 ## Owed before 1.0
 
-Nothing open.
+- Remove the two deprecated aliases above.

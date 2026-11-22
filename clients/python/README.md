@@ -25,7 +25,7 @@ to_dataframe(known)[["period_end", "value", "filed_date", "accession_number"]]
 
 client.screen("total_assets", 2024, as_of="2025-03-31")  # ranking as of a date
 list(client.filings("320193", form_type="8-K", max_rows=10))
-list(client.listing_events(types="new_listing", region="uk", max_rows=20))
+list(client.listing_events(event_type="new_listing", region="uk", max_rows=20))
 ```
 
 ## Event feed

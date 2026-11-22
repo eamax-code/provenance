@@ -180,11 +180,14 @@ def instrument(
     dependencies=[Depends(strict_query)],
 )
 def events(
-    types: str | None = Query(
+    event_type: str | None = Query(
         None, description="Comma-separated event types: " + ", ".join(EVENT_TYPES)
     ),
+    types: str | None = Query(
+        None, deprecated=True, description="Deprecated alias of `event_type`; removed at 1.0."
+    ),
     type: str | None = Query(
-        None, description="Alias of `types`, kept for existing clients. Both may be given."
+        None, deprecated=True, description="Deprecated alias of `event_type`; removed at 1.0."
     ),
     mic: str | None = Query(None, min_length=4, max_length=4),
     region: str | None = Query(None, pattern="^(canada|europe|uk)$"),
@@ -196,13 +199,15 @@ def events(
     db: Session = Depends(db_session),
     _key=Depends(require_reader),
 ):
-    wanted = [t.strip() for v in (types, type) if v for t in v.split(",") if t.strip()]
+    given = (event_type, types, type)
+    wanted = [t.strip() for v in given if v for t in v.split(",") if t.strip()]
     bad = sorted(set(wanted) - set(EVENT_TYPES))
     if bad:
         raise APIError(
             422,
             "invalid_parameter",
-            f"Unknown event type: {', '.join(bad)}. types must be among: {', '.join(EVENT_TYPES)}.",
+            f"Unknown event type: {', '.join(bad)}. event_type must be among: "
+            f"{', '.join(EVENT_TYPES)}.",
         )
     stmt = select(ListingEvent).join(Market, Market.mic == ListingEvent.mic)
     if wanted:

@@ -220,7 +220,7 @@ class Client:
     # ---- International listings --------------------------------------------------------
 
     def listing_events(self, max_rows: int | None = None, **filters: Any) -> Iterator[dict]:
-        """Listing events (types, region, mic, isin, since, until); `type` aliases `types`."""
+        """Listing events (event_type, region, mic, isin, since, until)."""
         return self._pages("/v1/markets/events", 200, max_rows, **filters)
 
     # ---- Event feed ---------------------------------------------------------------------
