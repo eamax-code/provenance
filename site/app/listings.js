@@ -126,7 +126,7 @@
   /* ---- first visit: recent new listings to start from ---- */
   function recent() {
     var box = $('l-recent'); busy(box, 'Loading recent new listings…');
-    Promise.all([venueMap(), api('/v1/markets/events?types=new_listing&limit=12')]).then(function (out) {
+    Promise.all([venueMap(), api('/v1/markets/events?event_type=new_listing&limit=12')]).then(function (out) {
       var rows = out[1].body.data.slice().sort(function (a, b) { return (b.event_date || '').localeCompare(a.event_date || ''); }); box.innerHTML = '';
       if (!rows.length) { box.appendChild(el('p', { class: 'muted', text: 'No new listings have been recorded yet.' })); return; }
       box.appendChild(table(['First trade', 'Instrument', 'Venue', 'Primary?'], rows.map(function (e) {

@@ -53,7 +53,7 @@
 - GET /v1/markets/  venues covered (MIC, country, region, counts)
 - GET /v1/markets/instruments?mic=&country=&region={canada|europe|uk}&status={listed|delisted|suspended}&q={issuer name|symbol|ISIN|LEI}&first_trade_since=  each listing has issuer_requested (FIRDS IssrReq: a likely primary listing when true)
 - GET /v1/markets/instruments/{isin}  listings across venues + issuer (LEI)
-- GET /v1/markets/events?types={new_listing,ipo,delisting,modified,suspended,reinstated}&region=&mic=&isin=&since=  new_listing details carry issuer_requested and likely_primary_listing
+- GET /v1/markets/events?event_type={new_listing,ipo,delisting,modified,suspended,reinstated}&region=&mic=&isin=&since=  new_listing details carry issuer_requested and likely_primary_listing
 - GET /v1/markets/issuers/{lei}
 - new_listing = instrument first traded on a venue recently; NOT an IPO determination. ipo only when the source states it.
 - Sources: ESMA FIRDS, FCA FIRDS, GLEIF (CC0). Rows carry source.
