@@ -29,6 +29,11 @@ and how it was matched, incorporation and its source, auditor), `key_figures`, `
 `ownership`, `segments`, `insider_activity`, `leadership`, plus the notes the public payload has.
 Keyed responses are not cached publicly (`Cache-Control: private`).
 
+Provenance card fields (additive, on the public overview too): every value in `key_figures`,
+`years[].sources` and the statement cells carries `source_tag` and `mapping_version` beside the
+`accession_number`, `quality_status` and filing link it has today, so the card needs no second
+call (keyless showcase visitors cannot make a keyed `/facts` call).
+
 | Status | When |
 |---|---|
 | 200 | the overview |
