@@ -26,7 +26,7 @@ from app.schemas.public import (
     ShowcaseList,
 )
 from app.services import cover as cover_service
-from app.services.fact_normalizer import MAPPING_VERSION
+from app.services.fact_normalizer import MAPPING_VERSION, reporting_unit
 from app.services.fact_normalizer import METRIC_LABELS as _ALL_LABELS
 from app.services.freshness import company_freshness
 from app.services.intel import ANNUAL_FORMS
@@ -156,8 +156,11 @@ def _annual_series(db: Session, cik: str, metric: str, limit: int) -> list[Finan
             FinancialFact.quality_status.in_(["ok", "partial"]),
         )
     ).all()
+    unit = reporting_unit(rows, metric)  # D-04: the company's own unit, not a translation
     by_period: dict[tuple, FinancialFact] = {}
     for r in rows:
+        if r.unit != unit:
+            continue
         key = (r.unit, r.period_start, r.period_end)
         cur = by_period.get(key)
         if cur is None or _preference(r) > _preference(cur):

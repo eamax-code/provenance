@@ -22,7 +22,12 @@ from app.services.company_lookup import (
     normalize_name,
     search_companies,
 )
-from app.services.fact_normalizer import METRIC_LABELS, default_unit, display_value
+from app.services.fact_normalizer import (
+    METRIC_LABELS,
+    currency_symbol,
+    display_value,
+    reporting_unit,
+)
 from app.services.form8k import ITEM_TITLES, LEADERSHIP_ITEM, split_items
 from app.services.form_names import form_label, human_date
 from app.services.point_in_time import known_by
@@ -253,20 +258,22 @@ def display_name(legal_name: str) -> str:
     return " ".join(words)
 
 
-def display(v: Decimal | float, metric: str) -> str:
-    return display_value(v, metric)
+def display(v: Decimal | float, metric: str, unit: str | None = None) -> str:
+    return display_value(v, metric, unit)
 
 
-def money(v: Decimal | float) -> str:
-    x = float(v)
+def money(v: Decimal | float, unit: str | None = None) -> str:
+    """$1.2 billion; EUR 36.8 billion in a company's own currency (D-04)."""
+    x, sym = float(v), currency_symbol(unit)
     for div, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
         if abs(x) >= div:
-            return f"${x / div:,.1f} {word}"
-    return f"${x:,.0f}"
+            return f"{sym}{x / div:,.1f} {word}"
+    return f"{sym}{x:,.0f}"
 
 
 def annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> list[FinancialFact]:
-    """One reported annual figure per fiscal year, newest first."""
+    """One reported annual figure per fiscal year, newest first, in the unit the company
+    reports the metric in (D-04: not a convenience translation)."""
     stmt = select(FinancialFact).where(
         FinancialFact.cik == cik,
         FinancialFact.metric == metric,
@@ -274,17 +281,20 @@ def annual_series(db: Session, cik: str, metric: str, as_of: date | None) -> lis
         FinancialFact.derived.is_(False),
         FinancialFact.quality_status.in_(["ok", "partial"]),
         FinancialFact.value.is_not(None),
-        FinancialFact.unit == default_unit(metric),
     )
     if as_of:
         stmt = known_by(stmt, as_of)
+    rows = list(db.scalars(stmt))
+    unit = reporting_unit(rows, metric)
 
     def rank(f: FinancialFact) -> tuple:
         # An annual report beats a proxy's pay-versus-performance table for the same year.
         return (f.form_type in ANNUAL_FORMS, f.filed_date or date.min, f.accession_number or "")
 
     latest: dict[date, FinancialFact] = {}
-    for f in db.scalars(stmt):
+    for f in rows:
+        if f.unit != unit:
+            continue
         cur = latest.get(f.period_end)
         if cur is None or rank(f) > rank(cur):
             latest[f.period_end] = f
@@ -336,10 +346,12 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
                 "label": label,
                 "period_end": cur.period_end.isoformat(),
                 "value": float(cur.value),
-                "display": money(cur.value),
+                "display": money(cur.value, cur.unit),
+                "unit": cur.unit,
+                "currency": cur.unit.split("/")[0],
                 "prior_period_end": prev.period_end.isoformat() if prev else None,
                 "prior_value": float(prev.value) if prev else None,
-                "prior_display": money(prev.value) if prev else None,
+                "prior_display": money(prev.value, prev.unit) if prev else None,
                 "growth_pct": growth,
                 "filed_date": cur.filed_date.isoformat() if cur.filed_date else None,
                 "accession_number": cur.accession_number,
@@ -351,9 +363,11 @@ def build_brief(db: Session, company: Company, as_of: date | None = None) -> Bri
                 ],
             }
         )
-        line = f"[{n}] {label}, fiscal year ended {human_date(cur.period_end)}: {money(cur.value)}"
+        shown = money(cur.value, cur.unit)
+        line = f"[{n}] {label}, fiscal year ended {human_date(cur.period_end)}: {shown}"
         if prev is not None:
-            line += f"; prior year (ended {human_date(prev.period_end)}) {money(prev.value)}"
+            before = money(prev.value, prev.unit)
+            line += f"; prior year (ended {human_date(prev.period_end)}) {before}"
             if growth is not None:
                 line += f"; change {growth:+.1f}%"
         b.context_lines.append(line + f". Filed {cur.filed_date} ({cur.form_type}).")

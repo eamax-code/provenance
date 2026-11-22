@@ -444,12 +444,35 @@ def default_unit(metric: str) -> str:
     return DEFAULT_UNIT[METRIC_UNIT_KIND.get(metric, "currency")]
 
 
-def display_value(value: Decimal | float, metric: str) -> str:
-    """A figure as a reader says it: $391.0 billion, $6.08 per share, 15.4 billion shares."""
+def reporting_unit(rows, metric: str) -> str | None:
+    """The unit a company reports a metric in (D-04): the unit of its latest period; where a
+    convenience translation shares that period, the unit with more periods wins, then the
+    metric's default (USD). `rows` are facts of one company and metric."""
+    seen: dict[str, tuple] = {}
+    for r in rows:
+        last, ends = seen.get(r.unit, (date.min, set()))
+        ends.add(r.period_end)
+        seen[r.unit] = (max(last, r.period_end), ends)
+    if not seen:
+        return None
+    default = default_unit(metric)
+    return max(seen, key=lambda u: (seen[u][0], len(seen[u][1]), u == default))
+
+
+def currency_symbol(unit: str | None) -> str:
+    """'$' for USD (and no unit); 'EUR ' for a unit in another currency, per share included."""
+    cur = (unit or "USD").split("/")[0]
+    return "$" if cur in ("USD", "shares", "pure") else f"{cur} "
+
+
+def display_value(value: Decimal | float, metric: str, unit: str | None = None) -> str:
+    """A figure as a reader says it: $391.0 billion, $6.08 per share, 15.4 billion shares;
+    EUR 36.8 billion in a company's own currency (D-04)."""
     x = float(value)
     kind = METRIC_UNIT_KIND.get(metric, "currency")
+    sym = currency_symbol(unit)
     if kind == "per_share":
-        return f"-${abs(x):,.2f} per share" if x < 0 else f"${x:,.2f} per share"
+        return f"-{sym}{abs(x):,.2f} per share" if x < 0 else f"{sym}{x:,.2f} per share"
     sign, a = ("-" if x < 0 else ""), abs(x)
     for div, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
         if a >= div:
@@ -457,7 +480,7 @@ def display_value(value: Decimal | float, metric: str) -> str:
             break
     else:
         n = f"{a:,.0f}"
-    return f"{sign}{n} shares" if kind == "shares" else f"{sign}${n}"
+    return f"{sign}{n} shares" if kind == "shares" else f"{sign}{sym}{n}"
 
 
 def classify_duration(start: date, end: date) -> str:

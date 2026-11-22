@@ -79,7 +79,7 @@ def run_once(
     sender=None,
     include_universe: bool = True,
 ) -> dict:
-    with single_run_guard(db) as acquired:
+    with single_run_guard(db, settings.poll_lock_file) as acquired:
         if not acquired:
             log_event(logger, logging.INFO, "poll skipped: another run holds the lock")
             return {"skipped": True}

@@ -90,6 +90,7 @@ def settings(tmp_path):
     return Settings(
         database_url=database_url,
         sec_cache_dir=str(tmp_path / "sec_cache"),
+        poll_lock_file=str(tmp_path / "poll.lock"),  # two suites in one checkout never collide
         news_cache_dir=str(tmp_path / "news_cache"),
         **{k.lower(): v for k, v in TEST_ENV.items()},
     )

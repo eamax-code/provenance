@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     sec_max_retries: int = 5
     sec_max_response_bytes: int = 50 * 1024 * 1024
     sec_cache_dir: str = ".sec_cache"
+    poll_lock_file: str = ".poll_sec.lock"  # the poller's single-run lock without PostgreSQL
     sec_base_data_url: str = "https://data.sec.gov"
     sec_base_www_url: str = "https://www.sec.gov"
     sec_live_tests: bool = False

@@ -84,8 +84,9 @@ class Evidence:
     first_line: int = 0  # where the evidence starts in the brief's context lines
 
 
-def _quarter_pair(db: Session, cik: str, metric: str, as_of: date | None):
-    """The latest quarter and the same quarter a year earlier, as reported."""
+def _quarter_pair(db: Session, cik: str, metric: str, as_of: date | None, unit: str = "USD"):
+    """The latest quarter and the same quarter a year earlier, as reported, in the unit of the
+    annual series (D-04)."""
     stmt = select(FinancialFact).where(
         FinancialFact.cik == cik,
         FinancialFact.metric == metric,
@@ -93,7 +94,7 @@ def _quarter_pair(db: Session, cik: str, metric: str, as_of: date | None):
         FinancialFact.derived.is_(False),
         FinancialFact.quality_status.in_(["ok", "partial"]),
         FinancialFact.value.is_not(None),
-        FinancialFact.unit == "USD",
+        FinancialFact.unit == unit,
     )
     if as_of:
         stmt = known_by(stmt, as_of)
@@ -131,15 +132,16 @@ def gather(
         return None
     label = intel.METRIC_LABELS[metric]
     ev = Evidence(metric=metric, label=label, chart=chart, first_line=first_line)
-    pair = _quarter_pair(db, b.company.cik, metric, b.as_of)
+    unit = chart.get("unit") or "USD"
+    pair = _quarter_pair(db, b.company.cik, metric, b.as_of, unit)
     if pair and pair[0].period_end > date.fromisoformat(chart["points"][-1]["period_end"]):
         cur, prev = pair
         ev.quarter_growth = round(float((cur.value - prev.value) / abs(prev.value)) * 100, 1)
         n = b.cite(f"{label}, {cur.form_type} filed {cur.filed_date}", cur.source_url)
         b.context_lines.append(
             f"[{n}] Latest quarter: {label.lower()} for the three months ended {cur.period_end} "
-            f"was {intel.money(cur.value)}, against {intel.money(prev.value)} for the three "
-            f"months ended {prev.period_end}: {ev.quarter_growth:+.1f}% (computed here)."
+            f"was {intel.money(cur.value, unit)}, against {intel.money(prev.value, unit)} for "
+            f"the three months ended {prev.period_end}: {ev.quarter_growth:+.1f}% (computed here)."
         )
     if release:
         text, url, head = release
@@ -296,7 +298,7 @@ def project(ev: Evidence, rates: dict, years: list[str]) -> list[dict]:
         for k in vals:
             vals[k] *= 1 + rates[k][i] / 100
             row[k] = round(vals[k], 2)
-            row[f"{k}_display"] = intel.money(vals[k])
+            row[f"{k}_display"] = intel.money(vals[k], ev.chart.get("unit"))
             row[f"{k}_growth"] = rates[k][i]
         out.append(row)
     return out
@@ -332,6 +334,7 @@ def widget(ev: Evidence, b: intel.Brief, rows: list[dict], method: str, model: s
     ]
     return {
         "type": "forecast",
+        "currency": (ev.chart.get("unit") or "USD").split("/")[0],
         "title": f"{intel.display_name(b.company.legal_name)}: {ev.label.lower()}, "
         "reported and forecast",
         "metric": ev.metric,

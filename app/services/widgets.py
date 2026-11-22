@@ -13,7 +13,6 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.services import intel, periods
-from app.services.fact_normalizer import default_unit
 
 # First match wins, so specific phrases come before the generic words they contain.
 _METRIC_WORDS = [
@@ -139,7 +138,7 @@ def add_trend(b: intel.Brief, db: Session, metric: str, years: int) -> dict | No
                 "label": names[i],
                 "period_end": f.period_end.isoformat(),
                 "value": float(f.value),
-                "display": intel.display(f.value, metric),
+                "display": intel.display(f.value, metric, f.unit),
                 "change_pct": _pct(float(f.value), prev),
                 "form_type": f.form_type,
                 "filed_date": f.filed_date.isoformat() if f.filed_date else None,
@@ -224,7 +223,8 @@ def add_trend(b: intel.Brief, db: Session, metric: str, years: int) -> dict | No
         "type": "chart",
         "metric": metric,
         "title": f"{label} by fiscal year",
-        "unit": default_unit(metric),
+        "unit": facts[-1].unit,  # the company's reporting unit (D-04)
+        "currency": facts[-1].unit.split("/")[0],
         "points": points,
         "stats": stats,
         "summary": {
@@ -294,11 +294,13 @@ def overview(b: intel.Brief) -> dict | None:
     return {
         "type": "stats",
         "title": "Latest annual figures",
+        "currency": b.metrics[0].get("currency", "USD"),
         "items": [
             {
                 "metric": m["metric"],
                 "label": m["label"],
                 "value": m["display"],
+                "currency": m.get("currency", "USD"),
                 "change_pct": m["growth_pct"],
                 "sub": f"FY ended {m['period_end']}",
                 "citation": m["citation"],
