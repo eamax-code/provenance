@@ -4,6 +4,8 @@
   python scripts/load_13f.py --fetch-only            # Schedules 13D/G into the SEC cache only
   python scripts/load_13f.py --datasets .sec_bulk/13f  # map CUSIPs, then load the 13F zips
   python scripts/load_13f.py --name-rule .sec_bulk/13f/<latest>_form13f.zip   # E-1c (b)
+  python scripts/load_13f.py --remove-reviewed .sec_bulk/13f [--apply]
+      # delete the issuer_prefix links listed in app/data/cusip_removals_reviewed.csv
 
 1. The CUSIP map: for each company with a structured Schedule 13D or 13G, the latest one is
    read (cached on disk by the SEC client, so --fetch-only first and loading later costs no
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import zipfile
 from datetime import date, timedelta
 from pathlib import Path
 from xml.etree import ElementTree
@@ -87,6 +90,31 @@ def deep_schedules(db, sec, per_company: int) -> dict:
     return {"unmapped": len(todo), "schedules_read": read, "companies_mapped": mapped}
 
 
+def remove_reviewed(db, folder: Path, apply: bool) -> dict:
+    """Dry run unless `apply`: which reviewed links would go, and any reviewed row not found."""
+    from sqlalchemy import select
+
+    from app.db.models import IssuerCusip
+
+    q = select(IssuerCusip.cusip).where(IssuerCusip.method == "issuer_prefix")
+    prefixed = set(db.scalars(q))
+    names: dict[str, set[str]] = {}
+    for p in sorted(folder.glob("*_form13f.zip")):
+        with zipfile.ZipFile(p) as z:
+            for r in thirteenf._rows(z, "INFOTABLE.TSV"):
+                c = (r.get("CUSIP") or "").strip().upper()
+                if c in prefixed:
+                    names.setdefault(c, set()).add(" ".join((r.get("NAMEOFISSUER") or "").split()))
+    reviewed = cusips.reviewed_removals()
+    gone = cusips.remove_reviewed(db, names, reviewed)
+    if apply:
+        db.commit()
+    else:
+        db.rollback()
+    return {"applied": apply, "reviewed": len(reviewed), "removed": len(gone),
+            "not_found": sorted(reviewed - set(gone))}  # fmt: skip
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--fetch-only", action="store_true", help="Fill the SEC cache, no writes")
@@ -102,9 +130,20 @@ def main() -> int:
     )
     ap.add_argument("--name-rule", help="E-1c: map unmapped companies by 13F issuer name from "
                     "this data set (no schedules are read)")  # fmt: skip
+    ap.add_argument(
+        "--remove-reviewed",
+        metavar="DIR",
+        help="delete the issuer_prefix links on "
+        "the reviewed list, matched by the 13F issuer names in DIR's data sets",
+    )
+    ap.add_argument("--apply", action="store_true", help="with --remove-reviewed: write")
     args = ap.parse_args()
     settings, Session = bootstrap()
     db = Session()
+    if args.remove_reviewed:
+        print(json.dumps(remove_reviewed(db, Path(args.remove_reviewed), args.apply)))
+        db.close()
+        return 0
     if args.deep:
         print(json.dumps(deep_schedules(db, SecClient(settings), args.deep)))
         db.close()

@@ -149,8 +149,8 @@ def _holdings(z: zipfile.ZipFile, filings: dict[str, dict], classes: dict[str, s
         if not cusip_map.valid(cusip) or shares is None or value is None:
             continue
         title = " ".join((r.get("TITLEOFCLASS") or "").split())[:100] or None
-        if title:
-            classes.setdefault(cusip, title)
+        if title and not cusip_map.names_other_security(r.get("NAMEOFISSUER")):
+            classes.setdefault(cusip, title)  # never a preferred, warrant or unit line
         h = run.get(cusip)
         if h is None:
             run[cusip] = {

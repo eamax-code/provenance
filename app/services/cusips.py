@@ -17,10 +17,12 @@ rare).
 
 from __future__ import annotations
 
+import csv
 import re
 from datetime import date
+from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.models import CompanyLei, IssuerCusip, ListedInstrument, utcnow
@@ -158,6 +160,50 @@ def map_isins(db: Session) -> int:
         if c:
             n += record(db, cik, c, "isin")
     return n
+
+
+# a 13F issuer name that names another kind of security, whatever the managers' title says
+# (STIFEL FINL CORP DEP: depositary shares of a preferred; MOVANO ... WARRANT): whole words only,
+# so UNITED or NOTEWORTHY never trigger it
+_NOT_COMMON = re.compile(
+    r"\b(DEP|DEPOSITARY|PFD|PREFERRED|WARRANTS?|WTS?|RIGHTS?|UNITS?|NOTES?)\b", re.I
+)
+
+
+def names_other_security(issuer_name: str | None) -> bool:
+    return bool(_NOT_COMMON.search(issuer_name or ""))
+
+
+REVIEWED_REMOVALS = Path(__file__).resolve().parents[1] / "data" / "cusip_removals_reviewed.csv"
+
+
+def _issuer(name: str) -> str:
+    return " ".join(name.upper().split())
+
+
+def reviewed_removals(path: Path = REVIEWED_REMOVALS) -> set[tuple[str, str]]:
+    """(cik, 13F issuer name) of each issuer_prefix link checked by hand and to be removed."""
+    with open(path, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    return {(normalize_cik(r["cik"]), _issuer(r["issuer_name_13f"])) for r in rows}
+
+
+def remove_reviewed(
+    db: Session, names: dict[str, set[str]], reviewed: set[tuple[str, str]]
+) -> list[tuple[str, str]]:
+    """Delete the issuer_prefix links whose company and 13F issuer name are on the reviewed list.
+    `names` is {cusip: issuer names the 13Fs give}. Returns (cik, issuer name) per removal; no
+    other link is touched."""
+    rows = db.execute(
+        select(IssuerCusip.cusip, IssuerCusip.cik).where(IssuerCusip.method == "issuer_prefix")
+    ).all()
+    gone: list[tuple[str, str]] = []
+    for cusip, cik in rows:
+        hit = next((n for n in sorted(names.get(cusip, ())) if (cik, _issuer(n)) in reviewed), None)
+        if hit:
+            db.execute(delete(IssuerCusip).where(IssuerCusip.cusip == cusip))
+            gone.append((cik, _issuer(hit)))
+    return gone
 
 
 def map_prefixes(db: Session, classes: dict[str, str]) -> int:

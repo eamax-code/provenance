@@ -66,7 +66,12 @@ ROWS = [
 ]
 
 
-def make_zip(folder: Path, name: str = "01jun2026-31aug2026_form13f.zip") -> Path:
+def make_zip(
+    folder: Path,
+    name: str = "01jun2026-31aug2026_form13f.zip",
+    rows: list | None = None,
+    names: dict | None = None,
+) -> Path:
     path = folder / name
     sub = [SUB] + ["\t".join((a, d, f, c, p)) for a, d, f, c, p, _, _ in FILINGS]
     cover = [COVER] + [
@@ -76,9 +81,10 @@ def make_zip(folder: Path, name: str = "01jun2026-31aug2026_form13f.zip") -> Pat
         for a, _, f, _, p, n, t in FILINGS
     ]  # fmt: skip
     summary = [SUMMARY] + ["\t".join((a, "0", "1", "1000", "N")) for a, *_ in FILINGS]
+    nm, tail = names or {}, ("SOLE", "", "0", "0", "0")
     info = [INFO] + [
-        "\t".join((a, str(i), "ISSUER", t, c, "", str(v), str(s), k, pc, "SOLE", "", "0", "0", "0"))
-        for i, (a, c, t, v, s, k, pc) in enumerate(ROWS)
+        "\t".join((a, str(i), nm.get(c, "ISSUER"), t, c, "", str(v), str(s), k, pc) + tail)
+        for i, (a, c, t, v, s, k, pc) in enumerate(ROWS if rows is None else rows)
     ]
     with zipfile.ZipFile(path, "w") as z:
         for fname, lines in (("SUBMISSION.tsv", sub), ("COVERPAGE.tsv", cover),
@@ -190,6 +196,48 @@ def test_prefix_rule_maps_other_share_classes_only(db, loaded_13f):
     row = db.get(IssuerCusip, "037833209")
     assert row.cik == "0000320193" and row.method == "issuer_prefix"
     assert db.get(IssuerCusip, "037833308") is None
+
+
+def test_a_13f_name_saying_preferred_warrant_or_depositary_is_never_a_share_class():
+    for name in ("STIFEL FINL CORP DEP", "BANK OF AMERICA CORP PFD", "ENDRA LIFE SCIENCES INC WT",
+                 "MOVANO INCORPORATED WARRANT EXP 013128", "EOS ENERGY RIGHT EXP 072126",
+                 "KIMCO REALTY CORP DEP SHS REP", "ACME UNITS", "ACME 5.5% NOTES"):  # fmt: skip
+        assert cusips.names_other_security(name), name
+    # whole words only: these are ordinary issuer names
+    for name in ("UNITEDHEALTH GROUP INC", "UNITED RENTALS INC", "NOTEWORTHY AI INC",
+                 "HOME DEPOT INC", "DEPOMED INC", "WTW PLC", "RIGHTSIDE GROUP", None):  # fmt: skip
+        assert not cusips.names_other_security(name), name
+
+
+def test_a_preferred_line_titled_common_does_not_extend_the_prefix(db, ingested_aapl, tmp_path):
+    rows = [("0000001001-26-000002", "037833407", "COM", 100, 4, "SH", ""),
+            ("0000001001-26-000002", "037833506", "COM", 100, 4, "SH", "")]  # fmt: skip
+    path = make_zip(tmp_path, rows=rows, names={"037833407": "APPLE INC DEP SH PFD SER A"})
+    ds = thirteenf.parse_dataset(path)
+    list(ds.holdings)
+    assert set(ds.classes) == {"037833506"}  # the preferred line is held but not a class
+
+
+def test_reviewed_removals_delete_only_the_listed_links(db, ingested_aapl, tmp_path):
+    for c in ("037833407", "037833506"):
+        cusips.record(db, "0000320193", c, "issuer_prefix", "COM")
+    cusips.record(db, "0000320193", AAPL, "schedule_13dg", "Common Stock")
+    listed = tmp_path / "reviewed.csv"
+    header = "cik,company,issuer_name_13f,title_of_class_13f,reason,checked\n"
+    listed.write_text(header + "320193,Apple Inc.,Apple  Inc dep sh pfd,COM,preferred,2026-11-22\n")
+    reviewed = cusips.reviewed_removals(listed)
+    names = {"037833407": {"APPLE INC DEP SH PFD"}, "037833506": {"APPLE INC"},
+             AAPL: {"APPLE INC DEP SH PFD"}}  # fmt: skip
+    gone = cusips.remove_reviewed(db, names, reviewed)
+    assert gone == [("0000320193", "APPLE INC DEP SH PFD")]
+    assert db.get(IssuerCusip, "037833407") is None
+    assert db.get(IssuerCusip, "037833506") and db.get(IssuerCusip, AAPL)  # untouched
+
+
+def test_the_reviewed_removal_list_names_no_cusip():
+    text = cusips.REVIEWED_REMOVALS.read_text()
+    assert len(cusips.reviewed_removals()) == 23
+    assert not any(cusips.valid(w) for w in text.replace(",", " ").split())
 
 
 def test_stronger_source_wins_and_mcp_lists_the_tool(db, client, loaded_13f):
