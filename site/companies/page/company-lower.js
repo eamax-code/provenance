@@ -53,7 +53,9 @@
       }
       tb.appendChild(row);
     });
-    (K.reconciling || []).forEach(function (rc) {
+    // "Power & Energy: Intersegment Sales" rows follow their segments' order; corporate items last
+    var segAt = function (l) { var i = (K.segments || []).findIndex(function (sg) { return String(l).indexOf(sg.label + ':') === 0; }); return i < 0 ? 1e3 : i; };
+    (K.reconciling || []).slice().sort(function (a, b) { return segAt(a.label) - segAt(b.label); }).forEach(function (rc) {
       var vals = (rc.values || {})[segMetric] || {};
       if (!periods.some(function (p) { return vals[p] != null && vals[p] !== 0; })) return; // nothing, or $0 every year
       var row = el('tr', { class: 'recon' }, [el('th', { scope: 'row', class: 'fin-name', text: rc.label })].concat(periods.map(function (p) { return cell(vals[p], 'reconciling item, not a segment'); })));
