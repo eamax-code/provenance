@@ -14,9 +14,9 @@ from datetime import date, timedelta
 
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
-from app.db.models import Company, Filing, MartCompany, MartFilingActivity
+from app.db.models import Company, Filing, MartCompany, MartCompanyPeriod, MartFilingActivity
 from app.services.marts import loads
 
 MAX_LIST = 200
@@ -460,8 +460,23 @@ def compared_companies(db: Session, text: str) -> list[Company]:
 
 
 def _series(r: MartCompany, metric: str) -> list[dict]:
+    """The metric by fiscal year, newest first: {value, period_end, url}. Revenue has its own
+    history in the company mart; the other metrics come from the per-year mart (B-01: they
+    used to give only the latest year)."""
     if metric == "revenue":
         return loads(r.revenue_history) or []
+    db = object_session(r)
+    years = []
+    if db is not None:
+        for y in db.scalars(select(MartCompanyPeriod).where(MartCompanyPeriod.cik == r.cik)
+                            .order_by(MartCompanyPeriod.period_end.desc())):  # fmt: skip
+            value = getattr(y, metric, None)
+            if value is not None:
+                url = (loads(y.sources) or {}).get(metric)
+                years.append({"value": float(value), "period_end": y.period_end.isoformat(),
+                              "url": url})  # fmt: skip
+    if years:
+        return years
     latest = (loads(r.latest_annual) or {}).get(metric)
     return [latest] if latest else []
 

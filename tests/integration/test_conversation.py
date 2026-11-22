@@ -225,3 +225,33 @@ def test_comparing_named_companies_builds_a_table(client, auth, db, sec_client, 
     assert "Microsoft Corp $" in body["answer"] and "different months" in body["answer"]
     assert [r[0]["text"] for r in body["widgets"][0]["rows"]] == ["Apple Inc.", "Microsoft Corp"]
     assert body["context"]["ciks"] == ["0000320193", "0000789019"]
+
+
+def test_compare_over_years_fills_every_year_for_any_metric(client, auth, db, sec_client, app):
+    """B-01: "compare Apple and Microsoft operating income over 3 years" (Apple's year ends in
+    September, Microsoft's in June) filled only the latest year: the table read a one-year
+    summary for every metric but revenue."""
+    from app.db.models import MartCompanyPeriod
+    from app.services.ingestion import ingest_company
+
+    ingest_company(db, sec_client, "320193")
+    ingest_company(db, sec_client, "789019")
+    marts.build_company_marts(db)
+    app.state.llm_factory = lambda: pytest.fail("a comparison must not call the model")
+    body = _chat(client, auth, "compare Apple and Microsoft operating income over 3 years")
+    assert body["intent"] == "compare"
+    table = body["widgets"][0]
+    assert table["title"] == "Operating income, last 3 fiscal years" and len(table["columns"]) == 5
+    for row in table["rows"]:
+        cik = "0000320193" if row[0]["text"].startswith("Apple") else "0000789019"
+        years = db.query(MartCompanyPeriod).filter(
+            MartCompanyPeriod.cik == cik, MartCompanyPeriod.operating_income.is_not(None)
+        ).count()
+        filled = [c for c in row[2:] if c["text"] != "—"]
+        assert len(filled) == min(3, years), (row, years)
+        if cik == "0000320193":
+            assert len(filled) >= 2  # the fixture has two Apple years: both are shown
+        ends = [c["text"].split("FY ended ")[1].rstrip(")") for c in filled]
+        assert ends == sorted(ends, reverse=True)  # newest first, one fiscal year apart
+        month = "09" if cik == "0000320193" else "06"
+        assert all(e[5:7] == month for e in ends), ends  # each company's own fiscal year end
