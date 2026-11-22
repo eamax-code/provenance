@@ -255,3 +255,30 @@ were raised on that instance only (`PUBLIC_RATE_LIMIT_PER_MINUTE`,
 A point-in-time overview that misses the cache took 68-72 ms. The 50 req/s run's overview row
 counted companies outside the showcase (404s), so the overview is reported from the separate
 showcase run.
+
+## Restore drill (R-3), 2026-11-22
+
+The daily dump `provenance-2026-11-22T0351Z.dump` (4.3 GB, custom format, 56 tables; written by
+the launchd backup job) restored into a scratch database in the same container and dropped
+afterwards:
+
+```
+docker exec provenance-local-pg psql -U provenance -d postgres -c "CREATE DATABASE provenance_restore_drill"
+docker cp ../provenance-backups/provenance-2026-11-22T0351Z.dump provenance-local-pg:/tmp/drill.dump
+docker exec provenance-local-pg pg_restore -U provenance -d provenance_restore_drill -j 4 --no-owner /tmp/drill.dump
+```
+
+- Copy into the container 29 s; `pg_restore -j 4` 278 s; 307 s in all (exit 0). The parallel
+  restore needs the dump as a file inside the container (not piped on stdin).
+- Restored size 26 GB (the live database is 33 GB with table bloat).
+- Row counts identical to live for financial_facts (25,673,172), filings (8,785,467), companies,
+  mart_company (817 non-USD reporting currencies), mart_financials, insider_transactions,
+  company_lei, gleif_entities and registrant_successions; alembic at the same head
+  (a6d2e8f4c0b3). api_keys differed by one key created after the dump.
+- Disk: the Docker VM had 379 GB free; a full drill needs about 30-40 GB free beside the live
+  database.
+
+To recover for real: stop the API, poller and launchd jobs; create an empty database (or a new
+volume), `pg_restore -j 4 --no-owner` the newest dump that `pg_restore --list` reads, run
+`alembic upgrade head` (the schema guard refuses jobs until it matches), rebuild marts if the
+dump predates a mart change, then start the processes.
