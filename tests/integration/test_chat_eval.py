@@ -321,3 +321,29 @@ def test_a_data_answer_with_an_uncited_figure_is_withheld():
     cited = _data_reply(DataAnswer("Apple Inc. $391.0 billion [1].", "compare",
                                    citations=[{"n": 1, "label": "10-K", "url": url}]))  # fmt: skip
     assert cited.answer == "Apple Inc. $391.0 billion [1]." and not cited.checks
+
+
+def test_follow_ups_are_grounded_every_suggestion_answers_with_a_citation(
+    app, client, auth, eval_db
+):
+    """C-03: each suggested question, asked back, gets a cited answer (never 'not loaded')."""
+    app.dependency_overrides[get_llm] = lambda: NoModel()
+    try:
+        for q in (
+            "Apple revenue 2024",
+            "Caterpillar's revenue by segment",
+            "Who audits Microsoft?",
+        ):
+            reply = _ask(client, auth, {"id": "fu", "q": q})
+            assert len(reply["follow_ups"]) <= 3, q
+            # Apple has figures, holders and 8-Ks to suggest; Caterpillar and Microsoft only
+            # what was just asked, so nothing is suggested rather than something unanswerable
+            assert reply["follow_ups"] or not q.startswith("Apple"), q
+            for follow in reply["follow_ups"]:
+                again = _ask(client, auth, {"id": "fu2", "q": follow})
+                answer = again.get("answer") or ""
+                cited = {int(n) for n in CITE.findall(answer)}
+                assert answer and cited, (q, follow, answer)
+                assert "not in the filings loaded here" not in answer, (q, follow)
+    finally:
+        app.dependency_overrides.pop(get_llm, None)

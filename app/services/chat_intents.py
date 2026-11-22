@@ -207,3 +207,34 @@ ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
 
 def answer(db: Session, b: Brief, intent: str, as_of: date | None) -> str:
     return ANSWERS[intent](db, b, as_of)
+
+
+# C-03: grounded follow-ups. Each is offered only when the data that answers it is stored, so a
+# suggestion never leads to "not in the filings loaded here".
+def follow_ups(db: Session, b: Brief, current: str | None, limit: int = 3) -> list[str]:
+    from sqlalchemy import exists
+
+    from app.db.models import CompanyAuditor, CompanySegment, Filing, FinancialFact, Holding13F
+    from app.services import cusips, intel
+
+    c, name = b.company, _name(b)
+    has = lambda q: bool(db.scalar(select(exists(q))))  # noqa: E731
+    out: list[tuple[str, str]] = []
+    revenue = intel.annual_series(db, c.cik, "revenue", b.as_of)
+    if len(revenue) >= 2:
+        out.append(("trend", f"How has {name}'s revenue changed?"))
+    op = intel.annual_series(db, c.cik, "operating_income", b.as_of)
+    if revenue and op and op[0].period_end == revenue[0].period_end:
+        out.append(("figure", f"What is {name}'s operating margin?"))
+    codes = [x.cusip for x in cusips.cusips_for(db, c.cik)]
+    if codes and has(select(Holding13F.cusip).where(Holding13F.cusip.in_(codes))):
+        out.append(("holders", f"Who are {name}'s largest institutional holders?"))
+    if has(select(CompanySegment.cik).where(CompanySegment.cik == c.cik)):
+        out.append(("segments", f"What is {name}'s revenue by segment?"))
+    if has(select(CompanyAuditor.cik).where(CompanyAuditor.cik == c.cik)):
+        out.append(("auditor", f"Who audits {name}?"))
+    if has(select(Filing.cik).where(Filing.cik == c.cik, Filing.items.like("%5.02%"))):
+        out.append(("leadership", f"Any officer changes at {name}?"))
+    if not out and has(select(FinancialFact.cik).where(FinancialFact.cik == c.cik)):
+        out.append(("summary", f"Summarize {name}"))
+    return [q for kind, q in out if kind != current][:limit]

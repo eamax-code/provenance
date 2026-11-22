@@ -152,6 +152,9 @@ class ChatReply(BaseModel):
         [], description="How I got this: the API calls that return the same data "
         "({endpoint, parameters, as_of})",
     )  # fmt: skip
+    follow_ups: list[str] = Field(
+        [], description="Up to three next questions the stored data can answer (C-03)"
+    )
 
 
 def _chip(f, n: int | None, names: dict | None = None) -> dict:
@@ -461,6 +464,11 @@ def chat(
     reply = _answer(body, request, db, settings)
     if not reply.blocks:  # every reply carries blocks (C-01); chips only where facts are known
         reply.blocks = _blocks(reply.answer, reply.citations, reply.widgets, [])
+    if reply.company and not reply.follow_ups:  # C-03: only what the stored data can answer
+        comp = db.scalar(select(Company).where(Company.cik == reply.company["cik"]))
+        if comp is not None:
+            brief = intel.Brief(company=comp, as_of=body.as_of)
+            reply.follow_ups = chat_intents.follow_ups(db, brief, reply.intent)
     if reply.context is None and reply.company:
         reply.context = conversation.ConversationContext(
             intent=reply.intent, cik=reply.company["cik"]

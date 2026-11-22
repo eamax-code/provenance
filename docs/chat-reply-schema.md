@@ -13,11 +13,14 @@ saved version-1 reply (no `schema_version`) still renders: treat a missing `bloc
 | `schema_version` | `"2"` | The reply format. Absent on replies saved before version 2. |
 | `blocks` | list | The answer in reading order: a `text` block, then `figure` chips, then the tables, charts and stats also in `widgets`. Every reply has at least the text block when it has an answer. |
 | `how` | list | "How I got this": the API calls that return the same data, each `{endpoint, parameters, as_of}`. Empty when the answer is not a figure lookup (a refusal, a model answer). |
+| `follow_ups` | list of strings | Up to three next questions (C-03), each offered only when the stored data answers it (a test asks every suggestion back and requires a cited answer); empty rather than unanswerable. |
 
 ## Blocks
 
 `text`: `{type, text, citations}`. `citations` lists the citation numbers used in `text`
-(each matches an entry in the reply's `citations`, whose `url` is the filing on sec.gov/Archives).
+(each matches an entry in the reply's `citations`). A citation's `url` is a filing on
+sec.gov/Archives or `null`: a source that is not a filing (the EDGAR company record, GLEIF's LEI
+record) is named in `label`, never linked.
 
 `figure` (a figure chip): every figure a data answer states, with what the provenance card shows.
 
