@@ -145,6 +145,20 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik"],
         },
     },
+    "company_segments": {
+        "title": "Segments",
+        "description": "Revenue and segment profit (operating income, or pretax income for "
+        "banks) by business segment, geography and product, for up to three fiscal years, from "
+        "the latest annual report; each kind says whether the segments add up to the "
+        "consolidated figure (status ok or unreconciled) and links its filing.",
+        "path": "/v1/companies/{cik}/segments",
+        "params": {"as_of": "as_of"},
+        "schema": {
+            "type": "object",
+            "properties": {"cik": _CIK, "as_of": _DATE},
+            "required": ["cik"],
+        },
+    },
     "companies_going_public": {
         "title": "Companies going public",
         "description": "First-time registrants going public, newest activity first, with the "

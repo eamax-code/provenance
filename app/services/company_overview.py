@@ -35,6 +35,7 @@ from app.services import (
     leadership,
     live,
     periods,
+    segments,
     statements,
     successions,
     thirteenf,
@@ -373,7 +374,7 @@ def _listings(db: Session, company: Company) -> list[dict]:
 
 POINT_IN_TIME = ("statements", "key_figures", "years", "cover", "filings", "filing_activity",
                  "insider_activity", "leadership", "events", "ownership",
-                 "auditor")  # fmt: skip
+                 "auditor", "segments")  # fmt: skip
 CURRENT = ("summary", "history", "risk_factors", "peers", "listings")
 
 
@@ -421,6 +422,7 @@ def build(
         ),
         "ownership": thirteenf.for_company(db, company, as_of, today=today),
         "auditor": auditors.for_company(db, cik, as_of),
+        "segments": segments.for_company(db, cik, as_of),
         "risk_factors": risk,
         "peers": _peers(db, company, today),
         "listings": _listings(db, company),

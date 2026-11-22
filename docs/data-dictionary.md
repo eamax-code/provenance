@@ -469,6 +469,23 @@ both report. `company.predecessors` and `company.successor` link the two pages w
 filing. Point in time: rows count by their own filing date, so before the change the
 predecessor's rows are the ones shown. Filled by `scripts/detect_successions.py`.
 
+## company_segments (launch plan E-4, first pass)
+
+Revenue and segment profit by business segment, geography and product, per annual report and
+fiscal year, from the num and dim tables of the SEC's Notes data sets (companyfacts leaves out
+dimensional facts). `kind`: business (the segment axis, alone or with
+ConsolidationItems=OperatingSegments), geographic (the geographical axis), product (the product
+or service axis). `role`: segment, reconciling (corporate, intersegment eliminations,
+reconciling items on the ConsolidationItems axis or as a segment member) or consolidated (the
+same tag without dimensions). `member` is the axis=member string, the stable key; `label` is made
+from the member name. Metrics: revenue (the first revenue tag the segments use), operating income,
+pretax income (banks' segment profit). A subtotal member (the sum of two or more others, such as
+Apple's "Product") is dropped when the segments then add up. `status` per kind, metric and year:
+ok when the segments add up to the consolidated figure within 1% or a reconciling item is tagged,
+otherwise unreconciled (still shown). Overview `segments` and `GET /v1/companies/{cik}/segments`:
+the latest annual report, each kind with up to three fiscal years, share of revenue, reconciling
+items and the filing; point in time by filing date. Filled by `scripts/load_segments.py`.
+
 ## company_auditors (launch plan E-3)
 
 The audit firm tagged on each annual report's cover (10-K, 20-F, 40-F and amendments, since

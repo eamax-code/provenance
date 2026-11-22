@@ -12,7 +12,7 @@ from app.api.routes_companies import _ERRORS, _parse_cik_param, _require_company
 from app.core.errors import APIError
 from app.schemas.common import PageMeta
 from app.schemas.ownership import OwnershipOut
-from app.services import thirteenf
+from app.services import segments, thirteenf
 
 router = APIRouter(prefix="/v1/companies", tags=["connections"])
 
@@ -45,3 +45,25 @@ def get_ownership(
                       next_offset=offset + limit if more else None),
         **b,
     )  # fmt: skip
+
+
+@router.get(
+    "/{cik}/segments",
+    responses=_ERRORS,
+    summary="Revenue and profit by business segment, geography and product, from the annual report",
+)
+def get_segments(
+    cik: str = Path(max_length=13),
+    as_of: date | None = Query(None, description="Use only annual reports filed by this date"),
+    db: Session = Depends(db_session),
+    _key=Depends(require_reader),
+):
+    """E-4: the latest annual report's segments, up to three fiscal years, each kind with its
+    status (ok when the segments add up to the consolidated figure or a reconciling item is
+    tagged; otherwise unreconciled)."""
+    cik = _parse_cik_param(cik)
+    _require_company(db, cik)
+    b = segments.for_company(db, cik, as_of)
+    if b is None:
+        raise APIError(404, "no_segment_data", "No segment figures are loaded for this company.")
+    return {"cik": cik, "as_of": as_of.isoformat() if as_of else None, **b}

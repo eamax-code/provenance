@@ -379,6 +379,34 @@ class RegistrantSuccession(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class CompanySegment(Base):
+    """A reportable segment's figure for one fiscal year, as an annual report tags it (launch plan
+    E-4), from the SEC's Financial Statement and Notes data sets (companyfacts drops dimensional
+    facts). `kind` is business (the segment axis), geographic or product. `status` is ok when the
+    segments add up to the consolidated figure within 1% or the filing tags a reconciling item,
+    else unreconciled."""
+
+    __tablename__ = "company_segments"
+    __table_args__ = (Index("ix_company_segments_cik_filed", "cik", "filed_date"),)
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)
+    member: Mapped[str] = mapped_column(Text, primary_key=True)  # axis=member, the stable key
+    metric: Mapped[str] = mapped_column(Text, primary_key=True)
+    period_end: Mapped[date] = mapped_column(Date, primary_key=True)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    fiscal_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    filed_date: Mapped[date] = mapped_column(Date, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)  # segment | reconciling | consolidated
+    tag: Mapped[str] = mapped_column(Text, nullable=False)
+    unit: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[Decimal] = mapped_column(Numeric(24, 2), nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)  # ok | unreconciled
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class IssuerCusip(Base):
     """Internal only (launch plan E-1): which company a CUSIP belongs to, to join Form 13F
     positions to companies. A CUSIP never appears in a response (owner rule).
