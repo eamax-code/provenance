@@ -3,6 +3,7 @@
 
   python scripts/read_releases.py --years 2 --min-revenue 1e9   # active $1B+ companies
   python scripts/read_releases.py --cik 320193 --years 5
+  python scripts/read_releases.py --top 500 --releases 4         # batch 1: largest USD reporters
 
 Reads each earnings release (exhibit 99.1) once (two SEC requests: the filing index and the
 exhibit; needs SEC_USER_AGENT), stores its text like other filing text, then records each 10-Q
@@ -29,6 +30,14 @@ def main() -> int:
     ap.add_argument("--years", type=float, default=2)
     ap.add_argument("--min-revenue", type=float, default=None)
     ap.add_argument("--no-fetch", action="store_true", help="Match stored releases only")
+    ap.add_argument(
+        "--top",
+        type=int,
+        default=None,
+        help="The N active USD reporters with the largest latest revenue",
+    )
+    ap.add_argument("--releases", type=int, default=None,
+                    help="Read only each company's latest N earnings releases")  # fmt: skip
     args = ap.parse_args()
     settings, Session = bootstrap()
     db = Session()
@@ -39,13 +48,20 @@ def main() -> int:
             MartCompany.latest_revenue >= args.min_revenue,
             MartCompany.latest_annual_report_date >= date.today() - timedelta(days=730),
         )))  # fmt: skip
+    if args.top:
+        ciks += list(db.scalars(
+            select(MartCompany.cik).where(
+                MartCompany.reporting_currency == "USD", MartCompany.latest_revenue.is_not(None),
+                MartCompany.latest_annual_report_date >= date.today() - timedelta(days=730),
+            ).order_by(MartCompany.latest_revenue.desc()).limit(args.top)
+        ))  # fmt: skip
     sec = None if args.no_fetch else SecClient(settings)
     out = {"companies": 0, "releases_read": 0, "figures_matched": 0}
     for cik in dict.fromkeys(ciks):
         todo = db.scalars(select(Filing).where(
             Filing.cik == cik, Filing.form_type.like("8-K%"),
             Filing.items.like(f"%{releases.EARNINGS_ITEM}%"), Filing.filing_date >= since,
-        )).all()  # fmt: skip
+        ).order_by(Filing.filing_date.desc()).limit(args.releases)).all()  # fmt: skip
         for f in todo:
             out["releases_read"] += releases.ensure_read(db, f, sec) == "read"
         out["figures_matched"] += first_reported.match_company(db, cik, since - timedelta(days=200))
