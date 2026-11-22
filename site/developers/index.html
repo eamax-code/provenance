@@ -300,7 +300,7 @@ export function verified(secret, timestamp, signature, rawBody) {
       <section id="listings" aria-labelledby="listings-h">
         <h2 id="listings-h">Listings in Canada, the UK and the EU</h2>
         <p>New listings, delistings and suspensions on covered venues, from the ESMA and FCA instrument registers, with issuers identified through GLEIF. A <code>new_listing</code> means an instrument first traded on a venue; it is not an IPO determination. <code>issuer_requested: true</code> marks a likely primary listing.</p>
-        <div class="code"><pre><code>curl -s "{{BASE}}/v1/markets/events?type=new_listing&amp;region=uk" -H "X-API-Key: $PROVENANCE_API_KEY"
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/markets/events?types=new_listing&amp;region=uk" -H "X-API-Key: $PROVENANCE_API_KEY"
 curl -s "{{BASE}}/v1/markets/instruments?q=Exosens&amp;region=europe" -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
         <p>The last two weeks of events are public, without a key, at <a href="/listings/">Listings</a>.</p>
       </section>
