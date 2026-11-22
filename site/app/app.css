@@ -455,3 +455,4 @@ td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }
   #main:has(#company:not([hidden])) .keybar { display: none; }
   .ws-acts .btn[href^="/companies/"] { display: none; }
 }
+@media (max-width: 600px) { .st-table .stick { min-width: 8.5em; max-width: 10em; white-space: normal; } }

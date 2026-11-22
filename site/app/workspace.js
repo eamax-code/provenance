@@ -456,10 +456,12 @@
       })));
     });
     var csvRows = function () { return [['line_item'].concat(cols.map(function (c) { return c.key; })).join(',')].concat(rows.map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(cols.map(function (c, i) { var x = at(r, i); return x ? x.value : ''; })).join(','); })); };
+    var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
     pane.replaceChildren(stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + '.csv'),
-      el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
+      wrap,
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
       (b.notes || []).length ? el('p', { class: 'muted small', text: b.notes.join(' ') }) : null);
+    wrap.scrollLeft = wrap.scrollWidth; // open on the latest periods; earlier ones scroll in from the left
   }
   function statementsFallback() {
     var pane = $('pane-statements'), d = S.d, cur = (d.company || {}).reporting_currency || 'USD', st = d.statements || {}, fy = st.fiscal_years || [];
@@ -483,6 +485,7 @@
     pane.replaceChildren(stControls(cur, 'Annual · in ' + cur + ' as filed · last five years', csvRows, (d.company.ticker || d.company.cik) + '-' + S.st + '.csv'),
       el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping. "—" means not reported. Shaded cells were reported by a predecessor registrant.' + (S.st === 'ratios' ? ' Ratios are worked out here from reported figures.' : ' Longer histories and quarters load from the statements API when it\u2019s available.') }));
+    var fw = pane.querySelector('.st-wrap'); if (fw) fw.scrollLeft = fw.scrollWidth;
   }
 
   /* ---- X-05 timeline: the timeline endpoint (types, paging); the overview's events and filings otherwise ---- */
@@ -759,7 +762,7 @@
     X.raw('/v1/facts/screen?metric=revenue&year=' + (new Date().getFullYear() - 1) + '&limit=3', X.hasKey() ? null : 'demo').then(function (r) {
       var box = host.querySelector('.land-top'); if (!box) return;
       var rows = r.ok && r.body && r.body.data || [];
-      box.replaceChild(rows.length ? el('ol', { class: 'ov-list land-list' }, rows.map(function (x) { var cik = String(parseInt(x.cik, 10)); return el('li', {}, [el('a', { href: '/app/?c=' + cik, text: x.display_name || orgName(x.legal_name), on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(cik); } } } }), el('span', { class: 'muted small', text: x.ticker || '' }), door(money(x.value, (x.unit || 'USD').split('/')[0]), { label: 'Revenue', metric: 'revenue', period_end: x.period_end, form_type: x.form_type, filed_date: x.filed_date, source_url: x.source_url, accession_number: x.accession_number, source_tag: x.source_tag, mapping_version: x.mapping_version, quality_status: x.quality_status })]); })) : el('p', { class: 'muted', text: 'The screen is unavailable right now.' }), box.lastChild);
+      box.replaceChild(rows.length ? el('ol', { class: 'ov-list land-list' }, rows.map(function (x) { var cik = String(parseInt(x.cik, 10)); return el('li', {}, [el('a', { href: '/app/?c=' + cik, text: x.display_name || orgName(x.legal_name), on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(cik); } } } }), el('span', { class: 'muted small', text: x.ticker || '' }), door(money(x.value, (x.unit || 'USD').split('/')[0]), { label: 'Revenue', metric: 'revenue', period_end: x.period_end, form_type: x.form_type, filed_date: x.filed_date, source_url: x.source_url, accession_number: x.accession_number, source_tag: x.source_tag, mapping_version: x.mapping_version, quality_status: x.quality_status })]); })) : el('p', { class: 'muted', text: !X.hasKey() && r.status === 429 ? 'The shared demo key has reached today\u2019s limit; a free key shows the ranking.' : 'The screen is unavailable right now.' }), box.lastChild);
     });
   }
 

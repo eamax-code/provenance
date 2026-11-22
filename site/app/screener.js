@@ -63,7 +63,11 @@
     Promise.all([screen(S.sm, S.so, lim)].concat(need.map(function (m) { return screen(m, 'desc', lim); }))).then(function (res) {
       if (my !== seq) return;
       var main = res[0];
-      if (!main || main.error) { $('scr-out').replaceChildren(el('p', { class: 'muted', text: main && main.error === 429 ? 'Too many requests just now. Try again in a minute.' : 'The screen is unavailable right now.' })); return; }
+      if (!main || main.error) {
+        var demoOut = !X.hasKey() && main && main.body && main.body.error && /demo key daily limit/i.test(main.body.error.message || '');
+        $('scr-out').replaceChildren(el('p', { class: 'muted' }, demoOut ? ['Without a key the screener runs on the shared demo key, and it has reached today\u2019s limit. ', el('a', { href: '/account/', text: 'A free key' }), ' ranks every company.'] : [main && main.error === 429 ? 'Too many requests just now. Try again in a minute.' : 'The screen is unavailable right now.']));
+        return;
+      }
       var by = {}; need.forEach(function (m, i) { var b = res[i + 1]; by[m] = {}; ((b && b.data) || []).forEach(function (r) { by[m][r.cik] = r; }); });
       var rows = (main.data || []).map(function (r) {
         var cells = {}; cells[S.sm] = r;
