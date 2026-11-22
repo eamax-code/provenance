@@ -21,7 +21,7 @@
         return el('li', {}, [
           el('a', { href: '/companies/' + cik }, [
             el('b', { text: r.display_name }),
-            el('span', { class: 'cs-meta', text: [r.ticker, r.exchange, 'CIK ' + cik].filter(Boolean).join(' · ') + (r.matched_former_name ? (/^[A-Z][A-Z0-9.\-]{0,5}$/.test(r.matched_former_name) ? ' · formerly traded as ' : ' · formerly ') + r.matched_former_name : '') }),
+            el('span', { class: 'cs-meta', text: [r.ticker, r.exchange, 'CIK ' + cik].filter(Boolean).join(' · ') + (r.matched_former_name ? (r.match_type === 'former_ticker' ? ' · formerly traded as ' : ' · formerly ') + r.matched_former_name : '') }),
             el('span', { class: 'cs-tag', text: r.is_public_page ? 'Public page' : 'With a free key' })
           ])
         ]);
