@@ -493,6 +493,20 @@ class CompanyLei(Base):
     matched_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class FxRate(Base):
+    """A Federal Reserve H.10 daily rate as published (public domain): some series are US
+    dollars per unit (EUR, GBP, AUD, NZD), the rest units per dollar. Used only for USD-equivalent
+    size cohorts; never shown as a company's figure."""
+
+    __tablename__ = "fx_rates"
+
+    currency: Mapped[str] = mapped_column(String(3), primary_key=True)
+    rate_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    value: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    usd_per_unit: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    series_id: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class FilingStatementTag(Base):
     """A revenue tag a filing places on its income statement, with the filing's own label
     (Notes data sets pre.tsv, stmt=IS, not parenthetical). Mapping 1.5.0 reads it to settle
