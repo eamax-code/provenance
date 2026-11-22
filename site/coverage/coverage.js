@@ -51,6 +51,7 @@
     [/annual|quarterly/i, 'Financial statements and cover-page facts', '/docs'],
     [/8-K|current/i, 'Events by item: results, restatements, auditor changes, mergers, officer changes', '/developers/#events'],
     [/insider/i, 'Insiders, their roles and their trades', '/app/'],
+    [/13F/i, 'Institutional holders and their changes each quarter', '/developers/#ownership'],
     [/13D|13G|holder/i, 'Holders above 5%', '/app/'],
     [/registration|prospectus/i, 'IPO stages and deal terms, with their sentences', '/ipos/'],
     [/exhibit 21|subsidiar/i, 'Subsidiaries, new and gone year on year', '/app/']

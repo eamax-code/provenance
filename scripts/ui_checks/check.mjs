@@ -169,12 +169,21 @@ async function view(page, theme, width) {
     // a page may preset browser storage and stub API responses, to check states without writing data
     if (page.storage) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try{${Object.entries(page.storage).map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)},${JSON.stringify(v)})`).join(';')}}catch(e){}` }, sessionId);
     if (page.stubs) {
-      await send('Fetch.enable', { patterns: [{ urlPattern: '*/v1/*' }] }, sessionId);
-      listeners.push({ session: sessionId, method: 'Fetch.requestPaused', fn: (ev) => {
+      // a stub either replaces a response (body) or adds fields to the real one (merge, at the response stage)
+      await send('Fetch.enable', { patterns: [{ urlPattern: '*/v1/*', requestStage: 'Request' }, { urlPattern: '*/v1/*', requestStage: 'Response' }] }, sessionId);
+      listeners.push({ session: sessionId, method: 'Fetch.requestPaused', fn: async (ev) => {
         const stub = page.stubs.find((st) => new RegExp(st.match).test(ev.request.url));
-        if (!stub) { send('Fetch.continueRequest', { requestId: ev.requestId }, sessionId).catch(() => {}); return; }
-        const body = Buffer.from(JSON.stringify(stub.body)).toString('base64');
-        send('Fetch.fulfillRequest', { requestId: ev.requestId, responseCode: stub.status || 200, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body }, sessionId).catch(() => {});
+        const atResponse = ev.responseStatusCode !== undefined;
+        if (!stub || (stub.merge ? !atResponse : atResponse)) { send('Fetch.continueRequest', { requestId: ev.requestId }, sessionId).catch(() => {}); return; }
+        let payload = stub.body;
+        if (stub.merge) {
+          try {
+            const got = await send('Fetch.getResponseBody', { requestId: ev.requestId }, sessionId);
+            payload = Object.assign(JSON.parse(got.base64Encoded ? Buffer.from(got.body, 'base64').toString() : got.body), stub.merge);
+          } catch { send('Fetch.continueRequest', { requestId: ev.requestId }, sessionId).catch(() => {}); return; }
+        }
+        const body = Buffer.from(JSON.stringify(payload)).toString('base64');
+        send('Fetch.fulfillRequest', { requestId: ev.requestId, responseCode: stub.status || (stub.merge ? ev.responseStatusCode : 200), responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body }, sessionId).catch(() => {});
       } });
     }
     const loaded = new Promise((r) => listeners.push({ session: sessionId, method: 'Page.loadEventFired', fn: r }));

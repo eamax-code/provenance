@@ -92,6 +92,7 @@
         <li><a href="#as-of">Point in time</a></li>
         <li><a href="#ipos">Going public</a></li>
         <li><a href="#connections">Connections</a></li>
+        <li><a href="#ownership">Ownership (13F)</a></li>
         <li><a href="#events">Event feed</a></li>
         <li><a href="#webhooks">Watches and webhooks</a></li>
         <li><a href="#listings">Listings</a></li>
@@ -229,6 +230,20 @@ curl -s "{{BASE}}/v1/companies/320193/holders" -H "X-API-Key: $PROVENANCE_API_KE
         <p>Subsidiaries come with the names that are new or gone since the previous year's exhibit. With your own key, a company's exhibit 21, 13D/G filings and newest Forms 4 are read from EDGAR when they are more than a week old; the response says <code>refreshing: true</code> while that runs. The demo key reads what is stored. The <a href="/app/">Explorer</a> draws the graph in its Connections tab.</p>
       </section>
 
+      <section id="ownership" aria-labelledby="ownership-h">
+        <h2 id="ownership-h">Ownership from 13F</h2>
+        <p>Institutional managers report their holdings on Form 13F-HR up to 45 days after each quarter ends. <code>/v1/companies/{cik}/ownership</code> returns the latest complete quarter: the managers holding the company, ordered by value, each with its change since the quarter before (new, added, reduced, exited) and the 13F filing it comes from, plus the holder count and the share of stock outstanding held by these managers.</p>
+        <p>That share is derived: 13F shares held divided by the shares outstanding on the company's cover page, both listed as inputs. For companies with several share classes it is left out, because shares are not added across classes. An amended 13F that restates a quarter replaces the original. <code>as_of</code> shows ownership as it was known on a date.</p>
+        <div class="code"><pre><code># the largest holders of Apple at the latest complete quarter
+curl -s "{{BASE}}/v1/companies/320193/ownership?limit=10" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+# as it was known on 1 August 2026
+curl -s "{{BASE}}/v1/companies/320193/ownership?as_of=2026-08-01" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+# or ask your agent (MCP tool institutional_ownership):
+# "Who are Apple's largest institutional holders, and who added or exited last quarter?"</code></pre></div>
+      </section>
+
       <section id="events" aria-labelledby="events-h">
         <h2 id="events-h">The event feed</h2>
         <p><code>GET /v1/events</code> is one ordered feed of new SEC filings, officer changes read from 8-K item 5.02, and listing events. Store <code>next_cursor</code> and pass it back as <code>after</code>; you will never miss or repeat an event.</p>
@@ -287,7 +302,7 @@ curl -s "{{BASE}}/v1/markets/instruments?q=Exosens&amp;region=europe" -H "X-API-
 
       <section id="mcp" aria-labelledby="mcp-h">
         <h2 id="mcp-h">MCP server</h2>
-        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed, see new listings, follow companies going public, and map a company's insiders, 5% holders and subsidiaries with their trades. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
+        <p>Claude, ChatGPT and agent frameworks that speak the Model Context Protocol can use Provenance as a set of tools: find a company, read its overview, get figures (with <code>as_of</code>), list filings, rank companies, search filing text, follow the event feed, see new listings, follow companies going public, map a company's insiders, 5% holders and subsidiaries with their trades, and list its institutional holders from 13F. Every result keeps the filing link and accession number, so the agent can cite it. Without a key, the demo key's limits apply.</p>
         <div class="code" data-tabs>
           <div class="code-tabs" role="tablist" aria-label="Client">
             <button type="button" role="tab" aria-selected="true">Claude Code</button>

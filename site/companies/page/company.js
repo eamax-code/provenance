@@ -237,6 +237,42 @@
     });
   }
 
+  /* ---- ownership from 13F: top holders by value, changes since the quarter before ---- */
+  var CHANGE = { new: 'New', added: 'Added', reduced: 'Reduced', exited: 'Exited', unchanged: 'Unchanged' };
+  var quarterName = function (iso) { var m = /^(\d{4})-(\d{2})/.exec(iso || ''); return m ? 'Q' + Math.ceil(+m[2] / 3) + ' ' + m[1] : iso; };
+  function ownership(d) {
+    var o = d.ownership, box = $('ownership');
+    box.hidden = !o; if (!o) return;
+    $('own-when').textContent = quarterName(o.quarter) + ' (filed through ' + P.date(o.filed_through) + '). ' + (o.lag_note || '');
+    var pct = o.institutional_pct;
+    var pctTitle = o.institutional_pct_derived ? o.institutional_pct_derived.formula + (o.institutional_pct_derived.inputs || []).map(function (x) { return '; ' + x.name + ' ' + (x.value != null ? Number(x.value).toLocaleString('en-US') : '') + (x.quarter ? ' (' + quarterName(x.quarter) + ')' : x.as_of_date ? ' (' + P.date(x.as_of_date) + ')' : ''); }).join('') : '';
+    var nums = $('own-nums'); nums.textContent = '';
+    var tile = function (big, label, plain) { nums.appendChild(el('div', {}, [plain ? el('div', { class: 'own-flows' }, big) : el('b', {}, big), el('span', { text: label })])); };
+    tile([P.money(o.value_usd)], 'held by institutions filing 13F');
+    tile([pct != null ? P.pct(pct) : 'not computed', pct != null ? el('span', { class: 'tag', title: pctTitle, text: 'derived' }) : null], pct != null ? 'of shares outstanding' : 'several share classes; shares are not added across them');
+    tile([Number(o.holders_count).toLocaleString('en-US')], 'holders' + (o.holders_count_change != null ? ', ' + (o.holders_count_change >= 0 ? '+' : '−') + Math.abs(o.holders_count_change) + ' on the quarter before' : ''));
+    var f = o.flows || {};
+    tile([['new', 'new'], ['added', 'added'], ['reduced', 'reduced'], ['exited', 'exited']].map(function (k) { return el('span', {}, [el('strong', { text: String(f[k[0]] || 0) }), ' ' + k[1]]); }), 'holders by change since ' + quarterName(o.previous_quarter), true);
+    var rows = o.top_holders || [];
+    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Holder' }), el('th', { scope: 'col', class: 'n', text: 'Value' }), el('th', { scope: 'col', class: 'n opt', text: 'Shares' }), el('th', { scope: 'col', class: 'n', text: '% of shares' }), el('th', { scope: 'col', text: 'Change' }), el('th', { scope: 'col', class: 'opt', text: '13F' })]);
+    var tb = el('tbody');
+    rows.forEach(function (h) {
+      var ch = h.change ? el('span', { class: 'tag', text: CHANGE[h.change] || h.change }) : null;
+      var chText = h.shares_change_pct != null && h.change !== 'new' && h.change !== 'exited' ? ' ' + P.pct(h.shares_change_pct, true) : '';
+      tb.appendChild(el('tr', {}, [
+        el('th', { scope: 'row', text: h.name === h.name.toUpperCase() ? P.title(h.name) : h.name }),
+        el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd) }),
+        el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
+        el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
+        el('td', {}, [ch, chText]),
+        el('td', { class: 'opt' }, [srcLink(h.form_type + ', ' + P.date(h.filing_date), h.filing_url, 'accession ' + (h.accession_number || ''))])
+      ]));
+    });
+    $('own-table').replaceChildren(el('caption', { class: 'vh', text: 'Largest institutional holders, ' + quarterName(o.quarter) }), el('thead', {}, [head]), tb);
+    $('own-more').hidden = !o.has_more;
+    $('own-notes').textContent = (o.notes || []).join(' ');
+  }
+
   /* ---- filings with filters ---- */
   function filings(d) {
     var chips = $('filing-chips'), t = $('filings');
@@ -322,7 +358,7 @@
   $('asof-latest').addEventListener('click', function () { $('asof').value = ''; loadAt(null); });
 
   function render(d) {
-    header(d); story(d); statements(d); events(d); people(d); filings(d); peers(d); identity(d);
+    header(d); story(d); statements(d); events(d); people(d); ownership(d); filings(d); peers(d); identity(d);
     $('asof').value = d.as_of || '';
     var picks = $('asof-picks'); picks.textContent = '';
     var ends = d.years.map(function (y) { return y; }).filter(function (y) { return y.period_end; });
