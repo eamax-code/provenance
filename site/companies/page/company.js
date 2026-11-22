@@ -284,6 +284,8 @@
     (c.predecessors || []).forEach(function (p) { kv('Predecessor', [el('a', { href: '/companies/' + parseInt(p.cik, 10), text: P.orgName(p.display_name || p.name) + ' (CIK ' + p.cik + ')' }), ' until ' + P.date(p.effective_date)]); });
     if (c.successor) kv('Successor', [el('a', { href: '/companies/' + parseInt(c.successor.cik, 10), text: P.orgName(c.successor.display_name || c.successor.name) + ' (CIK ' + c.successor.cik + ')' }), ' from ' + P.date(c.successor.effective_date)]);
     kv('Tickers', (c.tickers.length ? c.tickers : [c.ticker]).filter(Boolean).map(function (t, i) { return t + (c.exchanges[i] ? ' on ' + c.exchanges[i] : ''); }).join(', '));
+    var ln = c.legal_name_as_filed;
+    if (ln && ln.name) kv('Legal name as filed', ln.source_url ? srcLink(ln.name, ln.source_url, 'From the cover of the filing, accession ' + (ln.accession_number || '')) : ln.name);
     kv('Formerly traded as', (c.former_tickers || []).map(function (t) { return t.ticker + (t.to ? ' (until ' + P.date(t.to) + ')' : ''); }).join(', '));
     kv('LEI', c.lei || 'Not filed with the SEC');
     (d.listings || []).forEach(function (l) { kv('Also listed', [l.isin, l.venue || l.mic].filter(Boolean).join(' on ')); });
