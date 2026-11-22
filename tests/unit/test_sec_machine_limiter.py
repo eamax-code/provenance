@@ -2,26 +2,50 @@
 
 from __future__ import annotations
 
-import time
+from types import SimpleNamespace
 
+import pytest
+
+from app.services import sec_client
 from app.services.sec_client import MachineLimiter, _immutable
 
 
-def test_interval_is_shared_through_the_file(tmp_path):
+class FakeClock:
+    """Time that moves only when the code sleeps: the tests assert the spacing the limiter asks
+    for, not wall time, so a loaded machine cannot fail them."""
+
+    def __init__(self) -> None:
+        self.now, self.slept = 1_000.0, []
+
+    def time(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.now += seconds
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    c = FakeClock()
+    monkeypatch.setattr(sec_client, "time", SimpleNamespace(time=c.time, sleep=c.sleep))
+    return c
+
+
+def test_interval_is_shared_through_the_file(tmp_path, clock):
     path = tmp_path / "rate"
     a, b = MachineLimiter(path, 20), MachineLimiter(path, 20)  # two processes, one file
-    start = time.time()
     for limiter in (a, b, a, b, a):
         limiter.wait()
-    assert time.time() - start >= 4 * 0.05 - 0.01
+    # the first request goes at once; each later one, from either process, waits 1/20 s
+    assert clock.slept == pytest.approx([0.05] * 4)
 
 
-def test_pause_holds_every_user_of_the_file(tmp_path):
+def test_pause_holds_every_user_of_the_file(tmp_path, clock):
     path = tmp_path / "rate"
     MachineLimiter(path, 100).pause(0.2)
-    start = time.time()
-    MachineLimiter(path, 100).wait()
-    assert time.time() - start >= 0.18
+    MachineLimiter(path, 100).wait()  # another process sharing the file
+    assert clock.slept == pytest.approx([0.2])
 
 
 def test_only_filed_documents_are_served_from_cache_without_asking():
