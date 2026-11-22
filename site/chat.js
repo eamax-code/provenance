@@ -588,8 +588,9 @@
     var content = el('div'); bot.body.appendChild(content);
     if (!reply.company && reply.answer) {
       // Answered from the data across companies (coverage, recent IPOs, a ranking, a follow-up
-      // table): no company card; the table carries the filing links.
-      content.appendChild(renderText(reply.answer, []));
+      // table): no company card; the table carries the filing links, and cited figures in the
+      // text ([1], [2]: a compare or a ranking) link their filings too.
+      content.appendChild(renderText(reply.answer, reply.citations || []));
       renderWidgets(content, reply);
       (reply.notes || []).forEach(function (n) { content.appendChild(el('p', 'cx-note', n)); });
       keepScrolled(); return;
