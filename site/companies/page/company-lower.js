@@ -68,7 +68,7 @@
   function people(d) {
     var L = d.leadership || { changes: [] }, box = $('people-list'), now = $('people-now');
     box.textContent = ''; now.textContent = '';
-    $('people-count').textContent = L.item_502_filings ? L.item_502_filings + ' filings with item 5.02 since ' + P.date(L.since) : '';
+    $('people-count').textContent = L.item_502_filings ? L.item_502_filings + (L.item_502_filings === 1 ? ' filing' : ' filings') + ' with item 5.02 since ' + P.date(L.since) : '';
     var cur = L.current_leadership || {};
     [['ceo', 'Chief executive'], ['cfo', 'Chief financial officer'], ['chair', 'Chair']].forEach(function (r) {
       var p = cur[r[0]];

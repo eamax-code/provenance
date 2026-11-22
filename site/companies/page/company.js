@@ -143,9 +143,15 @@
     $('finding').hidden = !$('finding').textContent;
     var k = $('kpis'); k.textContent = '';
     var pick = ['revenue', 'operating_income', 'net_income'];
+    // a registrant with no annual figures yet (a new successor, a recent listing) gets one plain line,
+    // not three tiles of "not reported" and an empty chart
+    var anyFig = pick.some(function (m) { return d.key_figures.some(function (x) { return x.metric === m; }); });
+    k.classList.toggle('kpis-empty', !anyFig);
+    $('chart').parentNode.hidden = !d.years.some(function (y) { return y.revenue != null; });
+    if (!anyFig) { k.appendChild(el('p', { class: 'kpi-none', text: 'No annual revenue or income filed under this CIK yet.' })); return; }
     pick.forEach(function (m) {
       var f = d.key_figures.filter(function (x) { return x.metric === m; })[0];
-      var sub = f ? [f.fiscal_label + DOT, srcLink(f.form_type + ' filed ' + P.date(f.filed_date), f.source_url)] : ['not reported'];
+      var sub = f ? [f.fiscal_label + DOT, srcLink(f.form_type + ' filed ' + P.date(f.filed_date), f.source_url)] : [];
       var pct = f ? f.change_pct : null;
       if (f && pct == null) { // same rule as the server: only between two positive consecutive years
         var ys = d.years.filter(function (y) { return y[m] != null; }), a = ys[ys.length - 1], b = ys[ys.length - 2];
@@ -154,7 +160,7 @@
       var change = pct != null ? el('span', { class: 'kpi-ch', text: P.pct(pct, true) + ' on the year' }) : null;
       k.appendChild(el('div', { class: 'kpi' }, [
         el('p', { class: 'kpi-label' }, [P.figureButton(d, m, [P.LABELS[m]], 'fv-name')]),
-        el('p', { class: 'kpi-value' }, [f ? srcLink(P.money(f.value, null, f.currency || (/^[A-Z]{3}$/.test(f.unit || '') ? f.unit : null)), f.source_url, 'Opens the filing') : 'not reported']),
+        el('p', { class: f ? 'kpi-value' : 'kpi-value none' }, [f ? srcLink(P.money(f.value, null, f.currency || (/^[A-Z]{3}$/.test(f.unit || '') ? f.unit : null)), f.source_url, 'Opens the filing') : 'Not reported']),
         el('p', { class: 'kpi-sub' }, sub.concat(change ? [el('br'), change] : [])),
         P.figureButton(d, m, [P.spark(P.series(d.years, m), 120, 28)], 'fv-open kpi-spark')
       ]));
