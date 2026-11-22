@@ -497,3 +497,35 @@ def reorganisation_aliases(db: Session, cik: str) -> list[str]:
         other = link.successor_cik if link.predecessor_cik == cik else link.predecessor_cik
         out += [c.cusip for c in cusip_map.cusips_for(db, other)]
     return out
+
+
+def issuer_names(path: str | Path) -> dict[str, dict]:
+    """{cusip: {name, share, filers, title}} from one data set's information tables: the issuer
+    name most managers give a CUSIP (and the share of managers giving it), for E-1c."""
+    from collections import Counter
+
+    names: dict[str, Counter] = {}
+    filers: dict[str, set] = {}
+    titles: dict[str, Counter] = {}
+    with zipfile.ZipFile(path) as z:
+        for r in _rows(z, "INFOTABLE.TSV"):
+            if (r.get("SSHPRNAMTTYPE") or "").strip().upper() != "SH":
+                continue
+            if (r.get("PUTCALL") or "").strip():
+                continue
+            cusip = (r.get("CUSIP") or "").strip().upper()
+            if not cusip_map.valid(cusip):
+                continue
+            name = " ".join((r.get("NAMEOFISSUER") or "").upper().split())
+            acc = r["ACCESSION_NUMBER"].strip()
+            names.setdefault(cusip, Counter())[name] += 1
+            title = " ".join((r.get("TITLEOFCLASS") or "").split())
+            titles.setdefault(cusip, Counter())[title] += 1
+            filers.setdefault(cusip, set()).add(acc)
+    out = {}
+    for cusip, counts in names.items():
+        name, n = counts.most_common(1)[0]
+        title = titles[cusip].most_common(1)[0][0]
+        out[cusip] = {"name": name, "share": n / sum(counts.values()),
+                      "filers": len(filers[cusip]), "title": title}  # fmt: skip
+    return out

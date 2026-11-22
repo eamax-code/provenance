@@ -38,6 +38,10 @@ def test_renderings_and_line_rules():
     assert fr.stated(far, "eps_diluted", Decimal("1.64")) is None
     assert fr.stated("Net cash from operations | 35,758 | 22,291", "operating_cash_flow",
                      Decimal("35758000000"))[0] == "millions"  # fmt: skip
+    # a long table row: the evidence still shows the number
+    row = ("Cash and cash equivalents | " + " | ".join(["  9,999  "] * 60) + " | $  3,369 | x")
+    found = fr.stated(row, "cash_and_equivalents", Decimal("3369000000"))
+    assert found and "3,369" in found[1] and found[1].startswith("Cash and cash equivalents")
     # fewer than four digits as printed never match
     assert fr.renderings(Decimal("120000000"), "revenue")[0][1] != "millions"
     assert fr.stated("Total revenue | $ 120 | $ 98", "revenue", Decimal("120000000")) is None

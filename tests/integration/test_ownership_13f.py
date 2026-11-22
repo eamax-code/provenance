@@ -267,3 +267,34 @@ def test_flows_note_only_near_the_change():
     assert thirteenf.flows_note(date(2026, 9, 30), change)  # the quarter that contains it
     assert thirteenf.flows_note(date(2026, 12, 31), change) is None
     assert thirteenf.flows_note(date(2026, 3, 31), change) is None
+
+
+def test_13f_issuer_name_rule_maps_unique_exact_names_only(db, ingested_aapl):
+    """E-1c (b): a CUSIP whose dominant 13F issuer name equals the company's name, uniquely, with
+    enough managers, as a share class, on an issuer number nobody else owns."""
+    from app.db.models import Company, utcnow
+
+    db.add(Company(cik="0000019617", legal_name="JPMORGAN CHASE & CO",
+                   source_url="https://www.sec.gov/", first_detected_at=utcnow(),
+                   quality_status="ok"))  # fmt: skip
+    db.add(Company(cik="0001067983", legal_name="BERKSHIRE HATHAWAY INC",
+                   source_url="https://www.sec.gov/", first_detected_at=utcnow(),
+                   quality_status="ok"))  # fmt: skip
+    db.commit()
+    key = cusips.name_key
+    assert key("BERKSHIRE HATHAWAY INC DEL") == key("Berkshire Hathaway Inc")
+    names = {
+        "46625H100": {"name": "JPMORGAN CHASE & CO", "share": 0.9, "filers": 5000, "title": "COM"},
+        "084670702": {"name": "BERKSHIRE HATHAWAY INC DEL", "share": 0.8, "filers": 5400,
+                      "title": "CL B NEW"},
+        "084670108": {"name": "BERKSHIRE HATHAWAY INC DEL", "share": 0.8, "filers": 1600,
+                      "title": "CL A"},
+        "999999995": {"name": "JPMORGAN CHASE & CO", "share": 0.9, "filers": 5,  # too few
+                      "title": "COM"},
+        "037833308": {"name": "APPLE INC", "share": 0.9, "filers": 900,  # Apple's issuer number
+                      "title": "PFD"},  # but not a share class
+    }  # fmt: skip
+    stored = {(c, cu) for c, cu, _ in cusips.map_by_13f_names(db, names)}
+    assert stored == {("0000019617", "46625H100"), ("0001067983", "084670702"),
+                      ("0001067983", "084670108")}  # fmt: skip
+    assert db.get(IssuerCusip, "46625H100").method == "13f_issuer_name"

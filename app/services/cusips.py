@@ -27,7 +27,14 @@ from app.db.models import CompanyLei, IssuerCusip, ListedInstrument, utcnow
 from app.services.insiders import _local, safe_xml
 from app.services.sec_client import normalize_cik
 
-PRIORITY = {"schedule_13dg": 3, "isin": 2, "issuer_prefix": 1}
+PRIORITY = {"schedule_13dg": 3, "isin": 2, "13f_issuer_name": 1, "issuer_prefix": 1}
+# EDGAR conformed names and 13F issuer names end with a state of incorporation ("BERKSHIRE
+# HATHAWAY INC DEL", "/DE/"): dropped when they are the last word
+_STATE_SUFFIX = {"DEL", "DE", "NEV", "NV", "TEX", "TX", "MD", "NJ", "PA", "VA", "IND", "ILL",
+                 "MASS", "CALIF", "WIS", "COLO", "MINN", "MICH", "FLA", "GA", "MO", "NY", "NEW",
+                 "OLD", "COM"}  # fmt: skip
+MIN_FILERS = 20
+MIN_NAME_SHARE = 0.6
 _SHAPE = re.compile(r"^[0-9A-Z*@#]{8}[0-9]$")
 _EXTRA = {"*": 36, "@": 37, "#": 38}
 # a share class as Forms 13F title it, and what is not one
@@ -172,3 +179,53 @@ def map_prefixes(db: Session, classes: dict[str, str]) -> int:
 
 def cusips_for(db: Session, cik: str) -> list[IssuerCusip]:
     return list(db.scalars(select(IssuerCusip).where(IssuerCusip.cik == cik)))
+
+
+def name_key(name: str | None) -> str:
+    """Company and 13F issuer names compared alike: 'JPMORGAN CHASE & CO' == 'JPMorgan Chase &
+    Co.'; 'BERKSHIRE HATHAWAY INC DEL' == 'BERKSHIRE HATHAWAY INC'."""
+    from app.services.successions import name_key as base
+
+    words = re.sub(r"[^A-Z0-9 ]", " ", (name or "").upper().replace("&", " AND ")).split()
+    while words and words[-1] in _STATE_SUFFIX:
+        words.pop()
+    return base(" ".join(words))
+
+
+def map_by_13f_names(db: Session, names: dict[str, dict], ciks: list[str] | None = None) -> list:
+    """E-1c, for companies no 13D/G or ISIN maps: a CUSIP whose dominant 13F issuer name equals the
+    company's name once normalised, uniquely, given by at least MIN_FILERS managers with at least
+    MIN_NAME_SHARE of them agreeing, titled as a share class, on an issuer number not mapped to
+    another company. Returns the (cik, cusip, issuer name) pairs stored (medium confidence)."""
+    from app.db.models import Company
+
+    companies = db.execute(select(Company.cik, Company.legal_name)).all()
+    by_key: dict[str, set] = {}
+    for cik, legal in companies:
+        k = name_key(legal)
+        if len(k) >= 4:
+            by_key.setdefault(k, set()).add(cik)
+    mapped = db.execute(select(IssuerCusip.cusip, IssuerCusip.cik)).all()
+    have_cusip = {c for c, _ in mapped}
+    prefix_owner: dict[str, set] = {}
+    for c, cik in mapped:
+        prefix_owner.setdefault(c[:6], set()).add(cik)
+    wanted = set(ciks) if ciks else None
+    stored = []
+    for cusip, info in names.items():
+        if cusip in have_cusip or info["filers"] < MIN_FILERS or info["share"] < MIN_NAME_SHARE:
+            continue
+        if not is_share_class(info["title"]):
+            continue
+        hits = by_key.get(name_key(info["name"]), set())
+        if len(hits) != 1:
+            continue
+        cik = next(iter(hits))
+        if wanted is not None and cik not in wanted:
+            continue
+        owners = prefix_owner.get(cusip[:6], set())
+        if owners and owners != {cik}:
+            continue  # the issuer number belongs to another company
+        if record(db, cik, cusip, "13f_issuer_name", info["title"]):
+            stored.append((cik, cusip, info["name"]))
+    return stored

@@ -3,6 +3,7 @@
 
   python scripts/load_13f.py --fetch-only            # Schedules 13D/G into the SEC cache only
   python scripts/load_13f.py --datasets .sec_bulk/13f  # map CUSIPs, then load the 13F zips
+  python scripts/load_13f.py --name-rule .sec_bulk/13f/<latest>_form13f.zip   # E-1c (b)
 
 1. The CUSIP map: for each company with a structured Schedule 13D or 13G, the latest one is
    read (cached on disk by the SEC client, so --fetch-only first and loading later costs no
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import date, timedelta
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -49,14 +51,71 @@ def latest_schedules(db, limit: int | None) -> list[Filing]:
     return out[:limit] if limit else out
 
 
+def deep_schedules(db, sec, per_company: int) -> dict:
+    """E-1c (a): large companies whose latest schedule was one they filed as a holder (JPM,
+    Berkshire file 13D/G on other issuers): read more of their schedules, newest first."""
+    from sqlalchemy import exists
+
+    from app.db.models import IssuerCusip, MartCompany
+
+    since = date.today() - timedelta(days=730)
+    todo = list(db.scalars(select(MartCompany.cik).where(
+        MartCompany.reporting_currency == "USD", MartCompany.latest_revenue >= 1e9,
+        MartCompany.latest_annual_report_date >= since,
+        ~exists().where(IssuerCusip.cik == MartCompany.cik),
+    )))  # fmt: skip
+    mapped = read = 0
+    for cik in todo:
+        rows = [(_doc_url(f), f.accession_number, f.filing_date) for f in db.scalars(
+            select(Filing).where(Filing.cik == cik, Filing.form_type.in_(XML_FORMS))
+            .order_by(Filing.filing_date.desc()).limit(per_company))]  # fmt: skip
+        db.rollback()
+        for url, acc, filed in rows:
+            if url is None:
+                continue
+            try:
+                text = sec.get_text(url).data
+                read += 1
+                parsed = cusips.from_schedule(text)
+            except (SecClientError, ValueError, ElementTree.ParseError):
+                continue
+            if parsed["issuer_cik"] == cik and parsed["cusips"]:
+                cusips.record_schedule(db, text, acc, filed)
+                db.commit()
+                mapped += 1
+                break
+    return {"unmapped": len(todo), "schedules_read": read, "companies_mapped": mapped}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--fetch-only", action="store_true", help="Fill the SEC cache, no writes")
     ap.add_argument("--datasets", help="Folder with *_form13f.zip data sets")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument(
+        "--deep",
+        type=int,
+        default=0,
+        metavar="N",
+        help="E-1c (a): for active USD $1B+ companies still unmapped, read up to N of "
+        "their recent schedules until one names the company as the issuer",
+    )
+    ap.add_argument("--name-rule", help="E-1c: map unmapped companies by 13F issuer name from "
+                    "this data set (no schedules are read)")  # fmt: skip
     args = ap.parse_args()
     settings, Session = bootstrap()
     db = Session()
+    if args.deep:
+        print(json.dumps(deep_schedules(db, SecClient(settings), args.deep)))
+        db.close()
+        return 0
+    if args.name_rule:
+        stored = cusips.map_by_13f_names(db, thirteenf.issuer_names(args.name_rule))
+        db.commit()
+        print(json.dumps({"name_rule_mapped": len(stored),
+                          "companies": len({c for c, _, _ in stored})}))  # fmt: skip
+        db.close()
+        return 0
     sec = SecClient(settings)
     # plain values: reading ORM rows after the transaction ends would reload them and leave a
     # transaction open for the whole fetch

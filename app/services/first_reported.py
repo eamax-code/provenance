@@ -96,11 +96,13 @@ def _label_part(line: str, start: int) -> str:
 
 
 def _excerpt(line: str, start: int) -> str:
-    """The line, or for a long paragraph the words around the number."""
-    line = " ".join(line.split()) if " | " in line else line
-    if len(line) <= 300:
+    """The line, or for a long one the words around the number: the window is cut on the line
+    as matched, before spaces are collapsed (collapsing first moved the window off the number)."""
+    if len(" ".join(line.split())) <= 300:
         return " ".join(line.split())
-    return " ".join(line[max(0, start - 150) : start + 150].split())
+    head = " ".join(line[: line.find(" | ")].split())[:60] if " | " in line else ""
+    window = " ".join(line[max(0, start - 120) : start + 120].split())
+    return f"{head} … {window}" if head and not window.startswith(head) else window
 
 
 def stated(text: str, metric: str, value: Decimal) -> tuple[str, str] | None:
