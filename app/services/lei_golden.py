@@ -61,9 +61,17 @@ def company_jurisdictions(company: Company) -> list[str]:
 def code_jurisdiction(code: str | None) -> str | None:
     """ "US-DE", "KY", "CA-ON"... from an EDGAR state or country code."""
     code = (code or "").strip()
-    if code.upper() in US_STATES and code.isalpha():
+    if (code.upper() in US_STATES or code.upper() in US_TERRITORIES) and code.isalpha():
         return f"US-{code.upper()}"
     return SEC_COUNTRY.get(code.upper())
+
+
+# US territories: EDGAR gives them as state codes (US-PR), GLEIF as countries (PR); the same place
+US_TERRITORIES = {"PR", "GU", "VI", "AS", "MP"}
+
+
+def _territory(j: str) -> str:
+    return j[3:] if j.startswith("US-") and j[3:] in US_TERRITORIES else j
 
 
 def jurisdictions_agree(sec: str | None, gleif: str | None) -> bool:
@@ -71,7 +79,7 @@ def jurisdictions_agree(sec: str | None, gleif: str | None) -> bool:
     Canadian federal company (CA) agrees with any province."""
     if not sec or not gleif:
         return False
-    sec, gleif = sec.upper(), gleif.upper()
+    sec, gleif = _territory(sec.upper()), _territory(gleif.upper())
     if sec == gleif:
         return True
     if "-" not in sec:

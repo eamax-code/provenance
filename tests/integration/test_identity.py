@@ -187,3 +187,25 @@ def test_either_the_cover_state_or_the_sec_state_agrees_with_gleif(db):
     identity.match_all(db)
     m = identity.for_company(db, "0000000201")
     assert m["match_method"] == "gleif_name_jurisdiction" and m["confidence"] == "high"
+
+
+def test_puerto_rico_in_edgar_form_agrees_with_gleifs_country_form(db):
+    """EDGAR gives Puerto Rico as a state code (US-PR), GLEIF as a country (PR): the same place.
+    Popular, Inc. was lost when its cover gave PR; the territories match as themselves."""
+    from app.db.models import Company, GleifEntity, utcnow
+    from app.services import identity
+    from app.services.lei_golden import code_jurisdiction, jurisdictions_agree
+
+    assert jurisdictions_agree("US-PR", "PR") and jurisdictions_agree("US-GU", "GU")
+    assert not jurisdictions_agree("US-PR", "US-NY") and code_jurisdiction("VI") == "US-VI"
+    db.add(Company(cik="0000763901", legal_name="POPULAR, INC.", state_of_incorporation_cover="PR",
+                   source_url="https://www.sec.gov/", quality_status="ok",
+                   first_detected_at=utcnow()))  # fmt: skip
+    db.add(GleifEntity(lei="LEI00000000000000763", legal_name="POPULAR, INC.",
+                       name_key=identity.strict_key("POPULAR, INC."),
+                       norm_keys=identity.norm_key("POPULAR, INC."), jurisdiction="PR",
+                       entity_status="ACTIVE", hq_city="San Juan", loaded_at=utcnow()))  # fmt: skip
+    db.commit()
+    identity.match_all(db)
+    m = identity.for_company(db, "0000763901")
+    assert m["match_method"] == "gleif_name_jurisdiction" and m["confidence"] == "high"
