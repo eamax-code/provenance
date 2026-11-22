@@ -52,6 +52,23 @@ def thirteenf_row(db: Session) -> dict:
             "filings": int(n or 0), "basis": basis}  # fmt: skip
 
 
+def segments_row(db: Session) -> dict:
+    """E-4: annual reports with segment figures, with the filing dates they span."""
+    from app.db.models import CompanySegment
+
+    n, cos, first, last = db.execute(
+        select(func.count(distinct(CompanySegment.accession_number)),
+               func.count(distinct(CompanySegment.cik)),
+               func.min(CompanySegment.filed_date), func.max(CompanySegment.filed_date))
+    ).one()  # fmt: skip
+    basis = (f"annual reports filed {first.isoformat()} to {last.isoformat()}, {cos:,} "
+             f"{'company' if cos == 1 else 'companies'}; "
+             "each company's latest report carries its own segment labels") if n else (
+        "not loaded yet")  # fmt: skip
+    return {"label": "Segments (revenue and profit by segment, geography, product)",
+            "forms": ["10-K", "20-F", "40-F"], "filings": int(n or 0), "basis": basis}  # fmt: skip
+
+
 # what a metric leaves out, and why (mapping 1.4.1 notes in docs/data-dictionary.md)
 METRIC_NOTES = {
     "revenue": "21 IFRS banks: total operating income is in company-specific tags; not shown yet.",
@@ -134,6 +151,7 @@ def compute(db: Session, settings: Settings, now: datetime | None = None) -> dic
                       Subsidiary.accession_number)))) or 0),
                   "basis": f"read on demand; {subs_cos} companies so far"})  # fmt: skip
     forms.insert(len(forms) - 1, thirteenf_row(db))  # before the exhibit 21 row
+    forms.insert(len(forms) - 1, segments_row(db))
     snap = latest_snapshot(db)
     return {
         "universe": {"filers": filers, "with_facts": with_facts, "ifrs_filers": ifrs},

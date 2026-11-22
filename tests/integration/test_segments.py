@@ -156,6 +156,16 @@ def test_no_share_of_revenue_when_segments_include_sales_between_them(db, ingest
     assert kinds["product"]["segments"][0]["share_of_revenue_pct"] is not None  # adds up alone
 
 
+def test_coverage_lists_segments_with_the_reports_they_span(db, settings, ingested_aapl):
+    from app.services import coverage
+
+    assert coverage.segments_row(db)["basis"] == "not loaded yet"
+    segments.load(db, FIX / "aapl.zip")
+    row = next(f for f in coverage.compute(db, settings)["forms"] if f["label"].startswith("Seg"))
+    assert row["filings"] == 1 and "1 company;" in row["basis"]
+    assert row["basis"].startswith("annual reports filed ")
+
+
 LAB = """<?xml version="1.0"?>
 <link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase"
   xmlns:xlink="http://www.w3.org/1999/xlink">
