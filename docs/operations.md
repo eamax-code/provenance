@@ -405,16 +405,16 @@ and `NEWS_PROVIDER=google_rss` (owner decision).
 
 R-2 `scripts/load_smoke.py --rps 50 --seconds 300`, p95 in ms (morning in brackets):
 
-| Endpoint | Morning mix (7 endpoints) | Full mix (9: + company overview, ownership) |
-|---|---|---|
-| facts | 24.7 (23.8) | 122.5 |
-| screen | 39.8 (40.1) | 162.3 |
-| search | 41.6 (38.7) | 135.4 |
-| MCP get_figures | 31.2 (26.9) | 138.6 |
-| stats | 7.7 (7.0) | 38.6 |
-| coverage | 10.3 (10.3) | 62.5 |
-| company overview (`/v1/companies/{cik}`) | | 76.2 |
-| ownership | | 408.6 (p50 254) |
+| Endpoint | Morning mix (7 endpoints) | Full mix (9: + company overview, ownership) | Full mix after fa65fd9 + 82f3a92 |
+|---|---|---|---|
+| facts | 24.7 (23.8) | 122.5 | 21.7 |
+| screen | 39.8 (40.1) | 162.3 | 37.4 |
+| search | 41.6 (38.7) | 135.4 | 40.8 |
+| MCP get_figures | 31.2 (26.9) | 138.6 | 28.5 |
+| stats | 7.7 (7.0) | 38.6 | 8.5 |
+| coverage | 10.3 (10.3) | 62.5 | 9.3 |
+| company overview (`/v1/companies/{cik}`) | | 76.2 | 23.5 |
+| ownership | | 408.6 (p50 254) | 25.6 (p50 16.1) |
 
 No errors in either run (the public overview's 404s are companies outside the showcase). All
 targets pass. Ownership is CPU-bound in Python (a large holder list: Apple about 6,000
@@ -422,9 +422,12 @@ managers per quarter, read twice), so with it in the mix the 2 workers saturate 
 other endpoint's p95 rises 3-5x. The first full-mix run, before 0df9281 (which reads plain rows
 and only the holders' filings), collapsed: requests held a pooled connection while waiting for a
 second one (rate limits, usage metering), all 30 connections (2 x 15) were held and requests
-timed out after 30 s. Follow-ups: cache the latest-quarter ownership block per company until the
-next 13F load; give rate limits and metering a connection that cannot be starved by request
-sessions.
+timed out after 30 s. Both follow-ups went in the same evening: fa65fd9 gives rate limits and usage
+metering a small pool of their own (3 + 2 connections, 2 s timeout) that request handlers cannot
+starve, and 82f3a92 caches the latest-quarter ownership block per process, keyed on the company's
+links, cover shares, quarter, page and the 13F holdings version that every load bumps (never with
+as_of). The last column is the same full mix on the rebuilt image: ownership p95 25.6 ms (target
+under 100), facts and screen back at the morning's (targets 1.5x: about 36 and 60 ms), no errors.
 
 ## Restore drill (R-3), 2026-11-22
 
