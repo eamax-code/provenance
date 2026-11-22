@@ -490,10 +490,11 @@
       return el('label', { class: 'check' }, [cb, t[1]]);
     }));
     var list = el('ol', { class: 'tl' }, tl.items.map(function (i) {
-      var d = i.details || {}, sub = i.type === 'officer_change' ? [d.person, d.role, d.change].filter(Boolean).join(' · ') : i.type === 'auditor_change' ? [d.from_firm, d.to_firm].filter(Boolean).join(' → ') : i.type === '13f_quarter' ? (d.holders_count != null ? Number(d.holders_count).toLocaleString('en-US') + ' holders' + (d.holders_change != null ? ' (' + (d.holders_change >= 0 ? '+' : '−') + Math.abs(d.holders_change) + ')' : '') : '') : i.type === 'insider' ? [d.signal && d.signal.replace(/_/g, ' '), d.value_usd != null ? money(d.value_usd, 'USD') : null].filter(Boolean).join(' · ') : '';
+      // the detail adds only what the title doesn't already say
+      var d = i.details || {}, t0 = String(i.title || ''), sub = i.type === 'officer_change' ? (d.change && t0.toLowerCase().indexOf(String(d.change).toLowerCase()) < 0 ? d.change : '') : i.type === 'auditor_change' && !/→| replaces /.test(t0) ? [d.from_firm, d.to_firm].filter(Boolean).join(' → ') : i.type === '13f_quarter' && d.holders_change != null ? (d.holders_change >= 0 ? '+' : '−') + Math.abs(d.holders_change) + ' on the quarter before' : i.type === 'insider' && d.signal ? d.signal.replace(/_/g, ' ') : '';
       var kind = (TLT.filter(function (t) { return t[0] === i.type; })[0] || [0, i.type])[1];
       return el('li', { class: 'tl-' + i.type + (i.upcoming ? ' upcoming' : '') }, [el('time', { datetime: i.date, text: day(i.date) }), el('span', { class: 'tag', text: i.upcoming ? 'upcoming' : kind }),
-        el('span', { class: 'tl-t' }, [i.title, sub ? el('span', { class: 'muted small', text: ' · ' + sub }) : null]),
+        el('span', { class: 'tl-t' }, [String(i.title || '').replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) { return day(m); }), sub ? el('span', { class: 'muted small', text: ' · ' + sub }) : null]),
         ARCHIVE.test(i.filing_url || '') ? el('a', { href: i.filing_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + ' ↗' }) : el('span')]);
     }));
     var more = tl.more ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { tlLoad(); } } }) : null;
@@ -501,7 +502,7 @@
       tl.ok === null && !tl.items.length ? el('p', { class: 'muted', text: 'Loading the timeline…' }) : tl.items.length ? list : el('p', { class: 'muted', text: 'Nothing of these kinds in the filings loaded.' }), more);
   }
   function tlLoad() {
-    var key = tl.key, q = '/v1/companies/' + S.cik + '/timeline?limit=' + (X.hasKey() ? 100 : 50) + '&types=' + tl.types.join(',') + (S.as_of ? '&as_of=' + S.as_of : '') + (tl.cursor ? '&cursor=' + encodeURIComponent(tl.cursor) : '');
+    var key = tl.key, q = '/v1/companies/' + S.cik + '/timeline?limit=' + (X.hasKey() ? 100 : 10) + '&types=' + tl.types.join(',') + (S.as_of ? '&as_of=' + S.as_of : '') + (tl.cursor ? '&cursor=' + encodeURIComponent(tl.cursor) : '');
     apiHas('/v1/companies/{cik}/timeline').then(function (has) { return has ? keyedOrDemo(q) : { ok: false }; }).then(function (r) {
       if (tl.key !== key) return;
       if (!r.ok || !r.body || !Array.isArray(r.body.data)) { if (!tl.items.length) tl.ok = false; }
@@ -726,7 +727,7 @@
   }
   var landed = false;
   function landing() {
-    var host = $('ws-landing'); if (!host || landed) return; landed = true;
+    var host = $('ws-landing'); if (!host || landed || $('explore').hidden) return; landed = true; // only when Explore is showing
     var cards = el('ul', { class: 'land-cards' }), rec = recent();
     host.replaceChildren.apply(host, [
       el('p', { class: 'land-k' }, [el('kbd', { text: '⌘K' }), ' or ', el('kbd', { text: '/' }), ' jumps to any company, tab, metric or date. Every figure opens its filing.']),
@@ -822,6 +823,6 @@
     var o = readURL(); if (asof && o.as_of) asof.value = o.as_of;
     apply(o, false);
   }
-  window.Workspace = { orgName: function (n) { return orgName(n); }, open: function (cik) { apply(Object.assign({}, S, { cik: String(parseInt(cik, 10)), tab: 'overview' }), true); }, palette: palette, state: S, reload: function () { if (S.cik) { S.cik = null; apply(readURL(), false); } } };
+  window.Workspace = { landing: function () { if (!S.cik) landing(); }, orgName: function (n) { return orgName(n); }, open: function (cik) { apply(Object.assign({}, S, { cik: String(parseInt(cik, 10)), tab: 'overview' }), true); }, palette: palette, state: S, reload: function () { if (S.cik) { S.cik = null; apply(readURL(), false); } } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

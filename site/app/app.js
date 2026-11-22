@@ -157,6 +157,7 @@
     if (name === 'listings' && window.ProvenanceListings) window.ProvenanceListings.load(api, toast);
     if (name === 'screener' && window.ProvenanceScreener) window.ProvenanceScreener.load();
     if (name === 'watchlists' && window.ProvenanceWatchlists) window.ProvenanceWatchlists.load();
+    if (name === 'explore' && window.Workspace) window.Workspace.landing();
     try { location.hash = name; } catch (e) {}
   }
   // the workspace and the screener work without a key (showcase, demo key); listings and the console need one

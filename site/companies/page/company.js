@@ -35,7 +35,7 @@
     'DEF 14A': 'Proxy statement', 'DEFA14A': 'Proxy material', '3': 'Insider, first holding', '4': 'Insider trade', '5': 'Insider, yearly', '144': 'Planned insider sale',
     'S-1': 'IPO registration', 'S-1/A': 'IPO registration, amended', 'F-1': 'IPO registration (foreign)', '424B4': 'Final prospectus', '424B2': 'Prospectus supplement', '424B3': 'Prospectus', 'FWP': 'Free-writing prospectus', 'S-3': 'Shelf registration', 'S-8': 'Employee plan registration',
     'SC 13G': '5% holder report', 'SC 13G/A': '5% holder report, amended', 'SC 13D': '5% holder report (active)', 'SC 13D/A': '5% holder report (active), amended',
-    '25-NSE': 'Security delisted', '11-K': 'Employee plan annual report', 'SD': 'Conflict minerals report'
+    '25-NSE': 'Form 25: a security removed from listing', '11-K': 'Employee plan annual report', 'SD': 'Conflict minerals report'
   };
   var GROUPS = {
     reports: { label: 'Reports and events', test: function (f) { return /^(10-K|10-Q|8-K|20-F|40-F|6-K|DEF 14A|11-K|25|NT )/.test(f); } },

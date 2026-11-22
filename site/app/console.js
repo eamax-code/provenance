@@ -205,7 +205,7 @@
     ['sec.restatement', 'Restatement (4.02)'], ['sec.auditor_change', 'Auditor change (4.01)'], ['sec.bankruptcy', 'Bankruptcy (1.03)'],
     ['sec.change_in_control', 'Change in control (5.01)'], ['sec.acquisition_completed', 'Acquisition completed (2.01)'], ['sec.material_agreement', 'Material agreement (1.01)'],
     ['sec.officer_change', 'Officer or director change (5.02)'], ['sec.shareholder_vote', 'Shareholder vote (5.07)'], ['sec.results', 'Results (2.02)'],
-    ['sec.late_filing', 'Late filing (NT 10-K/Q)'], ['sec.delisting', 'Security delisted (Form 25)'], ['sec.deregistration', 'Deregistration (Form 15)'],
+    ['sec.late_filing', 'Late filing (NT 10-K/Q)'], ['sec.delisting', 'Form 25 listing removal'], ['sec.deregistration', 'Deregistration (Form 15)'],
     ['sec.tender_offer', 'Tender offer'], ['sec.merger_proxy', 'Merger proxy'], ['sec.ipo_priced', 'IPO priced (424B4)']
   ];
   function eventTypes() {
