@@ -53,6 +53,7 @@ from app.db.session import (
     get_engine,
     session_factory,
 )
+from app.services import showcase_cache
 from app.services.usage import record_usage
 
 # The company page layouts; the first is the default.
@@ -129,14 +130,25 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request.state.request_id = rid
         token = request_id_var.set(rid)
         started = time.monotonic()
+        cacheable = request.app.state.settings.demo_key_enabled and showcase_cache.is_demo_read(
+            request
+        )
+        hit = showcase_cache.get(request) if cacheable else None
         try:
-            response = await call_next(request)
+            if hit is not None:  # a repeat keyless view: no handler, no demo counters
+                response = Response(content=hit[0], status_code=200, headers=hit[1])
+                response.headers["X-Cache"] = "hit"
+            else:
+                response = await call_next(request)
         except Exception:
             request_id_var.reset(token)
             raise
         duration_ms = round((time.monotonic() - started) * 1000, 1)
-        if getattr(request.state, "demo", False):
+        if hit is None and getattr(request.state, "demo", False):
             response = await _demo_capped(request, response)
+            if cacheable and response.status_code == 200 and hasattr(response, "body"):
+                showcase_cache.put(request, response.body, dict(response.headers))
+                response.headers["X-Cache"] = "miss"
         response.headers["X-Request-ID"] = rid
         if "cache-control" not in response.headers:
             policy = cache_policy(request.url.path, response.headers.get("content-type", ""))

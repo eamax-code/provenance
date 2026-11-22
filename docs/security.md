@@ -27,7 +27,10 @@ Reviewed 2026-11-15. Each point is checked by a test in `tests/integration/test_
   demo key and the public endpoints. Chat allows 10 questions a minute and 200 a day per key
   (per address for the demo key), because every answer can run a model. All demo-key callers
   together share one ceiling (`DEMO_REQUESTS_PER_MINUTE_ALL`, 1,200 a minute), so rotating
-  addresses gains nothing.
+  addresses gains nothing. Repeat keyless views of the showcase pages (overview, statements,
+  timeline, insiders, 5% holders, ownership, screener) are served from a server-side cache
+  until the data changes (`app/services/showcase_cache.py`) and do not count against these
+  limits; keyed requests never touch that cache.
 - **Counters hold no addresses** (2026-11-23): per-address and per-email limits are keyed on a
   salted hash (SHA-256 with `API_KEY_PEPPER`), and counter rows are deleted after two days.
   `tests/integration/test_rate_limit_privacy.py` fails if any counter key holds an IP or email
