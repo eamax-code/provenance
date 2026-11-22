@@ -148,8 +148,10 @@
     var anyFig = pick.some(function (m) { return d.key_figures.some(function (x) { return x.metric === m; }); });
     k.classList.toggle('kpis-empty', !anyFig);
     $('chart').parentNode.hidden = !d.years.some(function (y) { return y.revenue != null; });
-    if (!anyFig) { k.appendChild(el('p', { class: 'kpi-none', text: 'No annual revenue or income filed under this CIK yet.' })); return; }
-    pick.forEach(function (m) {
+    if (!anyFig) k.appendChild(el('p', { class: 'kpi-none', text: (d.company.predecessors || []).length
+      ? 'No annual report under this CIK yet; the years below were filed by its predecessor.'
+      : 'No annual revenue or income filed under this CIK yet.' }));
+    if (anyFig) pick.forEach(function (m) {
       var f = d.key_figures.filter(function (x) { return x.metric === m; })[0];
       var sub = f ? [f.fiscal_label + DOT, srcLink(f.form_type + ' filed ' + P.date(f.filed_date), f.source_url)] : [];
       var pct = f ? f.change_pct : null;
