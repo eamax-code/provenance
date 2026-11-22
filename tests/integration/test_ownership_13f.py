@@ -205,3 +205,51 @@ def test_coverage_lists_13f_with_basis(db, settings, loaded_13f):
     assert row["label"] == "Institutional holdings (13F)" and row["filings"] == 11
     assert "2022-09-30 to 2026-06-30" in row["basis"] and "45 days" in row["basis"]
     assert any(f["label"] == row["label"] for f in coverage.compute(db, settings)["forms"])
+
+
+def test_reorganisation_counts_both_cusips_as_one_class(db, ingested_aapl):
+    """K-05 + E-1: after a holding company reorganisation (1:1), managers report the same shares
+    under the old or the new CUSIP; the quarter counts each once and nobody falsely exits."""
+    from app.db.models import Company, Filing13F, RegistrantSuccession, utcnow
+
+    old, new, new_cusip = "0000320193", "0009999991", "037833209"
+    db.add(Company(cik=new, legal_name="Apple Holdings, Inc.", source_url="https://www.sec.gov/",
+                   first_detected_at=utcnow(), quality_status="ok"))  # fmt: skip
+    cusips.record(db, old, AAPL, "schedule_13dg", filing_date=date(2026, 1, 1))
+    cusips.record(db, new, new_cusip, "schedule_13dg", filing_date=date(2026, 7, 2))
+    thirteenf.mark_loaded_through(db, date(2026, 8, 31))
+    rows = [  # (manager, period, filed, cusip, shares)
+        ("0000001001", date(2026, 3, 31), date(2026, 5, 10), AAPL, 100),
+        ("0000001002", date(2026, 3, 31), date(2026, 5, 10), AAPL, 200),
+        ("0000001001", date(2026, 6, 30), date(2026, 8, 1), AAPL, 120),  # still the old CUSIP
+        ("0000001002", date(2026, 6, 30), date(2026, 8, 2), new_cusip, 200),  # already the new
+    ]
+    for i, (filer, period, filed, cusip, shares) in enumerate(rows):
+        acc = f"{filer}-26-{i:06d}"
+        db.add(Filing13F(accession_number=acc, filer_cik=filer, filer_name=f"Manager {filer[-1]}",
+                         report_period=period, filing_date=filed, form_type="13F-HR",
+                         source="test", created_at=utcnow()))  # fmt: skip
+        db.add(Holding13F(accession_number=acc, cusip=cusip, filer_cik=filer,
+                          report_period=period, filing_date=filed, title_of_class="COM",
+                          shares=Decimal(shares), value_usd=Decimal(shares * 200)))  # fmt: skip
+    db.commit()
+    alone = thirteenf.ownership(db, old, today=date(2026, 11, 22))
+    assert alone["flows"]["exited"] == 1  # without the link, manager 2 looks like an exit
+    reorg = "holding_company_reorganization"
+    db.add(RegistrantSuccession(predecessor_cik=old, successor_cik=new,
+                                effective_date=date(2026, 7, 1), evidence_accession="x",
+                                evidence_form="8-K12B", match_method=reorg,
+                                confidence="high", updated_at=utcnow()))  # fmt: skip
+    db.commit()
+    for cik in (old, new):  # both pages
+        company = db.get(Company, db.scalar(select(Company.id).where(Company.cik == cik)))
+        b = thirteenf.for_company(db, company, today=date(2026, 11, 22))
+        assert b["holders_count"] == 2 and b["flows"] == {"new": 0, "added": 1, "reduced": 0,
+                                                          "exited": 0}  # fmt: skip
+        assert b["shares_held"] == 320 and any("holding company reorganisation" in n
+                                               for n in b["notes"])  # fmt: skip
+    # a merger counterpart (accounting predecessor) is never combined
+    link = db.scalar(select(RegistrantSuccession))
+    link.match_method = "accounting_predecessor"
+    db.commit()
+    assert thirteenf.reorganisation_aliases(db, old) == []

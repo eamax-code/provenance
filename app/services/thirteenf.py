@@ -330,12 +330,17 @@ def ownership(
     top: int = TOP_HOLDERS,
     offset: int = 0,
     shares_outstanding: dict | None = None,
+    aliases: list[str] | None = None,
 ) -> dict | None:
     """The overview "ownership" block for one company, or None without 13F data for it.
-    `shares_outstanding` is the cover-page figure ({value, as_of_date, source_url, ...})."""
+    `shares_outstanding` is the cover-page figure ({value, as_of_date, source_url, ...}).
+    `aliases` are the CUSIPs of a registrant linked by a holding company reorganisation (K-05, a
+    1:1 exchange): the same shares, counted as one class with the company's own."""
     anchor = as_of or today or date.today()
     classes = cusip_map.cusips_for(db, cik)
-    codes = [c.cusip for c in classes]
+    own = [c.cusip for c in classes]
+    aliases = [a for a in (aliases or []) if a not in own]
+    codes = own + aliases
     q = complete_quarter(anchor, loaded_through(db))
     if not codes or q is None:
         return None
@@ -344,7 +349,8 @@ def ownership(
     prev, _ = effective_positions(db, codes, pq, as_of)
     if not cur:
         return None
-    single = len({c for p in cur.values() for c in p["by_class"]}) <= 1 and len(codes) == 1
+    # one class: the company's single CUSIP, with its reorganisation twin when there is one
+    single = len(own) <= 1 and len(aliases) <= 1
     held = sum((p["shares"] for p in cur.values()), Decimal(0))
     out_value = (shares_outstanding or {}).get("value")
     pct = None
@@ -384,6 +390,10 @@ def ownership(
             "filing_url": filing_index_url(filer, p["filing"].accession_number),
         })  # fmt: skip
     notes = list(NOTES)
+    if aliases and any(c in aliases for p in cur.values() for c in p["by_class"]):
+        notes.append("Includes holdings reported under the CUSIP of the registrant this company "
+                     "replaced or was replaced by in a holding company reorganisation (the same "
+                     "shares, exchanged one for one).")  # fmt: skip
     if not single:
         notes.append(
             "This company has several share classes; shares are not added across classes, so "
@@ -439,5 +449,22 @@ def for_company(
 
     so = cover.cover(db, company, as_of).get("shares_outstanding")
     return ownership(
-        db, company.cik, as_of=as_of, today=today, top=top, offset=offset, shares_outstanding=so
-    )
+        db, company.cik, as_of=as_of, today=today, top=top, offset=offset, shares_outstanding=so,
+        aliases=reorganisation_aliases(db, company.cik),
+    )  # fmt: skip
+
+
+def reorganisation_aliases(db: Session, cik: str) -> list[str]:
+    """CUSIPs of the predecessor or successor in a holding company reorganisation (1:1), never of
+    a merger counterpart (accounting_predecessor), whose exchange ratio differs."""
+    from app.db.models import RegistrantSuccession
+
+    links = db.scalars(select(RegistrantSuccession).where(
+        (RegistrantSuccession.predecessor_cik == cik) | (RegistrantSuccession.successor_cik == cik),
+        RegistrantSuccession.match_method == "holding_company_reorganization",
+    )).all()  # fmt: skip
+    out: list[str] = []
+    for link in links:
+        other = link.successor_cik if link.predecessor_cik == cik else link.predecessor_cik
+        out += [c.cusip for c in cusip_map.cusips_for(db, other)]
+    return out
