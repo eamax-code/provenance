@@ -50,7 +50,7 @@ def main() -> int:
             settings = settings.model_copy(
                 update={"filings_tracker_max_companies": args.max_companies}
             )
-        with single_run_guard(db, lock_file=".track_filings.lock") as acquired:
+        with single_run_guard(db, lock_file=settings.tracker_lock_file) as acquired:
             if not acquired:  # the poller or another run holds it
                 print(json.dumps({"skipped": "another run is in progress"}))
                 return 0

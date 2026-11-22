@@ -155,7 +155,7 @@ def run_forever(session_maker, settings: Settings, include_all_companies: bool =
         db = session_maker()
         try:
             run_once(db, settings, include_all_companies=include_all_companies)
-            with single_run_guard(db, lock_file=".markets_daily.lock") as acquired:
+            with single_run_guard(db, lock_file=settings.markets_lock_file) as acquired:
                 if acquired:
                     markets_job.maybe_run(db, settings)
                     purged_on = maybe_purge(db, settings, purged_on)

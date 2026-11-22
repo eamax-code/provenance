@@ -63,6 +63,30 @@ def _env():
     yield
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _one_suite_per_postgres_test_db():
+    """The suite drops and recreates every table, so two runs against one PostgreSQL test
+    database would destroy each other's data: the second run waits for the first (a session-wide
+    advisory lock). SQLite runs use a database per test and need nothing."""
+    url = os.environ.get("TEST_DATABASE_URL", "")
+    if not url.startswith("postgresql"):
+        yield
+        return
+    from sqlalchemy import create_engine, text
+
+    eng = create_engine(url)
+    conn = eng.connect()
+    if not conn.execute(text("SELECT pg_try_advisory_lock(7310421)")).scalar():
+        print("\nanother test run holds the PostgreSQL test database; waiting for it", flush=True)
+        conn.execute(text("SELECT pg_advisory_lock(7310421)"))
+    try:
+        yield
+    finally:
+        conn.execute(text("SELECT pg_advisory_unlock(7310421)"))
+        conn.close()
+        eng.dispose()
+
+
 @pytest.fixture(autouse=True)
 def _fresh_process_caches():
     """Each test has its own database, so the in-process caches (the stats snapshot, public
@@ -89,9 +113,16 @@ def settings(tmp_path):
         )
     return Settings(
         database_url=database_url,
+        # every lock, cache and rate file under the test's own directory: two suites running in
+        # one checkout at once never share state
         sec_cache_dir=str(tmp_path / "sec_cache"),
-        poll_lock_file=str(tmp_path / "poll.lock"),  # two suites in one checkout never collide
         news_cache_dir=str(tmp_path / "news_cache"),
+        markets_cache_dir=str(tmp_path / "markets_cache"),
+        sec_bulk_dir=str(tmp_path / "sec_bulk"),
+        sec_rate_file=str(tmp_path / "sec-rate"),
+        poll_lock_file=str(tmp_path / "poll.lock"),
+        markets_lock_file=str(tmp_path / "markets.lock"),
+        tracker_lock_file=str(tmp_path / "tracker.lock"),
         **{k.lower(): v for k, v in TEST_ENV.items()},
     )
 
