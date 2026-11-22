@@ -165,9 +165,11 @@ def load(db: Session, sec: SecClient, items: list[dict], progress=None) -> dict:
         out["stored"] += 1
         out["holdings"] += len(rows)
         if n % 200 == 0:
+            thirteenf.bump_holdings_version(db)
             db.commit()
             if progress:
                 progress({**out, "done": n})
+    thirteenf.bump_holdings_version(db)
     db.commit()
     out["complete"] = out["failed"] == 0
     return out

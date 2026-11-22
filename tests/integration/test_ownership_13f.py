@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from app.db.models import Holding13F, IssuerCusip
+from app.db.models import Filing13F, Holding13F, IssuerCusip
 from app.services import cusips, thirteenf
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "connections"
@@ -443,6 +443,42 @@ def test_name_rule_takes_adrs_partnership_units_and_exact_short_names(db, ingest
                       ("0001094831", "BGC GROUP INC")}  # fmt: skip
     assert cusips.is_adr_title("SPONSORED ADS") and not cusips.is_adr_title("SPON ADR PFD")
     assert cusips.is_unit_title("UT LTD PTN INT") and not cusips.is_unit_title("UNIT 1 CL A 1/2 WT")
+
+
+def test_latest_quarter_ownership_is_cached_until_the_data_changes(db, loaded_13f):
+    """The cached block is the data's: a 13F load (the holdings version) or a link change makes
+    a new one; as_of is never cached; the route may change what it gets without harm."""
+    so = {"value": 15_000_000_000, "as_of_date": "2026-07-15", "source_url": "https://x"}
+    first = thirteenf.ownership(db, "0000320193", shares_outstanding=so)
+    first.pop("top_holders")  # a caller changing its copy never reaches the cache
+    again = thirteenf.ownership(db, "0000320193", shares_outstanding=so)
+    assert again["top_holders"] and again["quarter"] == first["quarter"]
+    assert len(thirteenf._cache) == 1
+    held = again["holders_count"]
+    from app.db.models import Holding13F
+
+    q = date.fromisoformat(again["quarter"])
+    db.add(Holding13F(accession_number="0000009999-26-000001", cusip=AAPL, filer_cik="9999",
+                      report_period=q, filing_date=date(2026, 8, 2), title_of_class="COM",
+                      shares=Decimal(10), value_usd=Decimal(2000)))  # fmt: skip
+    db.add(Filing13F(accession_number="0000009999-26-000001", filer_cik="9999",
+                     filer_name="Zulu Capital", report_period=q, filing_date=date(2026, 8, 2),
+                     form_type="13F-HR", source="test"))  # fmt: skip
+    db.flush()
+    stale = thirteenf.ownership(db, "0000320193", shares_outstanding=so)
+    assert stale["holders_count"] == held  # same version: the cached block
+    thirteenf.bump_holdings_version(db)
+    db.flush()
+    fresh = thirteenf.ownership(db, "0000320193", shares_outstanding=so)
+    assert fresh["holders_count"] == held + 1
+    # a link change is part of the key: a new class makes a new block
+    cusips.record(db, "0000320193", "037833506", "issuer_prefix", "CL C")
+    db.flush()
+    assert [c["title"] for c in thirteenf.ownership(db, "0000320193", shares_outstanding=so)
+            ["classes"]] != [c["title"] for c in fresh["classes"]]  # fmt: skip
+    before = len(thirteenf._cache)
+    thirteenf.ownership(db, "0000320193", as_of=date(2026, 9, 1), shares_outstanding=so)
+    assert len(thirteenf._cache) == before  # as_of: never cached
 
 
 def test_class_labels_are_plain_and_fall_back_to_the_title_as_filed():

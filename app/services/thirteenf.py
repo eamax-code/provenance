@@ -16,10 +16,14 @@ dates). Each 13F-HR lists a manager's positions at a quarter end. Rules:
 
 from __future__ import annotations
 
+import copy
 import csv
 import io
+import json
 import re
+import threading
 import zipfile
+from collections import OrderedDict
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -222,6 +226,7 @@ def load_dataset(db: Session, path: str | Path, batch: int = 20_000) -> dict:
         db.execute(insert(Holding13F), buf)
         held += len(buf)
     prefixed = cusip_map.map_prefixes(db, ds.classes)
+    bump_holdings_version(db)
     end = window_end(path)
     if end:
         mark_loaded_through(db, end)
@@ -241,6 +246,39 @@ def mark_loaded_through(db: Session, day: date) -> None:
 def loaded_through(db: Session) -> date | None:
     row = db.get(JobState, LOADED_KEY)
     return date.fromisoformat(row.value) if row else None
+
+
+# The ownership block of the latest quarter is cached per process (R-2, 2026-11-22 evening:
+# ownership was CPU-bound under load). The key holds everything the block is built from: the
+# company's mapped CUSIPs and class titles (so a new link or a reviewed removal changes it), its
+# reorganisation twins, the cover's shares outstanding, the quarter, the page, and the holdings
+# version: 13f:loaded_through and 13f:holdings_version, which every 13F load bumps. Never with
+# as_of. No field of the block differs by API plan.
+HOLDINGS_VERSION_KEY = "13f:holdings_version"
+CACHE_SIZE = 4096
+_cache: OrderedDict = OrderedDict()
+_cache_lock = threading.Lock()
+
+
+def bump_holdings_version(db: Session) -> None:
+    """Called by every writer of 13F holdings: cached ownership blocks no longer match."""
+    row = db.get(JobState, HOLDINGS_VERSION_KEY)
+    now = utcnow()
+    if row is None:
+        db.add(JobState(name=HOLDINGS_VERSION_KEY, value=now.isoformat(), updated_at=now))
+    else:
+        row.value, row.updated_at = now.isoformat(), now
+
+
+def _holdings_version(db: Session) -> tuple:
+    rows = dict(db.execute(select(JobState.name, JobState.value).where(
+        JobState.name.in_([LOADED_KEY, HOLDINGS_VERSION_KEY]))).all())  # fmt: skip
+    return rows.get(LOADED_KEY), rows.get(HOLDINGS_VERSION_KEY)
+
+
+def clear_cache() -> None:
+    with _cache_lock:
+        _cache.clear()
 
 
 def quarter_ends(d: date) -> date:
@@ -398,6 +436,29 @@ def ownership(
     q = complete_quarter(anchor, loaded_through(db))
     if not codes or q is None:
         return None
+    key = None
+    if as_of is None:
+        key = (cik, q, anchor, top, offset, _holdings_version(db),
+               tuple(sorted((c.cusip, c.class_title or "") for c in classes)), tuple(aliases),
+               json.dumps(shares_outstanding, sort_keys=True, default=str),
+               tuple((d.isoformat(), t) for d, t in (changes or [])))  # fmt: skip
+        with _cache_lock:
+            hit = _cache.get(key)
+            if hit is not None:
+                _cache.move_to_end(key)
+                return copy.deepcopy(hit)
+    block = _ownership(db, cik, classes, own, aliases, codes, q, as_of, top, offset,
+                       shares_outstanding, changes)  # fmt: skip
+    if key is not None and block is not None:
+        with _cache_lock:
+            _cache[key] = copy.deepcopy(block)
+            while len(_cache) > CACHE_SIZE:
+                _cache.popitem(last=False)
+    return block
+
+
+def _ownership(db, cik, classes, own, aliases, codes, q, as_of, top, offset, shares_outstanding,
+               changes) -> dict | None:  # fmt: skip
     pq = previous_quarter(q)
     cur, filed_now = effective_positions(db, codes, q, as_of)
     prev, _ = effective_positions(db, codes, pq, as_of)
