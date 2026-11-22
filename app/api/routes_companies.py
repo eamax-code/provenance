@@ -10,7 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Path, Query, Request, R
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import db_session, require_reader, settings_dep
+from app.api.dependencies import db_session, require_reader, settings_dep, strict_query
 from app.core.config import Settings
 from app.core.errors import APIError
 from app.db.models import Company, Filing, FinancialFact, utcnow
@@ -299,6 +299,7 @@ def filings(
 
 @router.get(
     "/{cik}/facts",
+    dependencies=[Depends(strict_query)],
     response_model=FactList,
     responses=_ERRORS,
     summary="Reported financial figures, each with its filing; as_of for point in time",

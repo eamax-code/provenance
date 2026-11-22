@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Integer, cast, extract, func, select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import db_session, require_reader
+from app.api.dependencies import db_session, require_reader, strict_query
 from app.core.errors import APIError
 from app.db.models import Company, FinancialFact, MartFinancial
 from app.schemas.common import ErrorEnvelope, PageMeta
@@ -247,6 +247,7 @@ def screen_periods(
 
 @router.get(
     "/screen",
+    dependencies=[Depends(strict_query)],
     response_model=ScreenResult,
     responses={401: {"model": ErrorEnvelope}, 422: {"model": ErrorEnvelope}},
     summary="Rank one metric across all companies for a year",

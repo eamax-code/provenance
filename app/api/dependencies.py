@@ -196,3 +196,28 @@ def require_reader(
             )
     request.state.demo = True
     return DemoPrincipal()
+
+
+def strict_query(request: Request) -> None:
+    """Refuse query parameters the endpoint does not take (422), so a typo such as ?type= for
+    ?event_type= fails loudly instead of returning unfiltered data."""
+    import difflib
+
+    route = request.scope.get("route")
+    dependant = getattr(route, "dependant", None)
+    if dependant is None:
+        return
+
+    def names(d) -> set[str]:  # the endpoint's and its dependencies' query parameters
+        own = {p.alias for p in d.query_params}
+        return own.union(*(names(sub) for sub in d.dependencies)) if d.dependencies else own
+
+    known = names(dependant)
+    unknown = sorted(set(request.query_params) - known)
+    if unknown:
+        hints = {u: difflib.get_close_matches(u, known, n=2, cutoff=0.5) for u in unknown}
+        said = "; ".join(f"{u}" + (f" (did you mean {' or '.join(h)}?)" if h else "")
+                         for u, h in hints.items())  # fmt: skip
+        accepted = ", ".join(sorted(known))
+        raise APIError(422, "unknown_parameter",
+                       f"Unknown query parameter: {said}. Accepted: {accepted}.")  # fmt: skip

@@ -368,3 +368,19 @@ def test_public_search_says_how_each_result_matched(client, db, ingested_aapl):
     assert by("320193")["match_type"] == "cik"
     assert by("Apple")["match_type"] == "name"
     assert by("APPL")["match_type"] == "former_ticker"
+
+
+def test_filtering_endpoints_refuse_unknown_parameters(client, auth, ingested_aapl):
+    """?type= is not ?event_type=: a typo must fail loudly, never return the whole feed."""
+    r = client.get("/v1/events?type=sec.auditor_change", headers=auth)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "unknown_parameter"
+    assert "types" in r.json()["error"]["message"]  # the closest real names are suggested
+    r = client.get("/v1/companies/320193/facts?metrc=revenue", headers=auth)
+    assert r.status_code == 422 and "metric" in r.json()["error"]["message"]
+    r = client.get("/v1/facts/screen?metric=revenue&year=2024&lmit=5", headers=auth)
+    assert r.status_code == 422
+    assert client.get("/v1/events?event_type=sec.results", headers=auth).status_code == 200
+
+
+# A filtered feed containing only the asked type is covered by
+# test_filing_events.py::test_feed_carries_event_types_and_filters_by_them.

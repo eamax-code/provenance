@@ -15,7 +15,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app.api.dependencies import db_session, require_api_key, require_reader, settings_dep
+from app.api.dependencies import (
+    db_session,
+    require_api_key,
+    require_reader,
+    settings_dep,
+    strict_query,
+)
 from app.core.config import Settings, plan_limits
 from app.core.errors import APIError
 from app.db.models import ApiKey, utcnow
@@ -196,7 +202,8 @@ _FILTER_DOCS = {
 }
 
 
-@router.get("", response_model=EventPage, responses=_ERRORS, summary="Poll the event feed")
+@router.get("", response_model=EventPage, responses=_ERRORS, summary="Poll the event feed",
+            dependencies=[Depends(strict_query)])  # fmt: skip
 def list_events(
     after: str | None = Query(None, max_length=200, description="next_cursor from a prior page"),
     since: datetime | None = Query(
@@ -232,6 +239,7 @@ def _sse(event: dict) -> str:
 
 @router.get(
     "/stream",
+    dependencies=[Depends(strict_query)],
     responses={
         200: {"content": {"text/event-stream": {}}, "description": "Server-Sent Events"},
         **_ERRORS,
