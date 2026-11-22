@@ -394,15 +394,66 @@
     drawChart(host, { series: S.m.map(series).filter(Boolean), height: window.innerWidth < 600 ? 280 : 420 });
   }
 
-  /* ---- X-02 statements (from the overview until the bulk endpoint lands) ---- */
+  /* ---- X-02 statements: the bulk endpoint (one request per statement); the overview's five years otherwise ---- */
+  var bulk = {};
   function statementsTab() {
-    var pane = $('pane-statements'), d = S.d, cur = (d.company || {}).reporting_currency || 'USD', st = d.statements || {}, fy = st.fiscal_years || [];
-    var KEYS2 = { income: 'Income statement', balance: 'Balance sheet', cash_flow: 'Cash flow', ratios: 'Ratios' };
-    var sec = (st.sections || []).filter(function (s) { return s.title === KEYS2[S.st]; })[0] || (st.sections || [])[0];
-    var tabs = el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Statement' }, Object.keys(KEYS2).map(function (k) { return el('button', { type: 'button', 'aria-pressed': String(S.st === k), text: KEYS2[k], on: { click: function () { S.st = k; go('statements'); } } }); }));
+    if (S.st === 'ratios') return statementsFallback();
+    var key = [S.cik, S.st, S.p, S.as_of || '', X.hasKey() ? 'k' : 'd'].join('|');
+    if (bulk[key] === undefined) {
+      bulk[key] = null;
+      apiHas('/v1/companies/{cik}/statements/{statement}').then(function (has) { return has ? keyedOrDemo('/v1/companies/' + S.cik + '/statements/' + S.st + '?period=' + S.p + '&periods=' + (S.p === 'quarterly' ? 20 : 12) + (S.as_of ? '&as_of=' + S.as_of : '')) : { ok: false, status: 0 }; }).then(function (r) {
+        bulk[key] = r.ok && r.body && r.body.rows ? r.body : (r.status === 404 && r.body && r.body.error && r.body.error.code === 'no_statement_data' ? { empty: true } : false);
+        if (S.tab === 'statements') statementsTab();
+      }).catch(function () { bulk[key] = false; if (S.tab === 'statements') statementsTab(); });
+    }
+    var b = bulk[key];
+    if (b === null) { $('pane-statements').replaceChildren(el('p', { class: 'muted', text: 'Loading the statement…' })); return; }
+    if (b === false) return statementsFallback();
+    statementsBulk(b);
+  }
+  var STN = { income: 'Income statement', balance: 'Balance sheet', cash_flow: 'Cash flow', ratios: 'Ratios' };
+  function stControls(cur, note, csvRows, csvName) {
+    var tabs = el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Statement' }, Object.keys(STN).map(function (k) { return el('button', { type: 'button', 'aria-pressed': String(S.st === k), text: STN[k], on: { click: function () { S.st = k; go('statements'); } } }); }));
+    var per = el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Period' }, [['annual', 'Annual'], ['quarterly', 'Quarterly']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String(S.p === v[0]), disabled: S.st === 'ratios' && v[0] === 'quarterly' ? 'disabled' : null, text: v[1], on: { click: function () { S.p = v[0]; go('statements'); } } }); }));
     var shows = el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Show' }, [['values', 'Values'], ['yoy', 'YoY %'], ['common', 'Common size']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String(S.show === v[0]), text: v[1], disabled: v[0] === 'common' && S.st !== 'income' && S.st !== 'balance' ? 'disabled' : null, on: { click: function () { S.show = v[0]; go('statements'); } } }); }));
+    var csv = el('button', { type: 'button', class: 'btn small', text: 'CSV', on: { click: function () {
+      var a = el('a', { href: URL.createObjectURL(new Blob([csvRows().join('\n')], { type: 'text/csv' })), download: csvName }); document.body.appendChild(a); a.click(); a.remove();
+    } } });
+    return el('div', { class: 'ch-bar' }, [tabs, per, shows, el('span', { class: 'muted small', text: note }), el('span', { class: 'ch-acts' }, [csv])]);
+  }
+  function statementsBulk(b) {
+    var pane = $('pane-statements'), cur = b.reporting_currency || ((S.d.company || {}).reporting_currency) || 'USD';
+    if (b.empty) { pane.replaceChildren(stControls(cur, '', function () { return []; }, 'empty.csv'), el('p', { class: 'muted', text: 'No values for this statement in the filings loaded.' })); return; }
+    var cols = b.columns || [], rows = b.rows || [], base = S.st === 'balance' ? 'total_assets' : 'revenue';
+    var baseRow = rows.filter(function (r) { return r.metric === base; })[0];
+    var at = function (r, key) { return (r.cells || []).filter(function (c) { return c && c.column === key; })[0]; };
+    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick', text: STN[S.st] })].concat(cols.map(function (c) { return el('th', { scope: 'col', class: 'n', title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
+    var body = rows.map(function (r) {
+      var ratio = r.unit_kind === 'ratio';
+      return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null])].concat(cols.map(function (col, i) {
+        var c = at(r, col.key); if (!c || c.value == null) return el('td', { class: 'n muted', title: 'not reported', text: '—' });
+        var txt;
+        if (S.show === 'yoy') { var pc = i > 0 ? at(r, cols[i - (S.p === 'quarterly' ? Math.min(4, i) : 1)].key) : null; txt = ratio ? '—' : pct(pc && pc.value != null ? growth(c.value, pc.value) : null, true); }
+        else if (S.show === 'common') { var bc = baseRow && at(baseRow, col.key); txt = ratio || !bc || !bc.value ? '—' : pct(100 * c.value / bc.value); }
+        else txt = ratio ? pct(100 * c.value) : fmtv(c.value, c.unit === 'ratio' ? '%' : c.unit, cur);
+        var info = Object.assign({ label: r.label, metric: r.metric, currency: cur, fiscal_label: col.period_label || col.key, formula: r.formula }, c);
+        var flag = c.quality_status && c.quality_status !== 'ok';
+        return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') }, [door(txt, info, flag ? 'flag' : ''), flag ? el('span', { class: 'qf', title: c.quality_status.replace(/_/g, ' '), text: '!' }) : null]);
+      })));
+    });
+    var csvRows = function () { return [['line_item'].concat(cols.map(function (c) { return c.key; })).join(',')].concat(rows.map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(cols.map(function (c) { var x = at(r, c.key); return x && x.value != null ? x.value : ''; })).join(','); })); };
+    pane.replaceChildren(stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + '.csv'),
+      el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
+      el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
+      (b.notes || []).length ? el('p', { class: 'muted small', text: b.notes.join(' ') }) : null);
+  }
+  function statementsFallback() {
+    var pane = $('pane-statements'), d = S.d, cur = (d.company || {}).reporting_currency || 'USD', st = d.statements || {}, fy = st.fiscal_years || [];
+    var KEYS2 = STN;
+    var sec = (st.sections || []).filter(function (s) { return s.title === KEYS2[S.st]; })[0] || (st.sections || [])[0];
     var base = S.st === 'balance' ? 'total_assets' : 'revenue', baseRow = statementRows()[base];
     var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick', text: KEYS2[S.st] })].concat(fy.map(function (y) { return el('th', { scope: 'col', class: 'n', text: y }); })));
+    if (S.p === 'quarterly') S.p = 'annual';
     var body = (sec ? sec.rows : []).map(function (r) {
       var unit = r.unit === '%' || /margin|return_on/.test(r.metric) ? '%' : r.unit;
       return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null])].concat(r.cells.map(function (c, i) {
@@ -414,17 +465,45 @@
         return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') }, [door(txt, cellInfo(r, c, cur), c.quality_status && c.quality_status !== 'ok' ? 'flag' : ''), c.quality_status && c.quality_status !== 'ok' ? el('span', { class: 'qf', title: c.quality_status.replace(/_/g, ' '), text: '!' }) : null]);
       })));
     });
-    var csv = el('button', { type: 'button', class: 'btn small', text: 'CSV', on: { click: function () {
-      var lines = [['line_item'].concat(fy).join(',')].concat((sec ? sec.rows : []).map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(r.cells.map(function (c) { return c && c.value != null ? c.value : ''; })).join(','); }));
-      var a = el('a', { href: URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })), download: (d.company.ticker || d.company.cik) + '-' + S.st + '.csv' }); document.body.appendChild(a); a.click(); a.remove();
-    } } });
-    pane.replaceChildren(el('div', { class: 'ch-bar' }, [tabs, shows, el('span', { class: 'muted small', text: 'Annual · in ' + cur + ' as filed' }), el('span', { class: 'ch-acts' }, [csv])]),
+    var csvRows = function () { return [['line_item'].concat(fy).join(',')].concat((sec ? sec.rows : []).map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(r.cells.map(function (c) { return c && c.value != null ? c.value : ''; })).join(','); })); };
+    pane.replaceChildren(stControls(cur, 'Annual · in ' + cur + ' as filed · last five years', csvRows, (d.company.ticker || d.company.cik) + '-' + S.st + '.csv'),
       el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
-      el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping. "—" means not reported. Shaded cells were reported by a predecessor registrant. Ten years and quarterly columns come with the bulk statements endpoint.' }));
+      el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping. "—" means not reported. Shaded cells were reported by a predecessor registrant.' + (S.st === 'ratios' ? ' Ratios are worked out here from reported figures.' : ' Longer histories and quarters load from the statements API when it\u2019s available.') }));
   }
 
-  /* ---- X-05 timeline (from the overview's events and filings until the timeline endpoint lands) ---- */
+  /* ---- X-05 timeline: the timeline endpoint (types, paging); the overview's events and filings otherwise ---- */
+  var TLT = [['filing', 'Filings'], ['8k_item', '8-K items'], ['officer_change', 'Officers'], ['auditor_change', 'Auditors'], ['ipo', 'IPO'], ['insider', 'Insider signals'], ['13f_quarter', '13F quarters']];
+  var tl = { key: null, items: [], cursor: null, more: false, ok: null, types: TLT.map(function (t) { return t[0]; }).filter(function (t) { return t !== 'filing'; }) };
   function timelineTab() {
+    var key = [S.cik, S.as_of || '', tl.types.join(','), X.hasKey() ? 'k' : 'd'].join('|');
+    if (tl.key !== key) { tl.key = key; tl.items = []; tl.cursor = null; tl.more = false; tl.ok = null; tlLoad(); }
+    if (tl.ok === false) return timelineFallback();
+    var pane = $('pane-timeline');
+    var chips = el('div', { class: 'mk-toggles', role: 'group', 'aria-label': 'Show on the timeline' }, TLT.map(function (t) {
+      var cb = el('input', { type: 'checkbox', on: { change: function () { tl.types = TLT.map(function (x) { return x[0]; }).filter(function (x) { return x === t[0] ? cb.checked : tl.types.indexOf(x) > -1; }); if (!tl.types.length) tl.types = [t[0]]; timelineTab(); } } }); cb.checked = tl.types.indexOf(t[0]) > -1;
+      return el('label', { class: 'check' }, [cb, t[1]]);
+    }));
+    var list = el('ol', { class: 'tl' }, tl.items.map(function (i) {
+      var d = i.details || {}, sub = i.type === 'officer_change' ? [d.person, d.role, d.change].filter(Boolean).join(' · ') : i.type === 'auditor_change' ? [d.from_firm, d.to_firm].filter(Boolean).join(' → ') : i.type === '13f_quarter' ? (d.holders_count != null ? Number(d.holders_count).toLocaleString('en-US') + ' holders' + (d.holders_change != null ? ' (' + (d.holders_change >= 0 ? '+' : '−') + Math.abs(d.holders_change) + ')' : '') : '') : i.type === 'insider' ? [d.signal && d.signal.replace(/_/g, ' '), d.value_usd != null ? money(d.value_usd, 'USD') : null].filter(Boolean).join(' · ') : '';
+      var kind = (TLT.filter(function (t) { return t[0] === i.type; })[0] || [0, i.type])[1];
+      return el('li', { class: 'tl-' + i.type + (i.upcoming ? ' upcoming' : '') }, [el('time', { datetime: i.date, text: day(i.date) }), el('span', { class: 'tag', text: i.upcoming ? 'upcoming' : kind }),
+        el('span', { class: 'tl-t' }, [i.title, sub ? el('span', { class: 'muted small', text: ' · ' + sub }) : null]),
+        ARCHIVE.test(i.filing_url || '') ? el('a', { href: i.filing_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + ' ↗' }) : el('span')]);
+    }));
+    var more = tl.more ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { tlLoad(); } } }) : null;
+    pane.replaceChildren(el('div', { class: 'ch-bar' }, [chips]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice. Newest first; every item links its filing.' }),
+      tl.ok === null && !tl.items.length ? el('p', { class: 'muted', text: 'Loading the timeline…' }) : tl.items.length ? list : el('p', { class: 'muted', text: 'Nothing of these kinds in the filings loaded.' }), more);
+  }
+  function tlLoad() {
+    var key = tl.key, q = '/v1/companies/' + S.cik + '/timeline?limit=' + (X.hasKey() ? 100 : 50) + '&types=' + tl.types.join(',') + (S.as_of ? '&as_of=' + S.as_of : '') + (tl.cursor ? '&cursor=' + encodeURIComponent(tl.cursor) : '');
+    apiHas('/v1/companies/{cik}/timeline').then(function (has) { return has ? keyedOrDemo(q) : { ok: false }; }).then(function (r) {
+      if (tl.key !== key) return;
+      if (!r.ok || !r.body || !Array.isArray(r.body.data)) { if (!tl.items.length) tl.ok = false; }
+      else { tl.ok = true; tl.items = tl.items.concat(r.body.data); var m = r.body.meta || {}; tl.cursor = m.next_cursor || null; tl.more = !!(m.has_more && m.next_cursor); }
+      if (S.tab === 'timeline') timelineTab();
+    }).catch(function () { if (tl.key === key && !tl.items.length) { tl.ok = false; if (S.tab === 'timeline') timelineTab(); } });
+  }
+  function timelineFallback() {
     var d = S.d, items = [];
     (d.events || []).forEach(function (e) { items.push({ date: e.date, kind: 'Event', title: e.short_label || e.label, detail: e.label, url: e.filing_url, form: e.form_type }); });
     (d.filings || []).forEach(function (f) { items.push({ date: f.filing_date || f.filed_date, kind: 'Filing', title: f.form_label || f.form_type, detail: f.form_type, url: f.source_url || f.filing_url, form: f.form_type }); });
@@ -447,6 +526,12 @@
     }).then(function () { return window.CompanyLower; });
     lowerP.catch(function () { lowerP = null; });
     return lowerP;
+  }
+  // which API routes this deployment has (from /openapi.json, once), so a missing endpoint is never requested
+  var specP = null;
+  function apiHas(path) {
+    specP = specP || fetch('/openapi.json', { headers: { Accept: 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { return j && j.paths ? j.paths : {}; }).catch(function () { return {}; });
+    return specP.then(function (paths) { return !!paths[path]; });
   }
   // the keyed endpoints, or the public demo key on a showcase company (no SEC fetch; ten rows)
   function keyedOrDemo(path) { return X.raw(path, X.hasKey() ? null : 'demo'); }

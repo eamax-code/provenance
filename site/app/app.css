@@ -380,3 +380,6 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 700; border-top: 2px
 .ws-chart .line.c0 { stroke: var(--accent-hi); } .ws-chart .line.c1 { stroke: var(--fg); } .ws-chart .line.c2 { stroke: var(--good); } .ws-chart .line.c3 { stroke: var(--warn); } .ws-chart .line.c4 { stroke: color-mix(in srgb, var(--muted) 90%, transparent); stroke-dasharray: 4 3; }
 .ws-chart .lg.c0 { fill: var(--accent-hi); } .ws-chart .lg.c2 { fill: var(--good); } .ws-chart .lg.c3 { fill: var(--warn); }
 @media (max-width: 760px) { .cmp-charts { grid-template-columns: minmax(0, 1fr); } .cmp-table td .small { display: none; } .cmp-table tbody th { white-space: normal; min-width: 7.5em; } }
+
+.tl li.upcoming { opacity: .8; } .tl li.upcoming .tag { border-color: var(--warn); color: var(--warn); }
+.tl .tl-t .small { font-size: .82rem; }

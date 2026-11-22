@@ -170,7 +170,7 @@ async function view(page, theme, width) {
     if (page.storage) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try{${Object.entries(page.storage).map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)},${JSON.stringify(v)})`).join(';')}}catch(e){}` }, sessionId);
     if (page.stubs) {
       // a stub either replaces a response (body) or adds fields to the real one (merge, at the response stage)
-      await send('Fetch.enable', { patterns: [{ urlPattern: '*/v1/*', requestStage: 'Request' }, { urlPattern: '*/v1/*', requestStage: 'Response' }] }, sessionId);
+      await send('Fetch.enable', { patterns: [{ urlPattern: '*/v1/*', requestStage: 'Request' }, { urlPattern: '*/v1/*', requestStage: 'Response' }, { urlPattern: '*/openapi.json*', requestStage: 'Request' }, { urlPattern: '*/openapi.json*', requestStage: 'Response' }] }, sessionId);
       listeners.push({ session: sessionId, method: 'Fetch.requestPaused', fn: async (ev) => {
         const stub = page.stubs.find((st) => new RegExp(st.match).test(ev.request.url));
         const atResponse = ev.responseStatusCode !== undefined;
