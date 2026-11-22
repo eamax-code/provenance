@@ -81,3 +81,15 @@ def test_overview_block_current_history_changes_and_as_of(db, client, ingested_a
 
 def test_firm_ids_are_normalised():
     assert auditors.firm_id("00042") == "42" and auditors.firm_id(" ") is None
+
+
+def test_a_401_filed_a_year_ahead_still_links(db, ingested_aapl, tmp_path):
+    """Wiley filed its 4.01 in Feb 2023, before KPMG's last report (Jun 2023), for FY2024."""
+    auditors.load(db, make_zip(tmp_path))
+    db.add(Filing(cik="0000320193", accession_number="0000320193-24-000777", form_type="8-K",
+                  filing_date=date(2025, 1, 15), items="4.01",
+                  source_url="https://www.sec.gov/Archives/edgar/data/320193/y-index.html",
+                  first_detected_at=utcnow(), quality_status="ok"))  # fmt: skip
+    db.commit()
+    fc = auditors.for_company(db, "0000320193")["firm_changes"]
+    assert fc[0]["item_401"]["filing_date"] == "2025-01-15"  # before FY2024's report, still linked

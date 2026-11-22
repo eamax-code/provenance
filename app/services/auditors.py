@@ -17,7 +17,7 @@ from __future__ import annotations
 import csv
 import io
 import zipfile
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import delete, insert, select
@@ -32,11 +32,13 @@ SYMBOL_TAGS = {"TradingSymbol": "symbol", "SecurityExchangeName": "exchange",
                "Security12bTitle": "title",
                "EntityRegistrantName": "registrant"}  # fmt: skip  # K-04b and K-06, one pass
 CHANGE_ITEM = "4.01"
+LINK_DAYS = 548  # an 8-K 4.01 links to a firm change up to 18 months before the first new report
 NOTES = [
     "The audit firm is as tagged on the cover of each annual report (dei:AuditorName, "
     "AuditorFirmId, AuditorLocation); the firm ID is the PCAOB's.",
     "8-K item 4.01 filings announce a change of certifying accountant; a firm change between two "
-    "consecutive annual reports links the 4.01 filed between them, when there is one.",
+    "consecutive annual reports links the 4.01 filed up to 18 months before the new firm's first "
+    "report, when there is one (foreign private issuers report changes in the 20-F instead).",
 ]
 
 csv.field_size_limit(50_000_000)
@@ -198,12 +200,19 @@ def for_company(db: Session, cik: str, as_of: date | None = None) -> dict | None
         *([Filing.filing_date <= as_of] if as_of else []),
     ).order_by(Filing.filing_date)).all()  # fmt: skip
     firm_changes = []
+    used: set[str] = set()
     for before, after in zip(current, current[1:], strict=False):
         if before.auditor_key == after.auditor_key:
             continue
-        # the 8-K item 4.01 filed between the two annual reports, the latest one if several
-        linked = [f for f in filings_401 if before.filed_date < f.filing_date <= after.filed_date]
+        # the 8-K item 4.01 announcing it: often filed a year ahead, before the old firm's last
+        # report (Wiley, Feb 2023, for FY2024), so up to 18 months before the new firm's first
+        # report; the latest such filing not linked to another change
+        window = after.filed_date - timedelta(days=LINK_DAYS)
+        linked = [f for f in filings_401 if window < f.filing_date <= after.filed_date
+                  and f.accession_number not in used]  # fmt: skip
         f401 = linked[-1] if linked else None
+        if f401 is not None:
+            used.add(f401.accession_number)
         firm_changes.append({
             "fiscal_year": after.fiscal_year,
             "from": {"name": before.auditor_name, "pcaob_firm_id": before.pcaob_firm_id},
