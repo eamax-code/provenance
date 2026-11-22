@@ -253,6 +253,7 @@ def test_reorganisation_counts_both_cusips_as_one_class(db, ingested_aapl):
                                                for n in b["notes"])  # fmt: skip
         assert b["flows_note"].startswith("This quarter spans the change of share identifier "
                                           "on 1 Jul 2026 (8-K12B)")  # fmt: skip
+        assert "cusip" not in str(b).lower()  # the word never appears, nor any value
     # a merger counterpart (accounting predecessor) is never combined
     link = db.scalar(select(RegistrantSuccession))
     link.match_method = "accounting_predecessor"

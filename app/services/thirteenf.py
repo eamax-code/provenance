@@ -396,9 +396,9 @@ def ownership(
         })  # fmt: skip
     notes = list(NOTES)
     if aliases and any(c in aliases for p in cur.values() for c in p["by_class"]):
-        notes.append("Includes holdings reported under the CUSIP of the registrant this company "
-                     "replaced or was replaced by in a holding company reorganisation (the same "
-                     "shares, exchanged one for one).")  # fmt: skip
+        notes.append("Includes holdings reported under the share identifier of the registrant "
+                     "this company replaced or was replaced by in a holding company "
+                     "reorganisation (the same shares, exchanged one for one).")  # fmt: skip
     if not single:
         notes.append(
             "This company has several share classes; shares are not added across classes, so "
