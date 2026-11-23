@@ -145,6 +145,64 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik"],
         },
     },
+    "company_statements": {
+        "title": "Financial statements",
+        "description": "A whole income statement, balance sheet or cash flow statement for up "
+        "to 20 fiscal years (or 80 quarters): one row per line item, one cell per period, each "
+        "value with its filing (source_url, accession_number, form_type, filed_date, source_tag, "
+        "mapping_version). Values are as reported; derived rows (margins, free cash flow) and "
+        "derived quarters say derived and list their inputs. A row with split_break mixes share "
+        "bases across two adjacent years. as_of uses only figures filed by that date.",
+        "path": "/v1/companies/{cik}/statements/{statement}",
+        "params": {"period": "period", "periods": "periods", "as_of": "as_of"},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "statement": {"type": "string", "enum": ["income", "balance", "cash_flow"]},
+                "period": {"type": "string", "enum": ["annual", "quarterly"], "default": "annual"},
+                "periods": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 80,
+                    "description": "Columns: up to 20 annual, 80 quarterly",
+                },
+                "as_of": _DATE,
+            },  # fmt: skip
+            "required": ["cik", "statement"],
+        },
+    },
+    "company_timeline": {
+        "title": "Company timeline",
+        "description": "One company's history on one list, newest first: filings, 8-K events, "
+        "officer and auditor changes, IPO milestones, insider activity and 13F quarters, each "
+        "linking its filing. Information, not signals. as_of uses only filings made by that "
+        "date.",
+        "path": "/v1/companies/{cik}/timeline",
+        "params": {
+            "types": "types",
+            "from": "from",
+            "to": "to",
+            "as_of": "as_of",
+            "limit": "limit",
+        },  # fmt: skip
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "types": {
+                    "type": "string",
+                    "description": "Comma-separated: filing, 8k_item, "
+                    "officer_change, auditor_change, ipo, insider, 13f_quarter",
+                },
+                "from": _DATE,
+                "to": _DATE,
+                "as_of": _DATE,
+                "limit": _LIMIT,
+            },  # fmt: skip
+            "required": ["cik"],
+        },
+    },
     "company_segments": {
         "title": "Segments",
         "description": "Revenue and segment profit (operating income, or pretax income for "
@@ -384,6 +442,11 @@ async def call_tool(request: Request, name: str, args: dict[str, Any]) -> dict[s
         if not cik.isdigit() or len(cik) > 10:
             raise ValueError("cik must be digits, e.g. 320193")
         path = path.replace("{cik}", cik)
+    if "{statement}" in path:
+        statement = str(args["statement"])
+        if statement not in ("income", "balance", "cash_flow"):
+            raise ValueError("statement must be income, balance or cash_flow")
+        path = path.replace("{statement}", statement)
     params = {
         api: str(args[arg]).lower() if isinstance(args[arg], bool) else args[arg]
         for arg, api in tool["params"].items()

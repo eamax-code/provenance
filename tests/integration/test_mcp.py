@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 
 def rpc(client, method, params=None, rid=1, headers=None):
     body = {"jsonrpc": "2.0", "id": rid, "method": method}
@@ -119,3 +121,32 @@ def test_oversized_requests_are_refused(client):
     big = b'{"jsonrpc": "2.0", "id": 1, "method": "ping", "pad": "' + b"x" * 300_000 + b'"}'
     r = client.post("/mcp", content=big, headers={"Content-Type": "application/json"})
     assert r.status_code == 413 and r.json()["error"]["code"] == -32600
+
+
+def test_statements_and_timeline_tools(client, ingested_aapl, items_aapl, fake_sec):
+    before = len(fake_sec.calls)
+    tools = {t["name"]: t for t in rpc(client, "tools/list").json()["result"]["tools"]}
+    for name in ("company_statements", "company_timeline"):
+        assert "as_of" in tools[name]["inputSchema"]["properties"]
+        assert tools[name]["annotations"]["readOnlyHint"] is True
+    res = call(client, "company_statements", {"cik": "320193", "statement": "income"})
+    assert res["isError"] is False, res
+    body = data(res)
+    cells = [c for r in body["rows"] if not r["derived"] for c in r["cells"] if c]
+    assert cells and all(
+        c["source_url"].startswith("https://www.sec.gov/Archives/") and c["accession_number"]
+        and c["mapping_version"] and isinstance(c["value"], float) for c in cells
+    )  # fmt: skip
+    past = data(call(client, "company_statements",
+                     {"cik": "320193", "statement": "income", "as_of": "2024-01-15"}))  # fmt: skip
+    assert past["as_of"] == "2024-01-15"
+    assert all(c["filed_date"] <= "2024-01-15" for r in past["rows"] for c in r["cells"]
+               if c and c.get("filed_date"))  # fmt: skip
+    bad = call(client, "company_statements", {"cik": "320193", "statement": "../stats"})
+    assert bad["isError"] is True
+    tl = data(call(client, "company_timeline", {"cik": "320193", "types": "filing", "limit": 5}))
+    assert tl["data"] and all(i["type"] == "filing" for i in tl["data"])
+    assert all(i["filing_url"].startswith("https://www.sec.gov/Archives/") for i in tl["data"])
+    text = json.dumps(tl) + json.dumps(body)
+    assert "data.sec.gov" not in text and "first_detected" not in text
+    assert len(fake_sec.calls) == before
