@@ -313,13 +313,10 @@ def _private_raises(db: Session, p: Plan, today: date) -> DataAnswer:
     from app.services import form_d
 
     f = private_raise_filters(p.filters.get("text", ""), today)
-    items, _ = form_d.search(db, f.get("industry"), None, f.get("min_amount"), f.get("start"),
-                             f.get("end"), limit=500)  # fmt: skip
-
-    def size(i):
-        return i["total_amount_sold"] or i["total_offering_amount"] or 0
-
-    items.sort(key=size, reverse=True)
+    # "raised" is the amount sold (cumulative on the latest filing of each offering, so an
+    # amended offering counts once), never the offering size; an indefinite size is unknown
+    items, _ = form_d.search(db, f.get("industry"), None, None, f.get("start"), f.get("end"),
+                             limit=500, min_sold=f.get("min_amount"), order="sold")  # fmt: skip
     what = (f"{f['industry'].lower()} " if f.get("industry") else "") + "offerings"
     # the asked threshold is the question's, not a filed figure: written short ($50M)
     floor = f" of ${_short(f['min_amount'])} or more" if f.get("min_amount") else ""
@@ -336,12 +333,14 @@ def _private_raises(db: Session, p: Plan, today: date) -> DataAnswer:
         lf = i["latest_filing"]
         n = _cite(cites, f"{i['issuer']['name']}, Form {lf['form']} filed {lf['filed_date']}",
                   lf["source_url"])  # fmt: skip
-        offered = (_money(i["total_offering_amount"]) if i["total_offering_amount"] is not None
-                   else "an indefinite amount")  # fmt: skip
+        size = (_money(i["total_offering_amount"]) if i["total_offering_amount"] is not None
+                else "indefinite")  # fmt: skip
         sold = _money(i["total_amount_sold"]) if i["total_amount_sold"] is not None else "not given"
-        parts.append(f"{i['issuer']['name']} ({offered} offered, {sold} sold) [{n}]")
-    text = (f"{len(items)}{'+' if len(items) >= 500 else ''} issuers filed Form D for {what}"
-            f"{floor} {when}. The largest by amount sold: " + "; ".join(parts) + "." + cover
+        parts.append(f"{i['issuer']['name']}, {sold} sold (offering size {size}) [{n}]")
+    n_all = f"{len(items)}{'+' if len(items) >= 500 else ''}"
+    text = (f"{n_all} {_plural(len(items), 'issuer', 'issuers')} reported selling {what}"
+            f"{floor} on a Form D filed {when}. The largest by amount sold: " + "; ".join(parts)
+            + "." + cover
             + " " + form_d.BASIS)  # fmt: skip
     rows = [[_cell(i["issuer"]["name"]), _cell(i["industry_group"] or "—"),
              _cell(_money(i["total_offering_amount"]) if i["total_offering_amount"] is not None
@@ -351,11 +350,11 @@ def _private_raises(db: Session, p: Plan, today: date) -> DataAnswer:
              _cell(i["latest_filing"]["filed_date"], i["latest_filing"]["source_url"])]
             for i in items[:20]]  # fmt: skip
     widget = _table(f"Form D {what}{floor}, {f['label']}",
-                    ["Issuer", "Industry", "Offered", "Sold", "First sale", "Form D"], rows,
+                    ["Issuer", "Industry", "Offering size", "Sold", "First sale", "Form D"], rows,
                     note=form_d.BASIS)  # fmt: skip
     how = [{"endpoint": "/v1/private-raises", "parameters": {
         k: (v.isoformat() if isinstance(v, date) else v) for k, v in
-        (("industry", f.get("industry")), ("min_amount", f.get("min_amount")),
+        (("industry", f.get("industry")), ("min_sold", f.get("min_amount")), ("order", "sold"),
          ("from", f.get("start")), ("to", f.get("end"))) if v is not None}}]  # fmt: skip
     return DataAnswer(text, "private_raises", widgets=[widget], citations=cites, how=how)
 

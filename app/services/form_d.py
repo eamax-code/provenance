@@ -239,7 +239,8 @@ def decode_cursor(cursor: str | None) -> int:
 def search(db: Session, industry: str | None = None, state: str | None = None,
            min_amount: float | None = None, start: date | None = None, end: date | None = None,
            exemption: str | None = None, cik: str | None = None, limit: int = 50,
-           offset: int = 0) -> tuple[list[dict], bool]:  # fmt: skip
+           offset: int = 0, min_sold: float | None = None,
+           order: str = "date") -> tuple[list[dict], bool]:  # fmt: skip
     q = select(FormDFiling).where(FormDFiling.is_latest)
     if cik:
         q = q.where(FormDFiling.cik == cik)
@@ -256,9 +257,14 @@ def search(db: Session, industry: str | None = None, state: str | None = None,
         q = q.where(FormDFiling.filing_date <= end)
     if exemption:
         q = q.where(("," + FormDFiling.exemptions + ",").like(f"%,{exemption},%"))
-    rows = list(db.scalars(q.order_by(FormDFiling.filing_date.desc(),
-                                      FormDFiling.accession_number.desc())
-                           .offset(offset).limit(limit + 1)))  # fmt: skip
+    if min_sold is not None:  # "raised": the cumulative amount sold on the latest filing
+        q = q.where(FormDFiling.total_amount_sold >= min_sold)
+    if order == "sold":
+        q = q.order_by(FormDFiling.total_amount_sold.desc().nulls_last(),
+                       FormDFiling.accession_number.desc())  # fmt: skip
+    else:
+        q = q.order_by(FormDFiling.filing_date.desc(), FormDFiling.accession_number.desc())
+    rows = list(db.scalars(q.offset(offset).limit(limit + 1)))
     return _items(db, rows[:limit]), len(rows) > limit
 
 

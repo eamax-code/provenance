@@ -41,6 +41,10 @@ def list_private_raises(
     from_: date | None = Query(None, alias="from", description="Latest filing on or after"),
     to: date | None = Query(None, description="Latest filing on or before"),
     exemption: str | None = Query(None, max_length=8, description="One code, e.g. 06b, 06c"),
+    min_sold: float | None = Query(None, ge=0, description="Amount sold so far (cumulative, "
+                                   "latest filing), USD: what was raised"),
+    order: str = Query("date", pattern="^(date|sold)$", description="date (newest first) or "
+                       "sold (largest amount sold first)"),
     limit: int = Query(50, ge=1, le=200),
     cursor: str | None = Query(None, max_length=100),
     db: Session = Depends(db_session),
@@ -52,7 +56,8 @@ def list_private_raises(
         raise APIError(422, "invalid_parameter", "from must be on or before to.")
     offset = _offset(cursor)
     items, more = form_d.search(db, industry, state, min_amount, from_, to, exemption,
-                                limit=limit, offset=offset)  # fmt: skip
+                                limit=limit, offset=offset, min_sold=min_sold,
+                                order=order)  # fmt: skip
     return _body(items, more, limit, offset)
 
 

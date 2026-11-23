@@ -89,3 +89,19 @@ def test_chat_plans_private_raises():
     assert (f["start"], f["end"]) == (date(2026, 7, 1), date(2026, 9, 30))
     assert conversation.plan("Which companies raised revenue guidance?", None) is None
     assert conversation.plan("Did Apple raise its dividend?", None) is None
+
+
+def test_raised_means_amount_sold_once_per_offering(tmp_path, db):
+    """'Raised' is the amount sold on the latest filing (cumulative), never the offering size;
+    an amended offering counts once."""
+    form_d.load(db, [_zip(tmp_path)])
+    today = date(2026, 11, 24)
+    p = conversation.plan("Who raised over $50M in biotech last quarter?", None)
+    a = conversation.answer(db, p, None, today)
+    assert "Example Bio, Inc., $55.0 million sold (offering size $60.0 million)" in a.answer
+    assert a.answer.count("Example Bio") == 1 and a.answer.startswith("1 issuer reported")
+    none = conversation.answer(db, conversation.plan(
+        "Who raised over $56M in biotech last quarter?", None), None, today)  # fmt: skip
+    assert none.answer.startswith("No Form D notice")  # a $60M offering size does not count
+    fund, _ = form_d.search(db, exemption="3C.7")
+    assert fund[0]["total_offering_amount"] is None and fund[0]["indefinite"]  # never 0
