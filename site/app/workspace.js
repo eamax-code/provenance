@@ -167,7 +167,7 @@
         var P = r.body.parents || {}, top = P.ultimate || P.direct, ex = (P.exceptions || [])[0];
         if (!r.body.entity || !r.body.entity.lei) return;
         var ck = top && top.cik ? String(parseInt(top.cik, 10)) : null;
-        strip.appendChild(el('span', { title: 'GLEIF Level 2 relationship data' }, top ? ['Parent ', ck ? el('a', { href: '/app/?c=' + ck, text: top.name }) : top.name, ' (GLEIF)'] : [ex ? 'GLEIF: ' + String(ex.text || ex.reason) : 'No parent reported to GLEIF']));
+        strip.appendChild(el('span', { title: 'GLEIF Level 2 relationship data' }, top ? ['Parent ', ck ? el('a', { href: '/app/?c=' + ck, text: top.name }) : top.name, ' (GLEIF)'] : [ex ? (function () { var w = window.ProvenanceRecords && window.ProvenanceRecords.exception ? window.ProvenanceRecords.exception(ex) : { head: 'Parent: ' + ex.reason, detail: '' }; return el('span', { title: w.detail, 'aria-label': w.head + '. ' + w.detail, text: w.head }); })() : 'No parent reported to GLEIF']));
       });
     });
   }
@@ -691,6 +691,10 @@
     // X-20: the SEC's comment letters, under What changed
     var R = window.ProvenanceRecords, cl = $('cl-host') || el('section', { id: 'cl-host', class: 'ws-sec cl', 'aria-labelledby': 'cl-h', hidden: 'hidden' });
     host.after(cl);
+    // D-15: the company's Form D offerings, under the letters
+    var pr = $('pr-host') || el('section', { id: 'pr-host', class: 'ws-sec pr', 'aria-labelledby': 'pr-h', hidden: 'hidden' });
+    cl.after(pr);
+    if (window.ProvenanceRaises) apiHas('/v1/companies/{cik}/private-raises').then(function (y) { pr.hidden = !y; if (y && S.cik === cik) window.ProvenanceRaises.company(pr, { cik: cik, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } }); });
     if (R) apiHas('/v1/companies/{cik}/comment-letters').then(function (y) { cl.hidden = !y; if (y && S.cik === cik) R.letters(cl, { cik: cik, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } }); });
   }
   /* X-18: the corporate tree at the top of Connections */

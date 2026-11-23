@@ -55,7 +55,15 @@
   }
 
   /* ---- X-18 corporate tree ---- */
-  var EXC = { NATURAL_PERSONS: 'Controlled by natural persons', NON_CONSOLIDATING: 'Its parent does not consolidate it', NO_KNOWN_PERSON: 'No parent: not consolidated by another entity', NON_PUBLIC: 'The parent is not disclosed', BINDING_LEGAL_COMMITMENTS: 'The parent cannot be disclosed for legal reasons' };
+  // a GLEIF reporting exception, said the way an investor reads it first, with GLEIF's reason and code as the detail.
+  // Widely held companies report NATURAL_PERSONS or NO_KNOWN_PERSON: it means no parent company, not ownership by individuals.
+  var EXC = { NATURAL_PERSONS: ['No parent company', 'controlled by natural persons'], NO_KNOWN_PERSON: ['No parent company', 'no known person'],
+    NON_CONSOLIDATING: ['Parent does not consolidate it (GLEIF)', 'the parent does not consolidate it'], NON_PUBLIC: ['Parent not disclosed (GLEIF: not public)', 'the parent is not public'],
+    BINDING_LEGAL_COMMITMENTS: ['Parent not disclosed (GLEIF: binding legal commitments)', 'binding legal commitments'] };
+  function exception(x) {
+    var e = EXC[x.reason], head = e ? e[0] : 'Parent: ' + (x.text || x.reason);
+    return { head: head, detail: 'GLEIF reporting exception: ' + (e ? e[1] : String(x.text || '').replace(/\.$/, '')) + ' (' + x.reason + ')' + (x.text && e ? '. GLEIF’s words: “' + x.text + '”' : '') };
+  }
   function node(n, extra) {
     var ck = n.cik ? String(parseInt(n.cik, 10)) : null;
     return el('span', { class: 'ct-node' }, [ck ? el('a', { href: '/app/?c=' + ck + '&tab=connections', text: n.name || n.lei }) : el('span', { class: 'ct-name', text: n.name || n.lei }),
@@ -85,7 +93,7 @@
       if (P.ultimate && !(P.direct && P.direct.lei === P.ultimate.lei)) chain.appendChild(el('li', {}, [el('span', { class: 'ct-rel', text: 'Ultimate parent' }), node(P.ultimate)]));
       if (P.direct) chain.appendChild(el('li', {}, [el('span', { class: 'ct-rel', text: P.ultimate && P.direct.lei === P.ultimate.lei ? 'Direct and ultimate parent' : 'Direct parent' }), node(P.direct)]));
       var ex = P.exceptions || [], same = ex.length === 2 && ex[0].reason === ex[1].reason && ex[0].text === ex[1].text;
-      (same ? [Object.assign({}, ex[0], { kind: 'both' })] : ex).forEach(function (x) { chain.appendChild(el('li', { class: 'ct-exc' }, [el('span', { class: 'ct-rel', text: x.kind === 'both' ? 'Direct and ultimate parent' : x.kind === 'ultimate' ? 'Ultimate parent' : 'Direct parent' }), el('span', { text: x.text || EXC[x.reason] || x.reason }), el('span', { class: 'mono small muted', text: ' ' + x.reason })])); });
+      (same ? [Object.assign({}, ex[0], { kind: 'both' })] : ex).forEach(function (x) { chain.appendChild(el('li', { class: 'ct-exc' }, [el('span', { class: 'ct-rel', text: x.kind === 'both' ? 'Direct and ultimate parent' : x.kind === 'ultimate' ? 'Ultimate parent' : 'Direct parent' }), el('span', { class: 'ct-exh' }, [el('span', { class: 'ct-name', text: exception(x).head }), el('span', { class: 'muted small ct-exd', text: exception(x).detail })])])); });
       if (E.lei && !P.direct && !P.ultimate && !(P.exceptions || []).length) chain.appendChild(el('li', { class: 'ct-exc' }, [el('span', { class: 'ct-rel', text: 'Parent' }), el('span', { class: 'muted', text: 'Not reported to GLEIF.' })]));
       chain.appendChild(el('li', { class: 'ct-self' }, [el('span', { class: 'ct-rel', text: 'This company' }), node({ name: E.name || o.name, lei: E.lei, jurisdiction: E.jurisdiction })]));
       kids.push(E.lei ? chain : el('p', { class: 'muted', text: 'No LEI is matched to this company, so GLEIF has no parents or children to show. Its exhibit 21 subsidiaries are below.' }));
@@ -104,5 +112,5 @@
       host.replaceChildren.apply(host, kids.filter(Boolean));
     });
   }
-  window.ProvenanceRecords = { letters: letters, tree: tree };
+  window.ProvenanceRecords = { letters: letters, tree: tree, exception: exception };
 })();

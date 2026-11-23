@@ -134,7 +134,7 @@
       el('div', { class: 'ch-bar' }, [el('span', { class: 'muted small', text: 'Filters' }), fChips, fm, fo, fv, fadd])]);
   }
   function go() { write(); $('scr-ctl').replaceChildren(controls()); load(); }
-  window.ProvenanceScreener = { load: function () { read(); go(); } };
+  window.ProvenanceScreener = { load: function () { var sv = new URLSearchParams(location.search); read(); go(); if (window.ProvenanceRaises) window.ProvenanceRaises.mode(sv); } };
   // opened straight from a link (#screener) before this file loaded
   if (!$('screener').hidden) window.ProvenanceScreener.load();
 })();
