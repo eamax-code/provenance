@@ -494,6 +494,36 @@ single-flight, exported with git archive), B is 7aa6b4d, each on a fresh 2-worke
 Single-flight cuts the timeline's cold computes by about 60% and halves the p99; waiters queueing
 behind a slow leader cost less than the duplicate computes they replace. All four runs: 0 errors.
 
+## Final rehearsal, 2026-11-23 (before the 08:30 freeze)
+
+The production image built from 1bfc4e2 (`provenance:rehearsal-1123`), on :8790 with
+`APP_ENV=production`, 2 workers, against the local database; one temporary Builder key, revoked
+after. R-1 `scripts/smoke_prod.py --receiver 8099 --receiver-host host.docker.internal`, now with
+the Explorer checks: 13 of 14. readyz reports only the rehearsal settings (private webhook
+destinations, console email, `NEWS_PROVIDER=google_rss`, the owner's decision), as in every
+rehearsal.
+
+| Check | Result | ms | Detail |
+|---|---|---|---|
+| readyz | rehearsal settings | 17 | database ok, schema ok |
+| demo key: data and limits | pass | 89 | 20/min, 10 rows |
+| keyed facts with as_of | pass | 20 | FY2023 filed 2023-11-03 |
+| plans | pass | 3 | five plans |
+| MCP tools/list and a call | pass | 32 | 15 tools |
+| event stream (SSE) | pass | 8 | |
+| type watch (Builder) | pass | 43 | immediate |
+| signed webhook to a receiver | pass | 556 | delivered and verified |
+| statements (X-02) | pass | 65 | Apple 14 columns, 17 rows, split_break FY2017/FY2018 |
+| timeline (X-05) and its cursor | pass | 1,246 | 10 + 10 items, no overlap (cold: the 13F block) |
+| keyed overview (X-01a) | pass | 366 | 160 KB, no-store |
+| watchlist create, rows, delete (X-07) | pass | 52 | Archives links in rows |
+| MCP company_statements and company_timeline | pass | 53 | valid JSON |
+| keyless showcase (cached) | pass | 28 | miss, then hit |
+
+Chat evals on 1bfc4e2: the live eval (`scripts/live_chat_eval.py`, 20 questions against the
+local database) 20/20, exact figures 15/15, uncited figure sentences 0; the fixture eval
+(`tests/integration/test_chat_eval.py`) 64/64, exact figures 36/36, C-06 7/7, uncited 0.
+
 ## Restore drill (R-3), 2026-11-22
 
 The daily dump `provenance-2026-11-22T0351Z.dump` (4.3 GB, custom format, 56 tables; written by

@@ -196,6 +196,8 @@ class _IntervalLimiter:
             self._next_allowed = now + self.min_interval
 
 
+# the only links shown to users: filings and their documents (scripts check links against it)
+ARCHIVES_BASE = "https://www.sec.gov/Archives/"
 _ARCHIVE_DOC = re.compile(r"^https://www\.sec\.gov/Archives/edgar/data/\d+/\d{18}/[^/]+$")
 
 

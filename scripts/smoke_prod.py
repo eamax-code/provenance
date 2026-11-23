@@ -4,10 +4,11 @@
   PRV_KEY=<builder key> python scripts/smoke_prod.py --base https://api.example --receiver 8099
 
 Checks readiness, the demo key's limits, a keyed figure with as_of, the plans, MCP tools/list and
-one call, the live event stream, a type watch, and a signed webhook delivered to a receiver this
+one call, the live event stream, a type watch, a signed webhook delivered to a receiver this
 script runs on --receiver (the server must be allowed to reach it; for a local rehearsal set
-WEBHOOK_ALLOW_PRIVATE_DESTINATIONS=true on the server, never in production). Prints one line per
-check and a summary; --report appends it to docs/pilot-report.md.
+WEBHOOK_ALLOW_PRIVATE_DESTINATIONS=true on the server, never in production), and the Explorer
+endpoints (statements, timeline, keyed overview, watchlists, their MCP tools, the cached keyless
+showcase). Prints one line per check and a summary; --report appends it to docs/pilot-report.md.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.core.security import verify_webhook_signature  # noqa: E402
+from app.services.sec_client import ARCHIVES_BASE  # noqa: E402
 
 RESULTS: list[dict] = []
 
@@ -157,7 +159,83 @@ def main() -> int:
         finally:
             srv.shutdown()
 
-    for fn in (readyz, demo, facts, plans, mcp, sse, type_watch, webhook):
+    archives = ARCHIVES_BASE
+
+    @check("statements (X-02)")
+    def statements():
+        r = c.get("/v1/companies/320193/statements/income?periods=14", headers=h)
+        assert r.status_code == 200, r.text[:200]
+        body = r.json()
+        cells = [x for row in body["rows"] if not row["derived"] for x in row["cells"] if x]
+        assert cells and all(x["source_url"].startswith(archives) for x in cells)
+        brk = next((row["split_break"] for row in body["rows"] if row.get("split_break")), None)
+        where = brk and brk["between"]
+        return f"{len(body['columns'])} columns, {len(body['rows'])} rows, split_break {where}"
+
+    @check("timeline (X-05) and its cursor")
+    def timeline():
+        r = c.get("/v1/companies/320193/timeline?limit=10", headers=h)
+        assert r.status_code == 200, r.text[:200]
+        body = r.json()
+        nxt = c.get(f"/v1/companies/320193/timeline?limit=10&cursor={body['meta']['next_cursor']}",
+                    headers=h).json()  # fmt: skip
+        ids = {i["id"] for i in body["data"]}
+        assert nxt["data"] and not ids & {i["id"] for i in nxt["data"]}, "pages overlap"
+        newest = body["data"][0]["title"][:40]
+        return f"{len(body['data'])}+{len(nxt['data'])} items, newest {newest}"
+
+    @check("keyed overview (X-01a)")
+    def keyed_overview():
+        r = c.get("/v1/companies/320193/overview", headers=h)
+        assert r.status_code == 200, r.text[:200]
+        assert "no-store" in r.headers.get("Cache-Control", ""), r.headers.get("Cache-Control")
+        return f"{len(r.content) // 1024} KB, keys {len(r.json())}"
+
+    @check("watchlist create, rows, delete (X-07)")
+    def watchlist():
+        body = {"name": "smoke", "ciks": ["320193", "789019"], "columns": ["revenue", "last_event"]}
+        r = c.post("/v1/watchlists", headers=h, json=body)
+        assert r.status_code == 201, r.text[:200]
+        wid = r.json()["id"]
+        try:
+            rows = c.get(f"/v1/watchlists/{wid}/rows", headers=h)
+            assert rows.status_code == 200, rows.text[:200]
+            rev = rows.json()["data"][0]["cells"]["revenue"]
+            assert rev["source_url"].startswith(archives), rev
+        finally:
+            gone = c.delete(f"/v1/watchlists/{wid}", headers=h)
+        assert gone.status_code == 204, gone.status_code
+        return f"{len(rows.json()['data'])} rows, deleted"
+
+    @check("MCP company_statements and company_timeline")
+    def mcp_new():
+        import json as _json
+
+        mh = {**h, "Accept": "application/json, text/event-stream"}
+        out = []
+        for i, (name, args_) in enumerate((
+            ("company_statements", {"cik": "320193", "statement": "income", "periods": 5}),
+            ("company_timeline", {"cik": "320193", "limit": 5}),
+        )):  # fmt: skip
+            call = {"jsonrpc": "2.0", "id": 10 + i, "method": "tools/call",
+                    "params": {"name": name, "arguments": args_}}  # fmt: skip
+            r = c.post("/mcp", headers=mh, json=call)
+            res = r.json()["result"]
+            assert res["isError"] is False, res
+            out.append(f"{name} {len(_json.loads(res['content'][0]['text']))} keys")
+        return ", ".join(out)
+
+    @check("keyless showcase (cached)")
+    def showcase():
+        demo_h = {"X-API-Key": "demo"}
+        first = c.get("/v1/companies/320193/timeline", headers=demo_h)
+        again = c.get("/v1/companies/320193/timeline", headers=demo_h)
+        assert first.status_code == again.status_code == 200, first.text[:200]
+        assert again.headers.get("X-Cache") == "hit", again.headers.get("X-Cache")
+        return f"first {first.headers.get('X-Cache')}, then hit"
+
+    for fn in (readyz, demo, facts, plans, mcp, sse, type_watch, webhook, statements, timeline,
+               keyed_overview, watchlist, mcp_new, showcase):  # fmt: skip
         fn()
     passed = sum(r["ok"] for r in RESULTS)
     print(f"\n{passed}/{len(RESULTS)} checks passed against {args.base}")
