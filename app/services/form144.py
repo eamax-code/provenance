@@ -292,7 +292,7 @@ def load(
 ) -> dict:
     """Read every Form 144 filed since `since` that is not stored yet (cached documents cost no
     request). With write False nothing is stored and the parsed rows are returned for review."""
-    from app.services.sec_client import SecNotFound
+    from app.services.sec_client import SecClientError, SecNotFound
 
     have = set(db.scalars(select(Form144Notice.accession_number)))
     q = select(Filing).where(Filing.form_type.in_(["144", "144/A"]), Filing.filing_date >= since)
@@ -304,13 +304,16 @@ def load(
             seen.add(f.accession_number)
             filings.append(f)
     filings = filings[:limit]
-    stats = {"filings": len(filings), "stored": 0, "not_xml": 0, "missing": 0}
+    stats = {"filings": len(filings), "stored": 0, "not_xml": 0, "missing": 0, "failed": 0}
     rows = []
     for f in filings:
         try:
             doc = client.get_text(xml_url(f.cik, f.accession_number)).data
         except SecNotFound:
             stats["missing"] += 1
+            continue
+        except SecClientError:  # a 5xx after retries: left for the next run, which skips stored
+            stats["failed"] += 1
             continue
         parsed = parse(doc)
         if parsed is None:

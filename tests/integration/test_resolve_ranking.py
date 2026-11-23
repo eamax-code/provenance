@@ -60,3 +60,19 @@ def test_ticker_word_size_activity_and_successor(db):
     assert r(db, "Coca-Cola revenue").cik == "0000900114"  # punctuation does not matter
     assert r(db, "Disney revenue").cik == "0000900115"  # a whole word inside the name
     assert r(db, "Software companies over $1B revenue") is None  # a generic word names no one
+
+
+def test_dates_and_ticker_words_never_switch_a_given_company(db):
+    """2026-11-24 (provenance-ui): an Ask link with cik and "filed 3 Nov 2026" was answered
+    about NOV Inc. A month beside a day or year is a date; with a company given, only a name or
+    a ticker in capitals switches it."""
+    _co(db, "0000900120", "NOV Inc.", "NOV", 8_700_000_000)
+    _co(db, "0000900121", "Apple Inc.", "AAPL", 400_000_000_000)
+    db.commit()
+    r = intel.resolve_company
+    assert r(db, "What did the 10-Q filed 3 Nov 2026 say?") is None
+    assert r(db, "What did the 10-Q filed 3 Nov 2026 say?", follow_up=True) is None
+    assert r(db, "What did Apple report on Nov 3, 2026?").cik == "0000900121"
+    assert r(db, "What did NOV Inc. file on 3 Nov 2026?").cik == "0000900120"
+    assert r(db, "Nov revenue", follow_up=True) is None  # a ticker-shaped word: no switch
+    assert r(db, "NOV revenue", follow_up=True).cik == "0000900120"  # a ticker in capitals

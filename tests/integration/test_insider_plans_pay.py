@@ -303,3 +303,27 @@ def test_first_form144_load_is_backfill_and_never_alerts(db, ingested_aapl):
     db.commit()
     later = form144.emit_events(db, today=today + timedelta(days=1))
     assert [e.stream_status for e in later] == ["pending"]  # new since the last run
+
+
+def test_form144_load_skips_a_failed_fetch_and_goes_on(db, ingested_aapl):
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from app.db.models import Filing
+    from app.services.sec_client import SecUnavailable
+
+    for acc in ("0001959173-26-000201", "0001959173-26-000202"):
+        db.add(Filing(cik=CIK, accession_number=acc, form_type="144",
+                      filing_date=date(2026, 11, 20), primary_document="xsl144X01/primary_doc.xml",
+                      source_url=f"https://www.sec.gov/Archives/edgar/data/320193/{acc}-index.html",
+                      first_detected_at=datetime.now(UTC), quality_status="ok"))  # fmt: skip
+    db.commit()
+
+    class Client:
+        def get_text(self, url):
+            if "000201" in url:
+                raise SecUnavailable("SEC endpoint returned 504 after retries", 504, url)
+            return SimpleNamespace(data=NOTICE)
+
+    stats = form144.load(db, Client(), date(2026, 11, 1))
+    assert (stats["stored"], stats["failed"]) == (1, 1)  # the next run picks up the failed one

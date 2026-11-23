@@ -634,6 +634,9 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     coverage_q = intel.is_coverage_question(body.message)
     # A question about the service's own data only switches to a company that is clearly named.
     resolved_notes: list[str] = []  # "Google Inc. is now Alphabet Inc." (K-05)
+    # with an explicit cik (the Explorer's Ask links, a company page) only a company the
+    # question clearly names switches it: its name, or its ticker in capitals; never a date
+    # ("filed 3 Nov 2026" is not NOV Inc.) or a word that happens to be a ticker
     company = intel.resolve_company(db, body.message, follow_up=bool(body.cik) or coverage_q,
                                     notes=resolved_notes)  # fmt: skip
     if company is None and coverage_q:

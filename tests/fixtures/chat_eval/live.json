@@ -196,6 +196,21 @@
    "q": "Who raised over $50M in biotech last quarter?",
    "kind": "cited",
    "checked": "2026-11-24: Form D data sets 2026q3; Entera Bio Form D 0001638097-26-000003 totalAmountSold 274,999,976 (the top row); 'last quarter' is relative, so the case checks citations, not a figure"
+  },
+  {
+   "id": "L28",
+   "q": "What was revenue in the annual report filed 3 Nov 2026?",
+   "cik": "320193",
+   "kind": "figure",
+   "value": 478834000000,
+   "unit": "USD",
+   "checked": "Ask link with cik 320193: '3 Nov 2026' is a date, not NOV Inc.; Apple 10-K filed 2026-11-03, Total net sales 478,834"
+  },
+  {
+   "id": "L29",
+   "q": "NOV Inc. revenue",
+   "kind": "cited",
+   "checked": "NOV Inc. named explicitly still resolves to NOV (CIK 1021860)"
   }
  ]
 }

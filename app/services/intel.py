@@ -193,6 +193,7 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
     In a follow-up (a company is already under discussion) only a clearly named company
     switches it: a ticker in capitals, a whole name, or a capitalised start of a name."""
     text = re.sub(r"['\u2019]s\b", "", text)  # "Apple's" -> "Apple"
+    text = _DATES.sub(" ", text)  # "3 Nov 2026", "Mar 2025": dates, never a company
     words = [w.rstrip(".") for w in re.findall(r"[A-Za-z0-9][A-Za-z0-9.&-]*", text)]
     for prev, w in zip(["", *words], words, strict=False):
         # Short numbers are counts ("last 5 years"), not CIKs, unless the user says "CIK".
@@ -222,7 +223,11 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
                         for h in hits
                         if h.match_type in _MATCH_RANK
                         and _names_it(h, variant)
-                        and (not follow_up or _named(h, variant))
+                        # with a company already given, only a ticker in capitals or a name
+                        # switches it, never a word that happens to be a ticker
+                        and (not follow_up or (_named(h, variant)
+                                               and not (h.match_type == "ticker"
+                                                        and not variant.isupper())))
                     ]
             if found:
                 # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal;
@@ -331,10 +336,30 @@ def is_coverage_question(text: str) -> bool:
 _MATCH_RANK = {"ticker": 3, "name_exact": 2, "name_prefix": 1, "former_name": 1}
 
 
+_MONTH = (r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
+          r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?")
+_DATES = re.compile(
+    rf"\b\d{{1,2}}\s+{_MONTH}(?:,?\s+\d{{4}})?\b"  # 3 Nov 2026, 3 Nov
+    rf"|\b{_MONTH}\s+\d{{1,2}}(?:st|nd|rd|th)?,?(?:\s+\d{{4}})?\b"  # Nov 3, 2026; Nov 3
+    rf"|\b{_MONTH}\s+\d{{4}}\b",  # Nov 2026
+    re.IGNORECASE,
+)
+
+# words that are dates or everyday words, never a ticker typed as a word ("3 Nov 2026" is not
+# NOV Inc.): month and weekday abbreviations and names
+_NOT_TICKER_WORDS = {
+    "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+    "january", "february", "march", "april", "june", "july", "august", "september", "october",
+    "november", "december", "mon", "tue", "wed", "thu", "fri", "sat", "sun", "today", "now",
+}  # fmt: skip
+
+
 def _ticker_word(hit, phrase: str) -> bool:
     """A capitalised word that is the company's ticker and starts its name ("Meta" is META,
     Meta Platforms; "Snap" is SNAP): it names the company as surely as the ticker in capitals."""
     c = hit.company
+    if phrase.strip().lower() in _NOT_TICKER_WORDS:
+        return False
     return (hit.match_type == "ticker" and phrase[:1].isupper() and " " not in phrase.strip()
             and bool(c.ticker) and c.ticker.upper() == phrase.upper()
             and _core_name(c.legal_name).startswith(phrase.lower()))  # fmt: skip
