@@ -296,7 +296,8 @@
       var box = el('input', { type: 'checkbox' }); box.checked = pick.indexOf(ck) > -1; boxes.push(box);
       if (locked(p)) { box.disabled = true; box.dataset.locked = '1'; }
       box.addEventListener('change', function () { var i = pick.indexOf(ck); if (box.checked && i < 0 && pick.length < 4) pick.push(ck); else if (!box.checked && i > -1) pick.splice(i, 1); sync(); });
-      var info = { label: nm + ', revenue', metric: 'revenue', currency: cur, value: p.latest_revenue, period_end: p.period_end, fiscal_label: p.fiscal_label, form_type: p.form_type, filed_date: p.filed_date, source_url: p.source_url, accession_number: p.accession_number, cik: ck };
+      var rrb = p.revenue_reported_by, info = { label: nm + ', revenue', metric: 'revenue', currency: cur, value: p.latest_revenue, period_end: p.period_end, fiscal_label: p.fiscal_label, form_type: p.form_type, filed_date: p.filed_date, source_url: p.source_url, accession_number: p.accession_number, cik: ck };
+      if (rrb) Object.assign(info, { predecessor: true, registrant_cik: rrb.cik, registrant_label: rrb.note || 'Reported by the predecessor registrant, ' + orgName(rrb.name || 'CIK ' + rrb.cik) }); // a successor sized by its predecessor's revenue
       return el('li', {}, [
         el('label', { class: 'pr-name' }, [box, el('span', { class: 'pr-n', text: nm }), p.ticker ? el('span', { class: 'muted small', text: p.ticker }) : null]),
         el('span', { class: 'n' }, [p.latest_revenue != null ? door(money(p.latest_revenue, cur), info) : el('span', { class: 'muted', title: 'not reported', text: '—' })]),

@@ -128,7 +128,7 @@
     var head = el('tr', {}, ['Plan date', 'Person', 'Action', 'Kind', 'Runs to', 'Shares', 'Disclosed in'].map(function (h, i) { return el('th', { scope: 'col', class: i === 5 ? 'n' : '', text: h }); }));
     return [el('div', { class: 'tw' }, [stack(el('table', { class: 'pp-table' }, [el('thead', {}, [head]), el('tbody', {}, ps.map(function (p) {
       var f = p.filing || {};
-      return el('tr', {}, [el('td', { text: p.date ? day(p.date) : (p.date_as_written || '—') }), el('th', { scope: 'row' }, [name(p.person_name || '—'), p.title ? el('span', { class: 'muted small pp-title', text: p.title }) : null]),
+      return el('tr', {}, [el('td', {}, [p.date ? day(p.date) : (p.date_as_written || '—'), p.action === 'terminated' && p.original_adoption_date ? el('span', { class: 'muted small pp-title', text: 'adopted ' + day(p.original_adoption_date) }) : null]), el('th', { scope: 'row' }, [name(p.person_name || '—'), p.title ? el('span', { class: 'muted small pp-title', text: p.title }) : null]),
         el('td', {}, [el('span', { class: 'chip pp-act ' + (p.action === 'terminated' ? 'is-end' : 'is-new'), text: p.action === 'terminated' ? 'Terminated' : 'Adopted' })]),
         el('td', { class: 'muted', text: p.plan_type === 'non_rule_10b5_1' ? 'Not under Rule 10b5-1' : 'Rule 10b5-1' }),
         el('td', { class: 'muted', text: p.expiration_date ? day(p.expiration_date) : p.duration_days ? p.duration_days + ' days' : '—' }),
@@ -146,7 +146,7 @@
       var then = fb ? el('td', {}, [el('span', {}, ['Sold ', door(num(fb.shares), { label: who + ', shares sold (Form 4)', period_end: fb.transaction_date, fiscal_label: 'Transaction', form_type: fb.form || '4', filed_date: fb.filed_date, accession_number: fb.accession_number, source_url: fb.source_url }),
           fb.average_price != null ? ' at $' + Number(fb.average_price).toFixed(2) : '', ' on ' + day(fb.transaction_date) + ' ']), link(fb, 'Form 4 ↗'),
           el('span', { class: 'muted small pp-match', title: (b.notes || [])[1] || '', text: (fb.match && fb.match.rule === 'same_person_name' ? 'Matched by name' : 'Matched by CIK') + (fb.match && fb.match.days_after_notice != null ? ', ' + fb.match.days_after_notice + ' days after the notice' : '') })])
-        : el('td', { class: 'muted', text: 'No Form 4 sale matched yet; a notice does not oblige a sale.' });
+        : el('td', { class: 'muted', text: s.followed_by_status === 'pending' ? 'Our Form 4 data does not cover the 90 days after this notice yet.' : s.followed_by_status === 'no_sale_reported' ? 'No Form 4 sale reported within 90 days; a notice does not oblige a sale.' : 'No Form 4 sale matched yet; a notice does not oblige a sale.' });
       return el('tr', {}, [el('td', {}, [link(f, day(f.filed_date) + ' ↗')]), el('th', { scope: 'row' }, [who, (s.relationships || []).length ? el('span', { class: 'muted small pp-title', text: s.relationships.join(', ') }) : null]),
         el('td', { class: 'n' }, [s.shares == null ? '—' : door(num(s.shares), i144('shares in the notice', null))]),
         el('td', { class: 'n' }, [s.aggregate_market_value == null ? '—' : door(money(s.aggregate_market_value, 'USD'), i144('market value the filer gave on the notice', null))]),
