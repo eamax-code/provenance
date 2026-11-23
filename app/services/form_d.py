@@ -13,6 +13,7 @@ import base64
 import csv
 import io
 import json
+import re
 import zipfile
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -37,6 +38,20 @@ NOTES = [
     "it. Amounts are US dollars as filed.",
 ]
 MAX_PERSONS = 10
+# D-15b: a self-reported amount of $100B or more is implausible unless the issuer is a cash-
+# management vehicle (their cumulative subscriptions roll over: Northern Trust Liquid Assets
+# Portfolio, Western Asset Institutional Cash Reserves). The largest other raises in the data are
+# about $30B (Bridgewater, Renaissance funds) and X.AI's $16.6B. Values stay as filed.
+SUSPECT_AMOUNT = Decimal("100000000000")
+_CASH_VEHICLE = re.compile(r"\b(cash|liquid\w*|money market|prime|treasury|reserves?|"
+                           r"current asset|core funds?|series trust)\b", re.IGNORECASE)  # fmt: skip
+
+
+def quality_of(issuer_name: str, offered, sold) -> str:
+    big = max((v for v in (offered, sold) if v is not None), default=None)
+    if big is not None and big >= SUSPECT_AMOUNT and not _CASH_VEHICLE.search(issuer_name or ""):
+        return "suspect_amount"
+    return "ok"
 csv.field_size_limit(10_000_000)
 
 
@@ -127,6 +142,9 @@ def parse_zip(path: str | Path) -> list[dict]:
                 "related_persons": json.dumps(ps[:MAX_PERSONS]),
                 "related_persons_count": len(ps), "is_latest": True, "source": source,
             })  # fmt: skip
+            out[-1]["quality_status"] = quality_of(out[-1]["issuer_name"],
+                                                   out[-1]["total_offering_amount"],
+                                                   out[-1]["total_amount_sold"])  # fmt: skip
     return out
 
 
@@ -200,6 +218,7 @@ def item(r: FormDFiling, chain: list[FormDFiling], registrants: set[str]) -> dic
         "minimum_investment": _num(r.minimum_investment),
         "sales_commissions": _num(r.sales_commissions), "finders_fees": _num(r.finders_fees),
         "related_persons": persons, "related_persons_count": r.related_persons_count,
+        "quality_status": r.quality_status,
         "latest_filing": _filing(r),
         "filings": [_filing(x) for x in sorted(chain, key=lambda x: (x.filing_date,
                                                                     x.accession_number))],
@@ -239,8 +258,8 @@ def decode_cursor(cursor: str | None) -> int:
 def search(db: Session, industry: str | None = None, state: str | None = None,
            min_amount: float | None = None, start: date | None = None, end: date | None = None,
            exemption: str | None = None, cik: str | None = None, limit: int = 50,
-           offset: int = 0, min_sold: float | None = None,
-           order: str = "date") -> tuple[list[dict], bool]:  # fmt: skip
+           offset: int = 0, min_sold: float | None = None, order: str = "date",
+           include_suspect: bool = False) -> tuple[list[dict], bool]:  # fmt: skip
     q = select(FormDFiling).where(FormDFiling.is_latest)
     if cik:
         q = q.where(FormDFiling.cik == cik)
@@ -259,6 +278,8 @@ def search(db: Session, industry: str | None = None, state: str | None = None,
         q = q.where(("," + FormDFiling.exemptions + ",").like(f"%,{exemption},%"))
     if min_sold is not None:  # "raised": the cumulative amount sold on the latest filing
         q = q.where(FormDFiling.total_amount_sold >= min_sold)
+    if (min_sold is not None or order == "sold") and not include_suspect:
+        q = q.where(FormDFiling.quality_status == "ok")  # D-15b: implausible amounts left out
     if order == "sold":
         q = q.order_by(FormDFiling.total_amount_sold.desc().nulls_last(),
                        FormDFiling.accession_number.desc())  # fmt: skip
@@ -271,3 +292,30 @@ def search(db: Session, industry: str | None = None, state: str | None = None,
 def covered_through(db: Session) -> date | None:
     """The newest filing date in the loaded data sets."""
     return db.scalar(select(func.max(FormDFiling.filing_date)))
+
+
+def suspect_count(db: Session, industry=None, start=None, end=None, min_sold=None) -> int:
+    """How many offerings a ranked answer left out as implausible (D-15b)."""
+    q = select(func.count()).select_from(FormDFiling).where(
+        FormDFiling.is_latest, FormDFiling.quality_status == "suspect_amount")
+    if industry:
+        q = q.where(func.lower(FormDFiling.industry_group) == industry.lower())
+    if start:
+        q = q.where(FormDFiling.filing_date >= start)
+    if end:
+        q = q.where(FormDFiling.filing_date <= end)
+    if min_sold is not None:
+        q = q.where(FormDFiling.total_amount_sold >= min_sold)
+    return int(db.scalar(q) or 0)
+
+
+def mark_quality(db: Session) -> int:
+    """Recompute quality_status for every stored filing; returns how many are suspect."""
+    n = 0
+    for r in db.scalars(select(FormDFiling)):
+        q = quality_of(r.issuer_name, r.total_offering_amount, r.total_amount_sold)
+        if r.quality_status != q:
+            r.quality_status = q
+        n += q != "ok"
+    db.flush()
+    return n

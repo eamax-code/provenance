@@ -1632,4 +1632,6 @@ class FormDFiling(Base):
     related_persons: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON
     related_persons_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_latest: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # D-15b: ok, or suspect_amount (an implausible self-reported amount, values kept as filed)
+    quality_status: Mapped[str] = mapped_column(Text, nullable=False, default="ok")
     source: Mapped[str] = mapped_column(Text, nullable=False)

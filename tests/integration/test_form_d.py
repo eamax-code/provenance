@@ -105,3 +105,25 @@ def test_raised_means_amount_sold_once_per_offering(tmp_path, db):
     assert none.answer.startswith("No Form D notice")  # a $60M offering size does not count
     fund, _ = form_d.search(db, exemption="3C.7")
     assert fund[0]["total_offering_amount"] is None and fund[0]["indefinite"]  # never 0
+
+
+def test_implausible_amounts_are_flagged_and_left_out_of_rankings(tmp_path, db, client, auth):
+    """D-15b: $100B or more is suspect unless the issuer is a cash-management vehicle."""
+    assert form_d.quality_of("LOWE INTERNATIONAL HOLDING CO", 999_999_750_000, 999_999_750_000) \
+        == "suspect_amount"  # fmt: skip
+    assert form_d.quality_of("Western Asset Institutional Cash Reserves", None, 184e9) == "ok"
+    assert form_d.quality_of("X.AI Holdings Corp.", 19_999_999_972, 16_599_961_030) == "ok"
+    form_d.load(db, [_zip(tmp_path)])
+    from app.db.models import FormDFiling
+
+    big = db.get(FormDFiling, "0002-26-000001")  # make the fund's figure implausible
+    big.issuer_name, big.total_amount_sold = "Big Fund LP", 900e9
+    form_d.mark_quality(db)
+    db.commit()
+    ranked = client.get("/v1/private-raises?order=sold", headers=auth).json()["data"]
+    assert "Big Fund LP" not in [x["issuer"]["name"] for x in ranked]
+    every = client.get("/v1/private-raises?order=sold&include_suspect=true",
+                       headers=auth).json()["data"]  # fmt: skip
+    assert every[0]["issuer"]["name"] == "Big Fund LP"
+    assert every[0]["quality_status"] == "suspect_amount" and every[0]["total_amount_sold"] == 9e11
+    assert client.get("/v1/private-raises", headers=auth).json()["data"]  # by date: all listed

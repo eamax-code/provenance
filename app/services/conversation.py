@@ -321,9 +321,14 @@ def _private_raises(db: Session, p: Plan, today: date) -> DataAnswer:
     # the asked threshold is the question's, not a filed figure: written short ($50M)
     floor = f" of ${_short(f['min_amount'])} or more" if f.get("min_amount") else ""
     when = f["label"] if f["label"].startswith(("from", "this")) else f"in {f['label']}"
+    left_out = form_d.suspect_count(db, f.get("industry"), f.get("start"), f.get("end"),
+                                    f.get("min_amount"))  # fmt: skip
     through = form_d.covered_through(db)
     cover = (f" The Form D data sets loaded here run through {through.isoformat()}."
              if through and f.get("end") and f["end"] > through else "")  # fmt: skip
+    if left_out:
+        cover += (f" {left_out} {_plural(left_out, 'offering', 'offerings')} with an implausible "
+                  "self-reported amount left out.")  # fmt: skip
     if not items:
         return DataAnswer(f"No Form D notice for {what}{floor} was filed {when} in the data "
                           f"loaded here.{cover} {form_d.BASIS}", "private_raises")  # fmt: skip
