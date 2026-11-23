@@ -25,7 +25,19 @@ CIKS = ("320193", "789019", "19617", "1326160", "726728", "1067983")
 TARGET_P95_MS = {"facts": 500, "screen": 2000, "stats": 100, "coverage": 100}
 
 
-def requests_for(i: int, only: list[str] | None = None) -> tuple[str, str, str, dict | None]:
+SHOWCASE_PAGES = ("overview", "statements/income", "timeline", "insiders", "holders", "ownership")
+
+
+def demo_request_for(i: int, ciks: tuple[str, ...]) -> tuple[str, str, str, dict | None]:
+    """The keyless burst: every showcase page for every showcase company, in turn."""
+    page = SHOWCASE_PAGES[i % len(SHOWCASE_PAGES)]
+    cik = ciks[(i // len(SHOWCASE_PAGES)) % len(ciks)]
+    return f"demo {page.split('/')[0]}", "GET", f"/v1/companies/{cik}/{page}", None
+
+
+def requests_for(
+    i: int, only: list[str] | None = None, watchlist: str | None = None
+) -> tuple[str, str, str, dict | None]:
     """(name, method, path, json body) for the i-th request, over `only` endpoints if given."""
     cik = CIKS[i % len(CIKS)]
     plan = [
@@ -40,7 +52,12 @@ def requests_for(i: int, only: list[str] | None = None) -> tuple[str, str, str, 
         ("ownership", "GET", f"/v1/companies/{cik}/ownership", None),
         ("stats", "GET", "/v1/stats", None),
         ("coverage", "GET", "/v1/public/coverage", None),
+        ("timeline", "GET", f"/v1/companies/{cik}/timeline?limit=50", None),
+        ("statements", "GET", f"/v1/companies/{cik}/statements/income?period=annual", None),
+        ("keyed overview", "GET", f"/v1/companies/{cik}/overview", None),
     ]  # fmt: skip
+    if watchlist:
+        plan.append(("watchlist rows", "GET", f"/v1/watchlists/{watchlist}/rows", None))
     if only:
         plan = [p for p in plan if p[0] in only]
     return plan[i % len(plan)]
@@ -56,22 +73,32 @@ def pct(values: list[float], q: float) -> float | None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--base", default="http://127.0.0.1:8771")
-    ap.add_argument("--key", required=True, help="An API key (not the demo key: it is capped)")
+    ap.add_argument("--key", default="", help="An API key (not the demo key: it is capped)")
     ap.add_argument("--rps", type=float, default=50)
     ap.add_argument("--seconds", type=float, default=300)
     ap.add_argument("--workers", type=int, default=64)
     ap.add_argument("--endpoints", default="", help="comma-separated names (default: all)")
+    ap.add_argument("--watchlist", default=None, help="a watchlist id of --key, for its /rows")
+    ap.add_argument(
+        "--demo",
+        default="",
+        help="keyless burst: comma-separated showcase CIKs, "
+        "read with the demo key (repeat views are served from the server's cache)",
+    )
     args = ap.parse_args()
+    demo_ciks = tuple(c for c in args.demo.split(",") if c)
     only = [e for e in args.endpoints.split(",") if e] or None
     results: dict[str, list[float]] = {}
     errors: dict[str, dict[str, int]] = {}
     lock = threading.Lock()
     client = httpx.Client(base_url=args.base, timeout=30,
-                          headers={"X-API-Key": args.key},
+                          headers={"X-API-Key": "demo" if demo_ciks else args.key},
                           limits=httpx.Limits(max_connections=args.workers))  # fmt: skip
 
     def one(i: int) -> None:
-        name, method, path, body = requests_for(i, only)
+        name, method, path, body = (
+            demo_request_for(i, demo_ciks) if demo_ciks else requests_for(i, only, args.watchlist)
+        )
         start = time.perf_counter()
         try:
             r = client.request(method, path, json=body)

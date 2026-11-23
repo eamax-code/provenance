@@ -429,6 +429,46 @@ links, cover shares, quarter, page and the 13F holdings version that every load 
 as_of). The last column is the same full mix on the rebuilt image: ownership p95 25.6 ms (target
 under 100), facts and screen back at the morning's (targets 1.5x: about 36 and 60 ms), no errors.
 
+## R-2 for the Explorer endpoints and the keyless cache, 2026-11-23 (before the freeze)
+
+`scripts/load_smoke.py` (now with `--watchlist` and `--demo`) against a local 2-worker API on
+:8791 at 7688750 (mapping 1.5.0, local PostgreSQL), 50 requests a second open-loop. One temporary
+Enterprise key (revoked afterwards); per-address limits raised on that instance only, since every
+request came from one address. The global demo ceiling (1,200 a minute) stayed at its default.
+The machine was shared with other sessions (load average 5-10).
+
+The first run (13 endpoints with watchlist rows) saturated: 35.6 req/s achieved, p95 3-5 s everywhere.
+Measured alone, watchlist rows took about 480 ms and JPMorgan's timeline 535 ms: the timeline read
+all 28,000 of JPMorgan's filings for every page. b859cdf reads only the filings a page needs (JPMorgan
+page 17 ms, identical pages on six companies). After it, 300 s, 15,000 requests, 0 errors:
+
+| Endpoint | p50 ms | p95 ms | p99 ms | Target p95 |
+|---|---|---|---|---|
+| facts | 22.9 | 79.6 | 769 | < 500, pass |
+| screen | 34.8 | 77.7 | 699 | < 2,000, pass |
+| search | 33.6 | 63.5 | 680 | |
+| MCP get_figures | 20.4 | 40.7 | 837 | |
+| company (`/v1/companies/{cik}`) | 16.7 | 26.0 | 660 | |
+| ownership | 18.0 | 26.6 | 697 | < 100, pass |
+| stats | 3.6 | 6.8 | 322 | < 100, pass |
+| coverage | 5.4 | 8.6 | 429 | < 100, pass |
+| statements (X-02) | 26.1 | 54.4 | 684 | |
+| timeline (X-05) | 32.5 | 45.6 | 1,806 | |
+| keyed overview (X-01a) | 109.4 | 169.1 | 1,386 | |
+| watchlist rows (X-07, 6 companies) | 82.1 | 116.6 | 1,181 | |
+
+The p99s of 300-800 ms on every endpoint, cheap ones included, are stalls on a shared machine,
+not one endpoint. facts and screen p95 are above last night's 21.7 / 37.4 ms with four heavier
+endpoints in the mix (keyed overview and watchlist rows are about 35% of the CPU), still well
+inside their targets.
+
+Keyless burst (`--demo`, 120 s, 6,000 requests): every showcase page (overview, income
+statement, timeline, insiders, 5% holders, ownership) of the six showcase companies, with the
+demo key. 0 errors, no 429s. p50 1.2-5.1 ms, p95 16-74 ms (cache hits: no database). The p99
+(timeline 5.6 s, overview 1.9 s) is the cold start: both workers miss the same keys at once
+before the first response is cached (no single-flight; acceptable, since it happens once per
+data change per worker).
+
 ## Restore drill (R-3), 2026-11-22
 
 The daily dump `provenance-2026-11-22T0351Z.dump` (4.3 GB, custom format, 56 tables; written by
