@@ -39,7 +39,7 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 6000);
   }
   // keyed search has only the EDGAR name (often in capitals): tidy it as the workspace does
-  function shownName(c) { return c.display_name || (c.legal_name && window.Workspace ? window.Workspace.orgName(c.legal_name) : c.legal_name); }
+  function shownName(c) { var n = c.display_name || c.legal_name; return n && window.Workspace ? window.Workspace.orgName(n) : n; }
   function storage(get, value) { try { if (get) return localStorage.getItem(KEY); if (value === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, value); } catch (e) { return null; } }
 
   /* ---- API ---- */

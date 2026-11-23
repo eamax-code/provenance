@@ -91,7 +91,7 @@
       return el('th', { scope: 'col', class: 'n' }, [label(c), D[c] ? el('span', { class: 'tag', title: D[c][0] + ' = ' + label(D[c][1]).toLowerCase() + ' ÷ ' + label(D[c][2]).toLowerCase() + ', same filing', text: 'derived' }) : null, i === 0 ? el('span', { class: 'muted', text: S.so === 'desc' ? ' ↓' : ' ↑' }) : null]);
     })).concat([el('th', { scope: 'col', text: 'Filing' })]));
     var body = shown.map(function (x, i) {
-      var r = x.r, name = r.display_name || (window.Workspace && window.Workspace.orgName ? window.Workspace.orgName(r.legal_name) : r.legal_name), cik = String(parseInt(r.cik, 10));
+      var r = x.r, name = window.Workspace && window.Workspace.orgName ? window.Workspace.orgName(r.display_name || r.legal_name) : r.display_name || r.legal_name, cik = String(parseInt(r.cik, 10));
       return el('tr', {}, [el('td', { class: 'n muted', text: String(i + 1) }),
         el('th', { scope: 'row' }, [el('a', { href: '/app/?c=' + cik, text: name, on: { click: function (e) { if (window.Workspace && !e.metaKey && !e.ctrlKey) { e.preventDefault(); window.ProvenanceExplorer.showExplore(); window.Workspace.open(cik); } } } })]),
         el('td', { class: 'muted', text: [r.ticker, r.exchange].filter(Boolean).join(' · ') })].concat(cols.map(function (c) {

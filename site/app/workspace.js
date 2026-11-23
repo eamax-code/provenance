@@ -276,7 +276,8 @@
   function orgName(n) {
     n = String(n || '').replace(/\s*\/[A-Za-z]{2,3}\/?\s*$/, '').trim();
     // mixed case as filed ("CVS HEALTH Corp"): tidy only the shouted words of four letters or more, keep short acronyms
-    if (n !== n.toUpperCase()) return n.replace(/\b[A-Z]{4,}\b/g, function (w) { return KEEP[w] ? w : w.charAt(0) + w.slice(1).toLowerCase(); });
+    n = n.replace(/,(?=[A-Za-z])/g, ', '); // "Cencora,Inc."
+    if (n !== n.toUpperCase()) return n.replace(/\b(?:Mc)?[A-Z]{4,}\b/g, function (w) { return KEEP[w] ? w : /^Mc/.test(w) ? 'Mc' + w.charAt(2) + w.slice(3).toLowerCase() : w.charAt(0) + w.slice(1).toLowerCase(); });
     return n.split(/(\s+|[,.&()-])/).map(function (w, i) { return !/[A-Z]/.test(w) || KEEP[w] ? w : i && LOWER[w] ? w.toLowerCase() : w === 'JPMORGAN' ? 'JPMorgan' : w.charAt(0) + w.slice(1).toLowerCase(); }).join('');
   }
   function qname(iso) { var m = /^(\d{4})-(\d{2})/.exec(iso || ''); return m ? 'Q' + Math.ceil(+m[2] / 3) + ' ' + m[1] : iso; }
@@ -806,7 +807,7 @@
     X.raw('/v1/facts/screen?metric=revenue&year=' + (new Date().getFullYear() - 1) + '&limit=3', X.hasKey() ? null : 'demo').then(function (r) {
       var box = host.querySelector('.land-top'); if (!box) return;
       var rows = r.ok && r.body && r.body.data || [];
-      box.replaceChild(rows.length ? el('ol', { class: 'ov-list land-list' }, rows.map(function (x) { var cik = String(parseInt(x.cik, 10)); return el('li', {}, [el('a', { href: '/app/?c=' + cik, text: x.display_name || orgName(x.legal_name), on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(cik); } } } }), el('span', { class: 'muted small', text: x.ticker || '' }), door(money(x.value, (x.unit || 'USD').split('/')[0]), { label: 'Revenue', metric: 'revenue', period_end: x.period_end, form_type: x.form_type, filed_date: x.filed_date, source_url: x.source_url, accession_number: x.accession_number, source_tag: x.source_tag, mapping_version: x.mapping_version, quality_status: x.quality_status })]); })) : demoSpent(r) ? demoNote('The rankings') : el('p', { class: 'muted', text: 'The screen is unavailable right now.' }), box.lastChild);
+      box.replaceChild(rows.length ? el('ol', { class: 'ov-list land-list' }, rows.map(function (x) { var cik = String(parseInt(x.cik, 10)); return el('li', {}, [el('a', { href: '/app/?c=' + cik, text: orgName(x.display_name || x.legal_name), on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(cik); } } } }), el('span', { class: 'muted small', text: x.ticker || '' }), door(money(x.value, (x.unit || 'USD').split('/')[0]), { label: 'Revenue', metric: 'revenue', period_end: x.period_end, form_type: x.form_type, filed_date: x.filed_date, source_url: x.source_url, accession_number: x.accession_number, source_tag: x.source_tag, mapping_version: x.mapping_version, quality_status: x.quality_status })]); })) : demoSpent(r) ? demoNote('The rankings') : el('p', { class: 'muted', text: 'The screen is unavailable right now.' }), box.lastChild);
     });
   }
 
@@ -841,7 +842,7 @@
         var path = (X.hasKey() ? '/v1/companies/search?limit=8&q=' : '/v1/public/companies/search?q=') + encodeURIComponent(q.trim());
         X.raw(path).then(function (r) {
           if (!r.ok || input.value !== q) return;
-          var cos = (r.body.data || []).filter(function (c) { return X.hasKey() || c.is_public_page !== false; }).slice(0, 8).map(function (c) { return { label: c.display_name || (c.legal_name ? orgName(c.legal_name) : 'CIK ' + c.cik), hint: [c.ticker, c.exchange, 'CIK ' + parseInt(c.cik, 10)].filter(Boolean).join(' · ') + (c.matched_former_name ? ' · formerly ' + c.matched_former_name : ''), fn: function () { var ck = String(parseInt(c.cik, 10)); if (palMode === 'compare') { if (ck !== S.cik && S.cmp.indexOf(ck) < 0 && S.cmp.length < 4) S.cmp.push(ck); go('compare'); return; } apply(Object.assign({}, S, { cik: ck, tab: 'overview', as_of: S.as_of }), true); } }; });
+          var cos = (r.body.data || []).filter(function (c) { return X.hasKey() || c.is_public_page !== false; }).slice(0, 8).map(function (c) { return { label: c.display_name || c.legal_name ? orgName(c.display_name || c.legal_name) : 'CIK ' + c.cik, hint: [c.ticker, c.exchange, 'CIK ' + parseInt(c.cik, 10)].filter(Boolean).join(' · ') + (c.matched_former_name ? ' · formerly ' + c.matched_former_name : ''), fn: function () { var ck = String(parseInt(c.cik, 10)); if (palMode === 'compare') { if (ck !== S.cik && S.cmp.indexOf(ck) < 0 && S.cmp.length < 4) S.cmp.push(ck); go('compare'); return; } apply(Object.assign({}, S, { cik: ck, tab: 'overview', as_of: S.as_of }), true); } }; });
           if (!X.hasKey() && !cos.length && /\S/.test(q)) cos.push({ label: 'Connect a key to search every company', hint: 'without a key the Explorer opens the showcase', fn: function () { var k = $('key-input'); if (k) k.focus(); } });
           items = cos.concat(local(q)); sel = 0; render();
         });
