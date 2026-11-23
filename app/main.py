@@ -134,21 +134,29 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             request
         )
         hit = showcase_cache.get(request) if cacheable else None
+        leader = False
+        if cacheable and hit is None:  # single-flight: one request computes a cold page
+            leader = await showcase_cache.lead_or_wait(request)
+            if not leader:
+                hit = showcase_cache.get(request)
         try:
             if hit is not None:  # a repeat keyless view: no handler, no demo counters
                 response = Response(content=hit[0], status_code=200, headers=hit[1])
                 response.headers["X-Cache"] = "hit"
             else:
                 response = await call_next(request)
+            duration_ms = round((time.monotonic() - started) * 1000, 1)
+            if hit is None and getattr(request.state, "demo", False):
+                response = await _demo_capped(request, response)
+                if cacheable and response.status_code == 200 and hasattr(response, "body"):
+                    showcase_cache.put(request, response.body, dict(response.headers))
+                    response.headers["X-Cache"] = "miss"
         except Exception:
             request_id_var.reset(token)
             raise
-        duration_ms = round((time.monotonic() - started) * 1000, 1)
-        if hit is None and getattr(request.state, "demo", False):
-            response = await _demo_capped(request, response)
-            if cacheable and response.status_code == 200 and hasattr(response, "body"):
-                showcase_cache.put(request, response.body, dict(response.headers))
-                response.headers["X-Cache"] = "miss"
+        finally:
+            if leader:
+                showcase_cache.finish(request)
         response.headers["X-Request-ID"] = rid
         if "cache-control" not in response.headers:
             policy = cache_policy(request.url.path, response.headers.get("content-type", ""))

@@ -607,3 +607,41 @@ def test_no_listed_shares_is_said_only_without_any_listing():
     notes_only = Company(cik="0000068622", legal_name="QWEST CORP", ticker=None,
                          tickers='["CTBB"]', exchanges='["NYSE"]')  # fmt: skip
     assert _no_listed_shares(notes_only) is None  # a listing exists: not claimed as none
+
+
+def test_concurrent_misses_compute_the_block_once(db, loaded_13f, monkeypatch):
+    import threading
+    import time
+
+    from app.db.session import session_factory
+
+    db.commit()
+    thirteenf.clear_cache()
+    calls, real = [], thirteenf._ownership
+
+    def slow(*args, **kwargs):
+        calls.append(1)
+        time.sleep(0.3)  # long enough for every other request to arrive
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(thirteenf, "_ownership", slow)
+    so = {"value": 15_000_000_000, "as_of_date": "2026-07-15", "source_url": "https://x"}
+    start, counts = threading.Barrier(6), []
+
+    def request():
+        s = session_factory()()
+        try:
+            start.wait()
+            counts.append(
+                thirteenf.ownership(s, "0000320193", shares_outstanding=so)["holders_count"]
+            )
+        finally:
+            s.close()
+
+    threads = [threading.Thread(target=request) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    assert len(counts) == 6 and len(set(counts)) == 1
+    assert len(calls) == 1  # one computed, five waited and read the cache

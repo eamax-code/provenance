@@ -68,3 +68,31 @@ def test_paths_covered():
         assert showcase_cache.PATHS.match(path), path
     assert not showcase_cache.PATHS.match("/v1/companies/320193/facts")
     assert not showcase_cache.PATHS.match("/v1/watchlists/wl_1/rows")
+
+
+def test_concurrent_cold_misses_compute_once(app, ingested_aapl, monkeypatch):
+    import asyncio
+    import time
+
+    import httpx
+
+    async def burst():
+        transport = httpx.ASGITransport(app=app, client=("203.0.113.9", 1))
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:
+            return await asyncio.gather(*[c.get(OVERVIEW, headers=DEMO) for _ in range(8)])
+
+    computed = []
+    from app.services import company_overview
+
+    build = company_overview.build
+
+    def slow_build(*args, **kwargs):
+        computed.append(1)
+        time.sleep(0.3)
+        return build(*args, **kwargs)
+
+    monkeypatch.setattr(company_overview, "build", slow_build)
+    responses = asyncio.run(burst())
+    assert all(r.status_code == 200 for r in responses)
+    assert sorted(r.headers["X-Cache"] for r in responses) == ["hit"] * 7 + ["miss"]
+    assert len(computed) == 1  # one request built the page; seven waited and read the cache

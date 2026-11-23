@@ -23,6 +23,8 @@ from collections import OrderedDict
 from fastapi import Request
 from sqlalchemy import text
 
+from app.core.single_flight import AsyncSingleFlight
+
 PATHS = re.compile(
     r"^/v1/(?:companies/[^/]+/(?:overview|statements/[a-z_]+|timeline|insiders"
     r"|insider-transactions|holders|ownership)|facts/screen)$"
@@ -41,6 +43,7 @@ DEMO_KEY = "demo"
 _lock = threading.Lock()
 _entries: OrderedDict[tuple, tuple[bytes, dict]] = OrderedDict()
 _version: dict = {"value": None, "checked": 0.0}
+_flight = AsyncSingleFlight()  # concurrent misses for one page compute once
 
 
 def is_demo_read(request: Request) -> bool:
@@ -103,6 +106,21 @@ def put(request: Request, body: bytes, headers: dict) -> None:
         _entries[(version, *_key(request))] = (body, keep)
         while len(_entries) > MAX_ENTRIES:
             _entries.popitem(last=False)
+
+
+async def lead_or_wait(request: Request) -> bool:
+    """On a miss: True when this request computes the page (it must call finish); False after
+    waiting for the request already computing it (read the cache again)."""
+    key = (data_version(), *_key(request))
+    request.state.showcase_key = key
+    leader, event = _flight.acquire(key)
+    if not leader:
+        await _flight.wait(event)
+    return leader
+
+
+def finish(request: Request) -> None:
+    _flight.release(request.state.showcase_key)
 
 
 def clear() -> None:

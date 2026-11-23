@@ -33,6 +33,7 @@ from pathlib import Path
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session
 
+from app.core.single_flight import SingleFlight
 from app.db.models import Filing13F, Holding13F, JobState, utcnow
 from app.services import cusips as cusip_map
 from app.services.sec_client import filing_index_url, normalize_cik
@@ -258,6 +259,7 @@ HOLDINGS_VERSION_KEY = "13f:holdings_version"
 CACHE_SIZE = 4096
 _cache: OrderedDict = OrderedDict()
 _cache_lock = threading.Lock()
+_flight = SingleFlight()  # concurrent misses for one key compute once
 
 
 def bump_holdings_version(db: Session) -> None:
@@ -447,13 +449,26 @@ def ownership(
             if hit is not None:
                 _cache.move_to_end(key)
                 return copy.deepcopy(hit)
-    block = _ownership(db, cik, classes, own, aliases, codes, q, as_of, top, offset,
-                       shares_outstanding, changes)  # fmt: skip
-    if key is not None and block is not None:
-        with _cache_lock:
-            _cache[key] = copy.deepcopy(block)
-            while len(_cache) > CACHE_SIZE:
-                _cache.popitem(last=False)
+    leader = False
+    if key is not None:
+        leader, event = _flight.acquire(key)
+        if not leader:  # the same block is being computed: wait for it, then read the cache
+            _flight.wait(event)
+            with _cache_lock:
+                hit = _cache.get(key)
+            if hit is not None:
+                return copy.deepcopy(hit)
+    try:
+        block = _ownership(db, cik, classes, own, aliases, codes, q, as_of, top, offset,
+                           shares_outstanding, changes)  # fmt: skip
+        if key is not None and block is not None:
+            with _cache_lock:
+                _cache[key] = copy.deepcopy(block)
+                while len(_cache) > CACHE_SIZE:
+                    _cache.popitem(last=False)
+    finally:
+        if leader:
+            _flight.release(key)
     return block
 
 
