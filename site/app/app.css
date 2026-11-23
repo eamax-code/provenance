@@ -44,7 +44,7 @@ input[type="search"], #key-input { flex: 1 1 320px; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
 .tab { border: 0; background: transparent; color: var(--muted); padding: 10px 14px; font: inherit; cursor: pointer; border-bottom: 2px solid transparent; }
 .tab[aria-pressed="true"] { color: var(--fg); border-bottom-color: var(--accent); }
-.tabpane { display: grid; gap: 12px; }
+.tabpane { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .controls { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: .9rem; }
 .controls label { display: inline-flex; gap: 8px; align-items: center; } .check input { accent-color: var(--accent); }
 .chart-wrap { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: 8px; min-width: 0; }
@@ -484,3 +484,43 @@ td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }
 .tl-fresh li { border-left: 3px solid var(--accent); padding-left: 8px; }
 .wl-earlier { margin: 10px 0 4px; font: 600 .8rem var(--font-body); color: var(--muted); }
 @media (max-width: 760px) { .wl-feed .tl li { grid-template-columns: 6.2em auto minmax(0, 1fr) auto; } .wl-feed .tl .tag { display: inline-block; } }
+
+/* X-15 calendar: a list by month, or a month grid with the month's list under it; derived dates carry a dashed mark */
+.cal-bar { gap: 10px 14px; }
+.cal-kinds { display: flex; flex-wrap: wrap; gap: 6px; }
+.cal-chip { cursor: pointer; min-height: 28px; }
+.cal-chip[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
+.cal-month { margin: 14px 0 4px; font: 600 .8rem var(--font-body); color: var(--muted); letter-spacing: .02em; }
+.cal-list { list-style: none; margin: 0; padding: 0; }
+.cal-i { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+.cal-i.is-past { opacity: .85; }
+.cal-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.cal-co { font-weight: 600; }
+.cal-kind { font: 600 .72rem var(--font-body); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.cal-kind::before, .cal-chip::before, .cal-marks li::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; background: var(--k, var(--muted)); vertical-align: 1px; }
+.k-filing_deadline { --k: color-mix(in srgb, var(--fg) 65%, transparent); } .k-late_notice { --k: var(--bad); } .k-lockup_expiry, .k-quiet_period_end { --k: var(--warn); } .k-annual_meeting { --k: var(--good); } .k-proposed_sale_window_end { --k: var(--muted); }
+.tag-derived { cursor: pointer; margin-left: 0; border-style: dashed; background: none; font: 600 .68rem var(--font-body); min-height: 22px; }
+.tag-derived[aria-expanded="true"] { color: var(--fg); }
+.cal-basis { margin: 4px 0 0; max-width: 70ch; }
+.cal-met { color: var(--good); } .cal-miss { color: var(--warn); font-size: .85rem; }
+.cal-past { margin-top: 12px; } .cal-past summary { cursor: pointer; color: var(--muted); font-size: .88rem; min-height: 28px; }
+.cal-notes { margin-top: 10px; }
+.cal-mhead { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.cal-mtitle { margin: 0 6px; font: 600 1rem var(--font-body); min-width: 9.5em; text-align: center; }
+.cal-grid { width: 100%; min-width: 0; border-collapse: collapse; table-layout: fixed; font-size: .8rem; }
+.cal-grid th { font: 600 .72rem var(--font-body); color: var(--muted); padding: 4px; text-align: left; }
+.cal-grid td { border: 1px solid var(--line); vertical-align: top; height: 76px; padding: 4px 5px; overflow: hidden; }
+.cal-grid td.cal-pad { background: var(--bg-2); }
+.cal-grid td.is-today { box-shadow: inset 0 0 0 2px var(--accent); }
+.cal-n { display: block; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cal-grid td.has .cal-n, .cal-grid td.is-today .cal-n { color: var(--fg); font-weight: 600; }
+.cal-marks { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; }
+.cal-marks li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-marks li.is-derived .cal-lab { border-bottom: 1px dashed var(--muted); }
+.cal-more { color: var(--muted); }
+.cal-more::before { display: none !important; }
+@media (max-width: 640px) {
+  .cal-i { grid-template-columns: minmax(0, 1fr) auto; } .cal-i > time { grid-column: 1 / -1; }
+  .cal-grid td { height: 48px; padding: 3px; } .cal-lab { display: none; } .cal-marks { display: flex; flex-wrap: wrap; gap: 2px; } .cal-marks li::before { margin: 0; }
+  .cal-mtitle { min-width: 0; }
+}

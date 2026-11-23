@@ -36,7 +36,7 @@
   }
 
   var X = window.ProvenanceExplorer;
-  var TABS = ['overview', 'statements', 'chart', 'timeline', 'ownership', 'segments', 'compare', 'filings', 'connections', 'freshness', 'facts'];
+  var TABS = ['overview', 'statements', 'chart', 'timeline', 'calendar', 'ownership', 'segments', 'compare', 'filings', 'connections', 'freshness', 'facts'];
   var KEYED = { filings: 1, connections: 1, freshness: 1, facts: 1 };
   var S = { cmp: [], cik: null, d: null, tab: 'overview', m: ['revenue', 'operating_margin'], p: 'annual', scale: 'linear', mk: ['8k', 'officer', 'auditor'], st: 'income', show: 'values', as_of: null, asofNote: '' };
 
@@ -165,7 +165,7 @@
     if (!S.d) return;
     showPanes(S.tab);
     if (KEYED[S.tab] && !X.hasKey()) { var p = $('pane-' + S.tab); keyNeeded(p); return; }
-    if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
+    if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
   }
   function keyNeeded(p) {
     if (!p) return; var n = p.querySelector('.ws-keyneeded');
@@ -636,6 +636,20 @@
   function demoSpent(r) { var m = !X.hasKey() && r && r.status === 429 && r.body && r.body.error && (r.body.error.message || ''); return !m ? false : /demo key daily limit/i.test(m) ? 'spent' : /demo key is busy/i.test(m) ? 'busy' : false; }
   function demoNote(what, kind) { return el('p', { class: 'muted' }, kind === 'busy' ? [what + ' use the shared demo key without a key, and it is busy right now. Try again in a minute, or ', el('a', { href: '/account/', text: 'connect a free key' }), '.'] : [what + ' use the shared demo key without a key, and it has reached today\u2019s limit. ', el('a', { href: '/account/', text: 'Connect a free key' }), ' to see them.']); }
 
+  /* ---- X-15 calendar: the shared calendar (calendar.js) on this company ---- */
+  var CAL = '/v1/companies/{cik}/calendar';
+  function calendarTab() {
+    var pane = $('pane-calendar'), C = window.ProvenanceCalendar, cik = S.cik;
+    if (!C) return;
+    C.available(CAL).then(function (yes) {
+      if (S.tab !== 'calendar' || S.cik !== cik) return;
+      if (!yes) { pane.replaceChildren(el('p', { class: 'muted', text: 'The calendar is not on this server yet.' })); return; }
+      var host = el('div');
+      pane.replaceChildren(el('p', { class: 'muted small', text: 'Filing deadlines, late notices, lock-up and quiet-period ends. Dates marked derived are worked out from rules and the company’s own filings, and the company can file on another day. Information, not signals.' }), host);
+      C.mount(host, { keyed: X.hasKey(), name: orgName, load: function (p) { var q = new URLSearchParams(p).toString(); return keyedOrDemo('/v1/companies/' + cik + '/calendar' + (q ? '?' + q : '')); } });
+    });
+  }
+
   /* ---- X-04 ownership: 13F, insiders (Forms 3/4/5), 5% holders ---- */
   function ownershipTab() {
     var d = S.d, cik = S.cik, pane = $('pane-ownership'), cur = (d.company || {}).reporting_currency || 'USD';
@@ -913,6 +927,8 @@
   function init() {
     var k = $('ws-k'); if (k) k.addEventListener('click', palette);
     document.querySelectorAll('#ws-tabs .tab').forEach(function (b) { b.addEventListener('click', function () { go(b.getAttribute('data-tab')); }); });
+    // X-15: the Calendar tab shows once this server has the endpoint
+    if (window.ProvenanceCalendar) window.ProvenanceCalendar.available(CAL).then(function (y) { var b = document.querySelector('#ws-tabs .tab[data-tab="calendar"]'); if (b) b.hidden = !y; });
     var asof = $('ws-asof'), clear = $('ws-asof-clear'), btn = $('ws-asof-btn'), pop = $('ws-asof-pop');
     if (asof) {
       asof.max = new Date().toISOString().slice(0, 10);

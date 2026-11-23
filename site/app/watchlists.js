@@ -122,8 +122,22 @@
       main.replaceChildren.apply(main, [el('div', { class: 'ch-bar' }, [el('h3', { text: l.name }), el('span', { class: 'muted small', text: rows.length + ' of 50 companies' }), el('span', { class: 'ch-acts' }, [cmp, del])]),
         el('div', { class: 'row wl-add' }, [q, colSel]), sug,
         rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table wl-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]) : el('p', { class: 'muted', text: 'No companies yet. Add one above.' }),
-        watch, feed(l, rows, srv)].filter(Boolean));
+        watch, calendar(l, rows, srv), feed(l, rows, srv)].filter(Boolean));
     });
+  }
+  // X-15: the list's calendar; a list kept in this browser asks by its companies
+  function calendar(l, rows, srv) {
+    var C = window.ProvenanceCalendar; if (!C || !rows.length) return null;
+    var box = el('section', { class: 'ws-sec wl-cal', 'aria-labelledby': 'wl-cal-h', hidden: 'hidden' }, [el('h3', { id: 'wl-cal-h', text: 'Calendar' }), el('p', { class: 'muted small', text: 'Filing deadlines, late notices, lock-up and quiet-period ends across the list. Dates marked derived are worked out from rules and each company’s filings. Information, not signals.' })]);
+    var host = el('div'); box.appendChild(host);
+    C.available(srv ? /^\/v1\/watchlists\/\{[a-z_]+\}\/calendar$/ : '/v1/calendar').then(function (yes) {
+      if (!yes) return;
+      box.hidden = false;
+      var ciks = rows.map(function (r) { return String(parseInt(r.cik, 10)); }).slice(0, 50).join(',');
+      C.mount(host, { multi: true, keyed: X.hasKey(), name: window.Workspace ? window.Workspace.orgName : null, empty: 'Nothing dated ahead for these companies in the filings loaded.',
+        load: function (p) { var q = new URLSearchParams(p); if (!srv) q.set('ciks', ciks); var qs = q.toString(); return srv ? send('GET', '/v1/watchlists/' + encodeURIComponent(l.id) + '/calendar' + (qs ? '?' + qs : '')) : X.raw('/v1/calendar?' + qs, X.hasKey() ? null : 'demo'); } });
+    });
+    return box;
   }
   function watchForm(l) {
     var dest = el('input', { type: 'url', placeholder: 'https://your-webhook.example/…', 'aria-label': 'Webhook address for this list', required: 'required' });
