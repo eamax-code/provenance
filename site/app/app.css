@@ -555,7 +555,7 @@ table.pp-pay { min-width: 980px; }
   table.pp-stack { min-width: 0; }
   .pp-stack thead { display: none; }
   .pp-stack tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
-  .pp-stack td, .pp-stack th { display: block; border: 0; padding: 0; text-align: left; }
+  .pp-stack td, .pp-stack th { display: block; border: 0; padding: 0; text-align: left; white-space: normal; min-width: 0; overflow-wrap: anywhere; }
   .pp-stack tr > :first-child, .pp-stack tr > th[scope="row"] { grid-column: 1 / -1; }
   .pp-stack td[data-l]::before { content: attr(data-l); display: block; color: var(--muted); font-size: .72rem; }
 }
@@ -608,3 +608,15 @@ table.pp-pay { min-width: 980px; }
 .ct-list li { break-inside: avoid; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
 .ct-find { max-width: 320px; }
 @media (max-width: 640px) { .ct-chain li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+/* X-21 what's new: one band of short sentences above the key figures, each opening its tab */
+.wn { margin-bottom: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.wn-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.wn-c { padding: 10px 14px; border-left: 1px solid var(--line); display: grid; grid-template-rows: auto 1fr auto; gap: 2px; min-width: 0; }
+.wn-c:first-child { border-left: 0; }
+.wn-l { margin: 0; font-size: .76rem; color: var(--muted); }
+.wn-say { margin: 0; font-size: .86rem; line-height: 1.4; }
+.wn-say b { font-weight: 600; } .wn-say.is-warn b { color: var(--warn); }
+.wn-say .tag { margin-left: 4px; }
+.wn-go { justify-self: start; font-size: .8rem; min-height: 24px; }
+@media (max-width: 760px) { .wn-row { grid-template-columns: minmax(0, 1fr); } .wn-c { border-left: 0; border-top: 1px solid var(--line); grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; } .wn-c:first-child { border-top: 0; } .wn-l { grid-column: 1 / -1; } .wn-go { align-self: end; } }

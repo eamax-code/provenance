@@ -126,7 +126,10 @@
   function renderHead() {
     var d = S.d, c = d.company, cur = c.reporting_currency || 'USD', id = d.identity || {};
     var tick = (c.tickers && c.tickers.length ? c.tickers : [c.ticker]).filter(Boolean).map(function (t, i) { return t + (c.exchanges && c.exchanges[i] ? ' · ' + c.exchanges[i] : ''); });
-    var chips = el('p', { class: 'ws-chips' }, tick.map(function (t) { return el('span', { class: 'chip', text: t }); }).concat([
+    // many listed classes (JPM's preferreds): the first two, then '+N more' with the rest on hover and focus
+    var tickChips = tick.slice(0, tick.length > 3 ? 2 : 3).map(function (t) { return el('span', { class: 'chip', text: t }); });
+    if (tick.length > 3) tickChips.push(el('span', { class: 'chip quiet', tabindex: '0', title: tick.slice(2).join(', '), 'aria-label': (tick.length - 2) + ' more listings: ' + tick.slice(2).join(', '), text: '+' + (tick.length - 2) + ' more' }));
+    var chips = el('p', { class: 'ws-chips' }, tickChips.concat([
       el('span', { class: 'chip', title: 'Figures are in the currency the company reports in, never converted', text: cur }),
       c.fiscal_year_end_month ? el('span', { class: 'chip', text: 'FY ends ' + c.fiscal_year_end_month }) : null,
       c.filer_category ? el('span', { class: 'chip quiet', text: c.filer_category }) : null,
@@ -145,12 +148,28 @@
       var au = d.auditor && d.auditor.current; if (au) bits.push(el('span', {}, ['Auditor ', au.latest_report && ARCHIVE.test(au.latest_report.source_url) ? el('a', { href: au.latest_report.source_url, target: '_blank', rel: 'noopener', text: au.name }) : au.name, au.since_basis === 'observed_change' && au.since ? ' since FY' + au.since : '']));
       if (c.sic_description) bits.push(el('span', { text: c.sic_description }));
       strip = el('p', { class: 'ws-ident', id: 'ws-ident' }, bits);
+      parentBit(strip, S.cik);
     }
     var itog = strip ? el('button', { type: 'button', class: 'linkish ws-ident-t', 'aria-expanded': 'false', 'aria-controls': 'ws-ident', text: 'Identity: CIK, LEI, incorporation, auditor', on: { click: function () { var o = strip.classList.toggle('open'); itog.setAttribute('aria-expanded', String(o)); } } }) : null;
     $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [el('h2', { text: c.display_name || (c.legal_name ? orgName(c.legal_name) : 'CIK ' + c.cik) }), chips, acts]), itog, strip,
       S.asofNote ? el('p', { class: 'ws-note', role: 'status', text: S.asofNote }) : null].filter(Boolean));
     var ai = $('ws-asof'); if (ai) ai.value = S.as_of || ''; var ab = $('ws-asof-btn'); if (ab) ab.lastChild.textContent = S.as_of ? day(S.as_of) : 'latest';
     document.title = (c.display_name || 'Company') + (c.ticker ? ' (' + c.ticker + ')' : '') + ' · Explorer · Provenance';
+  }
+  // X-21: the parent from the corporate tree (GLEIF Level 2), in the identity strip, once the endpoint exists
+  var treeCache = {};
+  function parentBit(strip, cik) {
+    apiHas('/v1/companies/{cik}/corporate-tree').then(function (y) {
+      if (!y) return;
+      treeCache[cik] = treeCache[cik] || keyedOrDemo('/v1/companies/' + cik + '/corporate-tree?children_limit=1&subsidiaries_limit=1');
+      treeCache[cik].then(function (r) {
+        if (!r || !r.ok || S.cik !== cik || !strip.isConnected) { if (!r || !r.ok) delete treeCache[cik]; return; }
+        var P = r.body.parents || {}, top = P.ultimate || P.direct, ex = (P.exceptions || [])[0];
+        if (!r.body.entity || !r.body.entity.lei) return;
+        var ck = top && top.cik ? String(parseInt(top.cik, 10)) : null;
+        strip.appendChild(el('span', { title: 'GLEIF Level 2 relationship data' }, top ? ['Parent ', ck ? el('a', { href: '/app/?c=' + ck, text: top.name }) : top.name, ' (GLEIF)'] : [ex ? 'No parent reported: ' + String(ex.text || ex.reason).replace(/^No parent: /, '') : 'No parent reported to GLEIF']));
+      });
+    });
   }
   var STATES = { DE: 'Delaware', CA: 'California', NY: 'New York', NV: 'Nevada', TX: 'Texas', MD: 'Maryland', PA: 'Pennsylvania', OH: 'Ohio', NJ: 'New Jersey', WA: 'Washington', MA: 'Massachusetts', FL: 'Florida', IL: 'Illinois', VA: 'Virginia', GA: 'Georgia', MN: 'Minnesota', NC: 'North Carolina', MI: 'Michigan', IN: 'Indiana', CO: 'Colorado', MO: 'Missouri', WI: 'Wisconsin', OR: 'Oregon', TN: 'Tennessee', AZ: 'Arizona', UT: 'Utah', CT: 'Connecticut', M0: 'Japan', '2M': 'Germany', F5: 'Taiwan', X0: 'United Kingdom', V8: 'Switzerland', P7: 'Netherlands', L2: 'Ireland', D0: 'Bermuda', E9: 'Cayman Islands', K3: 'Hong Kong', F4: 'China', I0: 'France', A6: 'Ontario, Canada' };
   function stateName(code) { return STATES[code] || null; }
@@ -270,7 +289,12 @@
       if (K.metrics.revenue.status && K.metrics.revenue.status[per] === 'unreconciled') seg.appendChild(el('p', { class: 'muted small', text: 'Unreconciled: these lines don’t add up to the total.' }));
     } else seg.appendChild(el('p', { class: 'muted', text: d.segments && d.segments.hidden_reason ? 'No segment breakdown to show for the latest report.' : 'No segments tagged in the latest annual report.' }));
     if (K) seg.appendChild(el('p', { class: 'ov-foot' }, [el('button', { type: 'button', class: 'linkish', text: 'All breakdowns and years', on: { click: function () { go('segments'); } } })]));
-    $('pane-overview').replaceChildren(el('div', { class: 'ov-grid' }, [figs, events, ownership, ch, seg, peersSection(d)]));
+    // X-21: what's new from the newer data (calendar, What changed, insiders, pay), above the key figures
+    var cikN = S.cik, nmN = (d.company || {}).display_name || orgName((d.company || {}).legal_name || 'This company');
+    var band = window.ProvenanceNew ? window.ProvenanceNew.band({ cik: cikN, asOf: S.as_of || '', keyed: X.hasKey(), has: apiHas, go: function (t) { if (S.cik === cikN) go(t); },
+      why: window.ProvenancePeople && window.ProvenancePeople.why ? window.ProvenancePeople.why(d, nmN, true) : null,
+      load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cikN ? r : null; }); } }) : null;
+    $('pane-overview').replaceChildren.apply($('pane-overview'), [band, el('div', { class: 'ov-grid' }, [figs, events, ownership, ch, seg, peersSection(d)])].filter(Boolean));
     drawChart(host, { series: [series('revenue'), series('operating_margin')].filter(Boolean), kinds: ['bar', 'line'], height: 200, compact: true });
   }
   /* ---- X-19 peers: same industry and nearest in size (the API's rule, in its own words); tick up to four, one click into Compare ---- */
@@ -934,7 +958,7 @@
         var path = (X.hasKey() ? '/v1/companies/search?limit=8&q=' : '/v1/public/companies/search?q=') + encodeURIComponent(q.trim());
         X.raw(path).then(function (r) {
           if (!r.ok || input.value !== q) return;
-          var cos = (r.body.data || []).filter(function (c) { return X.hasKey() || c.is_public_page !== false; }).slice(0, 8).map(function (c) { return { label: c.display_name || c.legal_name ? orgName(c.display_name || c.legal_name) : 'CIK ' + c.cik, hint: [c.ticker, c.exchange, 'CIK ' + parseInt(c.cik, 10)].filter(Boolean).join(' · ') + (c.matched_former_name ? ' · formerly ' + c.matched_former_name : ''), fn: function () { var ck = String(parseInt(c.cik, 10)); if (palMode === 'compare') { if (ck !== S.cik && S.cmp.indexOf(ck) < 0 && S.cmp.length < 4) S.cmp.push(ck); go('compare'); return; } apply(Object.assign({}, S, { cik: ck, tab: 'overview', as_of: S.as_of }), true); } }; });
+          var cos = (r.body.data || []).filter(function (c) { return X.hasKey() || c.is_public_page !== false; }).slice(0, 8).map(function (c) { return { label: c.display_name || c.legal_name ? orgName(c.display_name || c.legal_name) : 'CIK ' + c.cik, hint: [c.ticker, c.exchange, 'CIK ' + parseInt(c.cik, 10)].filter(Boolean).join(' · ') + (c.matched_former_name ? ' · formerly ' + orgName(c.matched_former_name) : ''), fn: function () { var ck = String(parseInt(c.cik, 10)); if (palMode === 'compare') { if (ck !== S.cik && S.cmp.indexOf(ck) < 0 && S.cmp.length < 4) S.cmp.push(ck); go('compare'); return; } apply(Object.assign({}, S, { cik: ck, tab: 'overview', as_of: S.as_of }), true); } }; });
           if (!X.hasKey() && !cos.length && /\S/.test(q)) cos.push({ label: 'Connect a key to search every company', hint: 'without a key the Explorer opens the showcase', fn: function () { var k = $('key-input'); if (k) k.focus(); } });
           items = cos.concat(local(q)); sel = 0; render();
         });

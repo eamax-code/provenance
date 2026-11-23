@@ -90,16 +90,16 @@
     return el('div', { class: 'pp-chart-wrap' }, [svg, key]);
   }
   // why a company has no pay-versus-performance table, from what its own filings say about it
-  function payWhy(d, nm) {
+  function payWhy(d, nm, short) {
     var c = d.company || {}, cv = d.cover || {}, cat = c.filer_category || cv.filer_category || '', fa = {};
     (d.filing_activity || []).forEach(function (g) { fa[g.group] = g.total; });
     var forms = (d.filings || []).map(function (f) { return f.form_type || ''; }), so = (cv.shares_outstanding || {}).form_type || '';
-    if (forms.some(function (f) { return /^(20-F|40-F|6-K)/.test(f); }) || /^(20-F|40-F)/.test(so)) return nm + ' reports as a foreign private issuer (Form 20-F or 40-F). Foreign private issuers file no US proxy statement, so there is no pay-versus-performance table; the annual report describes executive pay without these tags.';
-    if (/emerging growth/i.test(cat)) return nm + ' is an emerging growth company, which is exempt from the pay-versus-performance table (Item 402(v) of Regulation S-K).';
-    if (d.ipo_terms) return nm + ' is newly public. The table covers only years in which a company already reported to the SEC, so its first proxies may not have one.';
-    if (!fa['Annual reports']) return nm + ' has not filed an annual report here yet, so no proxy with a pay-versus-performance table either.';
-    if (!fa['Proxy statements']) return 'No proxy statement from ' + nm + ' in the filings loaded.';
-    return 'No proxy from ' + nm + ' with a tagged pay-versus-performance table in the filings loaded. Proxies filed before 2023 do not have one.';
+    if (forms.some(function (f) { return /^(20-F|40-F|6-K)/.test(f); }) || /^(20-F|40-F)/.test(so)) return short ? 'Foreign private issuer: no US proxy, so no pay-versus-performance table.' : nm + ' reports as a foreign private issuer (Form 20-F or 40-F). Foreign private issuers file no US proxy statement, so there is no pay-versus-performance table; the annual report describes executive pay without these tags.';
+    if (/emerging growth/i.test(cat)) return short ? 'Emerging growth company: exempt from the pay-versus-performance table.' : nm + ' is an emerging growth company, which is exempt from the pay-versus-performance table (Item 402(v) of Regulation S-K).';
+    if (d.ipo_terms) return short ? 'Newly public: no pay-versus-performance table yet.' : nm + ' is newly public. The table covers only years in which a company already reported to the SEC, so its first proxies may not have one.';
+    if (!fa['Annual reports']) return short ? 'No annual report yet, so no proxy table.' : nm + ' has not filed an annual report here yet, so no proxy with a pay-versus-performance table either.';
+    if (!fa['Proxy statements']) return short ? 'No proxy statement in the filings loaded.' : 'No proxy statement from ' + nm + ' in the filings loaded.';
+    return short ? 'No tagged pay-versus-performance table in the proxies loaded.' : 'No proxy from ' + nm + ' with a tagged pay-versus-performance table in the filings loaded. Proxies filed before 2023 do not have one.';
   }
   function pay(b, name, w, d) {
     var years = b.years || [], cur = b.currency, nm = ((d.company || {}).display_name || name((d.company || {}).legal_name || 'This company')).replace(/\.$/, ''); // the API's display name is already cased (SAP SE)
@@ -189,5 +189,5 @@
       });
     });
   }
-  window.ProvenancePeople = { render: render };
+  window.ProvenancePeople = { render: render, why: payWhy };
 })();
