@@ -32,6 +32,7 @@ class SearchHit:
     # | name_fuzzy
     score: int
     former_name: str | None = None  # the former name that matched, for former_name hits
+    successor_of: str | None = None  # set when listed because its predecessor matched (K-05)
 
 
 _SCORES = {
@@ -50,6 +51,7 @@ CORP_WORDS = {
     "llc", "lp", "sa", "nv", "ag", "the", "new", "com", "pbc",
 }  # fmt: skip
 FUZZY_MIN_LENGTH = 5
+CANDIDATES = 60  # name matches read per query before ranking
 FUZZY_CANDIDATES = 200
 TIE_MARGIN = 0.25
 SQLITE_SCAN_LIMIT = 5000
@@ -85,32 +87,34 @@ def search_companies(db: Session, query: str, limit: int = 10) -> tuple[list[Sea
 
     name = normalize_name(q)
     if name and len(name) >= 2:
-        pattern_prefix = _escape_like(name) + "%"
-        pattern_contains = "%" + _escape_like(name) + "%"
         fetch = limit + 1
-        rows = db.scalars(
-            select(Company)
-            .where(
-                or_(
-                    func.lower(Company.legal_name).like(pattern_prefix, escape="\\"),
-                    func.lower(Company.legal_name).like(pattern_contains, escape="\\"),
-                )
-            )
-            .order_by(Company.legal_name)
-            .limit(fetch * 3)
-        ).all()
-        for c in rows:
-            lname = normalize_name(c.legal_name)
-            # "apple" is Apple Inc. exactly: the corporate words do not count.
-            if lname == name or (core_name(lname) and core_name(lname) == core_name(name)):
-                mt = "name_exact"
-            elif lname.startswith(name):
-                mt = "name_prefix"
-            else:
-                mt = "name_contains"
-            existing = hits.get(c.cik)
-            if existing is None or existing.score < _SCORES[mt]:
-                hits[c.cik] = SearchHit(c, mt, _SCORES[mt])
+        # punctuation does not matter: "coca-cola" is COCA COLA CO, "procter and gamble" P&G
+        for variant in name_variants(name):
+            pattern_prefix = _escape_like(variant) + "%"
+            pattern_contains = "%" + _escape_like(variant) + "%"
+            # starts first, then contains, each with its own room: "target" must reach TARGET
+            # CORP before forty funds named "... Target Term ..." fill the list
+            rows = [
+                *db.scalars(select(Company).where(
+                    func.lower(Company.legal_name).like(pattern_prefix, escape="\\"))
+                    .order_by(Company.legal_name).limit(max(fetch * 3, CANDIDATES))),
+                *db.scalars(select(Company).where(
+                    func.lower(Company.legal_name).like(pattern_contains, escape="\\"))
+                    .order_by(Company.legal_name).limit(max(fetch * 3, CANDIDATES))),
+            ]  # fmt: skip
+            for c in rows:
+                lname = normalize_name(c.legal_name)
+                # "apple" is Apple Inc. exactly: the corporate words do not count.
+                core = core_name(lname)
+                if lname == variant or (core and core == core_name(variant)):
+                    mt = "name_exact"
+                elif lname.startswith(variant):
+                    mt = "name_prefix"
+                else:
+                    mt = "name_contains"
+                existing = hits.get(c.cik)
+                if existing is None or existing.score < _SCORES[mt]:
+                    hits[c.cik] = SearchHit(c, mt, _SCORES[mt])
 
         for c, alias in _former_name_matches(db, name, fetch):
             if c.cik not in hits or hits[c.cik].score < _SCORES["former_name"]:
@@ -122,12 +126,92 @@ def search_companies(db: Session, query: str, limit: int = 10) -> tuple[list[Sea
         ordered = list(hits.values())  # already ranked by distance
         return ordered[:limit], len(ordered) > limit
 
-    ordered = sorted(
-        hits.values(),
-        key=lambda h: (-h.score, not h.company.ticker, h.company.legal_name.lower(), h.company.cik),
-    )
+    ordered = rank(db, hits, name, q)
     has_more = len(ordered) > limit
     return ordered[:limit], has_more
+
+
+def name_variants(name: str) -> list[str]:
+    """The typed name, then without hyphens and periods, then with '&' and 'and' swapped."""
+    out = [name]
+    for v in (" ".join(re.sub(r"[-.]", " ", name).split()), name.replace("&", "and"),
+              re.sub(r"\band\b", "&", name)):  # fmt: skip
+        if v and v not in out:
+            out.append(v)
+    return out
+
+
+ACTIVE_DAYS = 730  # an annual report in the last two years
+
+
+def _tier(h: SearchHit, name: str, query: str) -> int:
+    """How surely the hit names what was typed, before activity and size decide:
+    10 a CIK, or a ticker typed as one ("AAPL"), or a ticker that also starts the name ("Meta");
+     6 a current name (exact or start), a successor standing in for its inactive predecessor,
+       and a ticker typed as a word that the name does not start ("Ford" is FORD MOTOR CO
+       before FORD, a former ticker of Forward Industries);
+     5 the start of a former name ("Square" is Block, Inc., formerly Square, Inc.);
+     4 a whole word inside a current name ("Disney" is Walt Disney Co);
+     3 a word inside a former name; 2 any other substring; 0 a near spelling."""
+    lname = normalize_name(h.company.legal_name)
+    if h.match_type == "cik":
+        return 10
+    if h.match_type in ("ticker", "former_ticker"):
+        strong = query.strip().isupper() or (
+            h.match_type == "ticker" and core_name(lname).startswith(name))
+        return 10 if strong else 6
+    if h.match_type in ("name_exact", "name_prefix") or h.successor_of:
+        return 6
+    if h.match_type == "former_name":
+        return 5 if core_name(h.former_name or "").startswith(core_name(name) or name) else 3
+    if h.match_type == "name_contains" and name and re.search(
+            rf"(^|\s){re.escape(name)}(\b|$)", lname):  # fmt: skip
+        return 4
+    return 2 if h.match_type == "name_contains" else 0
+
+
+def rank(db: Session, hits: dict, name: str, query: str = "") -> list[SearchHit]:
+    """Within each tier: an active registrant (annual report in two years) first, then a listed
+    one, then the larger filer by latest USD revenue, then the closer match. An inactive
+    registrant with a K-05 successor brings the successor in just above it, as its former name
+    ("Google" lists Alphabet, formerly Google Inc., then Google Inc.)."""
+    from app.db.models import MartCompany, RegistrantSuccession
+
+    if not hits:
+        return []
+    since = date.today() - timedelta(days=ACTIVE_DAYS)
+
+    def facts(ciks):
+        rows = db.execute(select(MartCompany.cik, MartCompany.latest_annual_report_date,
+                                 MartCompany.latest_revenue, MartCompany.reporting_currency)
+                          .where(MartCompany.cik.in_(list(ciks)))).all()  # fmt: skip
+        return {c: (bool(d and d >= since), float(v) if v is not None and cur == "USD" else 0.0)
+                for c, d, v, cur in rows}  # fmt: skip
+
+    info = facts(hits)
+    # a registrant that succeeded another in the last two years is active before its first
+    # annual report (ExxonMobil Holdings, July 2026)
+    for r in db.scalars(select(RegistrantSuccession).where(
+            RegistrantSuccession.effective_date >= since)):  # fmt: skip
+        if r.successor_cik in info:
+            info[r.successor_cik] = (True, info[r.successor_cik][1])
+    inactive = [c for c in hits if not info.get(c, (False, 0))[0]]
+    if inactive:
+        for r in db.scalars(select(RegistrantSuccession).where(
+                RegistrantSuccession.predecessor_cik.in_(inactive))):  # fmt: skip
+            if r.successor_cik in hits:
+                continue
+            succ = db.scalar(select(Company).where(Company.cik == r.successor_cik))
+            pred = hits[r.predecessor_cik]
+            if succ is not None:
+                hits[succ.cik] = SearchHit(succ, "former_name", pred.score,
+                                           pred.company.legal_name,
+                                           successor_of=pred.company.cik)  # fmt: skip
+        info |= facts([c for c in hits if c not in info])
+    return sorted(hits.values(), key=lambda h: (
+        -_tier(h, name, query), not info.get(h.company.cik, (False, 0))[0], not h.company.ticker,
+        -info.get(h.company.cik, (False, 0))[1], -h.score, h.company.legal_name.lower(),
+        h.company.cik))  # fmt: skip
 
 
 def _former_name_matches(db: Session, name: str, limit: int) -> list[tuple[Company, str]]:

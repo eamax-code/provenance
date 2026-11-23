@@ -234,6 +234,10 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
                     _named(*x), x[0].company.cik in active, _match_rank(*x),
                     _name_score(*x, sizes)))  # fmt: skip
                 if best.company.cik in active:
+                    if getattr(best, "successor_of", None):  # search listed it for its predecessor
+                        pred = db.scalar(select(Company).where(Company.cik == best.successor_of))
+                        if pred is not None:
+                            _successor_of(db, pred, notes)
                     return best.company
                 succ = _successor_of(db, best.company, notes)
                 if succ is not best.company:
