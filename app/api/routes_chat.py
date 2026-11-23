@@ -589,7 +589,7 @@ def _data_reply(found: conversation.DataAnswer) -> ChatReply:
         intent=found.intent,
         widgets=found.widgets,
         notes=found.notes
-        or ["Answered from the filings loaded here; each row links to its filing."],
+        or ["Answered from the filings loaded here; each figure links to its filing."],
         context=found.context,
         blocks=_blocks(
             answer, found.citations, found.widgets, found.facts if not checks else [], found.names
