@@ -190,3 +190,33 @@ def test_draft_legal_pages_are_linked_from_every_footer(client):
     for slug in ("terms", "privacy", "acceptable-use", "data-sources"):
         assert f'href="/legal/{slug}/"' in footer
     assert "/legal/privacy/" in client.get("/sitemap.xml").text
+
+
+def test_developer_docs_cover_the_explorer_endpoints_and_watchlist_limits(client):
+    """Tonight's endpoints are documented on /developers/ and in llms.txt, and the watchlist limits
+    shown there are the plans' own (app/core/plans.py), so a plan change fails here until the docs
+    follow."""
+    import json
+    import re
+
+    from app.core.plans import PLANS
+
+    html = client.get("/developers/").text
+    llms = client.get("/llms.txt").text
+    for path in ("/overview", "/statements/", "/timeline", "/v1/watchlists"):
+        assert path in html and path in llms, path
+    for anchor in ("overview", "statements", "timeline", "watchlists"):
+        assert f'id="{anchor}"' in html and f'href="#{anchor}"' in html, anchor
+    table = html.split('id="watchlist-limits"', 1)[1].split("</table>", 1)[0]
+    shown = {}
+    for label, lists, cos, cols in re.findall(
+        r"<tr><td>([^<]+)</td><td>(\d+)</td><td>(\d+)</td><td>(\d+)</td></tr>", table
+    ):
+        for name in re.split(r", | and ", label):
+            shown[name.strip().lower()] = (int(lists), int(cos), int(cols))
+    public = [p["name"] for p in json.loads(Path("site/plans.json").read_text())["data"]]
+    assert public
+    for name in public:
+        plan = PLANS[name]
+        want = (plan.max_watchlists, plan.max_watchlist_companies, plan.max_watchlist_columns)
+        assert shown.get(name) == want, (name, shown.get(name), want)

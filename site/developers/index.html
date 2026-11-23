@@ -90,6 +90,10 @@
       <p>Guides</p>
       <ul>
         <li><a href="#as-of">Point in time</a></li>
+        <li><a href="#overview">Company overview</a></li>
+        <li><a href="#statements">Statements</a></li>
+        <li><a href="#timeline">Timeline</a></li>
+        <li><a href="#watchlists">Watchlists</a></li>
         <li><a href="#ipos">Going public</a></li>
         <li><a href="#connections">Connections</a></li>
         <li><a href="#ownership">Ownership (13F)</a></li>
@@ -205,6 +209,186 @@ curl -s "{{BASE}}/v1/companies/320193/facts?metric=revenue&amp;as_of=2024-01-15"
 curl -s "{{BASE}}/v1/facts/screen?metric=total_assets&amp;year=2024&amp;as_of=2025-03-31" -H "X-API-Key: $PROVENANCE_API_KEY"</code></pre></div>
         <p>To see every observation of a period, including restatements and alternative tags, add <code>include_all_observations=true</code>.</p>
         <p>Why it matters: on the data loaded on 15 November 2026, a 2023 revenue screen has 4,895 companies, but only 3,563 had filed by 31 March 2024, and 288 have restated since. A backtest on today's data would have traded on 1,332 figures nobody had yet. <a href="https://github.com/eamax-code/provenance/blob/main/examples/point_in_time.py">examples/point_in_time.py</a> runs this comparison for any metric and date.</p>
+      </section>
+
+      <section id="overview" aria-labelledby="overview-h">
+        <h2 id="overview-h">Company overview</h2>
+        <p><code>GET /v1/companies/{cik}/overview</code> returns a company in one call: its identity (display name, LEI and how it was matched, state of incorporation and the filing it comes from, auditor), key figures with the change on the year before, ten years of annual figures, recent events, 13F ownership, segments, insider activity and leadership. It is the payload the <a href="/app/">Explorer</a>'s Overview tab draws. Every value carries its filing link, accession number, XBRL tag, mapping version and quality status, so you need no second call to cite it.</p>
+        <p>Key figures add <code>ttm</code>, the trailing twelve months: for income-statement and cash-flow metrics the sum of the last four quarters, for balance-sheet metrics the latest quarter-end value. It is marked <code>derived</code> and lists each quarter it uses. It is given only when all four quarters exist, follow on from each other, end within the last 15 months and share one unit; otherwise it is <code>null</code>. <code>as_of</code> builds the overview from the filings made by a date.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/overview" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># one of key_figures, trimmed</span>
+{
+ "metric": "revenue",
+ "value": 478834000000,
+ "unit": "USD",
+ "fiscal_label": "FY2026",
+ "period_end": "2026-09-26",
+ "change_pct": 15.1,
+ "form_type": "10-K",
+ "filed_date": "2026-11-03",
+ "accession_number": "0000320193-26-000026",
+ "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000026/0000320193-26-000026-index.html",
+ "source_tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+ "mapping_version": "1.5.0",
+ "quality_status": "ok",
+ "ttm": {
+  "value": 478834000000,
+  "derived": true,
+  "formula": "sum of the last 4 quarters",
+  "inputs": [
+   {
+    "period_end": "2025-12-27",
+    "accession_number": "0000320193-26-000006",
+    "source_url": "…"
+   },
+   "… three more quarters"
+  ]
+ }
+}</code></pre></div>
+        <p>Built from stored data only: a company not yet loaded is <code>404</code> <code>company_not_found</code>. The demo key reads the showcase companies; others return <code>403</code> <code>demo_scope</code>.</p>
+      </section>
+
+      <section id="statements" aria-labelledby="statements-h">
+        <h2 id="statements-h">Financial statements</h2>
+        <p><code>GET /v1/companies/{cik}/statements/{statement}</code> returns a whole statement in one request: <code>income</code>, <code>balance</code> or <code>cash_flow</code>, every row, up to 20 years (<code>period=annual</code>, 12 by default) or 80 quarters (<code>period=quarterly</code>, 40 by default), oldest first. Each cell is the value <code>/facts</code> returns for that metric and period, with its filing, tag and quality status. A missing value is <code>null</code>, never 0.</p>
+        <p>Derived rows follow the reported ones: gross, operating and net margin (in <code>%</code>), current ratio and debt to equity (<code>x</code>) and free cash flow. Quarters worked out as the year less nine months are marked too. Each is <code>derived: true</code> with its formula and inputs; send <code>include_derived=false</code> to leave them out. Nothing is converted: values stay in the company's reporting currency.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/statements/income?period=annual&amp;periods=12" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, trimmed to one column and two rows</span>
+{
+ "cik": "0000320193",
+ "statement": "income",
+ "period": "annual",
+ "as_of": null,
+ "reporting_currency": "USD",
+ "mapping_version": "1.5.0",
+ "columns": [
+  {
+   "key": "FY2024",
+   "period_start": "2023-10-01",
+   "period_end": "2024-09-28"
+  }
+ ],
+ "rows": [
+  {
+   "metric": "revenue",
+   "label": "Revenue",
+   "derived": false,
+   "cells": [
+    {
+     "column": "FY2024",
+     "value": 391035000000,
+     "unit": "USD",
+     "form_type": "10-K",
+     "accession_number": "0000320193-24-000123",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm",
+     "source_tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+     "quality_status": "ok"
+    }
+   ]
+  },
+  {
+   "metric": "operating_margin",
+   "label": "Operating margin",
+   "derived": true,
+   "formula": "operating_income / revenue",
+   "cells": [
+    {
+     "column": "FY2024",
+     "value": 31.5,
+     "unit": "%",
+     "inputs": [
+      {
+       "metric": "operating_income",
+       "accession_number": "0000320193-24-000123"
+      },
+      {
+       "metric": "revenue",
+       "accession_number": "0000320193-24-000123"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}</code></pre></div>
+        <p>Rows: income has revenue, cost of revenue, gross profit, R&amp;D, SG&amp;A, operating income, interest, pretax income, income tax, net income, EPS and weighted shares; balance has cash, current assets, total assets, current liabilities, debt, total liabilities, equity, retained earnings and shares outstanding; cash flow has operating cash flow, capital expenditure, depreciation, stock-based compensation, dividends and buybacks. A company with no value for any row is <code>404</code> <code>no_statement_data</code>. YoY and common size are worked out from these values; the API does not send them.</p>
+      </section>
+
+      <section id="timeline" aria-labelledby="timeline-h">
+        <h2 id="timeline-h">Company timeline</h2>
+        <p><code>GET /v1/companies/{cik}/timeline</code> puts a company's history in one list, newest first: filings, 8-K items with an event type (results, auditor change, restatement and the like), officer changes from 8-K item 5.02, auditor changes, going-public steps and lock-up ends, insider buying and selling signals from Form 4, and each quarter's 13F holder count. Each item has a plain title and links its filing.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/timeline?types=8k_item,officer_change&amp;limit=50" -H "X-API-Key: $PROVENANCE_API_KEY"
+curl -s "{{BASE}}/v1/companies/320193/timeline?cursor=NEXT_CURSOR" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, one item</span>
+{
+ "cik": "0000320193",
+ "as_of": null,
+ "data": [
+  {
+   "date": "2026-11-02",
+   "type": "8k_item",
+   "event_type": "sec.results",
+   "title": "Results of operations announced (8-K item 2.02)",
+   "form_type": "8-K",
+   "accession_number": "0000320193-26-000024",
+   "filing_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000024/0000320193-26-000024-index.html",
+   "upcoming": false,
+   "details": {
+    "item": "2.02"
+   }
+  }
+ ],
+ "meta": {
+  "limit": 50,
+  "has_more": true,
+  "next_cursor": "…"
+ }
+}</code></pre></div>
+        <p>Parameters: <code>types</code> (comma list of <code>filing</code>, <code>8k_item</code>, <code>officer_change</code>, <code>auditor_change</code>, <code>ipo</code>, <code>insider</code>, <code>13f_quarter</code>; all by default), <code>from</code> and <code>to</code> (the last five years by default), <code>as_of</code>, <code>limit</code> (1 to 200, 50 by default) and <code>cursor</code> from <code>meta.next_cursor</code>. <code>upcoming: true</code> marks a derived future date, such as a lock-up that has not ended. The demo key gets at most 10 items.</p>
+      </section>
+
+      <section id="watchlists" aria-labelledby="watchlists-h">
+        <h2 id="watchlists-h">Watchlists</h2>
+        <p>A watchlist is a named list of companies with the columns you choose, stored with your key. Read it back as one row per company, follow the timeline of every company in it, or turn it into <a href="#webhooks">watches</a> in one call. Another key's list returns <code>404</code>. Revoking a key deletes its lists.</p>
+        <div class="code"><pre><code>curl -s -X POST "{{BASE}}/v1/watchlists" -H "X-API-Key: $PROVENANCE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"name": "Energy majors", "ciks": ["34088", "93410"], "columns": ["revenue", "operating_margin", "latest_filing", "last_event", "holders_change"]}'
+
+<span class="c"># 201 Created</span>
+{
+ "id": "wl_…",
+ "name": "Energy majors",
+ "ciks": [
+  "0000034088",
+  "0000093410"
+ ],
+ "columns": [
+  "revenue",
+  "operating_margin",
+  "latest_filing",
+  "last_event",
+  "holders_change"
+ ],
+ "created_at": "2026-11-23T05:00:00Z",
+ "updated_at": "2026-11-23T05:00:00Z"
+}
+
+<span class="c"># one row per company; the timeline of every company; a watch on each</span>
+curl -s "{{BASE}}/v1/watchlists/WATCHLIST_ID/rows" -H "X-API-Key: $PROVENANCE_API_KEY"
+curl -s "{{BASE}}/v1/watchlists/WATCHLIST_ID/events?types=8k_item,officer_change" -H "X-API-Key: $PROVENANCE_API_KEY"
+curl -s -X POST "{{BASE}}/v1/watchlists/WATCHLIST_ID/watch" -H "X-API-Key: $PROVENANCE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"destination_type": "webhook", "destination": "https://example.com/hooks/provenance"}'</code></pre></div>
+        <p>Also <code>GET /v1/watchlists</code>, <code>GET</code>, <code>PATCH</code> and <code>DELETE /v1/watchlists/{id}</code>. Columns: any metric of the statements above (the latest annual value as a statement cell, plus <code>yoy</code> with both inputs), <code>reporting_currency</code>, <code>latest_filing</code>, <code>last_event</code> (the latest timeline item) and <code>holders_change</code> (from 13F). A company with no value for a column has <code>null</code> there, never 0. <code>rows</code> takes <code>as_of</code>.</p>
+        <div class="table-wrap"><table class="doc-table" id="watchlist-limits">
+          <thead><tr><th scope="col">Plan</th><th scope="col">Lists</th><th scope="col">Companies a list</th><th scope="col">Columns a list</th></tr></thead>
+          <tbody>
+            <tr><td>Free</td><td>3</td><td>50</td><td>8</td></tr>
+            <tr><td>Analyst, Builder, Team and Enterprise</td><td>25</td><td>50</td><td>8</td></tr>
+          </tbody>
+        </table></div>
+        <p>Going over a limit is <code>422</code> <code>watchlist_limit_reached</code>; unknown companies or columns are <code>422</code> naming them. Watchlists need your own key; the demo key is not accepted. Watches made from a list are ordinary watches and count toward the plan's watch limit.</p>
       </section>
 
       <section id="ipos" aria-labelledby="ipos-h">
