@@ -127,3 +127,6 @@ def test_implausible_amounts_are_flagged_and_left_out_of_rankings(tmp_path, db, 
     assert every[0]["issuer"]["name"] == "Big Fund LP"
     assert every[0]["quality_status"] == "suspect_amount" and every[0]["total_amount_sold"] == 9e11
     assert client.get("/v1/private-raises", headers=auth).json()["data"]  # by date: all listed
+    no_funds = client.get("/v1/private-raises?exclude_industry=Pooled%20Investment%20Fund",
+                          headers=auth).json()["data"]  # fmt: skip
+    assert [x["issuer"]["name"] for x in no_funds] == ["Example Bio, Inc."]

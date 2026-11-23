@@ -47,6 +47,8 @@ def list_private_raises(
                        "sold (largest amount sold first)"),
     include_suspect: bool = Query(False, description="Also rank offerings whose self-reported "
                                   "amount is implausible (quality_status suspect_amount)"),
+    exclude_industry: str | None = Query(None, max_length=80, description="Leave out one "
+                                         "industry group, e.g. Pooled Investment Fund"),
     limit: int = Query(50, ge=1, le=200),
     cursor: str | None = Query(None, max_length=100),
     db: Session = Depends(db_session),
@@ -59,7 +61,8 @@ def list_private_raises(
     offset = _offset(cursor)
     items, more = form_d.search(db, industry, state, min_amount, from_, to, exemption,
                                 limit=limit, offset=offset, min_sold=min_sold,
-                                order=order, include_suspect=include_suspect)  # fmt: skip
+                                order=order, include_suspect=include_suspect,
+                                exclude_industry=exclude_industry)  # fmt: skip
     return _body(items, more, limit, offset)
 
 

@@ -211,6 +211,18 @@
    "q": "NOV Inc. revenue",
    "kind": "cited",
    "checked": "NOV Inc. named explicitly still resolves to NOV (CIK 1021860)"
+  },
+  {
+   "id": "L30",
+   "q": "When is Apple's next 10-Q due?",
+   "kind": "cited",
+   "checked": "derived from Apple's filer category (large accelerated) and its report periods: 10-Q for the period ending 2026-12-26 due 2027-02-04 (40 days), cited to the 10-K filed 2026-11-03"
+  },
+  {
+   "id": "L31",
+   "q": "Did JPMorgan file late?",
+   "kind": "cited",
+   "checked": "JPM: every 10-Q/10-K in two years filed by its derived due date; no NT 10-K/10-Q; cited"
   }
  ]
 }

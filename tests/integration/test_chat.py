@@ -314,6 +314,9 @@ def test_growth_question_is_charted_from_cited_figures(app, client, auth, items_
         headers=auth,
     ).json()
     assert body["company"]["cik"] == "0000320193"
+    # the switch away from the given cik is said up front, never silent (PM, 2026-11-24)
+    assert body["answer"].startswith("Answering about Apple Inc., not ")
+    assert body["blocks"][0]["text"].startswith("Answering about Apple Inc., not ")
     assert body["answered_by"] == "data" and body["intent"] == "trend" and not fake.calls
     chart = body["widgets"][0]
     assert chart["type"] == "chart" and chart["metric"] == "revenue"

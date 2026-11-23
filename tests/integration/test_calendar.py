@@ -79,3 +79,18 @@ def test_calendar_parameters_and_lists(client, auth, db, ingested_aapl):
     assert wl.status_code == 200 and wl.json()["data"]
     assert client.get("/v1/watchlists/wl_00000000000000000000000000000000/calendar",
                       headers=auth).status_code == 404  # fmt: skip
+
+
+def test_calendar_chat_answer(client, auth, db, ingested_aapl):
+    _seed(db)
+    from app.services.chat_intents import detect
+
+    assert detect("When is Apple's next 10-K due?") == "calendar"
+    assert detect("Did JPMorgan file late?") == "calendar"
+    body = client.post("/v1/chat", json={"message": "Did Apple file late?", "cik": CIK},
+                       headers=auth).json()  # fmt: skip
+    assert body["intent"] == "calendar" and body["answered_by"] == "data"
+    a = body["answer"]
+    assert "derived: Large accelerated filer" in a
+    assert "Filed after the derived due date in the last two years: 2026-03-28" in a
+    assert "NT 10-Q on 2026-05-08" in a and "[" in a

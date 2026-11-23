@@ -37,6 +37,14 @@ INTENTS = (  # first match wins
                    re.I),
     ),  # fmt: skip
     (
+        "calendar",
+        re.compile(
+            r"\b(due|deadlines?|file[sd]? late|late (?:filing|filer|report)|nt 10-?[kq]|"
+            r"12b-25|lock-?ups?|quiet period|next (?:10-?[kq]|annual report|quarterly report))\b",
+            re.I,
+        ),
+    ),  # fmt: skip
+    (
         "changes",
         re.compile(
             r"(\brisk factors?\b.*\b(add\w*|new|chang\w*|remov\w*|drop\w*|reword\w*)\b|"
@@ -471,22 +479,91 @@ def _quote(heading: str, limit: int = 160) -> str:
     return f"\u201c{h}\u201d"
 
 
+def calendar(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
+    """C-13: the next filing deadline (derived, with its rule), how the last ones were met, late
+    notices and IPO dates, from the company calendar (X-15)."""
+    from app.services import company_calendar as cal
+
+    ref = as_of or date.today()
+    items = cal.for_company(db, b.company, ref - timedelta(days=730), ref + timedelta(days=400),
+                            cal.KINDS, today=ref)  # fmt: skip
+    name = _name(b)
+    deadlines = [i for i in items if i["kind"] == "filing_deadline"]
+    asked = re.search(r"\b(10-?k|10-?q|20-?f)\b", text, re.I)
+    form = asked.group(1).upper().replace("-", "").replace("10K", "10-K").replace(
+        "10Q", "10-Q").replace("20F", "20-F") if asked else None  # fmt: skip
+    # the next deadline not met yet (of the form asked about, if one is), and the reports
+    # already filed against their deadlines
+    open_ = [i for i in deadlines if not i.get("met_by") and i["date"] >= ref.isoformat()]
+    nxt = next((i for i in open_ if not form or i["title"].startswith(form)), None) or (
+        open_[0] if open_ else None)
+    past = [i for i in deadlines if i.get("met_by")]
+    parts = []
+    if nxt:
+        n = _cite(b, f"{nxt['source']['form']} filed {nxt['source']['filed_date']}",
+                  nxt["source"]["source_url"])  # fmt: skip
+        parts.append(f"{name}'s next {nxt['title'].split(' due')[0]} is due {nxt['date']} for "
+                     f"the period ending {nxt['period_end']} (derived: {nxt['basis']}; from the "
+                     f"filer category and the report periods) [{n}].")  # fmt: skip
+    elif not deadlines:
+        parts.append(f"No filing deadline can be worked out for {name}: the SEC's record does "
+                     "not say its filer category, or no periodic report is loaded.")  # fmt: skip
+    if past:
+        last = past[-1]
+        if last.get("met_by"):
+            m = _cite(b, f"{last['met_by']['form']} filed {last['met_by']['filed_date']}",
+                      last["met_by"]["source_url"])  # fmt: skip
+            how = "after" if last.get("filed_late") else "by"
+            parts.append(f"The last one, for the period ending {last['period_end']}, was due "
+                         f"{last['date']} and filed {last['met_by']['filed_date']}, {how} the due "
+                         f"date [{m}].")  # fmt: skip
+        late = [i for i in past if i.get("filed_late")]
+        if late:
+            refs = []
+            for i in late[-4:]:
+                k = _cite(b, f"{i['met_by']['form']} filed {i['met_by']['filed_date']}",
+                          i["met_by"]["source_url"])  # fmt: skip
+                refs.append(f"{i['period_end']} (due {i['date']}, filed "
+                            f"{i['met_by']['filed_date']}) [{k}]")  # fmt: skip
+            parts.append("Filed after the derived due date in the last two years: "
+                         + "; ".join(refs) + ".")  # fmt: skip
+        elif re.search(r"\blate\b", text, re.I):
+            parts.append("In the last two years every report shown was filed by its derived "
+                         "due date.")  # fmt: skip
+    notices = [i for i in items if i["kind"] == "late_notice" and i["date"] <= ref.isoformat()]
+    if notices:
+        refs = []
+        for i in notices[-3:]:
+            k = _cite(b, f"{i['source']['form']} filed {i['date']}", i["source"]["source_url"])
+            refs.append(f"{i['source']['form']} on {i['date']} [{k}]")
+        parts.append("Notices of late filing (Rule 12b-25): " + "; ".join(refs) + ".")
+    elif re.search(r"\blate\b|12b-25|\bnt\b", text, re.I):
+        parts.append("No notice of late filing (NT 10-K or NT 10-Q) in the last two years.")
+    for i in items:
+        if i["kind"] in ("lockup_expiry", "quiet_period_end") and i["date"] >= ref.isoformat():
+            k = _cite(b, f"424B4 filed {i['source']['filed_date']}", i["source"]["source_url"])
+            parts.append(f"{i['title']} on {i['date']} (derived: {i['basis']}) [{k}].")
+    return " ".join(parts) or f"No dated items for {name} in the data loaded here."
+
+
 HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
     "holders": "ownership", "five_percent": "holders", "auditor": "overview",
     "segments": "segments", "insiders": "insider-transactions", "lei": "overview",
     "pay": "executive-pay", "trading_plans": "insider-plans", "proposed_sales": "insider-plans",
-    "changes": "changes",
+    "changes": "changes", "calendar": "calendar",
 }  # fmt: skip
 
 ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
            "segments": segments, "insiders": insiders, "lei": lei, "pay": pay,
            "trading_plans": trading_plans, "proposed_sales": proposed_sales,
-           "changes": changes}  # fmt: skip
+           "changes": changes, "calendar": calendar}  # fmt: skip
 
 
 def answer(db: Session, b: Brief, intent: str, as_of: date | None, text: str = "") -> str:
     if intent == "insiders":
         return insiders(db, b, as_of, text)
+    if intent == "calendar":
+        return calendar(db, b, as_of, text)
     return ANSWERS[intent](db, b, as_of)
 
 

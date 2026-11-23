@@ -461,9 +461,11 @@ def chat(
         if saved is None:
             raise APIError(403, "sessions_need_key", "Saved chats need your own API key.")
         session = chat_sessions.get_owned(db, saved, body.session_id)
+    given = body.cik  # the cik the request carried, before any context fills it in
     reply = _answer(body, request, db, settings)
     if not reply.blocks:  # every reply carries blocks (C-01); chips only where facts are known
         reply.blocks = _blocks(reply.answer, reply.citations, reply.widgets, [])
+    _say_switch(db, given, reply)
     if reply.company and not reply.follow_ups:  # C-03: only what the stored data can answer
         comp = db.scalar(select(Company).where(Company.cik == reply.company["cik"]))
         if comp is not None:
@@ -615,7 +617,34 @@ def _figure_reply(company, brief, brief_out, answer: str, notes: list[str],
     )
 
 
-SINGLE = ("pay", "trading_plans", "proposed_sales", "changes")  # C-13: one company's data
+# C-13: questions about one company's own data, never a comparison
+SINGLE = ("pay", "trading_plans", "proposed_sales", "changes", "calendar")
+
+
+def _say_switch(db: Session, given: str | None, reply: ChatReply) -> None:
+    """A company the question clearly names overrode the request's cik: say so up front, so a
+    user in Apple's chat asking "and Microsoft?" is never switched silently."""
+    if not given or not reply.company:
+        return
+    try:
+        cik = normalize_cik(given)
+    except ValueError:
+        return
+    if cik == reply.company["cik"]:
+        return
+    was = db.scalar(select(Company).where(Company.cik == cik))
+    now = db.scalar(select(Company).where(Company.cik == reply.company["cik"]))
+    if now is None:
+        return
+    note = (f"Answering about {_display(now)}, not "
+            f"{_display(was) if was else 'CIK ' + cik}.").replace("..", ".")
+    reply.notes = [note, *(reply.notes or [])]
+    if reply.answer:
+        reply.answer = f"{note} {reply.answer}"
+    if reply.blocks and reply.blocks[0].get("type") == "text":
+        reply.blocks[0] = {**reply.blocks[0], "text": f"{note} {reply.blocks[0]['text']}"}
+    else:
+        reply.blocks = [{"type": "text", "text": note, "citations": []}, *(reply.blocks or [])]
 
 
 def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings) -> ChatReply:

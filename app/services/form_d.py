@@ -259,7 +259,8 @@ def search(db: Session, industry: str | None = None, state: str | None = None,
            min_amount: float | None = None, start: date | None = None, end: date | None = None,
            exemption: str | None = None, cik: str | None = None, limit: int = 50,
            offset: int = 0, min_sold: float | None = None, order: str = "date",
-           include_suspect: bool = False) -> tuple[list[dict], bool]:  # fmt: skip
+           include_suspect: bool = False,
+           exclude_industry: str | None = None) -> tuple[list[dict], bool]:  # fmt: skip
     q = select(FormDFiling).where(FormDFiling.is_latest)
     if cik:
         q = q.where(FormDFiling.cik == cik)
@@ -267,6 +268,9 @@ def search(db: Session, industry: str | None = None, state: str | None = None,
         q = q.where(func.lower(FormDFiling.industry_group) == industry.lower())
     if state:
         q = q.where(func.upper(FormDFiling.state) == state.upper())
+    if exclude_industry:  # "Largest raised" without pooled funds
+        q = q.where(func.coalesce(func.lower(FormDFiling.industry_group), "")
+                    != exclude_industry.lower())  # fmt: skip
     if min_amount is not None:
         amount = func.coalesce(FormDFiling.total_offering_amount, FormDFiling.total_amount_sold)
         q = q.where(amount >= min_amount)
