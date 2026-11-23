@@ -24,7 +24,7 @@
   function link(f, text) { return f && ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: text || ((f.form || f.form_type || 'Filing') + ' ↗') }) : el('span', { class: 'muted', text: '—' }); }
   function sec(id, title, kids, cls) { return el('section', { class: 'ws-sec pp-sec' + (cls ? ' ' + cls : ''), 'aria-labelledby': id }, [el('h3', { id: id, text: title })].concat(kids)); }
   // on phones a table reads as cards: each cell carries its column's name
-  function stack(t) { var hs = [].map.call(t.querySelectorAll('thead th'), function (h) { return h.textContent; }); [].forEach.call(t.querySelectorAll('tbody tr'), function (r) { [].forEach.call(r.children, function (c, i) { if (hs[i] && i) c.setAttribute('data-l', hs[i]); }); }); t.classList.add('pp-stack'); return t; }
+  function stack(t) { var hs = [].map.call(t.querySelectorAll('thead th'), function (h) { return h.textContent; }); [].forEach.call(t.querySelectorAll('tbody tr'), function (r) { var off = r.classList.contains('pp-peo2') ? 1 : 0; [].forEach.call(r.children, function (c, i) { if (hs[i + off] && i + off) c.setAttribute('data-l', hs[i + off]); }); }); t.classList.add('pp-stack'); return t; }
   function note(t) { return t ? el('p', { class: 'muted small', text: t }) : null; }
   function failed(r, what) {
     if (r && r.status === 403) return note(what + ' without a key covers the showcase companies only. Connect a free key to see this company.');
@@ -126,7 +126,8 @@
     });
     var neoNames = (years[0].neo_average || {}).names || [], src = /smaller reporting/i.test((d.company || {}).filer_category || '');
     var table = el('table', { class: 'pp-table pp-pay', 'aria-label': 'Pay versus performance by fiscal year; arrow keys move between figures' }, [el('thead', {}, [el('tr', {}, cols.map(function (c, i) { return el('th', { scope: 'col', class: i > 1 ? 'n' : '', text: c }); }))]), el('tbody', {}, body)]);
-    if (window.Workspace && window.Workspace.rove) window.Workspace.rove(table); // one Tab stop, arrow keys inside, as in Statements
+    if (window.Workspace && window.Workspace.rove) window.Workspace.rove(table);
+    stack(table); table.classList.add('pp-paystack'); // on phones each year reads as a card // one Tab stop, arrow keys inside, as in Statements
     return [pvpChart(b, years, w), el('div', { class: 'tw' }, [table]),
       neoNames.length ? note('Other named executives in fiscal ' + years[0].fiscal_year_end.slice(0, 4) + ': ' + neoNames.map(name).join(', ') + '.') : null,
       src ? note(nm + ' is a smaller reporting company: its proxy gives three years and no peer TSR or company-selected measure.') : null,

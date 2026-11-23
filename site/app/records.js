@@ -84,7 +84,8 @@
       var chain = el('ol', { class: 'ct-chain' });
       if (P.ultimate && !(P.direct && P.direct.lei === P.ultimate.lei)) chain.appendChild(el('li', {}, [el('span', { class: 'ct-rel', text: 'Ultimate parent' }), node(P.ultimate)]));
       if (P.direct) chain.appendChild(el('li', {}, [el('span', { class: 'ct-rel', text: P.ultimate && P.direct.lei === P.ultimate.lei ? 'Direct and ultimate parent' : 'Direct parent' }), node(P.direct)]));
-      (P.exceptions || []).forEach(function (x) { chain.appendChild(el('li', { class: 'ct-exc' }, [el('span', { class: 'ct-rel', text: x.kind === 'ultimate' ? 'Ultimate parent' : 'Direct parent' }), el('span', { text: x.text || EXC[x.reason] || x.reason }), el('span', { class: 'mono small muted', text: ' ' + x.reason })])); });
+      var ex = P.exceptions || [], same = ex.length === 2 && ex[0].reason === ex[1].reason && ex[0].text === ex[1].text;
+      (same ? [Object.assign({}, ex[0], { kind: 'both' })] : ex).forEach(function (x) { chain.appendChild(el('li', { class: 'ct-exc' }, [el('span', { class: 'ct-rel', text: x.kind === 'both' ? 'Direct and ultimate parent' : x.kind === 'ultimate' ? 'Ultimate parent' : 'Direct parent' }), el('span', { text: x.text || EXC[x.reason] || x.reason }), el('span', { class: 'mono small muted', text: ' ' + x.reason })])); });
       if (E.lei && !P.direct && !P.ultimate && !(P.exceptions || []).length) chain.appendChild(el('li', { class: 'ct-exc' }, [el('span', { class: 'ct-rel', text: 'Parent' }), el('span', { class: 'muted', text: 'Not reported to GLEIF.' })]));
       chain.appendChild(el('li', { class: 'ct-self' }, [el('span', { class: 'ct-rel', text: 'This company' }), node({ name: E.name || o.name, lei: E.lei, jurisdiction: E.jurisdiction })]));
       kids.push(E.lei ? chain : el('p', { class: 'muted', text: 'No LEI is matched to this company, so GLEIF has no parents or children to show. Its exhibit 21 subsidiaries are below.' }));
@@ -99,7 +100,7 @@
       kids = kids.concat(sub.length ? folded(sub, function (x) { return node({ name: x.name, jurisdiction: x.jurisdiction, lei: x.lei }); }, 'subsidiaries') : [note('No exhibit 21 in the filings loaded. Foreign private issuers list subsidiaries in the 20-F, which is not read here.')]);
       if (S.total > sub.length) kids.push(note('The first ' + sub.length + ' of ' + S.total + ' are shown.'));
       kids.push(note((b.notes || []).join(' ') || 'Parents and GLEIF children are from GLEIF Level 2 relationship data (CC0) as the entities report them; subsidiaries are as listed in exhibit 21.'),
-        note('A subsidiary shows an LEI only when exactly one GLEIF entity has the same legal name and jurisdiction.'));
+        /exactly one/.test((b.notes || []).join(' ')) ? null : note('A subsidiary shows an LEI only when exactly one GLEIF entity has the same legal name and jurisdiction.'));
       host.replaceChildren.apply(host, kids.filter(Boolean));
     });
   }

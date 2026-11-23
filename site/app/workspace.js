@@ -167,7 +167,7 @@
         var P = r.body.parents || {}, top = P.ultimate || P.direct, ex = (P.exceptions || [])[0];
         if (!r.body.entity || !r.body.entity.lei) return;
         var ck = top && top.cik ? String(parseInt(top.cik, 10)) : null;
-        strip.appendChild(el('span', { title: 'GLEIF Level 2 relationship data' }, top ? ['Parent ', ck ? el('a', { href: '/app/?c=' + ck, text: top.name }) : top.name, ' (GLEIF)'] : [ex ? 'No parent reported: ' + String(ex.text || ex.reason).replace(/^No parent: /, '') : 'No parent reported to GLEIF']));
+        strip.appendChild(el('span', { title: 'GLEIF Level 2 relationship data' }, top ? ['Parent ', ck ? el('a', { href: '/app/?c=' + ck, text: top.name }) : top.name, ' (GLEIF)'] : [ex ? 'GLEIF: ' + String(ex.text || ex.reason) : 'No parent reported to GLEIF']));
       });
     });
   }
@@ -310,10 +310,11 @@
     var locked = function (p) { return !X.hasKey() && p.is_public_page === false; }; // without a key only the showcase companies open
     var pick = peerPick[S.cik] || (peerPick[S.cik] = list.filter(function (p) { return p.ranked !== false && !locked(p); }).slice(0, 4).map(function (p) { return String(parseInt(p.cik, 10)); }));
     var me = ((d.company || {}).display_name || orgName((d.company || {}).legal_name || 'this company')).replace(/\.$/, ''), boxes = [];
-    var btn = el('button', { type: 'button', class: 'btn small primary', on: { click: function () { S.cmp = pick.slice(0, 4); go('compare'); } } });
+    var btn = el('button', { type: 'button', class: 'btn small primary', on: { click: function () { if (btn.dataset.key) { var k = document.querySelector('#key-form input, input[placeholder^="prv_live"]'); if (k) { k.scrollIntoView({ block: 'center' }); k.focus(); } return; } S.cmp = pick.slice(0, 4); go('compare'); } } });
     function sync() {
-      btn.textContent = pick.length ? 'Compare with ' + pick.length + (pick.length === 1 ? ' peer' : ' peers') : 'Tick a peer to compare';
-      btn.disabled = !pick.length;
+      var allLocked = !pick.length && list.every(locked);
+      btn.textContent = pick.length ? 'Compare with ' + pick.length + (pick.length === 1 ? ' peer' : ' peers') : allLocked ? 'Connect a free key to compare' : 'Tick a peer to compare';
+      btn.disabled = !pick.length && !allLocked; btn.dataset.key = allLocked ? '1' : '';
       boxes.forEach(function (b) { if (b.dataset.locked) return; b.disabled = !b.checked && pick.length >= 4; b.parentNode.title = b.disabled ? 'Compare shows ' + me + ' and up to four peers' : ''; });
     }
     var items = list.map(function (p) {
