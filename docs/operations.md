@@ -550,3 +550,25 @@ To recover for real: stop the API, poller and launchd jobs; create an empty data
 volume), `pg_restore -j 4 --no-owner` the newest dump that `pg_restore --list` reads, run
 `alembic upgrade head` (the schema guard refuses jobs until it matches), rebuild marts if the
 dump predates a mart change, then start the processes.
+
+## R-2 for the 24 Nov endpoints (2026-11-24 03:57 IST)
+
+`scripts/load_smoke.py --rps 25 --seconds 180` against a scratch server on HEAD fe50312 (one
+uvicorn worker, local Postgres, a temporary enterprise key revoked afterwards), 4,500 requests,
+0 errors. Target p95 under 500 ms for each new endpoint:
+
+| Endpoint | p50 ms | p95 ms | p99 ms |
+| --- | --- | --- | --- |
+| /insider-plans | 11 | 15 | 24 |
+| /comment-letters | 10 | 20 | 59 |
+| /executive-pay | 20 | 30 | 51 |
+| /changes | 21 | 30 | 56 |
+| /v1/companies/search (palette names) | 30 | 42 | 84 |
+| /corporate-tree | 24 | 50 | 70 |
+| /timeline | 33 | 50 | 377 |
+| /calendar | 17 | 61 | 80 |
+| /v1/search | 51 | 63 | 95 |
+| /v1/calendar?ciks= (5 companies) | 65 | 85 | 147 |
+
+An earlier pass at 03:20 under a load average of 7 (Form 144 prefetch, letters and 10-K reads
+running) had /v1/search at 527 ms p95: contention, not the endpoint (single requests 25-55 ms).

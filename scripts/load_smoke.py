@@ -24,7 +24,8 @@ import httpx
 CIKS = ("320193", "789019", "19617", "1326160", "726728", "1067983")
 TARGET_P95_MS = {"facts": 500, "screen": 2000, "stats": 100, "coverage": 100,
                  "search names": 500, "search all": 500, "executive pay": 500,
-                 "insider plans": 500, "changes": 500, "calendar": 500, "calendar ciks": 500}
+                 "insider plans": 500, "changes": 500, "calendar": 500, "calendar ciks": 500,
+                 "corporate tree": 500, "comment letters": 500}
 # the palette's names (ui's check, 2026-11-24) and the read set of 10-K changes
 TERMS = ("Google", "Disney", "Coca-Cola", "Meta", "Lucid", "Honeywell", "Ford", "Target", "apple",
          "Pepsi")
@@ -68,6 +69,8 @@ def requests_for(
         ("changes", "GET", f"/v1/companies/{READ[i % len(READ)]}/changes", None),
         ("calendar", "GET", f"/v1/companies/{cik}/calendar", None),
         ("calendar ciks", "GET", "/v1/calendar?ciks=320193,789019,19617,1067983,1326801", None),
+        ("corporate tree", "GET", f"/v1/companies/{cik}/corporate-tree", None),
+        ("comment letters", "GET", f"/v1/companies/{cik}/comment-letters", None),
     ]  # fmt: skip
     if watchlist:
         plan.append(("watchlist rows", "GET", f"/v1/watchlists/{watchlist}/rows", None))
