@@ -559,3 +559,4 @@ table.pp-pay { min-width: 980px; }
   .pp-stack tr > :first-child, .pp-stack tr > th[scope="row"] { grid-column: 1 / -1; }
   .pp-stack td[data-l]::before { content: attr(data-l); display: block; color: var(--muted); font-size: .72rem; }
 }
+.pp-why { margin: 0; max-width: 72ch; }

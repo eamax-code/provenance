@@ -89,9 +89,21 @@
     var key = el('p', { class: 'pp-key small' }, [el('span', { class: 'k-bar' }), 'Compensation actually paid to the PEO (left axis) ', el('span', { class: 'k-tsr' }), 'Company TSR, value of $100 invested (right axis) ', years.some(function (y) { return y.peer_tsr != null; }) ? el('span', { class: 'k-peer' }) : null, years.some(function (y) { return y.peer_tsr != null; }) ? 'Peer group TSR' : null]);
     return el('div', { class: 'pp-chart-wrap' }, [svg, key]);
   }
-  function pay(b, name, w) {
-    var years = b.years || [], cur = b.currency;
-    if (!years.length) return [note('No pay-versus-performance table in a proxy filed' + (b.as_of ? ' by ' + day(b.as_of) : '') + ' in the data loaded. Smaller companies and new registrants may not file one.')];
+  // why a company has no pay-versus-performance table, from what its own filings say about it
+  function payWhy(d, nm) {
+    var c = d.company || {}, cv = d.cover || {}, cat = c.filer_category || cv.filer_category || '', fa = {};
+    (d.filing_activity || []).forEach(function (g) { fa[g.group] = g.total; });
+    var forms = (d.filings || []).map(function (f) { return f.form_type || ''; }), so = (cv.shares_outstanding || {}).form_type || '';
+    if (forms.some(function (f) { return /^(20-F|40-F|6-K)/.test(f); }) || /^(20-F|40-F)/.test(so)) return nm + ' reports as a foreign private issuer (Form 20-F or 40-F). Foreign private issuers file no US proxy statement, so there is no pay-versus-performance table; the annual report describes executive pay without these tags.';
+    if (/emerging growth/i.test(cat)) return nm + ' is an emerging growth company, which is exempt from the pay-versus-performance table (Item 402(v) of Regulation S-K).';
+    if (d.ipo_terms) return nm + ' is newly public. The table covers only years in which a company already reported to the SEC, so its first proxies may not have one.';
+    if (!fa['Annual reports']) return nm + ' has not filed an annual report here yet, so no proxy with a pay-versus-performance table either.';
+    if (!fa['Proxy statements']) return 'No proxy statement from ' + nm + ' in the filings loaded.';
+    return 'No proxy from ' + nm + ' with a tagged pay-versus-performance table in the filings loaded. Proxies filed before 2023 do not have one.';
+  }
+  function pay(b, name, w, d) {
+    var years = b.years || [], cur = b.currency, nm = name((d.company || {}).display_name || (d.company || {}).legal_name || 'This company').replace(/\.$/, '');
+    if (!years.length) return [el('p', { class: 'pp-why', text: payWhy(d, nm) }), note((b.as_of ? 'As known on ' + day(b.as_of) + '. ' : '') + ((b.labels || {}).disclaimer || DISCLAIMER))];
     var cols = ['Fiscal year ended', 'PEO', 'Total pay', 'Actually paid', 'Other NEOs, average total', 'Average actually paid', 'TSR ($100)', 'Peer TSR', 'Net income', 'Company-selected measure'];
     var body = [];
     years.forEach(function (y) {
@@ -112,11 +124,12 @@
         body.push(el('tr', { class: k ? 'pp-peo2' : '' }, cells));
       });
     });
-    var neoNames = (years[0].neo_average || {}).names || [];
+    var neoNames = (years[0].neo_average || {}).names || [], src = /smaller reporting/i.test((d.company || {}).filer_category || '');
     var table = el('table', { class: 'pp-table pp-pay', 'aria-label': 'Pay versus performance by fiscal year; arrow keys move between figures' }, [el('thead', {}, [el('tr', {}, cols.map(function (c, i) { return el('th', { scope: 'col', class: i > 1 ? 'n' : '', text: c }); }))]), el('tbody', {}, body)]);
     if (window.Workspace && window.Workspace.rove) window.Workspace.rove(table); // one Tab stop, arrow keys inside, as in Statements
     return [pvpChart(b, years, w), el('div', { class: 'tw' }, [table]),
       neoNames.length ? note('Other named executives in fiscal ' + years[0].fiscal_year_end.slice(0, 4) + ': ' + neoNames.map(name).join(', ') + '.') : null,
+      src ? note(nm + ' is a smaller reporting company: its proxy gives three years and no peer TSR or company-selected measure.') : null,
       note(((b.labels || {}).basis || 'As disclosed in the proxy.') + ' ' + ((b.labels || {}).disclaimer || DISCLAIMER)),
       el('details', { class: 'pp-about' }, [el('summary', { text: 'About these figures' })].concat([(b.measures || []).length ? note('Most important measures linking pay to performance, as the proxy lists them: ' + b.measures.join(', ') + '.') : null].concat((b.notes || []).map(note)).filter(Boolean)))];
   }
@@ -164,7 +177,7 @@
     var put = function (s, kids) { s.replaceChildren.apply(s, [s.firstChild].concat(kids.filter(Boolean))); };
     o.has('/v1/companies/{cik}/executive-pay').then(function (yes) {
       if (!yes) { paySec.remove(); return; }
-      o.load('/v1/companies/' + o.cik + '/executive-pay').then(function (r) { put(paySec, r && r.ok ? pay(r.body, name, paySec.clientWidth - 30) : [failed(r && Object.assign(r, { key: o.keyed }), 'Pay')]); });
+      o.load('/v1/companies/' + o.cik + '/executive-pay').then(function (r) { put(paySec, r && r.ok ? pay(r.body, name, paySec.clientWidth - 30, o.d) : [failed(r && Object.assign(r, { key: o.keyed }), 'Pay')]); });
     });
     o.has('/v1/companies/{cik}/insider-plans').then(function (yes) {
       if (!yes) { planSec.remove(); saleSec.remove(); return; }
