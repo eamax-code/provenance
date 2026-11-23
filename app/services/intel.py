@@ -383,88 +383,30 @@ def _sizes(db: Session, ciks: list[str]) -> dict[str, float]:
     return {c: float(v) for c, v, cur in rows if v is not None and cur == "USD"}
 
 
-_KEEP_UPPER = {"LLC", "PLC", "LP", "NV", "SA", "AG", "SE", "USA", "US", "II", "III", "IV",
-               "ASA", "AB", "OYJ", "BV", "SAB", "CV", "SPA", "LLP", "NA", "ETF", "REIT", "ADR",
-               "SPAC", "BDC"}  # fmt: skip
-
-
-# K-06b: brand words whose inner capitals no rule can recover from a name filed in capitals
-# (reviewed list; a word is changed only when the whole word matches)
-_BRAND_CASE = {w.upper(): w for w in (
-    "JPMorgan", "UnitedHealth", "UnitedHealthcare", "PepsiCo", "BlackRock", "FedEx", "AutoZone",
-    "eBay", "PayPal", "CrowdStrike", "NetApp", "HubSpot", "DoorDash", "GoPro", "JetBlue",
-    "DuPont", "ExxonMobil", "ConocoPhillips", "AmerisourceBergen", "MasterCard", "WellCare",
-    "HealthEquity", "LabCorp", "MetLife", "AbbVie", "SkyWest", "CarMax", "AutoNation",
-    "PulteGroup", "NextEra", "FirstEnergy", "CenterPoint", "PayPal", "GlobalFoundries",
-    "ServiceNow", "DexCom", "NVIDIA", "iRobot", "InterDigital", "OneMain", "LendingClub",
-    "SoFi", "MicroStrategy", "AppLovin", "DraftKings", "SolarEdge", "OneSpan", "iShares",
-)}  # fmt: skip
-
-
-_FORM_WORDS = {"LTD", "CORP", "CO", "INC", "HLDGS", "GRP", "MFG", "SVCS", "BLDG", "MGMT", "CTR",
-               "PTY", "PTE", "BHD", "TBK", "SDN", "ST", "MT"}  # fmt: skip
-_SMALL_WORDS = {"OF", "AND", "THE", "FOR", "IN", "ON", "AT", "TO"}  # not DE: a state suffix
-
-
-def _shouted(name: str) -> bool:
-    """Not real casing: all capitals, or mostly capitals with a capitalised word of four letters
-    or more ("McKESSON CORPORATION", "CVS HEALTH Corp"). "ABB Ltd" is real casing: an acronym
-    beside a cased word."""
-    if name == name.upper():
-        return True
-    letters = [c for c in name if c.isalpha()]
-    long_caps = any(len(w) >= 5 and w.isalpha() and w.isupper() for w in re.split(r"[\s,.]+", name))
-    return bool(letters) and long_caps and sum(c.isupper() for c in letters) / len(letters) >= 0.7
-
-
-def _case_word(w: str, root: str) -> str:
-    bare = w.strip(",.")
-    if bare.upper() in _BRAND_CASE:
-        return w.replace(bare, _BRAND_CASE[bare.upper()])
-    if (w in _KEEP_UPPER or not w[:1].isalpha() or (root and w == root)
-            or re.fullmatch(r"[A-Z]{1,2}/[A-Z]{1,2}", w)):  # S/A, A/S, I/O  # fmt: skip
-        return w
-    if re.fullmatch(r"[A-Z]{1,3}&[A-Z]{1,3}", bare) or re.fullmatch(r"[IVX]{1,5}", bare) \
-            and re.fullmatch(r"X{0,3}(IX|IV|V?I{0,3})", bare):  # fmt: skip
-        return w  # AT&T, S&P; Roman numerals (Fund VII)
-    if (len(bare) <= 4 and bare.isalpha() and bare.isupper() and not re.search(r"[AEIOUY]", bare)
-            and bare not in _FORM_WORDS):  # fmt: skip
-        return w  # CVS, HSBC, BNY: initials, not a word (LTD, CORP are words)
-    out = w.capitalize()
-    # McKesson, McDonald's, MacKenzie stays Mackenzie (only "Mc" is a sure prefix)
-    return re.sub(r"\bMc([a-z])", lambda m: "Mc" + m.group(1).upper(), out)
+_KEEP_UPPER = {"LLC", "PLC", "LP", "NV", "SA", "AG", "SE", "USA", "US", "II", "III", "IV"}
 
 
 def display_name(legal_name: str, ticker: str | None = None, registrant: str | None = None) -> str:
     """ "COSTCO WHOLESALE CORP /NEW" reads as "Costco Wholesale Corp" in an answer (K-06):
     the company's own cover-page name when it is written with real casing ("Apple Inc."), else
     the SEC's conformed name without its state suffix ("TOYOTA MOTOR CORP/" -> "Toyota Motor
-    Corp"), title-cased, with the word that is the company's ticker kept in capitals ("SAP SE").
-    K-06b: a cover name mostly in capitals ("McKESSON CORPORATION") is not real casing; "Mc"
-    names keep their capital (McKesson), initials stay capitals (CVS), and a short reviewed list
-    restores brand casing (JPMorgan, UnitedHealth, PepsiCo)."""
+    Corp"), title-cased, with the word that is the company's ticker kept in capitals ("SAP SE")."""
     from app.services.cover_names import strip_state_suffix, unglue
 
-    if registrant and not _shouted(registrant):
-        # "Cencora,Inc.": the cover's HTML lost the space after the comma
-        return re.sub(r",(?=[A-Za-z])", ", ", strip_state_suffix(unglue(registrant)))
+    if registrant and registrant != registrant.upper():
+        return strip_state_suffix(unglue(registrant))
     name = strip_state_suffix(unglue(legal_name))
-    if not _shouted(name):
+    if name != name.upper():
         return name
     root = (ticker or "").upper().replace(".", "-").split("-")[0]
-    mixed = name != name.upper()  # "CIFC Corp.": the short capitals are an acronym, kept
     words: list[str] = []
     for w in name.split():
         if w == "COM" and words:  # the SEC drops the dot: "AMAZON COM INC" is Amazon.com
             words[-1] += ".com"
             continue
-        bare = w.strip(",.")
-        if mixed and bare.isalpha() and bare.isupper() and len(bare) <= 4:
-            words.append(w)
-        elif words and bare in _SMALL_WORDS:
-            words.append(w.lower())  # "Bank of America", not "Bank Of America"
-        else:
-            words.append(_case_word(w, root))
+        keep = (w in _KEEP_UPPER or not w[:1].isalpha() or (root and w == root)
+                or bool(re.fullmatch(r"[A-Z]{1,2}/[A-Z]{1,2}", w)))  # S/A, A/S, I/O  # fmt: skip
+        words.append(w if keep else w.capitalize())
     return " ".join(words)
 
 
