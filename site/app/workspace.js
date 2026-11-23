@@ -269,8 +269,48 @@
       if (K.metrics.revenue.status && K.metrics.revenue.status[per] === 'unreconciled') seg.appendChild(el('p', { class: 'muted small', text: 'Unreconciled: these lines don’t add up to the total.' }));
     } else seg.appendChild(el('p', { class: 'muted', text: d.segments && d.segments.hidden_reason ? 'No segment breakdown to show for the latest report.' : 'No segments tagged in the latest annual report.' }));
     if (K) seg.appendChild(el('p', { class: 'ov-foot' }, [el('button', { type: 'button', class: 'linkish', text: 'All breakdowns and years', on: { click: function () { go('segments'); } } })]));
-    $('pane-overview').replaceChildren(el('div', { class: 'ov-grid' }, [figs, events, ownership, ch, seg]));
+    $('pane-overview').replaceChildren(el('div', { class: 'ov-grid' }, [figs, events, ownership, ch, seg, peersSection(d)]));
     drawChart(host, { series: [series('revenue'), series('operating_margin')].filter(Boolean), kinds: ['bar', 'line'], height: 200, compact: true });
+  }
+  /* ---- X-19 peers: same industry and nearest in size (the API's rule, in its own words); tick up to four, one click into Compare ---- */
+  var peerPick = {};
+  function peerList(d) { return ((d && d.peers || {}).companies || []).filter(function (p) { return p && /^\d{1,10}$/.test(String(parseInt(p.cik, 10))); }).slice(0, 8); }
+  function peerBasis(P) {
+    var b = String(P.basis || '').trim();
+    if (/\.$/.test(b)) return b; // a sentence from the API
+    return 'Same industry' + (b ? ': ' + b : '') + ', nearest in latest annual revenue' + (P.currency ? ' among companies reporting in ' + P.currency : '') + '.';
+  }
+  function peersSection(d) {
+    var list = peerList(d); if (!list.length) return null;
+    var locked = function (p) { return !X.hasKey() && p.is_public_page === false; }; // without a key only the showcase companies open
+    var pick = peerPick[S.cik] || (peerPick[S.cik] = list.filter(function (p) { return p.ranked !== false && !locked(p); }).slice(0, 4).map(function (p) { return String(parseInt(p.cik, 10)); }));
+    var me = orgName((d.company || {}).display_name || (d.company || {}).legal_name || 'this company').replace(/\.$/, ''), boxes = [];
+    var btn = el('button', { type: 'button', class: 'btn small primary', on: { click: function () { S.cmp = pick.slice(0, 4); go('compare'); } } });
+    function sync() {
+      btn.textContent = pick.length ? 'Compare with ' + pick.length + (pick.length === 1 ? ' peer' : ' peers') : 'Tick a peer to compare';
+      btn.disabled = !pick.length;
+      boxes.forEach(function (b) { if (b.dataset.locked) return; b.disabled = !b.checked && pick.length >= 4; b.parentNode.title = b.disabled ? 'Compare shows ' + me + ' and up to four peers' : ''; });
+    }
+    var items = list.map(function (p) {
+      var ck = String(parseInt(p.cik, 10)), nm = orgName(p.name || 'CIK ' + ck), cur = p.currency || 'USD';
+      var box = el('input', { type: 'checkbox' }); box.checked = pick.indexOf(ck) > -1; boxes.push(box);
+      if (locked(p)) { box.disabled = true; box.dataset.locked = '1'; }
+      box.addEventListener('change', function () { var i = pick.indexOf(ck); if (box.checked && i < 0 && pick.length < 4) pick.push(ck); else if (!box.checked && i > -1) pick.splice(i, 1); sync(); });
+      var info = { label: nm + ', revenue', metric: 'revenue', currency: cur, value: p.latest_revenue, period_end: p.period_end, fiscal_label: p.fiscal_label, form_type: p.form_type, filed_date: p.filed_date, source_url: p.source_url, accession_number: p.accession_number, cik: ck };
+      return el('li', {}, [
+        el('label', { class: 'pr-name' }, [box, el('span', { class: 'pr-n', text: nm }), p.ticker ? el('span', { class: 'muted small', text: p.ticker }) : null]),
+        el('span', { class: 'n' }, [p.latest_revenue != null ? door(money(p.latest_revenue, cur), info) : el('span', { class: 'muted', title: 'not reported', text: '—' })]),
+        el('span', { class: 'muted small pr-fy' + (locked(p) || p.ranked === false ? ' pr-note' : ''), text: locked(p) ? 'needs a free key' : p.ranked === false ? (p.note || 'not ranked by size') : (p.fiscal_label || '') }),
+        el('a', { href: '/app/?c=' + ck, class: 'pr-open', title: 'Open ' + nm, 'aria-label': 'Open ' + nm + ' in the Explorer', text: '↗' })
+      ]);
+    });
+    sync();
+    return el('section', { class: 'ov-peers', 'aria-labelledby': 'ov-pr-h' }, [
+      el('div', { class: 'ov-h' }, [el('h3', { id: 'ov-pr-h', text: 'Peers' }), btn]),
+      el('p', { class: 'muted small', text: peerBasis(d.peers) }),
+      el('ul', { class: 'pr-list' }, items),
+      el('p', { class: 'muted small ov-foot', text: 'Tick up to four to compare with ' + me + '. Revenue is each company’s latest annual figure, in its own currency.' })
+    ]);
   }
   var KEEP = { LLC: 1, LP: 1, LLP: 1, PLC: 1, NA: 1, AG: 1, SA: 1, SE: 1, NV: 1, FMR: 1, UBS: 1, BNY: 1, KPMG: 1, II: 1, III: 1, USA: 1, US: 1, ADS: 1, ADR: 1, HP: 1, AT: 1, IBM: 1, CVS: 1, UPS: 1, AMD: 1, GE: 1, CSX: 1, PNC: 1, TJX: 1, CME: 1, AES: 1, NRG: 1, ITT: 1 }, LOWER = { OF: 1, AND: 1, THE: 1, FOR: 1 };
   function orgName(n) {
@@ -547,8 +587,8 @@
         ARCHIVE.test(i.filing_url || '') ? el('a', { href: i.filing_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + ' ↗' }) : el('span')]);
     }));
     var more = tl.more ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { tlLoad(); } } }) : null;
-    pane.replaceChildren(el('div', { class: 'ch-bar' }, [chips]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice. Newest first; every item links its filing.' }),
-      tl.ok === null && !tl.items.length ? el('p', { class: 'muted', text: 'Loading the timeline…' }) : tl.items.length ? list : el('p', { class: 'muted', text: 'Nothing of these kinds in the filings loaded.' }), more);
+    pane.replaceChildren.apply(pane, [el('div', { class: 'ch-bar' }, [chips]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice. Newest first; every item links its filing.' }),
+      tl.ok === null && !tl.items.length ? el('p', { class: 'muted', text: 'Loading the timeline…' }) : tl.items.length ? list : el('p', { class: 'muted', text: 'Nothing of these kinds in the filings loaded.' }), more].filter(Boolean)); // a null child prints "null"
   }
   function tlLoad() {
     var key = tl.key, q = '/v1/companies/' + S.cik + '/timeline?limit=' + (X.hasKey() ? 100 : 10) + '&types=' + tl.types.join(',') + (S.as_of ? '&as_of=' + S.as_of : '') + (tl.cursor ? '&cursor=' + encodeURIComponent(tl.cursor) : '');
@@ -696,7 +736,10 @@
   function compareTab() {
     var pane = $('pane-compare'), ciks = [S.cik].concat(S.cmp), my = ++seq2;
     var add = el('button', { type: 'button', class: 'btn small', text: ciks.length < 5 ? '+ Add a company' : 'Five companies at most', on: { click: function () { palette('compare'); } } }); if (ciks.length >= 5) add.disabled = true;
-    pane.replaceChildren(el('div', { class: 'ch-bar' }, [el('span', { class: 'muted small', text: 'Up to five companies, each in the currency it reports in.' }), el('span', { class: 'ch-acts' }, [add, el('button', { type: 'button', class: 'btn small', text: 'Copy link', on: { click: function (e) { try { navigator.clipboard.writeText(location.href); e.target.textContent = 'Copied'; } catch (x) {} } } })])]), el('p', { class: 'muted', text: 'Loading…' }));
+    // X-19: the suggested peers not already here, ranked ones first
+    var sug = peerList(S.d).filter(function (p) { return p.ranked !== false && (X.hasKey() || p.is_public_page !== false); }).map(function (p) { return String(parseInt(p.cik, 10)); }).filter(function (c) { return ciks.indexOf(c) < 0; }).slice(0, 5 - ciks.length);
+    var addPeers = sug.length ? el('button', { type: 'button', class: 'btn small', title: 'Same industry, nearest in revenue', text: '+ Add ' + sug.length + (sug.length === 1 ? ' peer' : ' peers'), on: { click: function () { S.cmp = S.cmp.concat(sug).slice(0, 4); go('compare'); } } }) : null;
+    pane.replaceChildren(el('div', { class: 'ch-bar' }, [el('span', { class: 'muted small', text: 'Up to five companies, each in the currency it reports in.' }), el('span', { class: 'ch-acts' }, [addPeers, add, el('button', { type: 'button', class: 'btn small', text: 'Copy link', on: { click: function (e) { try { navigator.clipboard.writeText(location.href); e.target.textContent = 'Copied'; } catch (x) {} } } })])]), el('p', { class: 'muted', text: 'Loading…' }));
     Promise.all(ciks.map(overviewOf)).then(function (list) {
       if (my !== seq2 || S.tab !== 'compare') return;
       var cos = list.map(function (d, i) { return { cik: ciks[i], d: d }; });

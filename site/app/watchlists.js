@@ -59,7 +59,7 @@
         latest_filing: f ? { form_type: f.form_type, filing_date: f.filing_date || f.filed_date, filing_url: f.source_url || f.filing_url } : null,
         last_event: e ? { title: e.short_label || e.label, date: e.date, filing_url: e.filing_url, form_type: e.form_type } : null,
         holders_change: o && o.listed !== false ? { quarter: o.quarter, holders_count: o.holders_count, holders_change: o.holders_count_change } : null,
-        events: d.events || [] };
+        events: d.events || [], filings: d.filings || [] };
     });
   }
 
@@ -130,14 +130,46 @@
     var out = el('p', { class: 'muted small', role: 'status' });
     return el('form', { class: 'row wl-watch', on: { submit: function (e) { e.preventDefault(); send('POST', '/v1/watchlists/' + encodeURIComponent(l.id) + '/watch', { destination_type: 'webhook', destination: dest.value.trim() }).then(function (r) { out.textContent = r.ok ? 'Watching ' + ((r.body && r.body.watch_ids) || []).length + ' companies; each is a watch on your key, signed as usual.' : (r.body && r.body.error ? r.body.error.message : 'Could not set up the watches.'); }); } } }, [el('span', { class: 'muted small', text: 'Watch the list:' }), dest, el('button', { type: 'submit', class: 'btn small', text: 'Watch' }), out]);
   }
+  /* X-16 "since you last looked": what this browser saw of each list last time (when, which items, which
+     companies) stays in this browser; the first view on a page load is compared with it, then it is replaced */
+  var SKEY = 'prv_wl_seen', before = {};
+  function seenAll() { try { return JSON.parse(localStorage.getItem(SKEY) || '{}') || {}; } catch (e) { return {}; } }
+  function itemKey(i) { return [i.date, i.cik, i.form, i.url, i.title].join('|'); }
+  function stamp(t) { var d = new Date(t); return isNaN(d) ? '' : day(d.toISOString()) + ', ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  var FORMS = { '4': 'Insider transaction', '3': 'Initial insider holdings', '5': 'Annual insider holdings', '144': 'Proposed insider sale', '10-K': 'Annual report', '10-Q': 'Quarterly report', '8-K': 'Current report', 'DEF 14A': 'Proxy statement', 'DEFA14A': 'Additional proxy material', 'FWP': 'Free writing prospectus', 'SC 13G': 'Ownership over 5%', 'SC 13G/A': 'Ownership over 5%, amended', 'SC 13D': 'Ownership over 5%, active', '11-K': 'Employee plan report', 'S-8': 'Employee share registration' };
+  function formName(f) { return FORMS[f] || (/^424B/.test(f || '') ? 'Prospectus' : 'Filing'); }
   function feed(l, rows, srv) {
     var box = el('section', { class: 'ws-sec wl-feed', 'aria-label': 'Events for this list' }, [el('h3', { text: 'Events across the list' }), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice.' })]);
+    var row = function (i, fresh) { return el('li', fresh ? { class: 'tl-new' } : {}, [el('time', { datetime: i.date, text: day(i.date) }), el('span', { class: 'tag', text: i.who }), el('span', { class: 'tl-t', text: String(i.title || '').replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) { return day(m); }) }), ARCHIVE.test(i.url || '') ? el('a', { href: i.url, target: '_blank', rel: 'noopener', text: (i.form || 'Filing') + ' ↗' }) : el('span')]); };
     var draw = function (items) {
-      items.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-      box.appendChild(items.length ? el('ol', { class: 'tl' }, items.slice(0, 40).map(function (i) { return el('li', {}, [el('time', { datetime: i.date, text: day(i.date) }), el('span', { class: 'tag', text: i.who }), el('span', { class: 'tl-t', text: String(i.title || '').replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) { return day(m); }) }), ARCHIVE.test(i.url || '') ? el('a', { href: i.url, target: '_blank', rel: 'noopener', text: (i.form || 'Filing') + ' ↗' }) : el('span')]); })) : el('p', { class: 'muted', text: 'No events for these companies in the filings loaded.' }));
+      items.sort(function (a, b) { return a.date < b.date ? 1 : -1; }); items = items.slice(0, 40);
+      if (!(l.id in before)) before[l.id] = seenAll()[l.id] || null; // once per page load, so a re-render keeps the marks
+      var prev = before[l.id], had = {}, known = {};
+      if (prev) { (prev.keys || []).forEach(function (k) { had[k] = 1; }); (prev.ciks || []).forEach(function (c) { known[c] = 1; }); }
+      // new: not shown last time, for a company that was on the list then (a company added since brings its history, not news)
+      var fresh = prev ? items.filter(function (i) { return !had[itemKey(i)] && known[i.cik] && (!prev.newest || i.date >= prev.newest); }) : [];
+      var rest = items.filter(function (i) { return fresh.indexOf(i) < 0; });
+      var all = seenAll(); all[l.id] = { t: new Date().toISOString(), keys: items.map(itemKey), ciks: rows.map(function (r) { return String(parseInt(r.cik, 10)); }), newest: items.length ? items[0].date : (prev && prev.newest) || null };
+      try { localStorage.setItem(SKEY, JSON.stringify(all)); } catch (e) { /* storage blocked: nothing is marked next time */ }
+      var since = prev ? stamp(prev.t) : '';
+      box.appendChild(el('div', { class: 'wl-since', role: 'status' }, [
+        prev ? el('p', {}, [el('b', { text: fresh.length ? fresh.length + ' new since you last looked' : 'Nothing new since you last looked' }), el('span', { class: 'muted small', text: ' · ' + since })])
+          : el('p', { class: 'muted small', text: 'Next time you open this list, anything filed after now is marked new. The time of your visit stays in this browser.' })]));
+      if (fresh.length) box.appendChild(el('ol', { class: 'tl tl-fresh', 'aria-label': 'New since ' + since }, fresh.map(function (i) { return row(i, true); })));
+      if (fresh.length && rest.length) box.appendChild(el('h4', { class: 'wl-earlier', text: 'Earlier' }));
+      box.appendChild(rest.length ? el('ol', { class: 'tl' }, rest.map(function (i) { return row(i, false); })) : fresh.length ? el('span') : el('p', { class: 'muted', text: 'No events for these companies in the filings loaded.' }));
     };
-    if (srv) send('GET', '/v1/watchlists/' + encodeURIComponent(l.id) + '/events?limit=40&types=8k_item,officer_change,auditor_change,ipo,insider,13f_quarter').then(function (r) { draw(((r.ok && r.body && r.body.data) || []).map(function (i) { return { date: i.date, who: i.display_name || i.cik, title: i.title, url: i.filing_url, form: i.form_type }; })); });
-    else { var items = []; rows.forEach(function (r) { (r.events || []).forEach(function (e) { items.push({ date: e.date, who: r.ticker || r.name, title: e.short_label || e.label, url: e.filing_url, form: e.form_type }); }); }); draw(items); }
+    if (srv) send('GET', '/v1/watchlists/' + encodeURIComponent(l.id) + '/events?limit=40&types=8k_item,officer_change,auditor_change,ipo,insider,13f_quarter').then(function (r) { draw(((r.ok && r.body && r.body.data) || []).map(function (i) { return { date: i.date, cik: String(parseInt(i.cik, 10)), who: i.display_name || i.cik, title: i.title, url: i.filing_url, form: i.form_type }; })); });
+    else {
+      var items = [];
+      rows.forEach(function (r) {
+        var ck = String(parseInt(r.cik, 10)), urls = {};
+        (r.events || []).forEach(function (e) { urls[e.filing_url] = 1; items.push({ date: e.date, cik: ck, who: r.ticker || r.name, title: e.short_label || e.label, url: e.filing_url, form: e.form_type }); });
+        // filings with no event of their own (a 10-Q, a Form 4) count as news too
+        (r.filings || []).slice(0, 8).forEach(function (f) { var u = f.source_url || f.filing_url, dt = f.filing_date || f.filed_date; if (dt && !urls[u]) items.push({ date: dt, cik: ck, who: r.ticker || r.name, title: formName(f.form_type), url: u, form: f.form_type }); });
+      });
+      draw(items);
+    }
     return box;
   }
 
