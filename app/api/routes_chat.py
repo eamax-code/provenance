@@ -31,6 +31,7 @@ from app.services import (
     conversation,
     documents,
     forecast,
+    form_d,
     humanize,
     intel,
     ipo_terms,
@@ -621,6 +622,13 @@ def _figure_reply(company, brief, brief_out, answer: str, notes: list[str],
 SINGLE = ("pay", "trading_plans", "proposed_sales", "changes", "calendar", "private_raises")
 
 
+def _is_given(given: str | None, cik: str) -> bool:
+    try:
+        return bool(given) and normalize_cik(given) == normalize_cik(cik)
+    except ValueError:
+        return False
+
+
 def _names_given(db: Session, given: str, text: str, other: Company) -> bool:
     """Whether the question names the request's own company ("… at Apple Inc.?"), so another
     match elsewhere in it does not switch away."""
@@ -671,8 +679,16 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     market = conversation.plan(body.message, body.context, db)
     if market and market.kind == "compare" and chat_intents.detect(body.message) in SINGLE:
         market = None  # "Tesla CEO pay vs TSR" is one company's pay, not Tesla against TSR Inc
-    if market and market.kind == "private_raises" and body.cik:
-        market = None  # an Ask link about one company's Form D: that company's offerings
+    if market and market.kind == "private_raises":
+        # a screener Ask link quotes the offering's accession number: that one offering, under
+        # no company unless it is the given company's own (most Form D issuers file nothing else)
+        _, one = form_d.offering_for(db, body.message)
+        if one is not None and not _is_given(body.cik, one["issuer"]["cik"]):
+            return _data_reply(
+                conversation.answer(db, market, body.context, body.as_of or date.today())
+            )
+        if body.cik:
+            market = None  # an Ask link about one company's Form D: that company's offerings
     if market and (
         market.kind in ("out_of_scope", "list_followup", "compare", "screen")
         or conversation.strongly_named(db, body.message) is None
@@ -820,6 +836,7 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
         and not body.as_of
         and brief.metrics
         and humanize.wants_overview(body.message)
+        and chat_intents.detect(body.message) not in SINGLE  # "Tell me about the Form D …"
     ):
         profile = documents.build_profile(db, company.cik)
         if profile is not None:
@@ -849,7 +866,9 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     # without a model; a figure the filings do not hold is said to be missing, never guessed.
     fresh = not body.history  # a follow-up in a conversation goes to the model, as before
     # C-06: holders, 5% holders, auditor, segments, insiders and the LEI from stored data
-    c06 = chat_intents.detect(body.message) if fresh and not quoted else None
+    c06 = chat_intents.detect(body.message) if fresh else None
+    if quoted and c06 != "private_raises":  # a Form D is never answered from the prospectus
+        c06 = None
     if c06:
         answer = chat_intents.answer(db, brief, c06, body.as_of, body.message)
         how = [

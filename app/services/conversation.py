@@ -205,10 +205,12 @@ def _is_private_raise(text: str) -> bool:
         return True
     if not re.search(r"\b(raised|raising|raise)\b", text, re.IGNORECASE):
         return False
-    return bool(_AMOUNT.search(text) and re.search(r"\$|\b(million|billion|bn|mm)\b|\d+\s*[mb]\b",
-                                                   text, re.IGNORECASE)
-                or any(re.search(rf"\b(?:{pat})", text, re.IGNORECASE) for pat, _ in _INDUSTRIES)
-                or re.search(r"\b(funding|capital|money|investors?)\b", text, re.IGNORECASE))
+    return bool(
+        _AMOUNT.search(text)
+        and re.search(r"\$|\b(million|billion|bn|mm)\b|\d+\s*[mb]\b", text, re.IGNORECASE)
+        or any(re.search(rf"\b(?:{pat})", text, re.IGNORECASE) for pat, _ in _INDUSTRIES)
+        or re.search(r"\b(funding|capital|money|investors?)\b", text, re.IGNORECASE)
+    )
 
 
 def private_raise_filters(text: str, today: date) -> dict:
@@ -217,8 +219,17 @@ def private_raise_filters(text: str, today: date) -> dict:
     m = _AMOUNT.search(text)
     if m:
         n = float(m.group(1).replace(",", ""))
-        mult = {"k": 1e3, "thousand": 1e3, "m": 1e6, "mm": 1e6, "mn": 1e6, "million": 1e6,
-                "b": 1e9, "bn": 1e9, "billion": 1e9}.get((m.group(2) or "").lower(), 1)
+        mult = {
+            "k": 1e3,
+            "thousand": 1e3,
+            "m": 1e6,
+            "mm": 1e6,
+            "mn": 1e6,
+            "million": 1e6,
+            "b": 1e9,
+            "bn": 1e9,
+            "billion": 1e9,
+        }.get((m.group(2) or "").lower(), 1)
         out["min_amount"] = n * mult
     for pat, group in _INDUSTRIES:
         if re.search(rf"\b(?:{pat})", text, re.IGNORECASE):
@@ -308,10 +319,30 @@ def answer(db: Session, p: Plan, ctx: ConversationContext | None, today: date) -
     raise ValueError(p.kind)
 
 
+def _one_offering(db: Session, asked: str, one: dict | None) -> DataAnswer:
+    """The one Form D offering a quoted accession number names, as filed and cited."""
+    from app.services import form_d
+    from app.services.intel import money
+
+    if one is None:
+        through = form_d.covered_through(db)
+        return DataAnswer(f"No Form D with accession number {asked} is in the Form D data sets "
+                          "loaded here" + (f" (through {through.isoformat()})" if through else "")
+                          + ". " + form_d.BASIS, "private_raises")  # fmt: skip
+    cites: list[dict] = []
+    text = form_d.describe(one, lambda lbl, url: _cite(cites, lbl, url), money, asked)
+    how = [{"endpoint": f"/v1/companies/{int(one['issuer']['cik'])}/private-raises",
+            "parameters": {}}]  # fmt: skip
+    return DataAnswer(text, "private_raises", citations=cites, how=how)
+
+
 def _private_raises(db: Session, p: Plan, today: date) -> DataAnswer:
     """D-15: Form D offerings, largest first, each cited to its filing. Self-reported."""
     from app.services import form_d
 
+    asked, one = form_d.offering_for(db, p.filters.get("text", ""))
+    if asked:  # an Ask link from the screener quotes the offering's accession number
+        return _one_offering(db, asked, one)
     f = private_raise_filters(p.filters.get("text", ""), today)
     # "raised" is the amount sold (cumulative on the latest filing of each offering, so an
     # amended offering counts once), never the offering size; an indefinite size is unknown

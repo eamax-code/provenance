@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import zipfile
 from datetime import date
 
@@ -130,3 +131,54 @@ def test_implausible_amounts_are_flagged_and_left_out_of_rankings(tmp_path, db, 
     no_funds = client.get("/v1/private-raises?exclude_industry=Pooled%20Investment%20Fund",
                           headers=auth).json()["data"]  # fmt: skip
     assert [x["issuer"]["name"] for x in no_funds] == ["Example Bio, Inc."]
+
+
+def test_ask_links_quote_an_accession_and_get_that_offering(tmp_path, db, client, auth,
+                                                            ingested_aapl):  # fmt: skip
+    """2026-11-24 (provenance-ui): every Form D Ask link quotes the offering's accession number.
+    With the issuer's cik it was answered with a company summary; without one (most Form D
+    issuers file nothing else) it got the 90-day list. It now answers that one offering, as filed
+    and cited, under no company unless the offering is the given company's own."""
+    p = _zip(tmp_path)
+    with zipfile.ZipFile(p) as z:  # full-length accession numbers, as on EDGAR
+        files = {n: re.sub(r"(?m)^000(\d)-26-", r"000000000\1-26-", z.read(n).decode())
+                 for n in z.namelist()}  # fmt: skip
+    with zipfile.ZipFile(p, "w") as z:
+        for n, body in files.items():
+            z.writestr(n, body)
+    form_d.load(db, [p])
+
+    def ask(message, cik=None):
+        body = {"message": message, **({"cik": cik} if cik else {})}
+        return client.post("/v1/chat", json=body, headers=auth).json()
+
+    r = ask(
+        "Tell me about the Form D offering filed 2026-09-20 (accession 0000000001-26-000002): "
+        "how much was raised, from how many investors, under which exemption?",
+        "320193",
+    )
+    assert r["intent"] == "private_raises" and r["company"]["cik"] == CIK
+    assert "$60.0 million offered, $55.0 million sold" in r["answer"]
+    assert "14 investors so far, all accredited" in r["answer"] and "Rule 506(b)" in r["answer"]
+    assert "Jane Doe (Executive Officer, Director)" in r["answer"]
+    from app.db.models import FormDFiling
+
+    db.get(FormDFiling, "0000000001-26-000002").investors_non_accredited = None  # left blank
+    db.commit()
+    blank = ask("Form D offering (accession 0000000001-26-000002)", "320193")["answer"]
+    assert "14 investors so far." in blank and "accredited" not in blank
+    assert r["answer"].endswith(form_d.BASIS)
+    old = ask("Tell me about the Form D offering filed 2026-08-03 (accession 0000000001-26-000001)",
+              "320193")  # fmt: skip
+    assert "is an earlier filing of this offering" in old["answer"]
+    fund = ask("Tell me about Big Fund LP's Form D offering filed 2026-09-10 "
+               "(accession 0000000002-26-000001).")  # fmt: skip
+    assert fund["company"] is None and fund["intent"] == "private_raises"
+    assert "an indefinite amount offered" in fund["answer"] and "No investors yet" in fund["answer"]
+    assert [c["url"] for c in fund["citations"]] == [
+        "https://www.sec.gov/Archives/edgar/data/999001/000000000226000001/0000000002-26-000001-index.html"
+    ]
+    other = ask("Tell me about the Form D offering (accession 0000000002-26-000001)", "320193")
+    assert other["company"] is None and "Big Fund LP" in other["answer"]  # not Apple's
+    missing = ask("Tell me about Nobody's Form D offering (accession 0009999999-26-000009).")
+    assert missing["answer"].startswith("No Form D with accession number 0009999999-26-000009")

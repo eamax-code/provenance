@@ -63,4 +63,4 @@ Rules:
 | 404 `company_not_found` | unknown CIK (company route) |
 | 422 `invalid_parameter` | a bad filter |
 
-Chat: "Who raised over $50M in biotech last quarter?" answers from the list, with each issuer cited to its Form D. MCP: the `private_raises` tool, with the list's filters, or a cik.
+Chat: "Who raised over $50M in biotech last quarter?" answers from the list, with each issuer cited to its Form D. A question that quotes a Form D accession number (the screener's Ask links) answers that one offering as filed: amount offered and sold, investors, exemptions, first sale and related persons, cited to its latest Form D (and to the quoted filing when it is an earlier one). It is answered under the given company only when the offering is that company's own, otherwise under no company; an accession number not loaded here is said to be missing. With a cik and no accession number, "Form D" answers that company's offerings, or says it has none. MCP: the `private_raises` tool, with the list's filters, or a cik.

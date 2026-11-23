@@ -558,17 +558,23 @@ def calendar(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
     return " ".join(parts) or f"No dated items for {name} in the data loaded here."
 
 
-def private_raises(db: Session, b: Brief, as_of: date | None) -> str:
-    """D-15: one issuer's Form D offerings (an Ask link from the Explorer), cited."""
+def private_raises(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
+    """D-15: one issuer's Form D offerings (an Ask link from the Explorer), cited; the one
+    offering a quoted accession number names, when the question quotes one."""
     from app.services import form_d
 
+    asked, one = form_d.offering_for(db, text)
+    if one is not None:
+        return form_d.describe(one, lambda lbl, url: _cite(b, lbl, url), money, asked)
     items, _ = form_d.search(db, cik=b.company.cik, limit=5,
                              end=as_of)  # fmt: skip
     name = _name(b)
     through = form_d.covered_through(db)
+    missing = (f"No Form D with accession number {asked} is in the Form D data sets loaded "
+               "here. " if asked else "")  # fmt: skip
     if not items:
         return (
-            f"No Form D notice by {name} is in the Form D data sets loaded here"
+            f"{missing}No Form D notice by {name} is in the Form D data sets loaded here"
             + (f" (through {through.isoformat()})" if through else "")
             + "."
         )
@@ -582,7 +588,7 @@ def private_raises(db: Session, b: Brief, as_of: date | None) -> str:
                 is not None else "indefinite")  # fmt: skip
         parts.append(f"Form {lf['form']} filed {lf['filed_date']}: {sold} sold (offering size "
                      f"{size}; {i['industry_group'] or 'industry not given'}) [{n}]")  # fmt: skip
-    return f"Form D offerings by {name}: " + "; ".join(parts) + ". " + form_d.BASIS
+    return f"{missing}Form D offerings by {name}: " + "; ".join(parts) + ". " + form_d.BASIS
 
 
 HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
@@ -604,6 +610,8 @@ def answer(db: Session, b: Brief, intent: str, as_of: date | None, text: str = "
         return insiders(db, b, as_of, text)
     if intent == "calendar":
         return calendar(db, b, as_of, text)
+    if intent == "private_raises":
+        return private_raises(db, b, as_of, text)
     return ANSWERS[intent](db, b, as_of)
 
 

@@ -276,6 +276,20 @@
    "kind": "company",
    "company_cik": "0001652044",
    "checked": "'Class A' is not a ticker (A)"
+  },
+  {
+   "id": "L39",
+   "q": "Tell me about the Form D offering filed 2026-09-30 (accession 0001493152-26-044965): how much was raised, from how many investors, under which exemption?",
+   "kind": "company",
+   "company_cik": "0002048271",
+   "cik": "2048271",
+   "checked": "provenance-ui's Form D Ask link with the issuer's cik: that offering, not a summary (WeShop: $25.0 million offered, $0 sold, Rule 506(b), checked against the stored row)"
+  },
+  {
+   "id": "L40",
+   "q": "Tell me about Asia Alpha Advantage Fund Ltd.'s Form D offering filed 2026-07-23 (accession 0001390479-26-000002).",
+   "kind": "cited",
+   "checked": "a non-registrant's Form D Ask link: that one offering, cited to its Form D/A ($239.7 million sold, 11 investors)"
   }
  ]
 }

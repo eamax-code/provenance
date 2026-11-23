@@ -52,6 +52,8 @@ def quality_of(issuer_name: str, offered, sold) -> str:
     if big is not None and big >= SUSPECT_AMOUNT and not _CASH_VEHICLE.search(issuer_name or ""):
         return "suspect_amount"
     return "ok"
+
+
 csv.field_size_limit(10_000_000)
 
 
@@ -102,8 +104,13 @@ def parse_zip(path: str | Path) -> list[dict]:
             rel = [r[k] for k in ("RELATIONSHIP_1", "RELATIONSHIP_2", "RELATIONSHIP_3")
                    if r.get(k)]  # fmt: skip
             persons.setdefault(r["ACCESSIONNUMBER"], []).append(
-                {"name": " ".join(name.split()), "relationships": rel,
-                 "city": r.get("CITY") or None, "state": r.get("STATEORCOUNTRY") or None})
+                {
+                    "name": " ".join(name.split()),
+                    "relationships": rel,
+                    "city": r.get("CITY") or None,
+                    "state": r.get("STATEORCOUNTRY") or None,
+                }
+            )
         out = []
         for o in _rows(z, "OFFERING.TSV"):
             acc = o["ACCESSIONNUMBER"]
@@ -161,8 +168,12 @@ def load(db: Session, paths: list[Path]) -> dict:
         db.execute(insert(FormDFiling), rows[i : i + 5000])
     mark_latest(db)
     db.commit()
-    return {"filings": len(rows), "offerings": db.scalar(
-        select(func.count()).select_from(FormDFiling).where(FormDFiling.is_latest))}
+    return {
+        "filings": len(rows),
+        "offerings": db.scalar(
+            select(func.count()).select_from(FormDFiling).where(FormDFiling.is_latest)
+        ),
+    }
 
 
 def mark_latest(db: Session) -> None:
@@ -228,8 +239,13 @@ def item(r: FormDFiling, chain: list[FormDFiling], registrants: set[str]) -> dic
 def _registrants(db: Session, ciks: set[str]) -> set[str]:
     if not ciks:
         return set()
-    return set(db.scalars(select(MartCompany.cik).where(
-        MartCompany.cik.in_(ciks), MartCompany.latest_annual_report_date.is_not(None))))
+    return set(
+        db.scalars(
+            select(MartCompany.cik).where(
+                MartCompany.cik.in_(ciks), MartCompany.latest_annual_report_date.is_not(None)
+            )
+        )
+    )
 
 
 def _items(db: Session, rows: list[FormDFiling]) -> list[dict]:
@@ -293,6 +309,72 @@ def search(db: Session, industry: str | None = None, state: str | None = None,
     return _items(db, rows[:limit]), len(rows) > limit
 
 
+ACCESSION = re.compile(r"\b(\d{10}-\d{2}-\d{6})\b")
+
+
+def offering_for(db: Session, text: str) -> tuple[str | None, dict | None]:
+    """The Form D accession number a question quotes (an Ask link from the screener) and its
+    offering: the latest filing of its chain, as one list item. (None, None) when no accession
+    number is quoted; (accession, None) when it is not a Form D loaded here."""
+    m = ACCESSION.search(text)
+    if not m:
+        return None, None
+    r = db.get(FormDFiling, m.group(1))
+    if r is None:
+        return m.group(1), None
+    if r.file_number:
+        r = db.scalar(select(FormDFiling).where(FormDFiling.file_number == r.file_number,
+                                                FormDFiling.is_latest)) or r  # fmt: skip
+    return m.group(1), _items(db, [r])[0]
+
+
+def describe(i: dict, cite, money, asked: str | None = None) -> str:
+    """One offering in sentences, as filed, cited to its Form D: amount offered and sold,
+    investors, exemptions, first sale and related persons."""
+    lf = i["latest_filing"]
+    name = i["issuer"]["name"]
+    n = cite(f"{name}, Form {lf['form']} filed {lf['filed_date']}", lf["source_url"])
+    ref = f" [{n}]" if n else ""
+    size = ("an indefinite amount" if i["total_offering_amount"] is None
+            else money(i["total_offering_amount"], "USD"))  # fmt: skip
+    sold = (money(i["total_amount_sold"], "USD") if i["total_amount_sold"] is not None
+            else "an amount not given")  # fmt: skip
+    out = [f"{name}'s Form D offering ({i['industry_group'] or 'industry not given'}): "
+           f"{size} offered, {sold} sold, as of its Form {lf['form']} filed "
+           f"{lf['filed_date']}{ref}."]  # fmt: skip
+    if asked and asked != lf["accession_number"]:
+        k = next((f for f in i["filings"] if f["accession_number"] == asked), None)
+        if k:
+            m = cite(f"{name}, Form {k['form']} filed {k['filed_date']}", k["source_url"])
+            out.append(f"The Form {k['form']} filed {k['filed_date']}"
+                       f"{f' [{m}]' if m else ''} is an earlier filing of this offering; the "
+                       "figures are from its latest filing.")  # fmt: skip
+    inv = i["investors"]
+    if inv["total"] == 0:
+        out.append("No investors yet.")
+    elif inv["total"] is not None:
+        na = inv["non_accredited"]  # blank on the form: not given, never "all accredited"
+        tail = "." if na is None else (f", {na} not accredited." if na else ", all accredited.")
+        out.append(f"{inv['total']} {'investor' if inv['total'] == 1 else 'investors'} so far"
+                   + tail)  # fmt: skip
+    if i["exemptions"]:
+        out.append("Exemptions claimed: "
+                   + ", ".join(EXEMPTIONS.get(e, e) for e in i["exemptions"]) + ".")  # fmt: skip
+    if i["first_sale_yet_to_occur"]:
+        out.append("The first sale had not yet occurred.")
+    elif i["first_sale_date"]:
+        out.append(f"First sale: {i['first_sale_date']}.")
+    if i["related_persons"]:
+        ppl = [f"{p['name']} ({', '.join(p.get('relationships') or []) or 'role not given'})"
+               for p in i["related_persons"][:5]]  # fmt: skip
+        more = i["related_persons_count"] - len(ppl)
+        out.append("Related persons as filed: " + "; ".join(ppl)
+                   + (f"; and {more} more" if more > 0 else "") + ".")  # fmt: skip
+    if i["quality_status"] == "suspect_amount":
+        out.append("The self-reported amount is implausibly large; it is shown as filed.")
+    return " ".join(out) + " " + BASIS
+
+
 def covered_through(db: Session) -> date | None:
     """The newest filing date in the loaded data sets."""
     return db.scalar(select(func.max(FormDFiling.filing_date)))
@@ -300,8 +382,11 @@ def covered_through(db: Session) -> date | None:
 
 def suspect_count(db: Session, industry=None, start=None, end=None, min_sold=None) -> int:
     """How many offerings a ranked answer left out as implausible (D-15b)."""
-    q = select(func.count()).select_from(FormDFiling).where(
-        FormDFiling.is_latest, FormDFiling.quality_status == "suspect_amount")
+    q = (
+        select(func.count())
+        .select_from(FormDFiling)
+        .where(FormDFiling.is_latest, FormDFiling.quality_status == "suspect_amount")
+    )
     if industry:
         q = q.where(func.lower(FormDFiling.industry_group) == industry.lower())
     if start:
