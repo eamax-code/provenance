@@ -43,7 +43,7 @@
   /* ---- one state, one URL (X-10). Every parameter is validated; a key never goes in a URL. ---- */
   var METRIC = /^[a-z_]{2,40}$/;
   function readURL() {
-    var q = new URLSearchParams(location.search), o = {};
+    var q = new URLSearchParams(location.search), o = { fromURL: true };
     var c = q.get('c'); o.cik = c && /^\d{1,10}$/.test(c) ? String(parseInt(c, 10)) : null;
     var t = q.get('tab'); o.tab = TABS.indexOf(t) > -1 ? t : 'overview';
     var m = (q.get('m') || '').split(',').filter(function (x) { return METRIC.test(x); }).slice(0, 3); o.m = m.length ? m : ['revenue', 'operating_margin'];
@@ -53,6 +53,17 @@
     o.cmp = (q.get('cmp') || '').split(',').filter(function (x) { return /^\d{1,10}$/.test(x); }).map(function (x) { return String(parseInt(x, 10)); }).filter(function (x, i, a) { return x !== o.cik && a.indexOf(x) === i; }).slice(0, 4);
     o.st = ['income', 'balance', 'cash_flow', 'ratios'].indexOf(q.get('st')) > -1 ? q.get('st') : 'income';
     o.show = ['values', 'yoy', 'common'].indexOf(q.get('show')) > -1 ? q.get('show') : 'values';
+    // the newer views' own states (polish: every state has a link): split basis, People section, calendar view,
+    // What changed section and open item (and which 10-K), the Filings section, the tree shown in full
+    o.adj = q.get('adj') === 'split' ? 'split' : 'filed';
+    o.sec = ['officers', 'pay', 'plans', 'sales', 'letters', 'raises'].indexOf(q.get('sec')) > -1 ? q.get('sec') : null;
+    o.cv = q.get('cv') === 'month' ? 'month' : 'list';
+    o.cm = /^\d{4}-(0[1-9]|1[0-2])$/.test(q.get('cm') || '') ? q.get('cm') : null;
+    o.ck = (q.get('ck') || '').split(',').filter(function (k) { return /^[a-z_]{3,30}$/.test(k); }).slice(0, 8);
+    o.chs = q.get('chs') === 'mdna' ? 'mdna' : 'risk_factors';
+    o.cho = /^\d{1,3}$/.test(q.get('cho') || '') ? +q.get('cho') : null;
+    o.acc = /^\d{10}-\d{2}-\d{6}$/.test(q.get('acc') || '') ? q.get('acc') : null;
+    o.ta = q.get('ta') === '1';
     var a = q.get('as_of'); o.as_of = null; o.asofNote = '';
     if (a) { if (/^\d{4}-\d{2}-\d{2}$/.test(a) && !isNaN(Date.parse(a)) && a >= '1993-01-01' && a <= new Date().toISOString().slice(0, 10)) o.as_of = a; else o.asofNote = 'The date "' + a.slice(0, 20) + '" in the link isn’t a valid past date, so this shows the latest data.'; }
     return o;
@@ -65,6 +76,11 @@
     if (S.tab === 'compare' && S.cmp.length) q.set('cmp', S.cmp.join(','));
     if (S.tab === 'statements') { if (S.st !== 'income') q.set('st', S.st); if (S.show !== 'values') q.set('show', S.show); }
     if ((S.tab === 'chart' || S.tab === 'statements') && S.p === 'quarterly') q.set('p', 'quarterly');
+    if (S.tab === 'statements' && S.adj === 'split') q.set('adj', 'split');
+    if ((S.tab === 'people' || S.tab === 'filings') && S.sec) q.set('sec', S.sec);
+    if (S.tab === 'calendar') { if (S.cv === 'month') q.set('cv', 'month'); if (S.cv === 'month' && S.cm) q.set('cm', S.cm); if (S.ck && S.ck.length) q.set('ck', S.ck.join(',')); }
+    if (S.tab === 'filings') { if (S.acc) q.set('acc', S.acc); if (S.chs === 'mdna') q.set('chs', 'mdna'); if (S.cho) q.set('cho', String(S.cho)); }
+    if (S.tab === 'connections' && S.ta) q.set('ta', '1');
     if (S.as_of) q.set('as_of', S.as_of);
     var url = location.pathname + (q.toString() ? '?' + q.toString() : '') + (location.hash || '');
     if (url === location.pathname + location.search + location.hash) return;
@@ -72,7 +88,12 @@
   }
   window.addEventListener('popstate', function () { apply(readURL(), false); });
 
+  // a view inside a tab changed its own state: keep it in the address (replace, so Back leaves the tab)
+  function keep(patch) { Object.assign(S, patch); writeURL(false); }
   function apply(o, push) {
+    // a different company (from the palette or a link inside the page) starts its views fresh; a URL keeps them
+    if (!o.fromURL && o.cik !== S.cik) Object.assign(o, { acc: null, cho: null, sec: null, ta: false, ck: [], cm: null, chs: 'risk_factors' });
+    delete o.fromURL;
     var reload = o.cik !== S.cik || o.as_of !== S.as_of;
     Object.assign(S, o);
     if (!S.cik) { showEmpty(); return; }
@@ -549,7 +570,7 @@
     var notes = (b.notes || []).filter(function (n) { return said.indexOf(n) < 0; });
     var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
     var ctl = stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + (adjOn ? '-split-adjusted' : '') + '.csv');
-    if (hasAdj) ctl.insertBefore(el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Share basis' }, [['filed', 'As filed'], ['split', 'Split-adjusted']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String((S.adj || 'filed') === v[0]), title: v[0] === 'split' ? 'Shares and per-share figures before a split, adjusted to the later basis (derived)' : null, text: v[1], on: { click: function () { S.adj = v[0]; statementsTab(); } } }); })), ctl.children[3]);
+    if (hasAdj) ctl.insertBefore(el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Share basis' }, [['filed', 'As filed'], ['split', 'Split-adjusted']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String((S.adj || 'filed') === v[0]), title: v[0] === 'split' ? 'Shares and per-share figures before a split, adjusted to the later basis (derived)' : null, text: v[1], on: { click: function () { keep({ adj: v[0] }); statementsTab(); } } }); })), ctl.children[3]);
     pane.replaceChildren.apply(pane, [ctl,
       wrap,
       adjOn ? el('p', { class: 'muted small', text: 'Split-adjusted values are derived (shown in italics): each opens its card with the split ratio, the evidence and the restating filing. Rows the API has not adjusted keep their as-filed values.' }) : null,
@@ -624,7 +645,7 @@
       var kind = (TLT.filter(function (t) { return t[0] === i.type; })[0] || [0, i.type])[1];
       return el('li', { class: 'tl-' + i.type + (i.upcoming ? ' upcoming' : '') }, [el('time', { datetime: i.date, text: day(i.date) }), el('span', { class: 'tag', text: i.upcoming ? 'upcoming' : kind }),
         el('span', { class: 'tl-t' }, [String(i.title || '').replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) { return day(m); }), sub ? el('span', { class: 'muted small', text: ' · ' + sub }) : null]),
-        el('span', { class: 'tl-acts' }, [i.changes_available && i.accession_number ? el('button', { type: 'button', class: 'linkish small', text: 'What changed', title: 'Risk factors and MD&A against the previous annual report', on: { click: function () { S.chgAcc = { cik: S.cik, acc: i.accession_number }; go('filings'); } } }) : null,
+        el('span', { class: 'tl-acts' }, [i.changes_available && i.accession_number ? el('button', { type: 'button', class: 'linkish small', text: 'What changed', title: 'Risk factors and MD&A against the previous annual report', on: { click: function () { S.acc = i.accession_number; S.chs = 'risk_factors'; S.cho = null; S.sec = null; go('filings'); } } }) : null,
           ARCHIVE.test(i.filing_url || '') ? el('a', { href: i.filing_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + ' ↗' }) : null])]);
     }));
     var more = tl.more ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { tlLoad(); } } }) : null;
@@ -687,7 +708,8 @@
       if (!yes) { pane.replaceChildren(el('p', { class: 'muted', text: 'The calendar is not on this server yet.' })); return; }
       var host = el('div');
       pane.replaceChildren(el('p', { class: 'muted small', text: 'Filing deadlines, late notices, lock-up and quiet-period ends. Dates marked derived are worked out from rules and the company’s own filings, and the company can file on another day. Information, not signals.' }), host);
-      C.mount(host, { keyed: X.hasKey(), name: orgName, load: function (p) { var q = new URLSearchParams(p).toString(); return keyedOrDemo('/v1/companies/' + cik + '/calendar' + (q ? '?' + q : '')); } });
+      C.mount(host, { keyed: X.hasKey(), name: orgName, ask: chatLink, state: { view: S.cv, month: S.cm, off: S.ck }, onState: function (st) { if (S.cik === cik && S.tab === 'calendar') keep({ cv: st.view, cm: st.view === 'month' ? st.month : null, ck: st.off }); },
+        load: function (p) { var q = new URLSearchParams(p).toString(); return keyedOrDemo('/v1/companies/' + cik + '/calendar' + (q ? '?' + q : '')); } });
     });
   }
 
@@ -696,10 +718,12 @@
     var pane = $('pane-filings'), C = window.ProvenanceChanges; if (!C || !pane) return;
     var host = $('chg-host') || el('section', { id: 'chg-host', class: 'ws-sec chg', 'aria-labelledby': 'chg-h' });
     pane.prepend(host);
-    var cik = S.cik, acc = S.chgAcc && S.chgAcc.cik === cik ? S.chgAcc.acc : null;
+    var cik = S.cik, acc = S.acc;
     apiHas('/v1/companies/{cik}/changes').then(function (y) {
       host.hidden = !y; if (!y || S.cik !== cik) return;
-      C.render(host, { cik: cik, accession: acc, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } });
+      C.render(host, { cik: cik, accession: acc, keyed: X.hasKey(), section: S.chs, open: S.cho, ask: chatLink, name: (S.d.company || {}).display_name || orgName((S.d.company || {}).legal_name || ''),
+        onState: function (st) { if (S.cik === cik && S.tab === 'filings') keep({ chs: st.section, cho: st.open }); },
+        load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } });
     });
     // X-20: the SEC's comment letters, under What changed
     var R = window.ProvenanceRecords, cl = $('cl-host') || el('section', { id: 'cl-host', class: 'ws-sec cl', 'aria-labelledby': 'cl-h', hidden: 'hidden' });
@@ -707,6 +731,7 @@
     // D-15: the company's Form D offerings, under the letters
     var pr = $('pr-host') || el('section', { id: 'pr-host', class: 'ws-sec pr', 'aria-labelledby': 'pr-h', hidden: 'hidden' });
     cl.after(pr);
+    if (S.sec === 'letters' || S.sec === 'raises') { var tgt = S.sec === 'letters' ? cl : pr; setTimeout(function () { if (!tgt.hidden) { tgt.scrollIntoView({ block: 'start' }); } }, 1200); }
     if (window.ProvenanceRaises) apiHas('/v1/companies/{cik}/private-raises').then(function (y) { pr.hidden = !y; if (y && S.cik === cik) window.ProvenanceRaises.company(pr, { cik: cik, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } }); });
     if (R) apiHas('/v1/companies/{cik}/comment-letters').then(function (y) { cl.hidden = !y; if (y && S.cik === cik) R.letters(cl, { cik: cik, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } }); });
   }
@@ -716,14 +741,14 @@
     var host = $('ct-host') || el('section', { id: 'ct-host', class: 'ws-sec ct', 'aria-labelledby': 'ct-h', hidden: 'hidden' });
     pane.prepend(host);
     var cik = S.cik, nm = (S.d.company || {}).display_name || orgName((S.d.company || {}).legal_name || '');
-    apiHas('/v1/companies/{cik}/corporate-tree').then(function (y) { host.hidden = !y; if (y && S.cik === cik) R.tree(host, { cik: cik, name: nm, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } }); });
+    apiHas('/v1/companies/{cik}/corporate-tree').then(function (y) { host.hidden = !y; if (y && S.cik === cik) R.tree(host, { cik: cik, name: nm, keyed: X.hasKey(), all: S.ta, onAll: function () { if (S.cik === cik) keep({ ta: true }); }, load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } }); });
   }
 
   /* ---- X-17 people (people.js): officers and directors, pay versus performance, trading plans, Form 144 ---- */
   function peopleTab() {
     if (!window.ProvenancePeople) return;
     var cik = S.cik, a = S.as_of;
-    window.ProvenancePeople.render($('pane-people'), { cik: cik, d: S.d, keyed: X.hasKey(), has: apiHas, name: orgName,
+    window.ProvenancePeople.render($('pane-people'), { cik: cik, d: S.d, keyed: X.hasKey(), has: apiHas, name: orgName, ask: chatLink, section: S.sec, onSection: function (k) { if (S.cik === cik) keep({ sec: k }); },
       load: function (path) { return keyedOrDemo(path + (a ? '?as_of=' + a : '')).then(function (r) { return S.cik === cik ? r : null; }); } });
   }
 
@@ -965,6 +990,14 @@
       if (/^latest|as of latest/.test(ql) && S.as_of) out.push({ label: 'Latest data', hint: 'clear the workspace date', fn: function () { apply(Object.assign({}, S, { as_of: null }), true); } });
       if (S.d) {
         TABS.forEach(function (t) { var n = t === 'facts' ? 'observations' : t; if (q && n.indexOf(ql) === 0) out.push({ label: 'Go to ' + n.charAt(0).toUpperCase() + n.slice(1), hint: 'tab', fn: function () { go(t); } }); });
+        // the newer views by name (polish): each lands on its section, with its state in the address
+        var to = function (tab, patch) { return function () { Object.assign(S, patch); go(tab); }; };
+        [['What changed', 'risk factors and MD&A against the last 10-K', to('filings', { sec: null, cho: null })], ['Comment letters', 'SEC review letters', to('filings', { sec: 'letters' })],
+         ['Private raises', 'this company’s Form D offerings', to('filings', { sec: 'raises' })], ['Private raises screener', 'all Form D offerings, with filters', function () { location.href = '/app/?sv=raises#screener'; }],
+         ['Corporate tree', 'parents and subsidiaries', to('connections', {})], ['People', 'officers, pay, plans, Form 144', to('people', { sec: null })], ['Pay versus performance', 'People', to('people', { sec: 'pay' })],
+         ['Trading plans', 'People', to('people', { sec: 'plans' })], ['Form 144 notices', 'People', to('people', { sec: 'sales' })], ['Calendar', 'deadlines and dates', to('calendar', {})],
+         ['Split-adjusted ' + (S.adj === 'split' ? 'off' : 'on'), 'statements: shares and EPS ' + (S.adj === 'split' ? 'as filed' : 'on the later split basis'), to('statements', { adj: S.adj === 'split' ? 'filed' : 'split' })]]
+          .forEach(function (c) { var l = c[0].toLowerCase(); if (q && (l.indexOf(ql) === 0 || (ql.length > 2 && l.indexOf(ql) > -1)) && !out.some(function (x) { return x.label.toLowerCase() === 'go to ' + l; })) out.push({ label: c[0], hint: c[1], fn: c[2] }); });
         var rows = statementRows(); Object.keys(YEARLY).concat(Object.keys(rows)).forEach(function (m) { var lab = YEARLY[m] || rows[m].label; if (q.length > 1 && lab.toLowerCase().indexOf(ql) > -1 && !out.some(function (o) { return o.m === m; })) out.push({ m: m, label: 'Chart ' + lab, hint: 'metric', fn: function () { S.m = S.m.indexOf(m) > -1 ? S.m : [m].concat(S.m).slice(0, 3); go('chart'); } }); });
       }
       return out.slice(0, 6);

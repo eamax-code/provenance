@@ -638,3 +638,7 @@ table.pr-table { min-width: 900px; }
 #scr-mode { justify-self: start; }
 @media (max-width: 640px) { table.pr-table { min-width: 0; } }
 .st-table td.adj .door { font-style: italic; }
+.pp-nav { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .88rem; }
+.pp-nav a { text-decoration: none; min-height: 28px; display: inline-flex; align-items: center; } .pp-nav a[aria-current="true"] { color: var(--fg); text-decoration: underline; text-underline-offset: 4px; }
+.ask { font-size: .78rem; white-space: nowrap; }
+.tag-sus { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); margin-left: 6px; }

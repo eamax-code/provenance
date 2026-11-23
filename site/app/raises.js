@@ -18,6 +18,7 @@
   function parseAmt(t) { var m = /^\s*\$?([\d.]+)\s*([kmb]?)\s*$/i.exec(t || ''); return m ? Math.round(parseFloat(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9 }[m[2].toLowerCase()] || 1)) : null; }
   function note(t) { return t ? el('p', { class: 'muted small', text: t }) : null; }
   function door(text, f, label) { var info = { label: label, currency: 'USD', form_type: f.form || 'D', filed_date: f.filed_date, accession_number: f.accession_number, source_url: f.source_url, fiscal_label: 'As filed on Form D' }; return window.ProvCard ? window.ProvCard.door(text, info) : document.createTextNode(text); }
+  function askLink(q, cik, what) { var p = new URLSearchParams(); p.set('q', q.slice(0, 480)); if (cik) p.set('cik', String(parseInt(cik, 10))); return el('a', { class: 'ask', href: '/chat/?' + p.toString(), 'aria-label': 'Ask in chat about ' + what, text: 'Ask' }); }
   function exem(codes) { return (codes || []).map(function (c) { return EX[c] || c; }).join(', ') || '—'; }
   function failed(r, what) {
     if (r && r.status === 403) return note(what + ' without a key covers the showcase companies only. Connect a free key.');
@@ -29,7 +30,9 @@
   function amounts(x, who) {
     var f = x.latest_filing || {};
     return [x.indefinite ? el('span', { text: 'Indefinite' }) : x.total_offering_amount == null ? '—' : door(money(x.total_offering_amount), f, who + ', total offering amount'),
-      el('span', { class: 'muted small', text: ' · raised ' }), x.total_amount_sold == null ? '—' : door(money(x.total_amount_sold), f, who + ', raised (total amount sold, cumulative)')];
+      el('span', { class: 'muted small', text: ' · raised ' }), x.total_amount_sold == null ? '—' : door(money(x.total_amount_sold), f, who + ', raised (total amount sold, cumulative)'),
+      // D-15b: an amount of $100B or more from an issuer that is not a cash vehicle is kept as filed and flagged
+      x.quality_status === 'suspect_amount' ? el('span', { class: 'tag tag-sus', title: 'Kept exactly as the issuer filed it, but $100B or more from an issuer that is not a cash or liquidity fund is probably a filing error. Left out of “largest raised” unless included.', text: 'Implausible amount as filed' }) : null];
   }
 
   /* one company's offerings, on Filings */
@@ -49,7 +52,8 @@
             el('dt', { text: 'Remaining' }), el('dd', { text: x.indefinite ? '—' : money(x.total_remaining) }),
             x.minimum_investment != null ? el('dt', { text: 'Minimum investment' }) : null, x.minimum_investment != null ? el('dd', { text: money(x.minimum_investment) }) : null,
             ps.length ? el('dt', { text: 'Related persons' }) : null, ps.length ? el('dd', { text: ps.map(function (p) { return p.name + (p.relationships && p.relationships.length ? ' (' + p.relationships.join(', ') + ')' : ''); }).join('; ') + (x.related_persons_count > ps.length ? ' and ' + (x.related_persons_count - ps.length) + ' more' : '') }) : null,
-            el('dt', { text: 'Filings' }), el('dd', {}, (x.filings || [f]).map(function (g) { return ARCHIVE.test(g.source_url || '') ? el('a', { href: g.source_url, target: '_blank', rel: 'noopener', text: (g.form || 'D') + ' ' + day(g.filed_date) + ' ↗ ' }) : null; }))])]);
+            el('dt', { text: 'Filings' }), el('dd', {}, (x.filings || [f]).map(function (g) { return ARCHIVE.test(g.source_url || '') ? el('a', { href: g.source_url, target: '_blank', rel: 'noopener', text: (g.form || 'D') + ' ' + day(g.filed_date) + ' ↗ ' }) : null; }))]),
+          el('p', { class: 'small' }, [askLink('Tell me about the Form D offering filed ' + (f.filed_date || '') + ' (accession ' + (f.accession_number || '') + '): how much was raised, from how many investors, under which exemption?', o.cik, 'this Form D offering')])]);
         return el('li', {}, [det]);
       });
       host.replaceChildren.apply(host, [head, el('ol', { class: 'pr-list' }, rows), note(r.body.labels && r.body.labels.basis || BASIS), note((r.body.notes || []).join(' '))].filter(Boolean)); // a null child prints "null"
@@ -64,6 +68,8 @@
     var fs = el('input', { type: 'text', value: F.state, size: '4', maxlength: '2', placeholder: 'Any', 'aria-label': 'Issuer state or country code, two letters' });
     var fa = el('input', { type: 'text', value: F.min, size: '7', placeholder: 'e.g. 50M', 'aria-label': 'Raised (amount sold) at least, e.g. 50M' });
     var order = q.get('po') === 'sold' ? 'sold' : 'new';
+    var fq = el('input', { type: 'checkbox' }); fq.checked = q.get('pq') === '1';
+    var fqL = el('label', { class: 'scr-l check', title: 'Offerings of $100B or more from issuers that are not cash or liquidity funds, kept as filed but flagged' }, [fq, ' Include implausible amounts']);
     var fo = el('span', { class: 'seg', role: 'group', 'aria-label': 'Order' }, [['new', 'Newest first'], ['sold', 'Largest raised']].map(function (x) { return el('button', { type: 'button', class: 'seg-btn', 'aria-pressed': String(order === x[0]), text: x[1], on: { click: function () { order = x[0]; [].forEach.call(fo.children, function (b, i) { b.setAttribute('aria-pressed', String(['new', 'sold'][i] === order)); }); apply(false); } } }); }));
     var ff = el('input', { type: 'date', value: F.from, 'aria-label': 'Filed from' }), ft = el('input', { type: 'date', value: F.to, 'aria-label': 'Filed to' });
     var fx = el('select', { 'aria-label': 'Exemption' }, [['', 'Any exemption'], ['06b', 'Rule 506(b)'], ['06c', 'Rule 506(c)'], ['04', 'Rule 504'], ['4a5', 'Section 4(a)(5)'], ['3C.1', 'Inv. Co. Act 3(c)(1)'], ['3C.7', 'Inv. Co. Act 3(c)(7)']].map(function (x) { var op = el('option', { value: x[0], text: x[1] }); if (x[0] === F.exemption) op.selected = true; return op; }));
@@ -72,9 +78,9 @@
       if (!more) { cursor = null; rows = []; }
       var amt = parseAmt(fa.value);
       if (fa.value.trim() && amt == null) { out.replaceChildren(note('Write the amount like 50M, 2.5B or 750K.')); fa.focus(); return; }
-      var p = new URLSearchParams(); if (fi.value.trim()) p.set('industry', fi.value.trim()); if (fs.value.trim()) p.set('state', fs.value.trim().toUpperCase()); if (amt != null) p.set('min_sold', amt); if (order === 'sold') p.set('order', 'sold');
+      var p = new URLSearchParams(); if (fi.value.trim()) p.set('industry', fi.value.trim()); if (fs.value.trim()) p.set('state', fs.value.trim().toUpperCase()); if (amt != null) p.set('min_sold', amt); if (order === 'sold') p.set('order', 'sold'); if (fq.checked) p.set('include_suspect', 'true');
       if (ff.value) p.set('from', ff.value); if (ft.value) p.set('to', ft.value); if (fx.value) p.set('exemption', fx.value); p.set('limit', o.keyed ? 50 : 10); if (more && cursor) p.set('cursor', cursor);
-      var u = new URLSearchParams(location.search); u.set('sv', 'raises'); [['pi', fi.value.trim()], ['ps', fs.value.trim().toUpperCase()], ['pa', fa.value.trim()], ['pf', ff.value], ['pt', ft.value], ['px', fx.value], ['po', order === 'sold' ? 'sold' : '']].forEach(function (x) { if (x[1]) u.set(x[0], x[1]); else u.delete(x[0]); });
+      var u = new URLSearchParams(location.search); u.set('sv', 'raises'); [['pi', fi.value.trim()], ['ps', fs.value.trim().toUpperCase()], ['pa', fa.value.trim()], ['pf', ff.value], ['pt', ft.value], ['px', fx.value], ['po', order === 'sold' ? 'sold' : ''], ['pq', fq.checked ? '1' : '']].forEach(function (x) { if (x[1]) u.set(x[0], x[1]); else u.delete(x[0]); });
       try { history.replaceState(null, '', location.pathname + '?' + u.toString() + '#screener'); } catch (e) {}
       if (!more) out.replaceChildren(note('Loading…'));
       o.load('/v1/private-raises?' + p.toString()).then(function (r) {
@@ -90,7 +96,7 @@
         var I = x.issuer || {}, f = x.latest_filing || {}, ck = I.cik ? String(parseInt(I.cik, 10)) : null, nm = o.name ? o.name(I.name || '') : I.name;
         return el('tr', {}, [el('td', { text: day(f.filed_date) }), el('th', { scope: 'row' }, [I.is_registrant && ck ? el('a', { href: '/app/?c=' + ck, text: nm }) : el('span', { text: nm }), el('span', { class: 'muted small pp-title', text: [I.state, I.entity_type, I.is_registrant ? 'files reports with the SEC' : null].filter(Boolean).join(' · ') })]),
           el('td', { class: 'muted', text: x.industry_group || '—' }), el('td', { class: 'n' }, amounts(x, nm)), el('td', { class: 'n', text: x.investors ? String(x.investors.total) : '—' }), el('td', { class: 'muted', text: exem(x.exemptions) }),
-          el('td', {}, [ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: (f.form || 'D') + ' ↗' }) : '—'])]);
+          el('td', {}, [ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: (f.form || 'D') + ' ↗' }) : '—', ' ', askLink('Tell me about ' + nm + '’s Form D offering filed ' + (f.filed_date || '') + ' (accession ' + (f.accession_number || '') + ').', I.is_registrant ? I.cik : null, nm + '’s offering')])]);
       });
       var more = cursor && o.keyed ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { apply(true); } } }) : null;
       var table = el('table', { class: 'pp-table pr-table pp-stack' }, [el('thead', {}, [head]), el('tbody', {}, body)]), hs = [].map.call(head.children, function (h) { return h.textContent; });
@@ -100,7 +106,7 @@
     };
     var form = el('form', { class: 'ch-bar pr-f', on: { submit: function (e) { e.preventDefault(); apply(false); } } }, [
       el('label', { class: 'scr-l' }, ['Industry ', fi]), dl, el('label', { class: 'scr-l' }, ['State ', fs]), el('label', { class: 'scr-l' }, ['Raised at least ', fa]),
-      el('label', { class: 'scr-l' }, ['Filed from ', ff]), el('label', { class: 'scr-l' }, ['to ', ft]), fx, fo, el('button', { type: 'submit', class: 'btn small primary', text: 'Apply' })]);
+      el('label', { class: 'scr-l' }, ['Filed from ', ff]), el('label', { class: 'scr-l' }, ['to ', ft]), fx, fo, fqL, el('button', { type: 'submit', class: 'btn small primary', text: 'Apply' })]);
     host.replaceChildren(el('p', { class: 'muted small', text: 'Exempt offerings filed on Form D in the last eight quarters, newest first. ' + BASIS + ' A Form D is a notice, not a registration; the SEC does not review it. Not investment advice.' }), form, out);
     apply(false);
   }

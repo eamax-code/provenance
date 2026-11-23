@@ -25,6 +25,9 @@
   function sec(id, title, kids, cls) { return el('section', { class: 'ws-sec pp-sec' + (cls ? ' ' + cls : ''), 'aria-labelledby': id }, [el('h3', { id: id, text: title })].concat(kids)); }
   // on phones a table reads as cards: each cell carries its column's name
   function stack(t) { var hs = [].map.call(t.querySelectorAll('thead th'), function (h) { return h.textContent; }); [].forEach.call(t.querySelectorAll('tbody tr'), function (r) { var off = r.classList.contains('pp-peo2') ? 1 : 0; [].forEach.call(r.children, function (c, i) { if (hs[i + off] && i + off) c.setAttribute('data-l', hs[i + off]); }); }); t.classList.add('pp-stack'); return t; }
+  // 'Ask about this': a link into chat with the company (cik and as_of come with the link) and the filing named in the question
+  var ASK = null, CO = 'the company';
+  function ask(q, what) { return ASK ? el('a', { class: 'ask', href: ASK(q.slice(0, 480)), 'aria-label': 'Ask in chat about ' + what, title: 'Ask in chat about ' + what, text: 'Ask' }) : null; }
   function note(t) { return t ? el('p', { class: 'muted small', text: t }) : null; }
   function failed(r, what) {
     if (r && r.status === 403) return note(what + ' without a key covers the showcase companies only. Connect a free key to see this company.');
@@ -110,7 +113,7 @@
       var ps = y.peo && y.peo.length ? y.peo : [{}], n = y.neo_average || {}, csm = y.company_selected_measure;
       ps.forEach(function (p, k) {
         var who = p.name ? name(p.name) : 'PEO';
-        var cells = [k ? el('td', { class: 'muted', text: '' }) : el('th', { scope: 'row', rowspan: String(ps.length), text: day(y.fiscal_year_end) }), el('td', { text: p.name ? name(p.name) : '—' }),
+        var cells = [k ? el('td', { class: 'muted', text: '' }) : el('th', { scope: 'row', rowspan: String(ps.length) }, [day(y.fiscal_year_end), ' ', ask('How did ' + CO + '’s CEO pay compare with total shareholder return in fiscal ' + y.fiscal_year_end.slice(0, 4) + '? (proxy ' + ((y.source || b.proxy || {}).accession_number || '') + ')', 'pay versus performance in fiscal ' + y.fiscal_year_end.slice(0, 4))]), el('td', { text: p.name ? name(p.name) : '—' }),
           el('td', { class: 'n' }, [p.total_comp == null ? '—' : door(money(p.total_comp, cur), payInfo(b, y, who + ', total pay (Summary Compensation Table)', TAG.total, p.total_comp))]),
           el('td', { class: 'n strong' }, [p.comp_actually_paid == null ? '—' : door(money(p.comp_actually_paid, cur), payInfo(b, y, who + ', compensation actually paid', TAG.cap, p.comp_actually_paid))])];
         if (k) cells.shift();
@@ -147,7 +150,7 @@
         el('td', { class: 'muted', text: p.plan_type === 'non_rule_10b5_1' ? 'Not under Rule 10b5-1' : 'Rule 10b5-1' }),
         el('td', { class: 'muted', text: p.expiration_date ? day(p.expiration_date) : p.duration_days ? p.duration_days + ' days' : '—' }),
         el('td', { class: 'n' }, [p.shares == null ? el('span', { class: 'muted', text: '—' }) : door(num(p.shares), { label: name(p.person_name || '') + ', shares the plan covers', period_end: f.period, fiscal_label: 'Quarter', form_type: f.form, filed_date: f.filed_date, accession_number: f.accession_number, source_url: f.source_url, source_tag: 'ecd:TrdArrSecuritiesAggAvailAmt' })]),
-        el('td', {}, [link(f, (f.form || 'Filing') + ' ' + day(f.filed_date) + ' ↗')])]);
+        el('td', {}, [link(f, (f.form || 'Filing') + ' ' + day(f.filed_date) + ' ↗'), ' ', ask('Who adopted or terminated Rule 10b5-1 trading plans at ' + CO + '? (' + (p.person_name || '') + ', ' + (p.action || '') + ' ' + (p.date || '') + ', ' + (f.form || '') + ' ' + (f.accession_number || '') + ')', 'this trading plan')])]);
     }))]))])];
   }
   function sales(b, name) {
@@ -161,7 +164,7 @@
           fb.average_price != null ? ' at $' + Number(fb.average_price).toFixed(2) : '', ' on ' + day(fb.transaction_date) + ' ']), link(fb, 'Form 4 ↗'),
           el('span', { class: 'muted small pp-match', title: (b.notes || [])[1] || '', text: (fb.match && fb.match.rule === 'same_person_name' ? 'Matched by name' : 'Matched by CIK') + (fb.match && fb.match.days_after_notice != null ? ', ' + fb.match.days_after_notice + ' days after the notice' : '') })])
         : el('td', { class: 'muted', text: s.followed_by_status === 'pending' ? 'Our Form 4 data does not cover the 90 days after this notice yet.' : s.followed_by_status === 'no_sale_reported' ? 'No Form 4 sale reported within 90 days; a notice does not oblige a sale.' : 'No Form 4 sale matched yet; a notice does not oblige a sale.' });
-      return el('tr', {}, [el('td', {}, [link(f, day(f.filed_date) + ' ↗')]), el('th', { scope: 'row' }, [who, (s.relationships || []).length ? el('span', { class: 'muted small pp-title', text: s.relationships.join(', ') }) : null]),
+      return el('tr', {}, [el('td', {}, [link(f, day(f.filed_date) + ' ↗'), ' ', ask('What did ' + who + ' sell after the Form 144 filed ' + (f.filed_date || '') + ' at ' + CO + '? (Form 144 ' + (f.accession_number || '') + ')', 'this Form 144 notice')]), el('th', { scope: 'row' }, [who, (s.relationships || []).length ? el('span', { class: 'muted small pp-title', text: s.relationships.join(', ') }) : null]),
         el('td', { class: 'n' }, [s.shares == null ? '—' : door(num(s.shares), i144('shares in the notice', null))]),
         el('td', { class: 'n' }, [s.aggregate_market_value == null ? '—' : door(money(s.aggregate_market_value, 'USD'), i144('market value the filer gave on the notice', null))]),
         el('td', { class: 'muted', text: s.approx_sale_date ? day(s.approx_sale_date) : '—' }), then]);
@@ -174,7 +177,14 @@
     var paySec = sec('pp-pay-h', 'Pay versus performance', [note('Loading the proxy figures…')], 'pp-paysec');
     var planSec = sec('pp-plan-h', 'Trading plans (Rule 10b5-1)', [note('Loading…')]);
     var saleSec = sec('pp-sale-h', 'Proposed sales (Form 144), then the sale (Form 4)', [note('Loading…')]);
-    pane.replaceChildren(el('p', { class: 'muted small', text: DISCLAIMER + ' Pay is as disclosed in the proxy; plans and notices are as filed.' }), officers(o.d, name), paySec, planSec, saleSec);
+    ASK = o.ask || null; CO = ((o.d.company || {}).display_name || name((o.d.company || {}).legal_name || 'the company')).replace(/\.$/, '');
+    var off = officers(o.d, name), secs = { officers: off, pay: paySec, plans: planSec, sales: saleSec };
+    // a short section list: each entry is a link (sec=), so a section can be shared and Back returns to it
+    var nav = el('nav', { class: 'pp-nav', 'aria-label': 'People sections' }, [['officers', 'Officers and directors'], ['pay', 'Pay versus performance'], ['plans', 'Trading plans'], ['sales', 'Form 144']].map(function (x) {
+      return el('a', { href: '?c=' + parseInt(o.cik, 10) + '&tab=people&sec=' + x[0], 'aria-current': o.section === x[0] ? 'true' : null, text: x[1], on: { click: function (e) { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); if (o.onSection) o.onSection(x[0]); [].forEach.call(nav.children, function (a) { a.removeAttribute('aria-current'); }); e.currentTarget.setAttribute('aria-current', 'true'); if (secs[x[0]].isConnected) secs[x[0]].scrollIntoView({ block: 'start', behavior: 'smooth' }); } } });
+    }));
+    pane.replaceChildren(el('p', { class: 'muted small', text: DISCLAIMER + ' Pay is as disclosed in the proxy; plans and notices are as filed.' }), nav, off, paySec, planSec, saleSec);
+    if (o.section && secs[o.section]) setTimeout(function () { if (secs[o.section].isConnected) secs[o.section].scrollIntoView({ block: 'start' }); }, 1200); // after the figures load
     var put = function (s, kids) { s.replaceChildren.apply(s, [s.firstChild].concat(kids.filter(Boolean))); };
     o.has('/v1/companies/{cik}/executive-pay').then(function (yes) {
       if (!yes) { paySec.remove(); return; }

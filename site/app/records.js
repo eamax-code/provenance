@@ -70,13 +70,14 @@
       n.jurisdiction ? el('span', { class: 'muted small', text: n.jurisdiction }) : null, n.lei ? el('span', { class: 'mono small muted ct-lei', title: 'Legal Entity Identifier', text: n.lei }) : null,
       n.status && n.status !== 'ACTIVE' ? el('span', { class: 'tag', text: String(n.status).toLowerCase() }) : null].concat(extra || []));
   }
-  function folded(items, render, label) {
+  function folded(items, render, label, all, onAll) {
     var ul = el('ul', { class: 'ct-list' }), shown = Math.min(items.length, FOLD);
     var paint = function (k) { ul.replaceChildren.apply(ul, items.slice(0, k).map(function (x) { return el('li', {}, [render(x)]); })); };
     paint(shown);
     if (items.length <= FOLD) return [ul];
     var find = el('input', { type: 'search', class: 'ct-find', placeholder: 'Find in ' + items.length + ' ' + label, 'aria-label': 'Find in the ' + label });
-    var more = el('button', { type: 'button', class: 'btn small', text: 'Show all ' + items.length, on: { click: function () { paint(items.length); more.remove(); } } });
+    var more = el('button', { type: 'button', class: 'btn small', text: 'Show all ' + items.length, on: { click: function () { paint(items.length); more.remove(); if (onAll) onAll(); } } });
+    if (all) { paint(items.length); return [find, ul]; } // 'Show all' is part of the link (ta=1)
     find.addEventListener('input', function () { var q = find.value.trim().toLowerCase(); if (!q) { paint(shown); return; } ul.replaceChildren.apply(ul, items.filter(function (x) { return String(x.name || '').toLowerCase().indexOf(q) > -1; }).slice(0, 200).map(function (x) { return el('li', {}, [render(x)]); })); });
     return [find, ul, more];
   }
@@ -100,7 +101,7 @@
       if (E.lei) {
         var ch = C.data || [];
         kids.push(el('h4', { class: 'ct-k', text: 'Entities that report it as parent in GLEIF, ' + (C.total != null ? C.total : ch.length) }));
-        kids = kids.concat(ch.length ? folded(ch, function (x) { return node(x, [el('span', { class: 'tag', text: x.relationship === 'ultimate_only' ? 'ultimate only' : 'direct' })]); }, 'GLEIF entities') : [note('None reported.')]);
+        kids = kids.concat(ch.length ? folded(ch, function (x) { return node(x, [el('span', { class: 'tag', text: x.relationship === 'ultimate_only' ? 'ultimate only' : 'direct' })]); }, 'GLEIF entities', o.all, o.onAll) : [note('None reported.')]);
         if (C.total > ch.length) kids.push(note('The first ' + ch.length + ' of ' + C.total + ' are shown.'));
       }
       var sub = S.data || [];

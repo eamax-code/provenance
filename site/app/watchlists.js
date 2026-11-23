@@ -134,7 +134,7 @@
       if (!yes) return;
       box.hidden = false;
       var ciks = rows.map(function (r) { return String(parseInt(r.cik, 10)); }).slice(0, 50).join(',');
-      C.mount(host, { multi: true, keyed: X.hasKey(), name: window.Workspace ? window.Workspace.orgName : null, empty: 'Nothing dated ahead for these companies in the filings loaded.',
+      C.mount(host, { multi: true, keyed: X.hasKey(), name: window.Workspace ? window.Workspace.orgName : null, ask: function (q, ck) { var p = new URLSearchParams(); p.set('q', q); if (ck) p.set('cik', String(parseInt(ck, 10))); return '/chat/?' + p.toString(); }, empty: 'Nothing dated ahead for these companies in the filings loaded.',
         load: function (p) { var q = new URLSearchParams(p); if (!srv) q.set('ciks', ciks); var qs = q.toString(); return srv ? send('GET', '/v1/watchlists/' + encodeURIComponent(l.id) + '/calendar' + (qs ? '?' + qs : '')) : X.raw('/v1/calendar?' + qs, X.hasKey() ? null : 'demo'); } });
     });
     return box;

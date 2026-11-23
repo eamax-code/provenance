@@ -47,6 +47,8 @@
         : el('span', { class: 'cal-miss', text: late ? 'Not filed by the due date' : 'No report found' }));
     }
     var src = i.source && ARCHIVE.test(i.source.source_url || '') && !i.derived ? el('a', { href: i.source.source_url, target: '_blank', rel: 'noopener', text: (i.source.form || 'Filing') + ' ↗' }) : i.derived && i.source && ARCHIVE.test(i.source.source_url || '') ? el('a', { href: i.source.source_url, target: '_blank', rel: 'noopener', title: 'The filing this date is worked out from', text: 'basis ' + (i.source.form || 'filing') + ' ↗' }) : el('span');
+    if (o.ask) { var cn = i.company && i.company.name ? (o.name ? o.name(i.company.name) : i.company.name) : 'the company';
+      kids.push(el('a', { class: 'ask', href: o.ask(('When is ' + cn + '’s ' + nice(i.title).replace(/^(\S)/, function (m) { return m.toLowerCase(); }) + ' (' + i.date + ')' + (i.derived ? ', and how is that date worked out?' : '?') + (i.source && i.source.accession_number ? ' (based on ' + (i.source.form || 'filing') + ' ' + i.source.accession_number + ')' : '')).slice(0, 480), i.company && i.company.cik), 'aria-label': 'Ask in chat about ' + nice(i.title), text: 'Ask' })); }
     return el('li', { class: 'cal-i' + (i.derived ? ' is-derived' : '') + (i.date < today ? ' is-past' : '') }, [dated, el('span', { class: 'cal-body' }, [el('span', { class: 'cal-line' }, kids)].concat(extra)), src]);
   }
   function isoAdd(s, n) { var d = parse(s); d.setDate(d.getDate() + n); return iso(d); }
@@ -65,7 +67,9 @@
   // o: { load(params) -> Promise<{ok, status, body}>, multi, name(fn), keyed, empty }
   function mount(host, o) {
     var today = iso(new Date());
-    var st = { view: 'list', month: today.slice(0, 7), off: {}, data: null, cache: {} };
+    var s0 = o.state || {}, st = { view: s0.view === 'month' ? 'month' : 'list', month: s0.month || today.slice(0, 7), off: {}, data: null, cache: {} };
+    (s0.off || []).forEach(function (k) { st.off[k] = true; });
+    var tell = function () { if (o.onState) o.onState({ view: st.view, month: st.month, off: Object.keys(st.off).filter(function (k) { return st.off[k]; }) }); };
     var region = el('div', { class: 'cal-out', 'aria-live': 'polite' });
     function fetchRange(from, to) {
       var k = (from || '') + '|' + (to || '');
@@ -127,7 +131,7 @@
         region.replaceChildren.apply(region, [head, el('div', { class: 'tw' }, [table])].concat(items.length ? list(items, o, all, today) : [el('p', { class: 'muted', text: 'Nothing dated in ' + MONTH[m] + ' ' + y + '.' })]).concat([foot(r.body, all)]).filter(Boolean));
       });
     }
-    function draw() { if (st.view === 'month') drawMonth(); else drawList(); }
+    function draw() { tell(); if (st.view === 'month') drawMonth(); else drawList(); }
     host.replaceChildren(region); draw();
   }
   window.ProvenanceCalendar = { mount: mount, available: available, kinds: KINDS };
