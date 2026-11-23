@@ -42,8 +42,20 @@
     var r = b.getBoundingClientRect(), w = Math.min(340, window.innerWidth - 24), left = Math.max(12, Math.min(r.left + window.scrollX, window.scrollX + window.innerWidth - w - 12));
     card.style.width = w + 'px'; card.style.left = left + 'px'; card.style.top = (r.bottom + window.scrollY + 6) + 'px';
     b.setAttribute('aria-expanded', 'true'); card.focus({ preventScroll: true });
+    // the card reads as if it sat right after its figure: Tab past its last link closes it and moves on
+    // to whatever follows the figure, Shift+Tab before its first goes back to the figure
+    card.addEventListener('keydown', function (e) {
+      if (e.key !== 'Tab') return;
+      var f = card.querySelectorAll('a[href], button:not([disabled])'), first = f[0], last = f[f.length - 1], a = document.activeElement;
+      if (e.shiftKey && (a === card || a === first)) { e.preventDefault(); var d = close(); if (d) d.focus(); }
+      else if (!e.shiftKey && (a === last || !f.length)) { e.preventDefault(); var from = close(); if (from) after(from); }
+    });
   }
   function close() { if (card) { card.remove(); card = null; } if (cardFor) { cardFor.setAttribute('aria-expanded', 'false'); var f = cardFor; cardFor = null; return f; } }
+  function after(node) {
+    var all = Array.prototype.filter.call(document.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'), function (x) { return x.offsetParent !== null || x === node; });
+    var nx = all[all.indexOf(node) + 1]; (nx || node).focus();
+  }
   function door(text, info, cls) {
     var b = el('button', { type: 'button', class: 'door' + (cls ? ' ' + cls : ''), text: text, 'aria-haspopup': 'dialog' });
     b._prov = info;

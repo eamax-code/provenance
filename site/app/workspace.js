@@ -462,9 +462,33 @@
     var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
     pane.replaceChildren(stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + '.csv'),
       wrap,
-      el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
+      el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
       (b.notes || []).length ? el('p', { class: 'muted small', text: b.notes.join(' ') }) : null);
     wrap.scrollLeft = wrap.scrollWidth; // open on the latest periods; earlier ones scroll in from the left
+    rove(wrap.querySelector('table'));
+  }
+  // a statement is one Tab stop: the arrow keys move between its figures (Home and End along a row),
+  // starting on the latest figure of the first row, so Tab can leave a 15 x 12 table in one press
+  function rove(table) {
+    if (!table || !table.tBodies[0]) return;
+    var M = Array.prototype.map.call(table.tBodies[0].rows, function (tr) { return Array.prototype.map.call(tr.querySelectorAll('td'), function (td) { return td.querySelector('.door'); }); });
+    var start = null;
+    M.some(function (r) { for (var j = r.length - 1; j >= 0; j--) if (r[j]) { start = r[j]; return true; } return false; });
+    if (!start) return;
+    Array.prototype.forEach.call(table.querySelectorAll('.door'), function (d) { d.tabIndex = -1; });
+    start.tabIndex = 0;
+    table.addEventListener('keydown', function (e) {
+      var dr = { ArrowUp: -1, ArrowDown: 1 }[e.key] || 0, dc = { ArrowLeft: -1, ArrowRight: 1 }[e.key] || 0;
+      if (!dr && !dc && e.key !== 'Home' && e.key !== 'End') return;
+      var i = -1, j = -1;
+      M.some(function (r, ri) { var k = r.indexOf(e.target); if (k > -1) { i = ri; j = k; return true; } return false; });
+      if (i < 0) return;
+      var t = null, row = M[i].filter(Boolean);
+      if (e.key === 'Home') t = row[0]; else if (e.key === 'End') t = row[row.length - 1];
+      else for (var r = i + dr, c = j + dc; r >= 0 && r < M.length && c >= 0 && c < M[r].length; r += dr, c += dc) if (M[r][c]) { t = M[r][c]; break; }
+      e.preventDefault(); if (!t) return;
+      e.target.tabIndex = -1; t.tabIndex = 0; t.focus(); t.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
   }
   function statementsFallback() {
     var pane = $('pane-statements'), d = S.d, cur = (d.company || {}).reporting_currency || 'USD', st = d.statements || {}, fy = st.fiscal_years || [];
@@ -487,8 +511,8 @@
     var csvRows = function () { return [['line_item'].concat(fy).join(',')].concat((sec ? sec.rows : []).map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(r.cells.map(function (c) { return c && c.value != null ? c.value : ''; })).join(','); })); };
     pane.replaceChildren(stControls(cur, 'Annual · in ' + cur + ' as filed · last five years', csvRows, (d.company.ticker || d.company.cik) + '-' + S.st + '.csv'),
       el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
-      el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping. "—" means not reported. Shaded cells were reported by a predecessor registrant.' + (S.st === 'ratios' ? ' Ratios are worked out here from reported figures.' : ' Longer histories and quarters load from the statements API when it\u2019s available.') }));
-    var fw = pane.querySelector('.st-wrap'); if (fw) fw.scrollLeft = fw.scrollWidth;
+      el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. Shaded cells were reported by a predecessor registrant.' + (S.st === 'ratios' ? ' Ratios are worked out here from reported figures.' : ' Longer histories and quarters load from the statements API when it\u2019s available.') }));
+    var fw = pane.querySelector('.st-wrap'); if (fw) fw.scrollLeft = fw.scrollWidth; if (fw) rove(fw.querySelector('table'));
   }
 
   /* ---- X-05 timeline: the timeline endpoint (types, paging); the overview's events and filings otherwise ---- */
@@ -820,6 +844,8 @@
       else if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); render(); e.preventDefault(); }
       else if (e.key === 'Enter') { run(); e.preventDefault(); }
       else if (e.key === 'Escape') { closePal(); }
+      // a modal: Tab stays in the palette and moves the choice, as the arrows do
+      else if (e.key === 'Tab') { if (items.length) { sel = (sel + (e.shiftKey ? items.length - 1 : 1)) % items.length; render(); } e.preventDefault(); }
     });
     search('');
   }
