@@ -51,13 +51,27 @@ def _event_title(event_type: str) -> str:
     return filing_events.FILING_EVENT_TYPES[event_type].label
 
 
-def _filings(db, cik, start, end, ref, kinds) -> list[dict]:
+def _filings(db, cik, start, end, ref, kinds, need: int | None = None) -> list[dict]:
+    """need: the caller reads at most this many items. With "filing" asked every filing gives an
+    item, so only the newest `need` filings are read, plus every filing on the boundary date (the
+    order is date, then id). Without it, only filings carrying an asked event type are read. A
+    frequent filer (JPMorgan: 28,000 filings in three years) is no longer read whole."""
     out = []
-    rows = db.scalars(
-        select(Filing).where(
-            Filing.cik == cik, Filing.filing_date >= start, Filing.filing_date <= min(end, ref)
+    where = [Filing.cik == cik, Filing.filing_date >= start, Filing.filing_date <= min(end, ref)]
+    if "filing" not in kinds:
+        wanted = [t for t, spec in filing_events.FILING_EVENT_TYPES.items()
+                  if OWN_TYPES.get(t, "8k_item" if spec.item else None) in kinds]  # fmt: skip
+        if not wanted:
+            return out
+        where.append(filing_events.condition(wanted))
+    elif need is not None:
+        boundary = db.scalar(
+            select(Filing.filing_date).where(*where)
+            .order_by(Filing.filing_date.desc()).offset(need - 1).limit(1)
         )  # fmt: skip
-    )
+        if boundary is not None:
+            where.append(Filing.filing_date >= boundary)
+    rows = db.scalars(select(Filing).where(*where))
     for f in rows:
         types = filing_events.types_for(f.form_type, f.items, f.event_tags)
         form_events = [t for t in types if filing_events.FILING_EVENT_TYPES[t].item is None]
@@ -197,12 +211,13 @@ def _thirteenf(db, company, start, end, ref) -> list[dict]:
 
 def build(db: Session, company: Company, kinds: tuple[str, ...] = TYPES,
           start: date | None = None, end: date | None = None, as_of: date | None = None,
-          today: date | None = None) -> list[dict]:  # fmt: skip
-    """Every item, newest first (date, then id)."""
+          today: date | None = None, need: int | None = None) -> list[dict]:  # fmt: skip
+    """Every item, newest first (date, then id). With need, the first `need` items are exact
+    and later ones may be missing (callers page with offset + limit + 1)."""
     ref = as_of or today or date.today()
     end = end or ref
     start = start or ref.replace(year=ref.year - DEFAULT_YEARS)
-    items = _filings(db, company.cik, start, end, ref, kinds)
+    items = _filings(db, company.cik, start, end, ref, kinds, need)
     if "officer_change" in kinds:
         items += _officer_changes(db, company.cik, start, end, ref)
     if {"auditor_change", "ipo"} & set(kinds):

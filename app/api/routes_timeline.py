@@ -50,7 +50,7 @@ def get_timeline(
         offset = timeline.decode_cursor(cursor)
     except ValueError as exc:
         raise APIError(422, "invalid_parameter", "cursor is not valid.") from exc
-    items = timeline.build(db, company, kinds, from_, to, as_of)
+    items = timeline.build(db, company, kinds, from_, to, as_of, need=offset + limit + 1)
     page = items[offset : offset + limit]
     more = len(items) > offset + limit
     return TimelineOut(

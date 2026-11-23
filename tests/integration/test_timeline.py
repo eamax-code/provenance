@@ -131,3 +131,24 @@ def test_insider_names_are_cased_in_filed_order(client, auth, db, items_aapl):
                      headers=auth).json()  # fmt: skip
     row = client.get(f"/v1/watchlists/{wl['id']}/rows", headers=auth).json()["data"][0]
     assert row["cells"]["last_event"]["title"].startswith("Levinson Arthur D (Director) sold")
+
+
+def test_a_page_reads_only_the_filings_it_needs_and_matches_the_full_list(db, items_aapl):
+    from sqlalchemy import select
+
+    from app.db.models import Company
+    from app.services import timeline
+
+    _seed(db)
+    for i in range(30):  # same-day filings straddle the page boundary
+        _filing(db, f"0000320193-26-{900 + i:06d}", "424B2", date.today() - timedelta(days=i // 3))
+    db.commit()
+    c = db.scalar(select(Company).where(Company.cik == CIK))
+    full = timeline.build(db, c)
+    for offset, limit in ((0, 1), (0, 5), (5, 7), (10, 50), (0, 500)):
+        part = timeline.build(db, c, need=offset + limit + 1)
+        assert part[offset : offset + limit] == full[offset : offset + limit], (offset, limit)
+        assert (len(part) > offset + limit) == (len(full) > offset + limit)
+    assert len(timeline.build(db, c, need=3)) < len(full)  # it really reads fewer
+    kinds = ("8k_item", "officer_change", "auditor_change", "ipo", "insider")
+    assert timeline.build(db, c, kinds) == [i for i in full if i["type"] in kinds]

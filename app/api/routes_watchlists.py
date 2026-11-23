@@ -279,7 +279,8 @@ def events(wid: str = Path(max_length=40), types: str | None = Query(None, max_l
     for c in db.scalars(select(Company).where(Company.cik.in_(ciks))):
         name = intel.display_name(c.legal_name, c.ticker, c.registrant_name)
         items += [{**i, "cik": c.cik, "display_name": name}
-                  for i in timeline.build(db, c, kinds, from_, to, as_of)]  # fmt: skip
+                  for i in timeline.build(db, c, kinds, from_, to, as_of,
+                                          need=offset + limit + 1)]  # fmt: skip
     items.sort(key=lambda i: (i["date"], i["id"]), reverse=True)
     page, more = items[offset : offset + limit], len(items) > offset + limit
     return {"id": _public_id(w), "as_of": as_of.isoformat() if as_of else None, "data": page,
