@@ -3,6 +3,16 @@
 `GET /v1/companies/{cik}/calendar?from=&to=&kinds=`
 `GET /v1/watchlists/{id}/calendar?from=&to=&kinds=` (the key's own watchlist; the same items
 for every company on it, each with its `company`)
+`GET /v1/calendar?ciks=a,b,c&from=&to=&kinds=` (added 2026-11-24 for watchlists kept in the
+browser: up to 50 CIKs; the demo key only for showcase CIKs, else `403 demo_scope`; the demo
+key's 10-row cap applies to the whole response)
+
+**Built 2026-11-24.** Additive fields on `filing_deadline`: `period_end`, `upcoming` (the due
+date is today or later) and `filed_late` (when `met_by` is set: filed after the due date).
+`annual_meeting` is not built in this window (always empty). The filer category comes from the
+SEC's record for the company (as on its filings); a category that does not say large
+accelerated, accelerated or non-accelerated gives no deadline (a doubtful date is worse than
+none).
 
 | Parameter | Values | Default |
 |---|---|---|
