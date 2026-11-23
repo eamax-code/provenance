@@ -141,8 +141,11 @@ def _variants(phrase: str) -> list[str]:
     """The phrase as typed, then without punctuation ("Coca-Cola" is COCA COLA CO, "Procter &
     Gamble" is PROCTER & GAMBLE CO or "and")."""
     out = [phrase]
-    for v in (re.sub(r"\s+", " ", re.sub(r"[-.]", " ", phrase)).strip(),
-              phrase.replace("&", "and"), re.sub(r"(?i)\band\b", "&", phrase)):
+    for v in (
+        re.sub(r"\s+", " ", re.sub(r"[-.]", " ", phrase)).strip(),
+        phrase.replace("&", "and"),
+        re.sub(r"(?i)\band\b", "&", phrase),
+    ):
         if v and v not in out:
             out.append(v)
     return out
@@ -170,8 +173,13 @@ def _active(db: Session, ciks: list[str]) -> set[str]:
     if not ciks:
         return set()
     since = _date.today() - _td(days=ACTIVE_DAYS)
-    return set(db.scalars(select(MartCompany.cik).where(
-        MartCompany.cik.in_(list(set(ciks))), MartCompany.latest_annual_report_date >= since)))
+    return set(
+        db.scalars(
+            select(MartCompany.cik).where(
+                MartCompany.cik.in_(list(set(ciks))), MartCompany.latest_annual_report_date >= since
+            )
+        )
+    )
 
 
 def _active_starting(db: Session, phrase: str, word_start: bool) -> Company | None:
@@ -264,14 +272,20 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
                         for h in hits
                         if h.match_type in _MATCH_RANK
                         and _names_it(h, variant)
-                        and not (h.match_type == "ticker"
-                                 and variant.strip().lower() in _NOT_TICKER_WORDS)
+                        and not (
+                            h.match_type == "ticker"
+                            and variant.strip().lower() in _NOT_TICKER_WORDS
+                        )
                         # with a company already given, only a ticker in capitals or a name
                         # switches it, never a word that happens to be a ticker
-                        and (not follow_up or (_named(h, variant)
-                                               and not (h.match_type == "ticker"
-                                                        and not variant.isupper())
-                                               and _whole_name(h, variant)))
+                        and (
+                            not follow_up
+                            or (
+                                _named(h, variant)
+                                and not (h.match_type == "ticker" and not variant.isupper())
+                                and _whole_name(h, variant)
+                            )
+                        )
                     ]
             if found:
                 # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal;
@@ -383,8 +397,10 @@ def is_coverage_question(text: str) -> bool:
 _MATCH_RANK = {"ticker": 3, "name_exact": 2, "name_prefix": 1, "former_name": 1}
 
 
-_MONTH = (r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
-          r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?")
+_MONTH = (
+    r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
+    r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?"
+)
 _DATES = re.compile(
     rf"\b\d{{1,2}}\s+{_MONTH}(?:,?\s+\d{{4}})?\b"  # 3 Nov 2026, 3 Nov
     rf"|\b{_MONTH}\s+\d{{1,2}}(?:st|nd|rd|th)?,?(?:\s+\d{{4}})?\b"  # Nov 3, 2026; Nov 3

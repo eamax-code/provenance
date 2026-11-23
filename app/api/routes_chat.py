@@ -653,8 +653,9 @@ def _say_switch(db: Session, given: str | None, reply: ChatReply) -> None:
     now = db.scalar(select(Company).where(Company.cik == reply.company["cik"]))
     if now is None:
         return
-    note = (f"Answering about {_display(now)}, not "
-            f"{_display(was) if was else 'CIK ' + cik}.").replace("..", ".")
+    note = (
+        f"Answering about {_display(now)}, not {_display(was) if was else 'CIK ' + cik}."
+    ).replace("..", ".")
     reply.notes = [note, *(reply.notes or [])]
     if reply.answer:
         reply.answer = f"{note} {reply.answer}"

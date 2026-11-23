@@ -33,8 +33,9 @@ INTENTS = (  # first match wins
     ),
     (
         "proposed_sales",
-        re.compile(r"\b(form 144|proposed (?:insider )?sales?|notices? of (?:proposed )?sale)\b",
-                   re.I),
+        re.compile(
+            r"\b(form 144|proposed (?:insider )?sales?|notices? of (?:proposed )?sale)\b", re.I
+        ),
     ),  # fmt: skip
     (
         "calendar",
@@ -46,8 +47,9 @@ INTENTS = (  # first match wins
     ),  # fmt: skip
     (
         "private_raises",
-        re.compile(r"\b(form d|reg(?:ulation)? d|private (?:placements?|raises?|offerings?))\b",
-                   re.I),
+        re.compile(
+            r"\b(form d|reg(?:ulation)? d|private (?:placements?|raises?|offerings?))\b", re.I
+        ),
     ),  # fmt: skip
     (
         "changes",
@@ -372,8 +374,10 @@ def pay(db: Session, b: Brief, as_of: date | None) -> str:
             f"{src['filed_date']} reports {peo} [{n}].")  # fmt: skip
     neo = y["neo_average"]
     if neo["total_comp"] is not None:
-        text += (f" The other named executives averaged {amt(neo['total_comp'])} total and "
-                 f"{amt(neo['comp_actually_paid'])} compensation actually paid [{n}].")
+        text += (
+            f" The other named executives averaged {amt(neo['total_comp'])} total and "
+            f"{amt(neo['comp_actually_paid'])} compensation actually paid [{n}]."
+        )
     if y["tsr"] is not None:
         peer = ""
         if y["peer_tsr"] is not None:
@@ -403,8 +407,10 @@ def trading_plans(db: Session, b: Brief, as_of: date | None) -> str:
     for r in rows:
         f = r["filing"]
         n = _cite(b, f"{f['form']} filed {f['filed_date']}", f["source_url"])
-        kind = {"rule_10b5_1": "a Rule 10b5-1 plan",
-                "non_rule_10b5_1": "a non-Rule 10b5-1 arrangement"}.get(r["plan_type"], "a plan")
+        kind = {
+            "rule_10b5_1": "a Rule 10b5-1 plan",
+            "non_rule_10b5_1": "a non-Rule 10b5-1 arrangement",
+        }.get(r["plan_type"], "a plan")
         when = r["date"] or r["date_as_written"] or "on a date not given"
         who = r["person_name"] or "an officer or director"
         title = f" ({r['title']})" if r["title"] else ""
@@ -501,7 +507,8 @@ def calendar(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
     # already filed against their deadlines
     open_ = [i for i in deadlines if not i.get("met_by") and i["date"] >= ref.isoformat()]
     nxt = next((i for i in open_ if not form or i["title"].startswith(form)), None) or (
-        open_[0] if open_ else None)
+        open_[0] if open_ else None
+    )
     past = [i for i in deadlines if i.get("met_by")]
     parts = []
     if nxt:
@@ -560,8 +567,11 @@ def private_raises(db: Session, b: Brief, as_of: date | None) -> str:
     name = _name(b)
     through = form_d.covered_through(db)
     if not items:
-        return (f"No Form D notice by {name} is in the Form D data sets loaded here"
-                + (f" (through {through.isoformat()})" if through else "") + ".")
+        return (
+            f"No Form D notice by {name} is in the Form D data sets loaded here"
+            + (f" (through {through.isoformat()})" if through else "")
+            + "."
+        )
     parts = []
     for i in items:
         lf = i["latest_filing"]
@@ -572,7 +582,7 @@ def private_raises(db: Session, b: Brief, as_of: date | None) -> str:
                 is not None else "indefinite")  # fmt: skip
         parts.append(f"Form {lf['form']} filed {lf['filed_date']}: {sold} sold (offering size "
                      f"{size}; {i['industry_group'] or 'industry not given'}) [{n}]")  # fmt: skip
-    return (f"Form D offerings by {name}: " + "; ".join(parts) + ". " + form_d.BASIS)
+    return f"Form D offerings by {name}: " + "; ".join(parts) + ". " + form_d.BASIS
 
 
 HOW = {  # the endpoint that returns the same data (C-01 "how I got this")

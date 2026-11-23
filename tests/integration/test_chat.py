@@ -629,8 +629,9 @@ def test_a_question_naming_the_given_company_never_switches_away(db, items_aapl)
     from app.db.models import Company
 
     listed = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    first = listed.first_detected_at
     db.add(Company(cik="0000999997", legal_name="Canaan Inc.", ticker="CAN",
-                   source_url="https://www.sec.gov/", first_detected_at=listed.first_detected_at))  # fmt: skip
+                   source_url="https://www.sec.gov/", first_detected_at=first))  # fmt: skip
     db.commit()
     canaan = db.scalar(select(Company).where(Company.cik == "0000999997"))
     assert _names_given(db, "320193", "What did CAN insiders sell at Apple Inc.?", canaan)

@@ -96,8 +96,11 @@ def main() -> int:
         for case in cases:
             routes_chat.chat_limiter.reset()
             routes_chat.chat_day_limiter.reset()
-            body = {"message": case["q"], **({"as_of": case["as_of"]} if case.get("as_of") else {}),
-                    **({"cik": case["cik"]} if case.get("cik") else {})}  # an Ask link's cik
+            body = {
+                "message": case["q"],
+                **({"as_of": case["as_of"]} if case.get("as_of") else {}),
+                **({"cik": case["cik"]} if case.get("cik") else {}),
+            }  # an Ask link's cik
             r = client.post("/v1/chat", json=body)
             reply = r.json() if r.status_code == 200 else {"answer": None, "error": r.text[:200]}
             ok = r.status_code == 200 and score(case, reply)
