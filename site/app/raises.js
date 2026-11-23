@@ -69,8 +69,12 @@
     var fa = el('input', { type: 'text', value: F.min, size: '7', placeholder: 'e.g. 50M', 'aria-label': 'Raised (amount sold) at least, e.g. 50M' });
     var order = q.get('po') === 'sold' ? 'sold' : 'new';
     var fq = el('input', { type: 'checkbox' }); fq.checked = q.get('pq') === '1';
+    // cash and liquidity funds roll subscriptions over, so they top 'largest raised'; left out there unless asked for
+    var FUNDS = 'Pooled Investment Fund', xi = q.get('pxi'), dflt = function () { return order === 'sold' ? FUNDS : ''; };
+    var fe = el('input', { type: 'text', list: 'pr-ind', value: xi == null ? dflt() : xi === 'none' ? '' : xi, placeholder: 'None', 'aria-label': 'Leave out an industry group, as filed' });
+    var feL = el('label', { class: 'scr-l', title: 'Leave out one industry group as filed. “Pooled Investment Fund” (cash and liquidity funds whose subscriptions roll over) is left out of Largest raised unless you clear it.' }, ['Leave out ', fe]);
     var fqL = el('label', { class: 'scr-l check', title: 'Offerings of $100B or more from issuers that are not cash or liquidity funds, kept as filed but flagged' }, [fq, ' Include implausible amounts']);
-    var fo = el('span', { class: 'seg', role: 'group', 'aria-label': 'Order' }, [['new', 'Newest first'], ['sold', 'Largest raised']].map(function (x) { return el('button', { type: 'button', class: 'seg-btn', 'aria-pressed': String(order === x[0]), text: x[1], on: { click: function () { order = x[0]; [].forEach.call(fo.children, function (b, i) { b.setAttribute('aria-pressed', String(['new', 'sold'][i] === order)); }); apply(false); } } }); }));
+    var fo = el('span', { class: 'seg', role: 'group', 'aria-label': 'Order' }, [['new', 'Newest first'], ['sold', 'Largest raised']].map(function (x) { return el('button', { type: 'button', class: 'seg-btn', 'aria-pressed': String(order === x[0]), text: x[1], on: { click: function () { order = x[0]; if (new URLSearchParams(location.search).get('pxi') == null) fe.value = dflt(); [].forEach.call(fo.children, function (b, i) { b.setAttribute('aria-pressed', String(['new', 'sold'][i] === order)); }); apply(false); } } }); }));
     var ff = el('input', { type: 'date', value: F.from, 'aria-label': 'Filed from' }), ft = el('input', { type: 'date', value: F.to, 'aria-label': 'Filed to' });
     var fx = el('select', { 'aria-label': 'Exemption' }, [['', 'Any exemption'], ['06b', 'Rule 506(b)'], ['06c', 'Rule 506(c)'], ['04', 'Rule 504'], ['4a5', 'Section 4(a)(5)'], ['3C.1', 'Inv. Co. Act 3(c)(1)'], ['3C.7', 'Inv. Co. Act 3(c)(7)']].map(function (x) { var op = el('option', { value: x[0], text: x[1] }); if (x[0] === F.exemption) op.selected = true; return op; }));
     var out = el('div', { class: 'pr-out', 'aria-live': 'polite' }), cursor = null, rows = [];
@@ -78,9 +82,9 @@
       if (!more) { cursor = null; rows = []; }
       var amt = parseAmt(fa.value);
       if (fa.value.trim() && amt == null) { out.replaceChildren(note('Write the amount like 50M, 2.5B or 750K.')); fa.focus(); return; }
-      var p = new URLSearchParams(); if (fi.value.trim()) p.set('industry', fi.value.trim()); if (fs.value.trim()) p.set('state', fs.value.trim().toUpperCase()); if (amt != null) p.set('min_sold', amt); if (order === 'sold') p.set('order', 'sold'); if (fq.checked) p.set('include_suspect', 'true');
+      var p = new URLSearchParams(); if (fi.value.trim()) p.set('industry', fi.value.trim()); if (fs.value.trim()) p.set('state', fs.value.trim().toUpperCase()); if (amt != null) p.set('min_sold', amt); if (order === 'sold') p.set('order', 'sold'); if (fq.checked) p.set('include_suspect', 'true'); if (fe.value.trim()) p.set('exclude_industry', fe.value.trim());
       if (ff.value) p.set('from', ff.value); if (ft.value) p.set('to', ft.value); if (fx.value) p.set('exemption', fx.value); p.set('limit', o.keyed ? 50 : 10); if (more && cursor) p.set('cursor', cursor);
-      var u = new URLSearchParams(location.search); u.set('sv', 'raises'); [['pi', fi.value.trim()], ['ps', fs.value.trim().toUpperCase()], ['pa', fa.value.trim()], ['pf', ff.value], ['pt', ft.value], ['px', fx.value], ['po', order === 'sold' ? 'sold' : ''], ['pq', fq.checked ? '1' : '']].forEach(function (x) { if (x[1]) u.set(x[0], x[1]); else u.delete(x[0]); });
+      var u = new URLSearchParams(location.search); u.set('sv', 'raises'); [['pi', fi.value.trim()], ['ps', fs.value.trim().toUpperCase()], ['pa', fa.value.trim()], ['pf', ff.value], ['pt', ft.value], ['px', fx.value], ['po', order === 'sold' ? 'sold' : ''], ['pq', fq.checked ? '1' : ''], ['pxi', fe.value.trim() === dflt() ? '' : fe.value.trim() || 'none']].forEach(function (x) { if (x[1]) u.set(x[0], x[1]); else u.delete(x[0]); });
       try { history.replaceState(null, '', location.pathname + '?' + u.toString() + '#screener'); } catch (e) {}
       if (!more) out.replaceChildren(note('Loading…'));
       o.load('/v1/private-raises?' + p.toString()).then(function (r) {
@@ -106,7 +110,7 @@
     };
     var form = el('form', { class: 'ch-bar pr-f', on: { submit: function (e) { e.preventDefault(); apply(false); } } }, [
       el('label', { class: 'scr-l' }, ['Industry ', fi]), dl, el('label', { class: 'scr-l' }, ['State ', fs]), el('label', { class: 'scr-l' }, ['Raised at least ', fa]),
-      el('label', { class: 'scr-l' }, ['Filed from ', ff]), el('label', { class: 'scr-l' }, ['to ', ft]), fx, fo, fqL, el('button', { type: 'submit', class: 'btn small primary', text: 'Apply' })]);
+      el('label', { class: 'scr-l' }, ['Filed from ', ff]), el('label', { class: 'scr-l' }, ['to ', ft]), fx, fo, feL, fqL, el('button', { type: 'submit', class: 'btn small primary', text: 'Apply' })]);
     host.replaceChildren(el('p', { class: 'muted small', text: 'Exempt offerings filed on Form D in the last eight quarters, newest first. ' + BASIS + ' A Form D is a notice, not a registration; the SEC does not review it. Not investment advice.' }), form, out);
     apply(false);
   }
