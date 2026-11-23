@@ -781,6 +781,15 @@ def statement(
             v["text"] = text
     for r in rows:
         r.split_break = breaks.get(r.metric)
+    adjusted = statements_service.split_adjusted(db, cik, rows, breaks, as_of)
+    if adjusted:
+        a = next(iter(adjusted.values()))
+        notes.append(f"Split-adjusted values ({a['ratio']}) are given beside the as-filed ones "
+                     f"for shares and per-share figures, derived from the "
+                     f"{a['source']['form']} filed {a['source']['filed_date']}; the as-filed "
+                     "values stay the default.")  # fmt: skip
+        for r in rows:
+            r.split_adjusted = adjusted.get(r.metric)
     if as_of:
         notes.append(as_of_note(as_of))
     return StatementOut(

@@ -50,6 +50,13 @@ class StatementRow(BaseModel):
         'filings for some years only): {"between": [label, label], "ratio_hint": "4:1"}. '
         "Values are not adjusted.",
     )
+    split_adjusted: dict | None = Field(
+        None,
+        description="S-02: beside the as-filed cells, the same row on the post-split share "
+        'basis: {"ratio": "4:1", "derived": true, "values": [...per column], "source": {the '
+        'filing that shows the ratio, with its evidence}, "basis"}. Only when a filing confirms '
+        "the ratio; the as-filed cells stay the default.",
+    )
     cells: list[StatementCell | None]
 
 

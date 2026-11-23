@@ -124,3 +124,52 @@ def test_split_break_on_the_statement(client, auth, db):
     assert rows["net_income"]["split_break"] is None
     assert brk["text"] in body["notes"] and "not adjusted" in brk["text"]
     assert [c["value"] for c in rows["eps_basic"]["cells"]] == [9.27, 3.0]  # never adjusted
+
+
+def test_split_adjusted_series_from_a_restating_filing(client, auth, db):
+    """S-02: the ratio comes from a later filing restating a year (12.00 as filed, 3.00 in the
+    10-K two years later); older years are adjusted by it, beside the as-filed cells."""
+    import hashlib
+    from datetime import UTC, date, datetime
+
+    from app.db.models import Company, Filing, FinancialFact
+
+    now, cik = datetime.now(UTC), "0000000778"
+    db.add(Company(cik=cik, legal_name="SPLITCO TWO INC", ticker="SPLB",
+                   source_url="https://www.sec.gov/", first_detected_at=now,
+                   last_processed_at=now, quality_status="ok"))  # fmt: skip
+    # (fiscal year, filed, accession suffix, shares, eps)
+    facts = [
+        (2017, date(2017, 11, 1), "17", 5_217_242e3, 9.27),
+        (2018, date(2018, 11, 1), "18", 4_955_377e3, 12.00),  # as first filed
+        (2018, date(2020, 10, 30), "20", 19_821_510e3, 3.00),
+    ]  # restated after the split
+    for y, filed, suf, shares, eps in facts:
+        acc = f"{cik}-{suf}-000001"
+        url = f"https://www.sec.gov/Archives/edgar/data/778/{acc.replace('-', '')}/{acc}-index.html"
+        db.merge(Filing(cik=cik, accession_number=acc, form_type="10-K", filing_date=filed,
+                        source_url=url, first_detected_at=now, quality_status="ok"))  # fmt: skip
+        for metric, value, unit in (("shares_basic_weighted", shares, "shares"),
+                                    ("eps_basic", eps, "USD/shares")):  # fmt: skip
+            db.add(FinancialFact(
+                cik=cik, metric=metric, value=value, unit=unit, currency="USD",
+                period_start=date(y - 1, 10, 1), period_end=date(y, 9, 30),
+                period_type="duration", period_class="annual", fiscal_year=y,
+                fiscal_period="FY", form_type="10-K", filed_date=filed, accession_number=acc,
+                source_tag="t", source_taxonomy="us-gaap", source_url=url,
+                mapping_version="1.5.0", quality_status="ok", derived=False,
+                first_detected_at=now, processed_at=now,
+                observation_key=hashlib.sha256(f"{metric}{y}{suf}".encode()).hexdigest(),
+            ))  # fmt: skip
+    db.commit()
+    body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
+    rows = {r["metric"]: r for r in body["rows"]}
+    adj = rows["eps_basic"]["split_adjusted"]
+    assert adj["ratio"] == "4:1" and adj["derived"] is True
+    assert adj["values"] == [2.3175, 3.0]  # FY2017 9.27 / 4; FY2018 as restated
+    assert (
+        adj["source"]["filed_date"] == "2020-10-30" and "12 as filed" in adj["source"]["evidence"]
+    )
+    assert rows["shares_basic_weighted"]["split_adjusted"]["values"][0] == 5_217_242e3 * 4
+    assert [c["value"] for c in rows["eps_basic"]["cells"]] == [9.27, 3.0]  # as filed stays
+    assert any("Split-adjusted values (4:1)" in n for n in body["notes"])

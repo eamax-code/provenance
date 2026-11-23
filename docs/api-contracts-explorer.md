@@ -147,6 +147,14 @@ Rules:
   "ratio_hint": "4:1", "text": "Shares and per-share figures before FY2018 are as originally filed; …"}`
   (`"1:10"` for a reverse split); `text` is also in `notes`. Shown when shares jump by a
   near-whole factor (at least 1.9x) and EPS moves inversely. Values are never adjusted.
+- `split_adjusted` (S-02, 2026-11-24, additive): beside the as-filed cells of a row with a
+  `split_break`, the row on the post-split basis: `{"ratio": "4:1", "derived": true, "values":
+  [...one per column...], "source": {"accession_number", "form", "filed_date", "source_url",
+  "evidence": "eps_basic for the period ending 2018-09-29: 12.01 as filed 2018-11-05, 3 in the
+  10-K filed 2020-10-30"}, "basis": "..."}`. Given only when a later filing restates a year by
+  the break's own ratio; before the split each value is the later filing's restated one where
+  it exists, else the as-filed value adjusted by that ratio. Only the flagged (latest) split is
+  adjusted. The as-filed cells stay the default.
 
 ---
 

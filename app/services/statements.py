@@ -202,3 +202,104 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str]) -> dict
         if a and b:
             out[m] = {"between": [keys[i - 1], keys[i]], "ratio_hint": hint}
     return out
+
+
+def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[str, dict]:
+    """S-02: a split-adjusted series beside the as-filed one, for the share and EPS rows of a
+    statement with a split break. The ratio comes from the filings: a period before the break
+    that a later filing reports again, restated by a near-whole factor (Apple FY2018 diluted EPS
+    11.91 as filed, 2.98 in the 10-K filed 2020-10-30). Each value before the break is the
+    restated one when a later filing gives it, else the as-filed value adjusted by that ratio;
+    later values are unchanged. Derived, never the default. {} when no filing confirms a ratio
+    (the flag alone stays)."""
+    from app.db.models import FinancialFact
+
+    if not breaks:
+        return {}
+    wanted = SHARE_ROWS + EPS_ROWS
+    by_metric = {r.metric: r for r in rows if not r.derived and r.metric in wanted}
+    brk = next(iter(breaks.values()))
+    old_key = brk["between"][0]
+    a, b = brk["ratio_hint"].split(":")
+    expected = float(int(a)) if int(b) == 1 else 1 / int(b)  # the break's own split
+    any_row = next(iter(by_metric.values()), None)
+    if any_row is None:
+        return {}
+    cols = [c.column if c else None for c in any_row.cells]
+    for r in by_metric.values():  # the column labels, from any row that has them
+        cols = [a or (c.column if c else None) for a, c in zip(cols, r.cells, strict=False)]
+    if old_key not in cols:
+        return {}
+    cut = cols.index(old_key)  # columns 0..cut are on the old share basis
+
+    def reported(metric, cell) -> list:
+        q = select(FinancialFact).where(
+            FinancialFact.cik == cik, FinancialFact.metric == metric,
+            FinancialFact.period_end == cell.period_end,
+            FinancialFact.period_start == cell.period_start,
+            FinancialFact.derived.is_(False), FinancialFact.value.is_not(None))  # fmt: skip
+        if as_of:
+            q = q.where(FinancialFact.filed_date <= as_of)
+        return list(db.scalars(q.order_by(FinancialFact.filed_date)))
+
+    def share_factor(metric, orig, later) -> float | None:
+        """New shares per old share, when the restatement is a near-whole split."""
+        r = float(later.value) / float(orig.value)
+        if metric in EPS_ROWS:
+            r = 1 / r
+        if r <= 0:
+            return None
+        whole = round(r) if r >= 1 else 1 / round(1 / r)
+        big = r if r >= 1 else 1 / r
+        if big < SPLIT_MIN_FACTOR or abs(big / round(big) - 1) > SPLIT_INTEGER_TOLERANCE:
+            return None
+        return float(whole)
+
+    factor = evidence = None
+    for metric in EPS_ROWS + SHARE_ROWS:
+        row = by_metric.get(metric)
+        # the first new-basis year (Apple FY2018: 11.91 as filed, 2.98 restated) and then the
+        # old-basis years, newest first; an older split (Apple 7:1, 2014) is not this one
+        for cell in (reversed(row.cells[: cut + 2]) if row else []):
+            if cell is None:
+                continue
+            facts = reported(metric, cell)
+            for later in facts[1:]:
+                if later.filed_date > facts[0].filed_date and facts[0].value and later.value:
+                    f = share_factor(metric, facts[0], later)
+                    if f and abs(f / expected - 1) < 1e-9:  # the restatement is this split
+                        factor, evidence = f, (metric, cell, facts[0], later)
+                        break
+            if factor:
+                break
+        if factor:
+            break
+    if not factor:
+        return {}
+    metric, cell, orig, later = evidence
+    source = {
+        "accession_number": later.accession_number, "form": later.form_type,
+        "filed_date": later.filed_date.isoformat(), "source_url": later.source_url,
+        "evidence": f"{metric} for the period ending {cell.period_end.isoformat()}: "
+        f"{float(orig.value):g} as filed {orig.filed_date.isoformat()}, "
+        f"{float(later.value):g} in the {later.form_type} filed {later.filed_date.isoformat()}",
+    }  # fmt: skip
+    ratio = f"{round(factor)}:1" if factor >= 1 else f"1:{round(1 / factor)}"
+    out = {}
+    for m, row in by_metric.items():
+        values = []
+        for i, c in enumerate(row.cells):
+            if c is None or i > cut:
+                values.append(c.value if c else None)
+                continue
+            v = float(c.value)
+            new = v * factor if m in SHARE_ROWS else v / factor
+            # a later filing's own restated value wins when it agrees with the ratio
+            again = [float(f.value) for f in reported(m, c)[1:] if f.value]
+            match = next((x for x in reversed(again) if new and abs(x / new - 1) < 0.02), None)
+            values.append(round(match if match is not None else new, 6))
+        out[m] = {"ratio": ratio, "derived": True, "values": values, "source": source,
+                  "basis": "Before the split: a later filing's restated value where it gives "
+                  "one, else the as-filed value adjusted by the ratio the filings "
+                  "show."}  # fmt: skip
+    return out
