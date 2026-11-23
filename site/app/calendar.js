@@ -40,10 +40,10 @@
       kids.push(el('button', { type: 'button', class: 'tag tag-derived', 'aria-expanded': 'false', 'aria-controls': id, title: 'Derived from a rule; show the rule', text: 'derived', on: { click: function (e) { var b = e.currentTarget, open = b.getAttribute('aria-expanded') !== 'true'; b.setAttribute('aria-expanded', String(open)); basis.hidden = !open; } } }));
       extra.push(basis);
     }
-    // a deadline that has passed: met (the report that met it), or not
-    if (i.kind === 'filing_deadline' && i.date < today) {
+    // a deadline already met (before or after its date) links the report; one that has passed unmet says so
+    if (i.kind === 'filing_deadline' && (i.met_by || i.date < today)) {
       var late = all.some(function (x) { return x.kind === 'late_notice' && (!x.company || !i.company || x.company.cik === i.company.cik) && x.date <= i.date && x.date >= isoAdd(i.date, -20); });
-      kids.push(i.met_by && ARCHIVE.test(i.met_by.source_url || '') ? el('a', { class: 'cal-met', href: i.met_by.source_url, target: '_blank', rel: 'noopener', text: 'Filed ' + day(i.met_by.filed_date) + ' ↗' })
+      kids.push(i.met_by && ARCHIVE.test(i.met_by.source_url || '') ? el('a', { class: 'cal-met' + (i.filed_late ? ' is-late' : ''), href: i.met_by.source_url, target: '_blank', rel: 'noopener', text: (i.filed_late ? 'Filed late, ' : 'Filed ') + day(i.met_by.filed_date) + ' ↗' })
         : el('span', { class: 'cal-miss', text: late ? 'Not filed by the due date' : 'No report found' }));
     }
     var src = i.source && ARCHIVE.test(i.source.source_url || '') && !i.derived ? el('a', { href: i.source.source_url, target: '_blank', rel: 'noopener', text: (i.source.form || 'Filing') + ' ↗' }) : i.derived && i.source && ARCHIVE.test(i.source.source_url || '') ? el('a', { href: i.source.source_url, target: '_blank', rel: 'noopener', title: 'The filing this date is worked out from', text: 'basis ' + (i.source.form || 'filing') + ' ↗' }) : el('span');

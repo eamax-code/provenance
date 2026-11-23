@@ -102,7 +102,7 @@
     return 'No proxy from ' + nm + ' with a tagged pay-versus-performance table in the filings loaded. Proxies filed before 2023 do not have one.';
   }
   function pay(b, name, w, d) {
-    var years = b.years || [], cur = b.currency, nm = name((d.company || {}).display_name || (d.company || {}).legal_name || 'This company').replace(/\.$/, '');
+    var years = b.years || [], cur = b.currency, nm = ((d.company || {}).display_name || name((d.company || {}).legal_name || 'This company')).replace(/\.$/, ''); // the API's display name is already cased (SAP SE)
     if (!years.length) return [el('p', { class: 'pp-why', text: payWhy(d, nm) }), note((b.as_of ? 'As known on ' + day(b.as_of) + '. ' : '') + ((b.labels || {}).disclaimer || DISCLAIMER))];
     var cols = ['Fiscal year ended', 'PEO', 'Total pay', 'Actually paid', 'Other NEOs, average total', 'Average actually paid', 'TSR ($100)', 'Peer TSR', 'Net income', 'Company-selected measure'];
     var body = [];

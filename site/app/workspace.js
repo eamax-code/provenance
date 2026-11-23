@@ -164,7 +164,8 @@
   function renderTab() {
     if (!S.d) return;
     showPanes(S.tab);
-    if (KEYED[S.tab] && !X.hasKey()) { var p = $('pane-' + S.tab); keyNeeded(p); return; }
+    if (KEYED[S.tab] && !X.hasKey()) { var p = $('pane-' + S.tab); keyNeeded(p); if (S.tab === 'filings') changesSection(); return; }
+    if (S.tab === 'filings') changesSection();
     if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'people') peopleTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
   }
   function keyNeeded(p) {
@@ -284,7 +285,7 @@
     var list = peerList(d); if (!list.length) return null;
     var locked = function (p) { return !X.hasKey() && p.is_public_page === false; }; // without a key only the showcase companies open
     var pick = peerPick[S.cik] || (peerPick[S.cik] = list.filter(function (p) { return p.ranked !== false && !locked(p); }).slice(0, 4).map(function (p) { return String(parseInt(p.cik, 10)); }));
-    var me = orgName((d.company || {}).display_name || (d.company || {}).legal_name || 'this company').replace(/\.$/, ''), boxes = [];
+    var me = ((d.company || {}).display_name || orgName((d.company || {}).legal_name || 'this company')).replace(/\.$/, ''), boxes = [];
     var btn = el('button', { type: 'button', class: 'btn small primary', on: { click: function () { S.cmp = pick.slice(0, 4); go('compare'); } } });
     function sync() {
       btn.textContent = pick.length ? 'Compare with ' + pick.length + (pick.length === 1 ? ' peer' : ' peers') : 'Tick a peer to compare';
@@ -585,7 +586,8 @@
       var kind = (TLT.filter(function (t) { return t[0] === i.type; })[0] || [0, i.type])[1];
       return el('li', { class: 'tl-' + i.type + (i.upcoming ? ' upcoming' : '') }, [el('time', { datetime: i.date, text: day(i.date) }), el('span', { class: 'tag', text: i.upcoming ? 'upcoming' : kind }),
         el('span', { class: 'tl-t' }, [String(i.title || '').replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) { return day(m); }), sub ? el('span', { class: 'muted small', text: ' · ' + sub }) : null]),
-        ARCHIVE.test(i.filing_url || '') ? el('a', { href: i.filing_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + ' ↗' }) : el('span')]);
+        el('span', { class: 'tl-acts' }, [i.changes_available && i.accession_number ? el('button', { type: 'button', class: 'linkish small', text: 'What changed', title: 'Risk factors and MD&A against the previous annual report', on: { click: function () { S.chgAcc = { cik: S.cik, acc: i.accession_number }; go('filings'); } } }) : null,
+          ARCHIVE.test(i.filing_url || '') ? el('a', { href: i.filing_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + ' ↗' }) : null])]);
     }));
     var more = tl.more ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { tlLoad(); } } }) : null;
     pane.replaceChildren.apply(pane, [el('div', { class: 'ch-bar' }, [chips]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice. Newest first; every item links its filing.' }),
@@ -648,6 +650,18 @@
       var host = el('div');
       pane.replaceChildren(el('p', { class: 'muted small', text: 'Filing deadlines, late notices, lock-up and quiet-period ends. Dates marked derived are worked out from rules and the company’s own filings, and the company can file on another day. Information, not signals.' }), host);
       C.mount(host, { keyed: X.hasKey(), name: orgName, load: function (p) { var q = new URLSearchParams(p).toString(); return keyedOrDemo('/v1/companies/' + cik + '/calendar' + (q ? '?' + q : '')); } });
+    });
+  }
+
+  /* ---- X-14 what changed (changes.js): at the top of Filings, for the latest 10-K or the one picked on the timeline ---- */
+  function changesSection() {
+    var pane = $('pane-filings'), C = window.ProvenanceChanges; if (!C || !pane) return;
+    var host = $('chg-host') || el('section', { id: 'chg-host', class: 'ws-sec chg', 'aria-labelledby': 'chg-h' });
+    pane.prepend(host);
+    var cik = S.cik, acc = S.chgAcc && S.chgAcc.cik === cik ? S.chgAcc.acc : null;
+    apiHas('/v1/companies/{cik}/changes').then(function (y) {
+      host.hidden = !y; if (!y || S.cik !== cik) return;
+      C.render(host, { cik: cik, accession: acc, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } });
     });
   }
 
