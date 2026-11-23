@@ -469,6 +469,16 @@ demo key. 0 errors, no 429s. p50 1.2-5.1 ms, p95 16-74 ms (cache hits: no databa
 before the first response is cached (no single-flight; acceptable, since it happens once per
 data change per worker).
 
+Single-flight (7aa6b4d), the same burst on a fresh server with no data load running: p95 holders
+6.6 ms (was 16.3), insiders 9.0 (27.8), overview 47.6 (73.5), ownership 11.6 (17.7), statements
+17.7 (27.3), timeline 92.7 (42.4); p99 timeline 4.9 s (5.6), overview 1.9 s (1.9). Duplicate
+computes are gone (tests: 6 concurrent ownership misses and 8 cold demo requests each compute
+once), but the cold p99 is the first wave of distinct cold pages (36 per worker, all computed at
+once under the GIL, the timelines' 13F quarters heaviest), which single-flight cannot shorten.
+Warming the showcase pages when a worker starts or the data version changes would (after the
+freeze). A first run while E-4b+ was writing segment labels (about 1,000 rows a second) showed
+the cache emptying at every 30 s version check: during a load the cache acts like a 30 s TTL.
+
 ## Restore drill (R-3), 2026-11-22
 
 The daily dump `provenance-2026-11-22T0351Z.dump` (4.3 GB, custom format, 56 tables; written by
