@@ -20,7 +20,7 @@
   // one cell: a label, a sentence (filled when its request returns) and the tab it opens
   function cell(label, tab, go, tone) {
     var say = el('p', { class: 'wn-say muted', text: 'Loading…' }), c = el('div', { class: 'wn-c' + (tone ? ' ' + tone : '') }, [el('p', { class: 'wn-l', text: label }), say]);
-    var open = el('button', { type: 'button', class: 'linkish wn-go', text: tab[1] + ' →', on: { click: function () { go(tab[0]); } } });
+    var open = el('button', { type: 'button', class: 'linkish wn-go', 'aria-label': tab[1] + ': ' + label.toLowerCase(), text: tab[1] + ' →', on: { click: function () { go(tab[0]); } } });
     c.appendChild(open);
     return { node: c, set: function (kids, cls) { say.className = 'wn-say' + (cls ? ' ' + cls : ''); say.replaceChildren.apply(say, (Array.isArray(kids) ? kids : [kids]).filter(function (x) { return x != null && x !== ''; })); } };
   }
