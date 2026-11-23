@@ -48,6 +48,10 @@ class SectionHit:
 
 
 def section_title(item: str) -> str:
+    from app.services.tenk_sections import TITLES as TENK_TITLES
+
+    if item in TENK_TITLES:
+        return TENK_TITLES[item]
     if item in prospectus.TITLES:
         return prospectus.TITLES[item]
     if item == releases.ITEM:

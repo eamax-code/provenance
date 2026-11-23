@@ -186,12 +186,16 @@ def event_rows(
             "filing_url": c.source_url, "_accn": c.accession_number,
         }))  # fmt: skip
     from app.db.models import DatedEvent
+    from app.services.dated_events import AUDITOR_CHANGE, LOCKUP_EXPIRY
     from app.services.dated_events import as_dict as dated_dict
 
     dated = (
         select(DatedEvent, Company.legal_name, Company.ticker)
         .join(Company, Company.cik == DatedEvent.cik)
-        .where(DatedEvent.event_date >= since, DatedEvent.event_date <= (until or date.today()))
+        .where(DatedEvent.event_date >= since, DatedEvent.event_date <= (until or date.today()),
+               # the home strip shows IPO lock-ups and annual-report auditor changes only; plan
+               # and Form 144 events (D-11, D-12) and types this code does not know stay off it
+               DatedEvent.event_type.in_([LOCKUP_EXPIRY, AUDITOR_CHANGE]))
     )
     if cik:
         dated = dated.where(DatedEvent.cik == cik)

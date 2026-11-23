@@ -114,7 +114,9 @@ def emit_auditor_changes(db: Session, today: date | None = None) -> list[DatedEv
 def as_dict(row: DatedEvent) -> dict:
     detail = json.loads(row.detail)
     days = detail.get("lockup_days")
-    label = LABELS[row.event_type][0]
+    # a type this code does not know (written by newer code) is shown plainly, never a 500
+    known = LABELS.get(row.event_type, (row.event_type, row.event_type))
+    label = known[0]
     if row.event_type == AUDITOR_CHANGE:
         label = (f"{detail['to']['name']} replaces {detail['from']['name']} as auditor "
                  f"(fiscal year {detail['fiscal_year']}, annual report)")  # fmt: skip
@@ -129,7 +131,7 @@ def as_dict(row: DatedEvent) -> dict:
     return {
         "type": row.event_type,
         "label": label,
-        "short_label": LABELS[row.event_type][1],
+        "short_label": known[1],
         "linked_event": {"type": "sec.auditor_change", **detail["item_401"]}
         if row.event_type == AUDITOR_CHANGE and detail.get("item_401")
         else None,

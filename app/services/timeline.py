@@ -24,6 +24,7 @@ from app.services import (
     form_names,
     insider_activity,
     insider_plans,
+    tenk_sections,
 )
 from app.services.form8k import split_items
 
@@ -113,6 +114,12 @@ def _filings(db, cik, start, end, ref, kinds, need: int | None = None) -> list[d
                 details = {"stage": "priced"}
             out.append(_item(cik, f.filing_date, kind, f"{f.accession_number}_{t}",
                              _event_title(t), event_type=t, filing=f, details=details))  # fmt: skip
+    # X-14: an annual report says whether "what changed" can be shown for it
+    annual = [i for i in out if i["type"] == "filing" and i["form_type"] in tenk_sections.FORMS]
+    if annual:
+        ok = tenk_sections.available(db, [i["accession_number"] for i in annual])
+        for i in annual:
+            i["changes_available"] = i["accession_number"] in ok
     return out
 
 

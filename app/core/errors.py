@@ -20,24 +20,26 @@ class APIError(Exception):
         code: str,
         message: str,
         headers: dict[str, str] | None = None,
+        details: dict | None = None,
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.code = code
         self.message = message
         self.headers = headers or {}
+        self.details = details  # additive, machine-readable (changes_not_available: reason)
 
 
-def _envelope(request: Request, status: int, code: str, message: str, headers=None):
+def _envelope(request: Request, status: int, code: str, message: str, headers=None,
+              details: dict | None = None):  # fmt: skip
     rid = getattr(request.state, "request_id", None)
     out_headers = {"X-Request-ID": rid} if rid else {}
     if headers:
         out_headers.update(headers)
-    return JSONResponse(
-        status_code=status,
-        content={"error": {"code": code, "message": message, "request_id": rid}},
-        headers=out_headers,
-    )
+    error = {"code": code, "message": message, "request_id": rid}
+    if details:
+        error.update(details)
+    return JSONResponse(status_code=status, content={"error": error}, headers=out_headers)
 
 
 _STATUS_CODES = {
@@ -83,7 +85,7 @@ def install_error_handlers(app: FastAPI, pages: Path | None = None) -> None:
 
     @app.exception_handler(APIError)
     async def _api_error(request: Request, exc: APIError):
-        return _envelope(request, exc.status_code, exc.code, exc.message, exc.headers)
+        return _envelope(request, exc.status_code, exc.code, exc.message, exc.headers, exc.details)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(request: Request, exc: RequestValidationError):
