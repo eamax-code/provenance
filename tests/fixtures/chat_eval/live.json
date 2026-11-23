@@ -190,6 +190,12 @@
    "q": "Tesla CEO pay vs TSR",
    "kind": "cited",
    "checked": "Tesla proxy pay versus performance table, cited to the proxy"
+  },
+  {
+   "id": "L27",
+   "q": "Who raised over $50M in biotech last quarter?",
+   "kind": "cited",
+   "checked": "2026-11-24: Form D data sets 2026q3; Entera Bio Form D 0001638097-26-000003 totalAmountSold 274,999,976 (the top row); 'last quarter' is relative, so the case checks citations, not a figure"
   }
  ]
 }

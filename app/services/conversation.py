@@ -174,10 +174,77 @@ def screen_filters(text: str) -> dict:
     return f
 
 
+# D-15: private raises on Form D ("Who raised over $50M in biotech last quarter?")
+_RAISE = re.compile(r"\b(raised|raising|raise|private (?:placements?|raises?|offerings?)|"
+                    r"form d\b|regulation d|reg d)\b", re.IGNORECASE)  # fmt: skip
+_AMOUNT = re.compile(r"\b(?:over|above|more than|at least|exceeding|>)\s*\$?\s*([\d.,]+)\s*"
+                     r"(k|thousand|m|mm|mn|million|b|bn|billion)?\b", re.IGNORECASE)  # fmt: skip
+_INDUSTRIES = (  # words -> Form D industry group, as filed
+    (r"biotech\w*", "Biotechnology"), (r"pharma\w*", "Pharmaceuticals"),
+    (r"real estate|reits?\b", "Other Real Estate"), (r"oil|gas\b", "Oil and Gas"),
+    (r"(?:hedge |private equity |venture )?funds?\b|pooled", "Pooled Investment Fund"),
+    (r"banks?\b|banking", "Commercial Banking"), (r"restaurants?", "Restaurants"),
+    (r"retail\w*", "Retailing"), (r"telecom\w*", "Telecommunications"),
+    (r"health ?care|medical", "Other Health Care"), (r"energy", "Other Energy"),
+    (r"tech\b|technology|software|\bai\b", "Other Technology"),
+)  # fmt: skip
+
+
+def _short(v: float) -> str:
+    for div, suf in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if v >= div:
+            return f"{v / div:g}{suf}"
+    return f"{v:g}"
+
+
+def _is_private_raise(text: str) -> bool:
+    """Form D, Reg D or a private placement by name; or "raised" with an amount, an industry
+    or funding words ("Which companies raised guidance?" is not one)."""
+    if re.search(r"form d\b|reg(?:ulation)? d\b|private (?:placements?|raises?|offerings?)",
+                 text, re.IGNORECASE):  # fmt: skip
+        return True
+    if not re.search(r"\b(raised|raising|raise)\b", text, re.IGNORECASE):
+        return False
+    return bool(_AMOUNT.search(text) and re.search(r"\$|\b(million|billion|bn|mm)\b|\d+\s*[mb]\b",
+                                                   text, re.IGNORECASE)
+                or any(re.search(rf"\b(?:{pat})", text, re.IGNORECASE) for pat, _ in _INDUSTRIES)
+                or re.search(r"\b(funding|capital|money|investors?)\b", text, re.IGNORECASE))
+
+
+def private_raise_filters(text: str, today: date) -> dict:
+    """{industry, min_amount, start, end, label} from a private-raise question."""
+    out: dict = {}
+    m = _AMOUNT.search(text)
+    if m:
+        n = float(m.group(1).replace(",", ""))
+        mult = {"k": 1e3, "thousand": 1e3, "m": 1e6, "mm": 1e6, "mn": 1e6, "million": 1e6,
+                "b": 1e9, "bn": 1e9, "billion": 1e9}.get((m.group(2) or "").lower(), 1)
+        out["min_amount"] = n * mult
+    for pat, group in _INDUSTRIES:
+        if re.search(rf"\b(?:{pat})", text, re.IGNORECASE):
+            out["industry"] = group
+            break
+    q0 = date(today.year, 3 * ((today.month - 1) // 3) + 1, 1)  # this calendar quarter
+    if re.search(r"\blast quarter\b|\bprevious quarter\b", text, re.IGNORECASE):
+        end = q0 - timedelta(days=1)
+        start = date(end.year, 3 * ((end.month - 1) // 3) + 1, 1)
+        out.update(start=start, end=end, label=f"from {start.isoformat()} to {end.isoformat()}")
+    elif re.search(r"\bthis quarter\b", text, re.IGNORECASE):
+        out.update(start=q0, end=today, label="this quarter")
+    else:
+        days, label = _window(text)
+        days = 90 if not _WINDOW.search(text) else days
+        label = "the last 90 days" if not _WINDOW.search(text) else label
+        out.update(start=today - timedelta(days=days), end=today, label=label)
+    return out
+
+
 def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) -> Plan | None:
     """The cross-company intent a question names, or None for the company flow."""
     if _OUT_OF_SCOPE.search(text):
         return Plan("out_of_scope")
+    if _is_private_raise(text):
+        return Plan("private_raises", filters={"text": text})
     if db is not None and _COMPARE.search(text):
         named = compared_companies(db, text)
         if len(named) >= 2:
@@ -236,7 +303,61 @@ def answer(db: Session, p: Plan, ctx: ConversationContext | None, today: date) -
         return _compare(db, p)
     if p.kind == "screen":
         return _screen(db, p)
+    if p.kind == "private_raises":
+        return _private_raises(db, p, today)
     raise ValueError(p.kind)
+
+
+def _private_raises(db: Session, p: Plan, today: date) -> DataAnswer:
+    """D-15: Form D offerings, largest first, each cited to its filing. Self-reported."""
+    from app.services import form_d
+
+    f = private_raise_filters(p.filters.get("text", ""), today)
+    items, _ = form_d.search(db, f.get("industry"), None, f.get("min_amount"), f.get("start"),
+                             f.get("end"), limit=500)  # fmt: skip
+
+    def size(i):
+        return i["total_amount_sold"] or i["total_offering_amount"] or 0
+
+    items.sort(key=size, reverse=True)
+    what = (f"{f['industry'].lower()} " if f.get("industry") else "") + "offerings"
+    # the asked threshold is the question's, not a filed figure: written short ($50M)
+    floor = f" of ${_short(f['min_amount'])} or more" if f.get("min_amount") else ""
+    when = f["label"] if f["label"].startswith(("from", "this")) else f"in {f['label']}"
+    through = form_d.covered_through(db)
+    cover = (f" The Form D data sets loaded here run through {through.isoformat()}."
+             if through and f.get("end") and f["end"] > through else "")  # fmt: skip
+    if not items:
+        return DataAnswer(f"No Form D notice for {what}{floor} was filed {when} in the data "
+                          f"loaded here.{cover} {form_d.BASIS}", "private_raises")  # fmt: skip
+    cites: list[dict] = []
+    parts = []
+    for i in items[:5]:
+        lf = i["latest_filing"]
+        n = _cite(cites, f"{i['issuer']['name']}, Form {lf['form']} filed {lf['filed_date']}",
+                  lf["source_url"])  # fmt: skip
+        offered = (_money(i["total_offering_amount"]) if i["total_offering_amount"] is not None
+                   else "an indefinite amount")  # fmt: skip
+        sold = _money(i["total_amount_sold"]) if i["total_amount_sold"] is not None else "not given"
+        parts.append(f"{i['issuer']['name']} ({offered} offered, {sold} sold) [{n}]")
+    text = (f"{len(items)}{'+' if len(items) >= 500 else ''} issuers filed Form D for {what}"
+            f"{floor} {when}. The largest by amount sold: " + "; ".join(parts) + "." + cover
+            + " " + form_d.BASIS)  # fmt: skip
+    rows = [[_cell(i["issuer"]["name"]), _cell(i["industry_group"] or "—"),
+             _cell(_money(i["total_offering_amount"]) if i["total_offering_amount"] is not None
+                   else "Indefinite"),
+             _cell(_money(i["total_amount_sold"]) if i["total_amount_sold"] is not None else "—"),
+             _cell(i["first_sale_date"] or "—"),
+             _cell(i["latest_filing"]["filed_date"], i["latest_filing"]["source_url"])]
+            for i in items[:20]]  # fmt: skip
+    widget = _table(f"Form D {what}{floor}, {f['label']}",
+                    ["Issuer", "Industry", "Offered", "Sold", "First sale", "Form D"], rows,
+                    note=form_d.BASIS)  # fmt: skip
+    how = [{"endpoint": "/v1/private-raises", "parameters": {
+        k: (v.isoformat() if isinstance(v, date) else v) for k, v in
+        (("industry", f.get("industry")), ("min_amount", f.get("min_amount")),
+         ("from", f.get("start")), ("to", f.get("end"))) if v is not None}}]  # fmt: skip
+    return DataAnswer(text, "private_raises", widgets=[widget], citations=cites, how=how)
 
 
 # ---- intents -------------------------------------------------------------------------------

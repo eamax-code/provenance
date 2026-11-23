@@ -1591,3 +1591,45 @@ class SubsidiaryLei(Base):
 
     subsidiary_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     lei: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
+class FormDFiling(Base):
+    """A Form D or D/A notice of an exempt offering (D-15, docs/contracts/private-raises.md),
+    from the SEC's structured Form D data sets: the primary issuer, the offering and up to ten
+    related persons as filed. Amendments share the original's file number; is_latest marks the
+    newest filing of each offering. Self-reported by the issuer; amounts as filed."""
+
+    __tablename__ = "form_d_filings"
+    __table_args__ = (
+        Index("ix_form_d_filings_cik", "cik"),
+        Index("ix_form_d_filings_file", "file_number"),
+        Index("ix_form_d_filings_latest", "is_latest", "filing_date"),
+    )
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    file_number: Mapped[str | None] = mapped_column(Text, nullable=True)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)  # D, D/A
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    issuer_name: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jurisdiction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entity_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    year_of_incorporation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    industry_group: Mapped[str | None] = mapped_column(Text, nullable=True)
+    total_offering_amount: Mapped[Decimal | None] = mapped_column(Numeric(24, 2), nullable=True)
+    indefinite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    total_amount_sold: Mapped[Decimal | None] = mapped_column(Numeric(24, 2), nullable=True)
+    total_remaining: Mapped[Decimal | None] = mapped_column(Numeric(24, 2), nullable=True)
+    investors_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    investors_non_accredited: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    first_sale_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    first_sale_yet_to_occur: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    exemptions: Mapped[str | None] = mapped_column(Text, nullable=True)  # codes as filed, comma
+    minimum_investment: Mapped[Decimal | None] = mapped_column(Numeric(24, 2), nullable=True)
+    sales_commissions: Mapped[Decimal | None] = mapped_column(Numeric(24, 2), nullable=True)
+    finders_fees: Mapped[Decimal | None] = mapped_column(Numeric(24, 2), nullable=True)
+    related_persons: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON
+    related_persons_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_latest: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)

@@ -281,6 +281,22 @@ TOOLS: dict[str, dict[str, Any]] = {
                       "cybersecurity, crypto, going_concern, related_parties, other"}},
             "required": ["cik"]},
     },  # fmt: skip
+    "private_raises": {
+        "title": "Private raises (Form D)",
+        "description": "Form D notices of exempt offerings, newest first: issuer, industry group, "
+        "amount offered and sold, investors, first sale, exemptions, each linking its Form D. "
+        "Filter by industry group as filed (e.g. Biotechnology, Other Technology, Pooled "
+        "Investment Fund), state, min_amount (USD), from/to (filing date) and exemption, or "
+        "give cik for one issuer. Self-reported by the issuer on Form D; amounts as filed.",
+        "path": "/v1/private-raises",
+        "params": {"industry": "industry", "state": "state", "min_amount": "min_amount",
+                   "from": "from", "to": "to", "exemption": "exemption", "limit": "limit"},
+        "schema": {"type": "object", "properties": {
+            "cik": _CIK, "industry": {"type": "string"}, "state": {"type": "string"},
+            "min_amount": {"type": "number", "minimum": 0}, "from": _DATE, "to": _DATE,
+            "exemption": {"type": "string", "description": "06b, 06c, 04, 3C.1, 3C.7, ..."},
+            "limit": _LIMIT}},
+    },  # fmt: skip
     "company_segments": {
         "title": "Segments",
         "description": "Revenue and segment profit (operating income, or pretax income for "
@@ -551,6 +567,11 @@ async def call_tool(request: Request, name: str, args: dict[str, Any]) -> dict[s
         path = f"/v1/filings/{acc}/changes"
     elif name == "filing_changes" and not args.get("cik"):
         raise ValueError("give cik or accession")
+    if name == "private_raises" and args.get("cik"):
+        cik = str(args["cik"]).strip()
+        if not cik.isdigit() or len(cik) > 10:
+            raise ValueError("cik must be digits, e.g. 320193")
+        path = f"/v1/companies/{cik}/private-raises"
     if "{cik}" in path:
         cik = str(args["cik"]).strip()
         if not cik.isdigit() or len(cik) > 10:
