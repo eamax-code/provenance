@@ -166,3 +166,15 @@ def test_oversized_results_stay_valid_json():
     rows = json.loads(_text({"data": [cell] * 1000}))
     assert 1 <= len(rows["data"]) < 1000 and "limit" in rows["truncated"]
     assert "truncated" in json.loads(_text(["x" * (MAX_TEXT + 1)]))
+
+
+def test_llms_txt_lists_every_mcp_tool():
+    import re
+    from pathlib import Path
+
+    from app.api.routes_mcp import TOOLS
+
+    text = (Path(__file__).resolve().parents[2] / "site" / "llms.txt").read_text()
+    line = next(x for x in text.splitlines() if x.startswith("- Tools: "))
+    listed = {re.sub(r"\s*\(.*\)", "", t).strip() for t in line[9:].split(".")[0].split(",")}
+    assert listed == set(TOOLS), listed ^ set(TOOLS)

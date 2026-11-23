@@ -26,6 +26,9 @@ def test_plans_are_public_and_match_config(client):
     assert "overage" not in r.text.lower() and "with_billing" not in r.text
     assert body["max_export_rows"] == 1000 and "not affiliated" in body["disclaimer"]
     assert r.headers["Cache-Control"].startswith("public, max-age=")
+    free = body["data"][0]
+    limits = ("max_watchlists", "max_watchlist_companies", "max_watchlist_columns")
+    assert [free[k] for k in limits] == [3, 50, 8] and builder["max_watchlists"] == 25
 
 
 def test_showcase_list_default_is_recent_ingested_companies(

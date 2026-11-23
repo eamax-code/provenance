@@ -27,6 +27,9 @@ class PublicPlan(BaseModel):
     max_event_streams: int
     max_export_rows: int
     chat_questions_per_day: int
+    max_watchlists: int = Field(description="Saved watchlists per key (X-07)")
+    max_watchlist_companies: int = Field(description="Companies per watchlist")
+    max_watchlist_columns: int = Field(description="Columns per watchlist")
     forecasts: bool
     support: str
     features: list[str]
