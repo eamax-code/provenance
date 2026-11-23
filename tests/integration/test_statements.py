@@ -86,3 +86,41 @@ def test_a_successor_continues_with_its_predecessors_cells(client, auth, db, ing
     cell = next(c for c in _rows(body)["revenue"]["cells"] if c)
     assert cell["predecessor"] and cell["registrant_cik"] == "0000320193"
     assert "predecessor registrant" in cell["registrant_label"]
+
+
+def test_split_break_on_the_statement(client, auth, db):
+    import hashlib
+    from datetime import UTC, date, datetime
+
+    from app.db.models import Company, Filing, FinancialFact
+
+    now, cik = datetime.now(UTC), "0000000777"
+    db.add(Company(cik=cik, legal_name="SPLITCO INC", ticker="SPLT", source_url="https://www.sec.gov/",
+                   first_detected_at=now, last_processed_at=now, quality_status="ok"))  # fmt: skip
+    years = {2017: (5_217_242e3, 9.27, 48_351e6), 2018: (19_821_510e3, 3.00, 59_531e6)}
+    for y, (shares, eps, income) in years.items():
+        acc = f"{cik}-{y % 100}-000001"
+        url = f"https://www.sec.gov/Archives/edgar/data/777/{acc.replace('-', '')}/{acc}-index.html"
+        db.add(Filing(cik=cik, accession_number=acc, form_type="10-K", filing_date=date(y, 11, 1),
+                      source_url=url, first_detected_at=now, quality_status="ok"))  # fmt: skip
+        values = (("shares_basic_weighted", shares, "shares"), ("eps_basic", eps, "USD/shares"),
+                  ("net_income", income, "USD"))  # fmt: skip
+        for metric, value, unit in values:
+            db.add(FinancialFact(
+                cik=cik, metric=metric, value=value, unit=unit, currency="USD",
+                period_start=date(y - 1, 10, 1), period_end=date(y, 9, 30), period_type="duration",
+                period_class="annual", fiscal_year=y, fiscal_period="FY", form_type="10-K",
+                filed_date=date(y, 11, 1), accession_number=acc, source_tag="t",
+                source_taxonomy="us-gaap", source_url=url, mapping_version="1.5.0",
+                quality_status="ok", derived=False, first_detected_at=now, processed_at=now,
+                observation_key=hashlib.sha256(f"{metric}{y}".encode()).hexdigest(),
+            ))  # fmt: skip
+    db.commit()
+    body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
+    rows = {r["metric"]: r for r in body["rows"]}
+    brk = rows["eps_basic"]["split_break"]
+    assert brk["between"] == ["FY2017", "FY2018"] and brk["ratio_hint"] == "4:1"
+    assert rows["shares_basic_weighted"]["split_break"] == brk
+    assert rows["net_income"]["split_break"] is None
+    assert brk["text"] in body["notes"] and "not adjusted" in brk["text"]
+    assert [c["value"] for c in rows["eps_basic"]["cells"]] == [9.27, 3.0]  # never adjusted

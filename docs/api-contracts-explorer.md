@@ -144,7 +144,8 @@ Rules:
 - `split_break` (2026-11-23, additive): on share and EPS rows when two adjacent columns are on
   different share bases, because a later filing restated some years for a split and earlier years
   stay as filed (Apple FY2017 5.2B shares, FY2018 19.8B): `{"between": ["FY2017", "FY2018"],
-  "ratio_hint": "4:1"}` (`"1:10"` for a reverse split), plus a note. Shown when shares jump by a
+  "ratio_hint": "4:1", "text": "Shares and per-share figures before FY2018 are as originally filed; …"}`
+  (`"1:10"` for a reverse split); `text` is also in `notes`. Shown when shares jump by a
   near-whole factor (at least 1.9x) and EPS moves inversely. Values are never adjusted.
 
 ---

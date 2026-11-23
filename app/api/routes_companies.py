@@ -762,15 +762,19 @@ def statement(
         {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
         [c.key for c in columns],
     )
-    for r in rows:
-        r.split_break = breaks.get(r.metric)
     if breaks:
         b = next(iter(breaks.values()))
-        notes.append(
+        text = (
             f"Shares and per-share figures before {b['between'][1]} are as originally filed; "
             f"later filings restated some years for a stock split ({b['ratio_hint']}), so "
-            f"{b['between'][0]} and {b['between'][1]} are on different share bases."
+            f"{b['between'][0]} and {b['between'][1]} are on different share bases. They are "
+            "not adjusted."
         )
+        notes.append(text)
+        for v in breaks.values():
+            v["text"] = text
+    for r in rows:
+        r.split_break = breaks.get(r.metric)
     if as_of:
         notes.append(as_of_note(as_of))
     return StatementOut(

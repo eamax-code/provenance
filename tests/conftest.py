@@ -254,10 +254,11 @@ def app(settings, engine, sec_client):
     chat_day_limiter.reset()
     ip_limiter.reset()
     email_limiter.reset()
-    from app.api.dependencies import demo_all_limiter
+    from app.api.dependencies import demo_all_limiter, demo_day_limiter, demo_minute_limiter
     from app.services import showcase_cache
 
-    demo_all_limiter.reset()
+    for demo_limiter in (demo_all_limiter, demo_minute_limiter, demo_day_limiter):
+        demo_limiter.reset()  # counters persist in memory across tests on SQLite
     showcase_cache.clear()
     application = create_app(settings)
     application.state.sec_client_factory = lambda: sec_client
