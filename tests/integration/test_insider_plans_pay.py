@@ -288,3 +288,18 @@ def test_insider_plans_endpoint_joins_the_form4(db, client, auth, ingested_aapl)
     kinds = {i["type"] for i in tl["data"]}
     assert kinds == {"trading_plan", "proposed_sale"}
     assert any(i["title"] == "Kevan Parekh adopted a trading plan" for i in tl["data"])
+
+
+def test_first_form144_load_is_backfill_and_never_alerts(db, ingested_aapl):
+    from datetime import timedelta
+
+    today = date(2026, 11, 24)
+    _notice(db, "0001959173-26-000101", "WERNER ROBERT F.", "0001590947", today)
+    db.commit()
+    first = form144.emit_events(db, today=today)
+    assert [e.stream_status for e in first] == ["skipped"]  # filed today, but backfill
+    db.commit()
+    _notice(db, "0001959173-26-000102", "Jane Q. Smith", "0009999999", today + timedelta(days=1))
+    db.commit()
+    later = form144.emit_events(db, today=today + timedelta(days=1))
+    assert [e.stream_status for e in later] == ["pending"]  # new since the last run

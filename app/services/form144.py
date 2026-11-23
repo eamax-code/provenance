@@ -332,8 +332,18 @@ def load(
     return stats
 
 
+WATERMARK = "proposed_sale:notify_since"
+
+
 def emit_events(db: Session, today: date | None = None) -> list[DatedEvent]:
+    """One sec.proposed_sale event per notice. The first run is backfill and never alerts
+    (ADR 0004); later runs alert only for notices filed after the previous run (the watermark)
+    and no older than yesterday."""
+    from app.db.models import JobState
+
     today = today or date.today()
+    mark = db.get(JobState, WATERMARK)
+    since = date.fromisoformat(mark.value) if mark else None
     have = set(db.scalars(select(DatedEvent.accession_number)
                           .where(DatedEvent.event_type == PROPOSED_SALE)))  # fmt: skip
     added = []
@@ -348,11 +358,15 @@ def emit_events(db: Session, today: date | None = None) -> list[DatedEvent]:
                                "approx_sale_date": n.approx_sale_date.isoformat()
                                if n.approx_sale_date else None}),
             source_url=n.source_url,
-            stream_status="pending" if n.filing_date >= today - timedelta(days=FRESH_DAYS)
-            else "skipped",
+            stream_status="pending" if since is not None and n.filing_date > since
+            and n.filing_date >= today - timedelta(days=FRESH_DAYS) else "skipped",
             created_at=utcnow(),
         )  # fmt: skip
         db.add(row)
         added.append(row)
+    if mark is None:
+        db.add(JobState(name=WATERMARK, value=today.isoformat(), updated_at=utcnow()))
+    else:
+        mark.value, mark.updated_at = today.isoformat(), utcnow()
     db.flush()
     return added
