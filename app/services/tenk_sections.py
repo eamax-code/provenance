@@ -59,6 +59,7 @@ class _Paragraphs(HTMLParser):
         self._stack: list[tuple[str, bool]] = []
         self._buf: list[tuple[str, bool]] = []
         self._skip = 0
+        self._rows: list[int] = []  # where each open table row's paragraphs start in out
 
     def handle_starttag(self, tag, attrs):
         if tag in ("script", "style", "ix:header"):
@@ -66,6 +67,8 @@ class _Paragraphs(HTMLParser):
             return
         if tag in _BLOCK:
             self._flush()
+        if tag == "tr":
+            self._rows.append(len(self.out))
         style = dict(attrs).get("style") or ""
         em = tag in ("b", "strong", "i", "em") or bool(_BOLD.search(style) or _ITALIC.search(style))
         self._stack.append((tag, em))
@@ -80,6 +83,12 @@ class _Paragraphs(HTMLParser):
                 break
         if tag in _BLOCK:
             self._flush()
+        if tag == "tr" and self._rows:
+            start = self._rows.pop()
+            # a row with several filled cells is a table (column heads "2025", "Change"), not a
+            # heading laid out in a one-cell table
+            if len(self.out) - start > 1:
+                self.out[start:] = [(t, 0.0) for t, _ in self.out[start:]]
 
     def handle_data(self, data):
         if self._skip:
@@ -223,19 +232,19 @@ def _brief(h: dict) -> dict:
 
 def diff(now: list[dict], before: list[dict]) -> dict:
     """added, removed, reworded and counts between two lists of headings."""
-    before_by = {}
+    # a heading can repeat ("Revenue" under each segment): match occurrences, not texts
+    left: dict[str, list[dict]] = {}
     for h in before:
-        before_by.setdefault(_norm(h["heading"]), h)
-    used = set()
+        left.setdefault(_norm(h["heading"]), []).append(h)
     unchanged, rest_now = 0, []
     for h in now:
-        k = _norm(h["heading"])
-        if k in before_by and k not in used:
-            used.add(k)
+        same = left.get(_norm(h["heading"]))
+        if same:
+            same.pop(0)
             unchanged += 1
         else:
             rest_now.append(h)
-    rest_before = [h for h in before if _norm(h["heading"]) not in used]
+    rest_before = [h for hs in left.values() for h in hs]
     pairs = []
     tn = [_tokens(h) for h in rest_now]
     tb = [_tokens(h) for h in rest_before]

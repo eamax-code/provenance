@@ -136,3 +136,19 @@ def test_a_report_that_does_not_split_gives_no_half_diff(client, auth, db, inges
     db.commit()
     r = client.get(f"/v1/filings/{now.accession_number}/changes", headers=auth)
     assert r.status_code == 404 and r.json()["error"]["reason"] == "not_split"
+
+
+def test_table_cells_are_not_headings_and_repeats_match_by_occurrence():
+    b = 'style="font-weight:700"'
+    table = (f"<table><tr><td><span {b}>2026</span></td><td><span {b}>Change</span></td>"
+             f"<td><span {b}>2025</span></td></tr></table>")  # fmt: skip
+    layout = f"<table><tr><td><span {b}>Segment Operating Performance</span></td></tr></table>"
+    doc = (f"<p><span {b}>Item 7. Management's Discussion and Analysis of Financial Condition"
+           f"</span></p>{layout}<p>text</p>{table}<p><span {b}>Revenue</span></p><p>a</p>"
+           f"<p><span {b}>Revenue</span></p><p>b</p><p><span {b}>Liquidity</span></p><p>c</p>"
+           f"<p><span {b}>Item 7A. Market Risk</span></p>")  # fmt: skip
+    hs = T.headings(T.section_text(doc, "7"))
+    assert [h["heading"] for h in hs] == ["Segment Operating Performance", "Revenue", "Revenue",
+                                          "Liquidity"]  # fmt: skip
+    d = T.diff(hs, hs[:2] + hs[3:])  # one "Revenue" fewer last year
+    assert d["counts"]["unchanged"] == 3 and d["counts"]["added"] == 1
