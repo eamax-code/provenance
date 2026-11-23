@@ -45,6 +45,11 @@ INTENTS = (  # first match wins
         ),
     ),  # fmt: skip
     (
+        "private_raises",
+        re.compile(r"\b(form d|reg(?:ulation)? d|private (?:placements?|raises?|offerings?))\b",
+                   re.I),
+    ),  # fmt: skip
+    (
         "changes",
         re.compile(
             r"(\brisk factors?\b.*\b(add\w*|new|chang\w*|remov\w*|drop\w*|reword\w*)\b|"
@@ -546,17 +551,42 @@ def calendar(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
     return " ".join(parts) or f"No dated items for {name} in the data loaded here."
 
 
+def private_raises(db: Session, b: Brief, as_of: date | None) -> str:
+    """D-15: one issuer's Form D offerings (an Ask link from the Explorer), cited."""
+    from app.services import form_d
+
+    items, _ = form_d.search(db, cik=b.company.cik, limit=5,
+                             end=as_of)  # fmt: skip
+    name = _name(b)
+    through = form_d.covered_through(db)
+    if not items:
+        return (f"No Form D notice by {name} is in the Form D data sets loaded here"
+                + (f" (through {through.isoformat()})" if through else "") + ".")
+    parts = []
+    for i in items:
+        lf = i["latest_filing"]
+        n = _cite(b, f"Form {lf['form']} filed {lf['filed_date']}", lf["source_url"])
+        sold = money(i["total_amount_sold"], "USD") if i["total_amount_sold"] is not None \
+            else "not given"  # fmt: skip
+        size = (money(i["total_offering_amount"], "USD") if i["total_offering_amount"]
+                is not None else "indefinite")  # fmt: skip
+        parts.append(f"Form {lf['form']} filed {lf['filed_date']}: {sold} sold (offering size "
+                     f"{size}; {i['industry_group'] or 'industry not given'}) [{n}]")  # fmt: skip
+    return (f"Form D offerings by {name}: " + "; ".join(parts) + ". " + form_d.BASIS)
+
+
 HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
     "holders": "ownership", "five_percent": "holders", "auditor": "overview",
     "segments": "segments", "insiders": "insider-transactions", "lei": "overview",
     "pay": "executive-pay", "trading_plans": "insider-plans", "proposed_sales": "insider-plans",
-    "changes": "changes", "calendar": "calendar",
+    "changes": "changes", "calendar": "calendar", "private_raises": "private-raises",
 }  # fmt: skip
 
 ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
            "segments": segments, "insiders": insiders, "lei": lei, "pay": pay,
            "trading_plans": trading_plans, "proposed_sales": proposed_sales,
-           "changes": changes, "calendar": calendar}  # fmt: skip
+           "changes": changes, "calendar": calendar,
+           "private_raises": private_raises}  # fmt: skip
 
 
 def answer(db: Session, b: Brief, intent: str, as_of: date | None, text: str = "") -> str:

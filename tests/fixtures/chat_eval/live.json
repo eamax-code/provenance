@@ -223,6 +223,59 @@
    "q": "Did JPMorgan file late?",
    "kind": "cited",
    "checked": "JPM: every 10-Q/10-K in two years filed by its derived due date; no NT 10-K/10-Q; cited"
+  },
+  {
+   "id": "L32",
+   "q": "Form D offerings",
+   "kind": "company",
+   "company_cik": "0000320193",
+   "checked": "cik 320193: the D of 'Form D' is not Dominion Energy (D)",
+   "cik": "320193"
+  },
+  {
+   "id": "L33",
+   "q": "Werner Robert F. Form 4",
+   "kind": "company",
+   "company_cik": "0000320193",
+   "checked": "cik 320193: the initial 'F.' is not Ford (F)",
+   "cik": "320193"
+  },
+  {
+   "id": "L34",
+   "q": "Tell me about the Form D offering filed 2026-09-23",
+   "kind": "company",
+   "company_cik": "0000320193",
+   "checked": "provenance-ui's Ask link shape",
+   "cik": "320193"
+  },
+  {
+   "id": "L35",
+   "q": "What did Werner Robert F. sell after the Form 144 filed 2026-11-19 at Apple Inc.?",
+   "kind": "company",
+   "company_cik": "0000320193",
+   "checked": "provenance-ui's Ask link shape; names the cik's own company",
+   "cik": "320193"
+  },
+  {
+   "id": "L36",
+   "q": "F revenue",
+   "kind": "company",
+   "company_cik": "0000037996",
+   "checked": "a one-letter ticker as the question's subject"
+  },
+  {
+   "id": "L37",
+   "q": "What is Ford's revenue?",
+   "kind": "company",
+   "company_cik": "0000037996",
+   "checked": "by name"
+  },
+  {
+   "id": "L38",
+   "q": "Class A shares of Alphabet",
+   "kind": "company",
+   "company_cik": "0001652044",
+   "checked": "'Class A' is not a ticker (A)"
   }
  ]
 }

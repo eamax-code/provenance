@@ -618,7 +618,24 @@ def _figure_reply(company, brief, brief_out, answer: str, notes: list[str],
 
 
 # C-13: questions about one company's own data, never a comparison
-SINGLE = ("pay", "trading_plans", "proposed_sales", "changes", "calendar")
+SINGLE = ("pay", "trading_plans", "proposed_sales", "changes", "calendar", "private_raises")
+
+
+def _names_given(db: Session, given: str, text: str, other: Company) -> bool:
+    """Whether the question names the request's own company ("… at Apple Inc.?"), so another
+    match elsewhere in it does not switch away."""
+    try:
+        cik = normalize_cik(given)
+    except ValueError:
+        return False
+    if cik == other.cik:
+        return False
+    c = db.scalar(select(Company).where(Company.cik == cik))
+    if c is None:
+        return False
+    names = {intel.core_name(c.legal_name), intel.core_name(c.registrant_name or "")} - {""}
+    low = " ".join(re.findall(r"[a-z0-9&]+", text.lower()))
+    return any(re.search(rf"\b{re.escape(n)}\b", low) for n in names)
 
 
 def _say_switch(db: Session, given: str | None, reply: ChatReply) -> None:
@@ -653,6 +670,8 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     market = conversation.plan(body.message, body.context, db)
     if market and market.kind == "compare" and chat_intents.detect(body.message) in SINGLE:
         market = None  # "Tesla CEO pay vs TSR" is one company's pay, not Tesla against TSR Inc
+    if market and market.kind == "private_raises" and body.cik:
+        market = None  # an Ask link about one company's Form D: that company's offerings
     if market and (
         market.kind in ("out_of_scope", "list_followup", "compare", "screen")
         or conversation.strongly_named(db, body.message) is None
@@ -668,6 +687,8 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     # ("filed 3 Nov 2026" is not NOV Inc.) or a word that happens to be a ticker
     company = intel.resolve_company(db, body.message, follow_up=bool(body.cik) or coverage_q,
                                     notes=resolved_notes)  # fmt: skip
+    if company is not None and body.cik and _names_given(db, body.cik, body.message, company):
+        company = None  # the question names the cik's own company: a ticker elsewhere is noise
     if company is None and coverage_q:
         return _coverage_reply(db, settings)
     if company is None and not body.cik and body.context and body.context.cik:

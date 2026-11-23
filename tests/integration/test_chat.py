@@ -617,3 +617,24 @@ def test_ipo_terms_are_answered_from_the_prospectus_without_a_model(client, auth
     assert body["answer"].startswith("Anthropic, PBC priced its IPO at $83.00 a share")
     assert body["citations"][0]["url"].startswith("https://www.sec.gov/Archives/")
     assert body["widgets"][0]["terms"]["price_final"]["evidence"] == ev
+
+
+def test_a_question_naming_the_given_company_never_switches_away(db, items_aapl):
+    """2026-11-24 (provenance-ui): an Ask link with Apple's cik asked "What did Werner Robert F.
+    sell … at Apple Inc.?" and was answered about Ford. When the question names the request's
+    own company, another match elsewhere in it does not switch away."""
+    from sqlalchemy import select
+
+    from app.api.routes_chat import _names_given
+    from app.db.models import Company
+
+    listed = db.scalar(select(Company).where(Company.cik == "0000320193"))
+    db.add(Company(cik="0000999997", legal_name="Canaan Inc.", ticker="CAN",
+                   source_url="https://www.sec.gov/", first_detected_at=listed.first_detected_at))  # fmt: skip
+    db.commit()
+    canaan = db.scalar(select(Company).where(Company.cik == "0000999997"))
+    assert _names_given(db, "320193", "What did CAN insiders sell at Apple Inc.?", canaan)
+    assert _names_given(db, "0000320193", "Did apple and CAN both file?", canaan)
+    assert not _names_given(db, "320193", "how is CAN doing", canaan)
+    assert not _names_given(db, "320193", "Apple vs Canaan", listed)  # it is the given company
+    assert not _names_given(db, "not-a-cik", "Apple and CAN", canaan)

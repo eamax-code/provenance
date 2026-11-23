@@ -100,6 +100,43 @@ class Brief:
         return "\n".join(self.context_lines)
 
 
+_TICKER_BEFORE = {"form", "class", "series", "item", "items", "schedule", "rule", "exhibit",
+                  "part", "note", "notes", "tier", "level", "type", "section", "regulation",
+                  "reg", "plan", "option", "phase", "grade"}  # fmt: skip
+_TICKER_AFTER = {"stock", "stocks", "shares", "share", "ticker", "price", "revenue", "revenues",
+                 "sales", "earnings", "income", "profit", "eps", "margin", "margins", "results",
+                 "filings", "10-k", "10-q", "debt", "cash", "assets"}  # fmt: skip
+
+
+def _whole_name(hit, phrase: str) -> bool:
+    """With a company already given, a name switches it only when it is the company's whole
+    name or at least two of its words ("and Microsoft?", "Dominion Energy"), never one word that
+    merely starts a name ("Robert" in "Werner Robert F." is not Robert Half)."""
+    if hit.match_type in ("ticker", "cik", "name_exact"):
+        return True
+    if hit.match_type == "former_name":
+        return _core_name(hit.former_name or "") == _core_name(phrase)
+    return _core_name(hit.company.legal_name) == _core_name(phrase) or len(phrase.split()) >= 2
+
+
+def _short_ticker_is_subject(text: str, raw: list[str], i: int, follow_up: bool) -> bool:
+    """A one- or two-letter ticker ("F", "GE") counts only as the question's subject: the first
+    word ("F revenue"), after "$", "ticker" or "symbol", or before "stock" or "shares". Never
+    with a company already given, after a word it belongs to ("Form D", "Class A", "Item 5"),
+    or as a name's initial ("Robert F.", "J. P.")."""
+    if follow_up:
+        return False
+    w = raw[i].rstrip(".")
+    prev = raw[i - 1].rstrip(".").lower() if i > 0 else ""
+    nxt = raw[i + 1].rstrip(".").lower() if i + 1 < len(raw) else ""
+    if prev in _TICKER_BEFORE or (len(w) == 1 and raw[i].endswith(".")):
+        return False
+    if re.search(rf"\${re.escape(w)}\b", text) or prev in ("ticker", "symbol"):
+        return True
+    last = i == len(raw) - 1 and prev in ("about", "for", "of", "on")  # "Tell me about GE"
+    return i == 0 or nxt in _TICKER_AFTER or last
+
+
 def _variants(phrase: str) -> list[str]:
     """The phrase as typed, then without punctuation ("Coca-Cola" is COCA COLA CO, "Procter &
     Gamble" is PROCTER & GAMBLE CO or "and")."""
@@ -194,10 +231,14 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
     switches it: a ticker in capitals, a whole name, or a capitalised start of a name."""
     text = re.sub(r"['\u2019]s\b", "", text)  # "Apple's" -> "Apple"
     text = _DATES.sub(" ", text)  # "3 Nov 2026", "Mar 2025": dates, never a company
-    words = [w.rstrip(".") for w in re.findall(r"[A-Za-z0-9][A-Za-z0-9.&-]*", text)]
-    for prev, w in zip(["", *words], words, strict=False):
+    raw = [m.group(0) for m in re.finditer(r"[A-Za-z0-9][A-Za-z0-9.&-]*", text)]
+    words = [w.rstrip(".") for w in raw]
+    for i, (prev, w) in enumerate(zip(["", *words], words, strict=False)):
         # Short numbers are counts ("last 5 years"), not CIKs, unless the user says "CIK".
         cik_like = w.isdigit() and len(w) <= 10 and (len(w) >= 5 or prev.lower() == "cik")
+        if (not cik_like and len(w) <= 2
+                and not _short_ticker_is_subject(text, raw, i, follow_up)):  # fmt: skip
+            continue  # "Form D", "Class A", "Robert F.": not Dominion, Agilent or Ford
         if cik_like or (w.isupper() and 1 <= len(w) <= 6 and w not in _ACRONYMS):
             hits, _ = search_companies(db, w, limit=1)
             if hits and hits[0].match_type in ("cik", "ticker"):
@@ -223,11 +264,14 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
                         for h in hits
                         if h.match_type in _MATCH_RANK
                         and _names_it(h, variant)
+                        and not (h.match_type == "ticker"
+                                 and variant.strip().lower() in _NOT_TICKER_WORDS)
                         # with a company already given, only a ticker in capitals or a name
                         # switches it, never a word that happens to be a ticker
                         and (not follow_up or (_named(h, variant)
                                                and not (h.match_type == "ticker"
-                                                        and not variant.isupper())))
+                                                        and not variant.isupper())
+                                               and _whole_name(h, variant)))
                     ]
             if found:
                 # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal;
@@ -262,7 +306,10 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
                 hit = _active_starting(db, phrase, word_start=True)
                 if hit is not None:
                     return hit
-    # A typo ("Mircosoft", "amazn"): the nearest name within one or two letters.
+    # A typo ("Mircosoft", "amazn"): the nearest name within one or two letters; never with a
+    # company already given ("Werner Robert F." is not Robert W. Baird)
+    if follow_up:
+        return None
     best = None
     for size in (2, 1):
         for i in range(len(useful) - size + 1):
@@ -351,6 +398,9 @@ _NOT_TICKER_WORDS = {
     "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
     "january", "february", "march", "april", "june", "july", "august", "september", "october",
     "november", "december", "mon", "tue", "wed", "thu", "fri", "sat", "sun", "today", "now",
+    # the words of SEC documents ("Form 144" is not FormFactor, FORM)
+    "form", "forms", "item", "items", "class", "series", "schedule", "exhibit", "rule", "note",
+    "part", "filing", "filings", "report",
 }  # fmt: skip
 
 

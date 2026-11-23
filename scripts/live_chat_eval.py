@@ -64,6 +64,8 @@ def score(case: dict, reply: dict) -> bool:
         return bool(cited)
     if kind == "refusal":
         return bool(answer) and not MONEY.search(answer)
+    if kind == "company":  # which company the question was resolved to (no figure checked)
+        return (reply.get("company") or {}).get("cik") == case["company_cik"]
     raise ValueError(kind)
 
 

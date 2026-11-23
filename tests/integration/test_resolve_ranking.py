@@ -76,3 +76,27 @@ def test_dates_and_ticker_words_never_switch_a_given_company(db):
     assert r(db, "What did NOV Inc. file on 3 Nov 2026?").cik == "0000900120"
     assert r(db, "Nov revenue", follow_up=True) is None  # a ticker-shaped word: no switch
     assert r(db, "NOV revenue", follow_up=True).cik == "0000900120"  # a ticker in capitals
+
+
+def test_short_tickers_resolve_only_as_the_subject(db):
+    """2026-11-24 (provenance-pm, provenance-ui): one- and two-letter tickers (F, D, A, HP) are
+    ordinary letters too. With a company given they never switch it; without one they resolve
+    only as the subject ("F revenue", "$F", "Tell me about HP"), never after Form/Class/Item and
+    never as a name's initial ("Robert F.")."""
+    _co(db, "0000900130", "FORD MOTOR CO", "F", 180_000_000_000)
+    _co(db, "0000900131", "DOMINION ENERGY, INC", "D", 14_000_000_000)
+    _co(db, "0000900132", "AGILENT TECHNOLOGIES, INC.", "A", 6_500_000_000)
+    _co(db, "0000900133", "Alphabet Inc.", "GOOGL", 400_000_000_000)
+    _co(db, "0000900134", "Helmerich & Payne, Inc.", "HP", 2_700_000_000)
+    db.commit()
+    r = intel.resolve_company
+    assert r(db, "F revenue").cik == "0000900130"
+    assert r(db, "$F").cik == "0000900130"
+    assert r(db, "What is Ford's revenue?").cik == "0000900130"
+    assert r(db, "What is F stock doing?").cik == "0000900130"
+    assert r(db, "Tell me about HP").cik == "0000900134"
+    assert r(db, "Form D offerings") is None
+    assert r(db, "Class A shares of Alphabet").cik == "0000900133"
+    assert r(db, "Werner Robert F. Form 4", follow_up=True) is None
+    assert r(db, "F revenue", follow_up=True) is None  # never switches from a given company
+    assert r(db, "Form D offerings", follow_up=True) is None
