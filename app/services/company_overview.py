@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from datetime import date, timedelta
 
 from sqlalchemy import case, func, select
@@ -303,32 +304,90 @@ def _people(db: Session, cik: str, today: date) -> dict:
     return leadership.overview(db, cik, owners, today)
 
 
+PEER_MIN = 4  # widen the industry only until this many peers fall in the revenue band
+PEER_BAND = 10.0  # a peer's revenue is within 1/10 to 10 times the company's
+_PEER_GROUP_WORDS = {"GROUP", "HOLDINGS", "HOLDING", "INC", "CORP", "CORPORATION", "CO", "COMPANY",
+                     "LTD", "LIMITED", "PLC", "AG", "SA", "SE", "NV", "ASA", "AB", "LLC", "LP",
+                     "THE", "OF", "&", "AND"}  # fmt: skip
+
+
+def _group_key(name: str) -> str:
+    """'UBS Group AG' and 'UBS AG' -> 'UBS': one registrant per group in a peer list."""
+    words = [w for w in re.sub(r"[^A-Za-z0-9& ]", " ", (name or "").upper()).split()
+             if w not in _PEER_GROUP_WORDS]  # fmt: skip
+    return " ".join(words[:2])
+
+
+def _accounting(db: Session, ciks: list[str]) -> dict[str, str]:
+    """us-gaap or ifrs per company, from the taxonomy of its latest reported revenue."""
+    if not ciks:
+        return {}
+    rows = db.execute(
+        select(FinancialFact.cik, FinancialFact.source_taxonomy)
+        .where(FinancialFact.cik.in_(ciks), FinancialFact.metric == "revenue",
+               FinancialFact.derived.is_(False))
+        .order_by(FinancialFact.cik, FinancialFact.period_end.desc())
+        .distinct(FinancialFact.cik)
+    ).all() if db.bind.dialect.name == "postgresql" else [
+        (c, db.scalar(select(FinancialFact.source_taxonomy).where(
+            FinancialFact.cik == c, FinancialFact.metric == "revenue",
+            FinancialFact.derived.is_(False)).order_by(FinancialFact.period_end.desc()).limit(1)))
+        for c in ciks]  # fmt: skip
+    return {c: ("ifrs" if (t or "").startswith("ifrs") else "us-gaap") for c, t in rows if t}
+
+
 def _peers(db: Session, company: Company, today: date) -> dict | None:
-    """Same 4-digit SIC (3-digit when fewer than 4 peers), companies that filed an annual report
-    in the last two years, ranked by closeness to this company's latest annual revenue (U-02)."""
+    """Peers (U-02, X-19): the same industry (4-digit SIC, widened to 3 then 2 digits only to fill
+    the band), the same accounting basis, an annual report in the last two years, and revenue
+    within 0.1x to 10x of the company's latest annual revenue in the same currency, nearest
+    first. One registrant per group; a predecessor gives way to its successor (K-05), and a
+    successor without revenue of its own is sized by its predecessor's."""
+    from app.core.config import get_settings
+    from app.services import successions
+    from app.services.public import showcase_ciks
+
     code = company.sic_code
     if not code or len(code) < 3:
         return None
     me = db.get(MartCompany, company.cik)
+    sized_by = None
+    if not (me and me.latest_revenue):
+        for r in successions.predecessors(db, company.cik):
+            pm = db.get(MartCompany, r.predecessor_cik)
+            if pm and pm.latest_revenue:
+                me, sized_by = pm, r.predecessor_cik
+                break
     mine = float(me.latest_revenue) if me and me.latest_revenue else None
     cur = me.reporting_currency if me else None
+    own_basis = _accounting(db, [me.cik if me else company.cik]).get(me.cik if me else company.cik)
     recent = today - timedelta(days=PEER_RECENT_DAYS)
-    for width in (4, 3):
-        prefix = code[:width]
+    exclude = {company.cik} | {r.predecessor_cik for r in successions.predecessors(db, company.cik)}
+
+    def in_band(m: MartCompany) -> bool:
+        if not mine or mine <= 0 or m.reporting_currency != cur:
+            return False
+        return 1 / PEER_BAND <= float(m.latest_revenue) / mine <= PEER_BAND
+
+    rows, basis_of, width = [], {}, 4
+    for width in (4, 3, 2):
+        if len(code) < width:
+            continue
         rows = db.execute(
-            select(MartCompany, Company.fiscal_year_end)
+            select(MartCompany, Company)
             .join(Company, Company.cik == MartCompany.cik)
             .where(
-                func.substr(Company.sic_code, 1, width) == prefix,
-                MartCompany.cik != company.cik,
+                func.substr(Company.sic_code, 1, width) == code[:width],
+                MartCompany.cik.not_in(exclude),
                 MartCompany.latest_revenue.is_not(None),
                 MartCompany.latest_revenue > 0,
                 MartCompany.latest_annual_report_date >= recent,
                 MartCompany.latest_revenue_period_end >= recent - timedelta(days=365),
             )
         ).all()
-        same = [r for r in rows if r[0].reporting_currency == cur]
-        if len(same) >= 4 or width == 3:
+        basis_of = _accounting(db, [m.cik for m, _ in rows])
+        if own_basis:
+            rows = [(m, c) for m, c in rows if basis_of.get(m.cik, own_basis) == own_basis]
+        if not mine or sum(1 for m, _ in rows if in_band(m)) >= PEER_MIN:
             break
     if not rows:
         return None
@@ -339,32 +398,80 @@ def _peers(db: Session, company: Company, today: date) -> dict | None:
         return abs(math.log(float(m.latest_revenue) / mine))
 
     # D-04: sizes compare only within one currency (never converted); when fewer than four peers
-    # share it, same-SIC companies in other currencies fill in, unranked
-    same = sorted((r for r in rows if r[0].reporting_currency == cur), key=lambda r: distance(r[0]))
+    # share it, same-industry companies in other currencies fill in, unranked
+    if mine:
+        same = sorted((r for r in rows if in_band(r[0])), key=lambda r: distance(r[0]))
+    else:
+        same = sorted((r for r in rows if r[0].reporting_currency == cur),
+                      key=lambda r: distance(r[0]))  # fmt: skip
     others = sorted((r for r in rows if r[0].reporting_currency != cur),
                     key=lambda r: r[0].legal_name)  # fmt: skip
-    chosen = [(r, True) for r in same[:PEERS]]
-    if len(chosen) < 4:
-        chosen += [(r, False) for r in others[: PEERS - len(chosen)]]
+    groups = {_group_key(company.registrant_name or company.legal_name)}
+    chosen = []
+    for r, ranked in [(r, True) for r in same] + [(r, False) for r in others]:
+        if len(chosen) >= PEERS or (not ranked and len(chosen) >= PEER_MIN):
+            break
+        m, c = r
+        succ = successions.successor(db, m.cik)
+        shown = None
+        if succ:
+            shown = db.scalar(select(Company).where(Company.cik == succ.successor_cik))
+        key = _group_key((shown or c).registrant_name or (shown or c).legal_name)
+        if key in groups or (shown is not None and shown.cik in exclude):
+            continue
+        groups.add(key)
+        chosen.append((m, c, shown, ranked))
+    showcase = set(showcase_ciks(db, get_settings())[0])
 
-    def peer(m: MartCompany, fye, ranked: bool) -> dict:
+    def peer(m: MartCompany, c: Company, shown: Company | None, ranked: bool) -> dict:
+        who = shown or c
+        rev = (json.loads(m.latest_annual or "{}") or {}).get("revenue") or {}
         out = {
-            "cik": m.cik, "name": display_name(m.legal_name, m.ticker), "ticker": m.ticker,
-            "latest_revenue": float(m.latest_revenue), "currency": m.reporting_currency,
-            "ranked": ranked, "period_end": m.latest_revenue_period_end,
-            "fiscal_label": periods.label(m.latest_revenue_period_end, "annual", fye)
+            "cik": who.cik,
+            "name": display_name(who.legal_name, who.ticker, who.registrant_name),
+            "ticker": who.ticker, "latest_revenue": float(m.latest_revenue),
+            "currency": m.reporting_currency, "ranked": ranked,
+            "accounting": basis_of.get(m.cik),
+            "period_end": m.latest_revenue_period_end,
+            "fiscal_label": periods.label(m.latest_revenue_period_end, "annual",
+                                          c.fiscal_year_end)
             if m.latest_revenue_period_end else None,
-            "filings_url": company_filings_url(m.cik),
+            "accession_number": rev.get("accession"), "form_type": rev.get("form_type"),
+            "filed_date": rev.get("filed_date"), "source_url": rev.get("url"),
+            "filings_url": company_filings_url(who.cik),
+            "is_public_page": who.cik in showcase,
         }  # fmt: skip
+        if shown is not None:
+            out["revenue_reported_by"] = {
+                "cik": c.cik, "name": display_name(c.legal_name, c.ticker, c.registrant_name),
+                "note": "revenue as last reported by the predecessor registrant"}  # fmt: skip
         if not ranked:
             out["note"] = "different currency, not ranked by size"
         return out
 
+    level = {4: "the same industry", 3: "a related industry", 2: "the same industry group"}[width]
+    sic = f"SIC {code[:width]}" + (f", {company.sic_description}" if width == 4 and
+                                    company.sic_description else "")  # fmt: skip
+    own = {"us-gaap": "US GAAP", "ifrs": "IFRS"}.get(own_basis or "", "")
+    if mine:
+        basis = (f"Companies in {level} ({sic}) that report under {own or 'the same basis'}, "
+                 "filed an annual report in the last two years and had revenue between a tenth "
+                 "and ten times this company's latest annual revenue"
+                 + (" (as last reported by its predecessor)" if sized_by else "")
+                 + ", nearest in size first; one registrant per group.")  # fmt: skip
+    else:
+        basis = (f"Companies in {level} ({sic}) that report under {own or 'the same basis'} and "
+                 "filed an annual report in the last two years, largest first (this company "
+                 "has no annual revenue to compare); one registrant per group.")  # fmt: skip
     return {
-        "basis": f"SIC {prefix}" + (f" ({company.sic_description})" if width == 4 else ""),
+        "basis": basis,
         "basis_width": width,
+        "sic": code[:width],
+        "accounting": own_basis,
         "currency": cur,
-        "companies": [peer(m, fye, ranked) for (m, fye), ranked in chosen],
+        "revenue_band": [round(mine / PEER_BAND, 2), round(mine * PEER_BAND, 2)] if mine else None,
+        "sized_by_predecessor": sized_by,
+        "companies": [peer(*x) for x in chosen],
     }
 
 

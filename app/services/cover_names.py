@@ -14,7 +14,8 @@ import re
 
 _GLUED_FORM = re.compile(r"(?<=[A-Za-z0-9)])(?<![PL])(Inc\.?|Ltd\.?|LLC|N\.V\.|S\.A\.|plc)$")
 _SLASH_FORM = re.compile(r"(?:^|\s)(?:A/S|S/A|N/V|AG/S|I/S|K/S|P/S|AB/S|AS/S)\.?$", re.I)
-_EDGAR_SUFFIX = re.compile(r"\s*/[A-Z]{0,5}/?\s*$")  # "/DE/", "/FA", " /NEW", a trailing "/"
+# "/DE/", "/FA", " /NEW", a trailing "/", and the backslash form "US BANCORP \\DE\\"
+_EDGAR_SUFFIX = re.compile(r"\s*(?:/[A-Z]{0,5}/?|\\[A-Z]{1,5}\\?)\s*$")
 
 
 def unglue(name: str | None) -> str | None:
