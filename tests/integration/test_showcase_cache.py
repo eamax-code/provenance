@@ -41,10 +41,27 @@ def test_repeat_views_are_cached_and_not_counted(client, ingested_aapl, settings
 def test_a_data_change_empties_the_cache(client, ingested_aapl, monkeypatch):
     assert client.get(OVERVIEW, headers=DEMO).headers["X-Cache"] == "miss"
     assert client.get(OVERVIEW, headers=DEMO).headers["X-Cache"] == "hit"
-    monkeypatch.setattr(showcase_cache, "_read_version", lambda: "after a load")
+    monkeypatch.setattr(showcase_cache, "_read_version", lambda: {"*": "after a load"})
     monkeypatch.setattr(showcase_cache, "RECHECK_SECONDS", 0)
     assert client.get(OVERVIEW, headers=DEMO).headers["X-Cache"] == "miss"
     assert client.get(OVERVIEW, headers=DEMO).headers["X-Cache"] == "hit"
+
+
+def test_a_load_elsewhere_keeps_a_page_cached(client, ingested_aapl, monkeypatch):
+    """C-11: statements count only their own tables; the overview counts every table."""
+    counts = {"financial_facts": 1, "company_segments": 1, "comment_letters": 1}
+    monkeypatch.setattr(showcase_cache, "_read_version", lambda: dict(counts))
+    monkeypatch.setattr(showcase_cache, "RECHECK_SECONDS", 0)
+    stm = "/v1/companies/320193/statements/income"
+    for path in (stm, OVERVIEW):
+        assert client.get(path, headers=DEMO).headers["X-Cache"] == "miss"
+        assert client.get(path, headers=DEMO).headers["X-Cache"] == "hit"
+    counts["company_segments"] += 500  # a label load: not a statements table
+    counts["comment_letters"] += 50
+    assert client.get(stm, headers=DEMO).headers["X-Cache"] == "hit"
+    assert client.get(OVERVIEW, headers=DEMO).headers["X-Cache"] == "miss"  # reads everything
+    counts["financial_facts"] += 1
+    assert client.get(stm, headers=DEMO).headers["X-Cache"] == "miss"
 
 
 def test_keyed_requests_and_errors_are_never_cached(client, ingested_aapl, auth):

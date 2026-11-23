@@ -7,9 +7,10 @@ the demo dependency runs). Only 200 responses to demo-key GETs are kept; a keyed
 reads or writes this cache, because its answer can depend on the key's plan.
 
 "Until the data changes": on PostgreSQL the version is the server's own write counters
-(pg_stat_user_tables) summed over the data tables, read at most every RECHECK_SECONDS, so a
-load, a mart refresh or an ingest empties the cache within that interval plus the server's
-stats flush (about a second). Tables written on every request (counters, usage, sessions) are
+(pg_stat_user_tables), read at most every RECHECK_SECONDS and summed per page over the tables
+that page reads (C-11, GROUPS; all data tables for the overview), so a load into those tables
+retires the page within that interval plus the server's stats flush (about a second), and a
+load elsewhere leaves it cached. Tables written on every request (counters, usage, sessions) are
 left out, or every request would empty it. On other databases (tests) the version is fixed.
 """
 
@@ -39,10 +40,35 @@ NOT_DATA = (
     "notification_deliveries", "alembic_version",
 )  # fmt: skip
 DEMO_KEY = "demo"
+# C-11: each page's version counts only the tables it reads, so a load elsewhere (segment labels,
+# comment letters, Form 144) keeps its pages cached. A page not listed reads everything.
+_PEOPLE = ("companies", "company_aliases", "registrant_successions", "mart_company")
+GROUPS = {
+    "statements": _PEOPLE + ("financial_facts", "mart_company_period", "mart_financials",
+                             "filings", "filing_statement_tags", "fx_rates"),
+    "timeline": _PEOPLE + ("filings", "dated_events", "insider_activity", "officer_changes",
+                           "filings_13f", "holdings_13f", "issuer_cusips", "form144_notices",
+                           "trading_plans", "filing_sections"),
+    "insiders": _PEOPLE + ("insider_filings", "insider_transactions", "insider_activity",
+                           "officer_changes"),
+    "holders": _PEOPLE + ("beneficial_owners", "filings"),
+    "ownership": _PEOPLE + ("filings_13f", "holdings_13f", "issuer_cusips"),
+    "screen": _PEOPLE + ("financial_facts", "mart_company_period", "mart_financials",
+                         "fx_rates"),
+}  # fmt: skip
+_PAGE_GROUP = (
+    (re.compile(r"/statements/"), "statements"), (re.compile(r"/timeline$"), "timeline"),
+    (re.compile(r"/insider(s|-transactions)$"), "insiders"), (re.compile(r"/holders$"), "holders"),
+    (re.compile(r"/ownership$"), "ownership"), (re.compile(r"^/v1/facts/screen$"), "screen"),
+)  # fmt: skip
 
 _lock = threading.Lock()
 _entries: OrderedDict[tuple, tuple[bytes, dict]] = OrderedDict()
-_version: dict = {"value": None, "checked": 0.0}
+_version: dict = {"value": None, "checked": 0.0}  # value: {table: writes}
+
+
+def group_for(path: str) -> str | None:
+    return next((g for rx, g in _PAGE_GROUP if rx.search(path)), None)
 _flight = AsyncSingleFlight()  # concurrent misses for one page compute once
 
 
@@ -60,36 +86,48 @@ def _key(request: Request) -> tuple:
     return request.url.path, tuple(params)
 
 
-def _read_version():
+def _read_version() -> dict:
+    """Writes per data table (pg_stat_user_tables), or a fixed map on other databases."""
     from app.db.session import control_engine, get_engine
 
     engine = get_engine()
     if engine.dialect.name != "postgresql":
-        return str(engine.url)
+        return {"*": str(engine.url)}
     names = ", ".join(f"'{t}'" for t in NOT_DATA)
     sql = (
-        "SELECT coalesce(sum(n_tup_ins + n_tup_upd + n_tup_del), 0) FROM pg_stat_user_tables "
+        "SELECT relname, n_tup_ins + n_tup_upd + n_tup_del FROM pg_stat_user_tables "
         f"WHERE relname NOT IN ({names})"
     )
     with control_engine().connect() as conn:
-        return int(conn.execute(text(sql)).scalar_one())
+        return {r: int(n) for r, n in conn.execute(text(sql)).all()}
 
 
-def data_version(now: float | None = None):
+def _counts(now: float | None = None) -> dict:
     now = time.monotonic() if now is None else now
     with _lock:
         if _version["value"] is not None and now - _version["checked"] < RECHECK_SECONDS:
             return _version["value"]
     value = _read_version()
     with _lock:
-        if value != _version["value"]:
-            _entries.clear()
         _version.update(value=value, checked=now)
     return value
 
 
+def data_version(now: float | None = None, path: str | None = None):
+    """The version of the data a page reads: the writes to its group's tables (all data tables
+    for a page with no group). Entries of an older version are never served and age out of the
+    LRU."""
+    counts = _counts(now)
+    group = group_for(path) if path else None
+    tables = GROUPS.get(group) if group else None
+    if tables is None:
+        return ("*", sum(v for v in counts.values() if isinstance(v, int)) if "*" not in counts
+                else counts["*"])  # fmt: skip
+    return (group, sum(counts.get(t, 0) for t in tables))
+
+
 def get(request: Request) -> tuple[bytes, dict] | None:
-    version = data_version()
+    version = data_version(path=request.url.path)
     with _lock:
         hit = _entries.get((version, *_key(request)))
         if hit is not None:
@@ -101,7 +139,7 @@ def put(request: Request, body: bytes, headers: dict) -> None:
     if len(body) > MAX_BODY_BYTES:
         return
     keep = {k: v for k, v in headers.items() if k.lower() not in ("content-length", "x-request-id")}
-    version = data_version()
+    version = data_version(path=request.url.path)
     with _lock:
         _entries[(version, *_key(request))] = (body, keep)
         while len(_entries) > MAX_ENTRIES:
@@ -111,7 +149,7 @@ def put(request: Request, body: bytes, headers: dict) -> None:
 async def lead_or_wait(request: Request) -> bool:
     """On a miss: True when this request computes the page (it must call finish); False after
     waiting for the request already computing it (read the cache again)."""
-    key = (data_version(), *_key(request))
+    key = (data_version(path=request.url.path), *_key(request))
     request.state.showcase_key = key
     leader, event = _flight.acquire(key)
     if not leader:
