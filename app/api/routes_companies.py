@@ -758,6 +758,19 @@ def statement(
     notes = ["Values are as reported in each filing, in the company's reporting currency; "
              "nothing is converted. Derived rows and quarters say derived and list their "
              "inputs."]  # fmt: skip
+    breaks = statements_service.split_breaks(
+        {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
+        [c.key for c in columns],
+    )
+    for r in rows:
+        r.split_break = breaks.get(r.metric)
+    if breaks:
+        b = next(iter(breaks.values()))
+        notes.append(
+            f"Shares and per-share figures before {b['between'][1]} are as originally filed; "
+            f"later filings restated some years for a stock split ({b['ratio_hint']}), so "
+            f"{b['between'][0]} and {b['between'][1]} are on different share bases."
+        )
     if as_of:
         notes.append(as_of_note(as_of))
     return StatementOut(

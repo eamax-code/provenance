@@ -44,6 +44,12 @@ class StatementRow(BaseModel):
     unit_kind: str
     derived: bool = False
     formula: str | None = None
+    split_break: dict | None = Field(
+        None,
+        description="Adjacent years on different share bases (a split restated in later "
+        'filings for some years only): {"between": [label, label], "ratio_hint": "4:1"}. '
+        "Values are not adjusted.",
+    )
     cells: list[StatementCell | None]
 
 

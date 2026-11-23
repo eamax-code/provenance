@@ -155,3 +155,50 @@ def build(db: Session, company: Company, as_of: date | None = None, years: int =
     if ratio_rows:
         sections.append({"key": "ratios", "title": "Ratios", "rows": ratio_rows})
     return {"fiscal_years": labels, "sections": sections}
+
+
+SHARE_ROWS = ("shares_basic_weighted", "shares_diluted_weighted", "shares_outstanding")
+EPS_ROWS = ("eps_basic", "eps_diluted")
+SPLIT_MIN_FACTOR = 1.9
+SPLIT_INTEGER_TOLERANCE = 0.10  # the factor within 10% of a whole number (buybacks move it)
+SPLIT_MAX_INCOME_SWING = 2.0  # shares x EPS (about net income) changes by less than 2x
+
+
+def split_breaks(values: dict[str, list[float | None]], keys: list[str]) -> dict[str, dict]:
+    """Where adjacent columns mix share bases: a later filing restated some years for a stock
+    split and the earlier years stay as originally filed (Apple FY2017 5.2B shares, FY2018
+    19.8B). Flag only, nothing is adjusted: a share row jumps by a near-whole factor and an EPS
+    row moves inversely across the same pair. Returns {metric: {"between": [a, b],
+    "ratio_hint": "4:1"}} for each share and EPS row with values on both sides of the latest
+    such pair; "1:4" is a reverse split."""
+    found = None
+    for i in range(1, len(keys)):
+        for s in SHARE_ROWS:
+            a, b = (values.get(s) or [None] * len(keys))[i - 1 : i + 1]
+            if not a or not b or a <= 0 or b <= 0:
+                continue
+            r = b / a
+            factor = max(r, 1 / r)
+            whole = round(factor)
+            if factor < SPLIT_MIN_FACTOR or abs(factor / whole - 1) > SPLIT_INTEGER_TOLERANCE:
+                continue
+            for e in EPS_ROWS:
+                x, y = (values.get(e) or [None] * len(keys))[i - 1 : i + 1]
+                if not x or not y or (x > 0) != (y > 0):
+                    continue
+                inverse = (y / x < 1) == (r > 1)
+                swing = r * (y / x)
+                if inverse and 1 / SPLIT_MAX_INCOME_SWING < swing < SPLIT_MAX_INCOME_SWING:
+                    found = (i, f"{whole}:1" if r > 1 else f"1:{whole}")
+                    break
+            if found and found[0] == i:
+                break
+    if not found:
+        return {}
+    i, hint = found
+    out = {}
+    for m in SHARE_ROWS + EPS_ROWS:
+        a, b = (values.get(m) or [None] * len(keys))[i - 1 : i + 1]
+        if a and b:
+            out[m] = {"between": [keys[i - 1], keys[i]], "ratio_hint": hint}
+    return out

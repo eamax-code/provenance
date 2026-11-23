@@ -141,6 +141,11 @@ Rules:
 - A cell in a currency other than `reporting_currency` keeps its own `unit` and is never converted.
 - `columns` is the union of the rows' periods, capped at `periods`, oldest first.
 - `404 no_statement_data` when the company has no value for any row.
+- `split_break` (2026-11-23, additive): on share and EPS rows when two adjacent columns are on
+  different share bases, because a later filing restated some years for a split and earlier years
+  stay as filed (Apple FY2017 5.2B shares, FY2018 19.8B): `{"between": ["FY2017", "FY2018"],
+  "ratio_hint": "4:1"}` (`"1:10"` for a reverse split), plus a note. Shown when shares jump by a
+  near-whole factor (at least 1.9x) and EPS moves inversely. Values are never adjusted.
 
 ---
 
