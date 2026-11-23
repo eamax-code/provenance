@@ -479,6 +479,21 @@ Warming the showcase pages when a worker starts or the data version changes woul
 freeze). A first run while E-4b+ was writing segment labels (about 1,000 rows a second) showed
 the cache emptying at every 30 s version check: during a load the cache acts like a 30 s TTL.
 
+The timeline p95 rising from 42 to 93 ms was not like for like: the 42 ms run had no data load,
+so one cold wave. An A/B under the same conditions, alternating A, B, A, B: A is ee80b01 (before
+single-flight, exported with git archive), B is 7aa6b4d, each on a fresh 2-worker server, 120 s at
+50 req/s, with E-4b+ writing throughout, so the cache went cold every 30 s. Timeline:
+
+| Run | p50 ms | p90 ms | p95 ms | p99 ms | cold computes | slowest compute |
+|---|---|---|---|---|---|---|
+| A, before | 0.8 | 39.5 | 3,918 | 9,227 | 102 | 11.7 s |
+| B, single-flight | 1.3 | 2.9 | 106 | 4,927 | 35 | 6.3 s |
+| A again | 1.7 | 23.2 | 1,809 | 8,902 | 87 | 10.9 s |
+| B again | 1.6 | 3.4 | 70 | 4,646 | 44 | 6.1 s |
+
+Single-flight cuts the timeline's cold computes by about 60% and halves the p99; waiters queueing
+behind a slow leader cost less than the duplicate computes they replace. All four runs: 0 errors.
+
 ## Restore drill (R-3), 2026-11-22
 
 The daily dump `provenance-2026-11-22T0351Z.dump` (4.3 GB, custom format, 56 tables; written by
