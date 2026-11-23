@@ -1431,3 +1431,91 @@ class WatchlistCompany(Base):
     )
     cik: Mapped[str] = mapped_column(String(10), primary_key=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class TradingPlan(Base):
+    """A trading arrangement adopted or terminated by a director or officer, as tagged under
+    Item 408(a) in a 10-Q or 10-K (D-11, docs/contracts/insider-plans.md). One row per person,
+    arrangement and action; values as tagged, a date that cannot be read stays as text."""
+
+    __tablename__ = "trading_plans"
+    __table_args__ = (
+        UniqueConstraint("accession_number", "member", "action", name="uq_trading_plans_row"),
+        Index("ix_trading_plans_cik_filed", "cik", "filing_date"),
+    )
+
+    id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    period: Mapped[date | None] = mapped_column(Date, nullable=True)
+    member: Mapped[str] = mapped_column(Text, nullable=False)  # the tagged dimension members
+    person_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action: Mapped[str] = mapped_column(Text, nullable=False)  # adopted, terminated
+    plan_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plan_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    plan_date_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # on a termination: the plan's adoption date when the filing gives it (an earlier period)
+    original_adoption_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    duration_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expiration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    shares: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class ProxyPayFact(Base):
+    """One pay-versus-performance value (Item 402(v)) as tagged in a proxy (D-10,
+    docs/contracts/executive-pay.md): a field for one fiscal year, per PEO when the proxy tags
+    each one. Long form; the endpoint assembles the table."""
+
+    __tablename__ = "proxy_pay_facts"
+    __table_args__ = (
+        Index("ix_proxy_pay_facts_cik_filed", "cik", "filing_date"),
+        Index("ix_proxy_pay_facts_accession", "accession_number"),
+    )
+
+    id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    accession_number: Mapped[str] = mapped_column(String(25), nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    fiscal_year_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    field: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)  # Peo, NonPeoNeo
+    member: Mapped[str | None] = mapped_column(Text, nullable=True)  # the Individual member
+    dims: Mapped[str | None] = mapped_column(Text, nullable=True)
+    value_num: Mapped[Decimal | None] = mapped_column(Numeric(38, 6), nullable=True)
+    value_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    unit: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class Form144Notice(Base):
+    """A Form 144 notice of proposed sale (D-12, docs/contracts/insider-plans.md), from the
+    notice's structured XML (filed since April 2023). Values as given in the notice; the Form 4
+    that follows is joined at read time."""
+
+    __tablename__ = "form144_notices"
+    __table_args__ = (Index("ix_form144_notices_issuer_filed", "issuer_cik", "filing_date"),)
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    issuer_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    person_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    person_cik: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    relationships: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list
+    security_class: Mapped[str | None] = mapped_column(Text, nullable=True)
+    shares: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
+    aggregate_market_value: Mapped[Decimal | None] = mapped_column(Numeric(24, 2), nullable=True)
+    shares_outstanding: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
+    approx_sale_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    exchange: Mapped[str | None] = mapped_column(Text, nullable=True)
+    broker: Mapped[str | None] = mapped_column(Text, nullable=True)
+    acquired: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list, at most 20
+    acquired_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    plan_adoption_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)

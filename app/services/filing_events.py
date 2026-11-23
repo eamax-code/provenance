@@ -95,7 +95,7 @@ OFFICER_CHANGE_RANK = PRIORITY.index("sec.late_filing") + 1  # officer changes r
 # universe filter is delivered as one batch an hour (T-01).
 HIGH_VOLUME = frozenset({
     "sec.results", "sec.material_agreement", "sec.shareholder_vote",
-    "sec.insider_first_buy", "sec.insider_large_sale",
+    "sec.insider_first_buy", "sec.insider_large_sale", "sec.proposed_sale",
 })  # fmt: skip
 
 

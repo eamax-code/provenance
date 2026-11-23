@@ -17,10 +17,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, DatedEvent, Filing, InsiderActivity, OfficerChange
-from app.services import dated_events, filing_events, form_names, insider_activity
+from app.services import (
+    dated_events,
+    filing_events,
+    form144,
+    form_names,
+    insider_activity,
+    insider_plans,
+)
 from app.services.form8k import split_items
 
-TYPES = ("filing", "8k_item", "officer_change", "auditor_change", "ipo", "insider", "13f_quarter")
+TYPES = ("filing", "8k_item", "officer_change", "auditor_change", "ipo", "insider", "13f_quarter",
+         "trading_plan", "proposed_sale")
 NOTES = ["Information, not signals. Not investment advice."]
 DEFAULT_YEARS = 5
 UPCOMING_DAYS = 400  # how far ahead a derived date (a lock-up end) is shown
@@ -71,8 +79,18 @@ def _filings(db, cik, start, end, ref, kinds, need: int | None = None) -> list[d
         )  # fmt: skip
         if boundary is not None:
             where.append(Filing.filing_date >= boundary)
-    rows = db.scalars(select(Filing).where(*where))
+    rows = list(db.scalars(select(Filing).where(*where)))
+    read_144 = set()
+    if "proposed_sale" in kinds:
+        accs = [f.accession_number for f in rows if f.form_type in ("144", "144/A")]
+        if accs:
+            from app.db.models import Form144Notice
+
+            read_144 = set(db.scalars(select(Form144Notice.accession_number)
+                                      .where(Form144Notice.accession_number.in_(accs))))
     for f in rows:
+        if f.accession_number in read_144:
+            continue  # shown as its proposed-sale item, with the person and the shares
         types = filing_events.types_for(f.form_type, f.items, f.event_tags)
         form_events = [t for t in types if filing_events.FILING_EVENT_TYPES[t].item is None]
         if "filing" in kinds:
@@ -177,6 +195,36 @@ def _insider(db, cik, start, end, ref) -> list[dict]:
     return out
 
 
+def _plans_and_sales(db, cik, start, end, ref, kinds) -> list[dict]:
+    """Trading plans adopted or terminated (D-11, one item per filing and action) and Form 144
+    notices (D-12), dated by their filing."""
+    wanted = []
+    if "trading_plan" in kinds:
+        wanted += [insider_plans.PLAN_ADOPTED, insider_plans.PLAN_TERMINATED]
+    if "proposed_sale" in kinds:
+        wanted.append(form144.PROPOSED_SALE)
+    out = []
+    rows = db.scalars(select(DatedEvent).where(
+        DatedEvent.cik == cik, DatedEvent.event_type.in_(wanted),
+        DatedEvent.event_date >= start, DatedEvent.event_date <= min(end, ref)))  # fmt: skip
+    for e in rows:
+        d = json.loads(e.detail)
+        if e.event_type == form144.PROPOSED_SALE:
+            shares = d.get("shares")
+            title = (f"Form 144: {d.get('person_name') or 'an insider'} proposes to sell "
+                     + (f"{shares:,} shares" if isinstance(shares, int | float) else "shares"))
+            out.append(_item(cik, e.event_date, "proposed_sale", e.accession_number, title,
+                             event_type=e.event_type, url=e.source_url, details=d)
+                       | {"accession_number": e.accession_number, "form_type": "144"})
+        else:
+            out.append(_item(cik, e.event_date, "trading_plan",
+                             f"{e.accession_number}_{e.event_type.rsplit('_', 1)[-1]}",
+                             insider_plans.event_title(e.event_type, d), event_type=e.event_type,
+                             url=e.source_url, details=d)
+                       | {"accession_number": e.accession_number, "form_type": d.get("form")})
+    return out
+
+
 def _thirteenf(db, company, start, end, ref) -> list[dict]:
     from app.services import thirteenf
 
@@ -226,6 +274,8 @@ def build(db: Session, company: Company, kinds: tuple[str, ...] = TYPES,
         items += _insider(db, company.cik, start, end, ref)
     if "13f_quarter" in kinds:
         items += _thirteenf(db, company, start, end, ref)
+    if {"trading_plan", "proposed_sale"} & set(kinds):
+        items += _plans_and_sales(db, company.cik, start, end, ref, kinds)
     items.sort(key=lambda i: (i["date"], i["id"]), reverse=True)
     return items
 

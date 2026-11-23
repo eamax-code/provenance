@@ -33,6 +33,7 @@ from app.api import (
     routes_mcp,
     routes_notifications,
     routes_ownership,
+    routes_people,
     routes_public,
     routes_screen,
     routes_search,
@@ -248,6 +249,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_graph.router)
     app.include_router(routes_ownership.router)
     app.include_router(routes_timeline.router)
+    app.include_router(routes_people.router)
     app.include_router(routes_watchlists.router)
     app.include_router(routes_ipos.router)
     app.include_router(routes_notifications.router)

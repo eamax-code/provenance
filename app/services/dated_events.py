@@ -18,10 +18,20 @@ LOCKUP_EXPIRY = "sec.lockup_expiry"
 # records the link and never alerts again for the same change.
 AUDITOR_CHANGE = "sec.auditor_change.annual_report"
 AUDITOR_WATERMARK = "auditor_change:notify_since"
+# D-11, D-12 (2026-11-24): trading plans tagged in 10-Q and 10-K (one event per filing and
+# action), Form 144 notices of proposed sale. Information, not signals.
+PLAN_ADOPTED = "sec.trading_plan_adopted"
+PLAN_TERMINATED = "sec.trading_plan_terminated"
+PROPOSED_SALE = "sec.proposed_sale"
 LABELS = {
     LOCKUP_EXPIRY: ("An IPO lock-up ends (derived from the final prospectus)", "Lock-up ends"),
     AUDITOR_CHANGE: ("A new audit firm signs the annual report (from its auditor tags)",
                      "Auditor change (annual)"),
+    PLAN_ADOPTED: ("A director or officer adopted a trading plan (Item 408(a), 10-Q or 10-K)",
+                   "Trading plan adopted"),
+    PLAN_TERMINATED: ("A director or officer terminated a trading plan (Item 408(a), 10-Q or "
+                      "10-K)", "Trading plan terminated"),
+    PROPOSED_SALE: ("An insider filed a Form 144 notice of proposed sale", "Proposed sale"),
 }  # fmt: skip
 FRESH_DAYS = 1  # a date reached today or yesterday is news; older ones are backfill
 
@@ -108,6 +118,12 @@ def as_dict(row: DatedEvent) -> dict:
     if row.event_type == AUDITOR_CHANGE:
         label = (f"{detail['to']['name']} replaces {detail['from']['name']} as auditor "
                  f"(fiscal year {detail['fiscal_year']}, annual report)")  # fmt: skip
+    elif row.event_type in (PLAN_ADOPTED, PLAN_TERMINATED):
+        from app.services.insider_plans import event_title
+
+        label = event_title(row.event_type, detail)
+    elif row.event_type == PROPOSED_SALE:
+        label = f"Form 144: {detail.get('person_name') or 'an insider'} proposes a sale"
     elif days:
         label = f"The {days}-day IPO lock-up ends (derived from the final prospectus)"
     return {

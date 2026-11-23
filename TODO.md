@@ -4,6 +4,17 @@ Pending work as of 2026-11-15. GitHub Issues (GH #) and older tickets in `.scrat
 conventions in `docs/agents/issue-tracker.md`. Labels: **ready-for-human** needs an owner
 decision or account; **ready-for-agent** can be built now; **needs-triage** is an idea.
 
+## 8-hour window: new datasets (started 2026-11-24 02:00 IST)
+Plan: [docs/plan-next-8h.md](docs/plan-next-8h.md) (PM). Contracts: [docs/contracts/](docs/contracts/README.md), acknowledged by ui.
+
+| Ticket | Item | Status |
+| --- | --- | --- |
+| OPS | Restart :8771 on HEAD, purge raw-IP counter keys, backup | backup done: provenance-backups/pre-8h-window-2026-11-23T2035Z.dump (4.7 GB, verified with pg_restore --list). The restart was refused by this session's permission check (it is the owner's process), so the restart and then `scripts/purge_rate_limit_identifiers.py` are an **owner action**; the recipe is in the PM summary |
+| Gate | Tests green | 43db270 (contracts, docs only) was committed while the suite was red: the gate was written `pytest \| tail && commit` again, and the red came from ui's uncommitted chat.js budget. ui fixed it in the tree; the commits since are gated by a script that exits with pytest's own code, proven by a deliberate failure |
+| D-11 | Trading plans, Item 408(a), from ecd tags in 10-Q/10-K (FS&N data sets, 2023 on) | loaded 2026-11-24: 16,764 rows, 8,777 backfill events `sec.trading_plan_adopted` / `_terminated` (none alerted); `/v1/companies/{cik}/insider-plans`, timeline type `trading_plan`. Hand-check: first 30 had 5 wrong (a termination's original adoption date read as an adoption; a scheduled end tagged as a termination), rules fixed (person flags decide; a termination after the filing date is the expiration; an adoption over 100 days before the period end is not new), fresh 30: 29 confirmed, 0 wrong, **1 not located: 0001516513-25-000012 (Phoebe Yang, 2,789.72 shares), recheck** |
+| D-10 | Pay versus performance from the proxy's ecd tags (PEO, NEO average, CAP, TSR, peer TSR, net income, company-selected measure) | loaded 2026-11-24: 443,385 facts; `/v1/companies/{cik}/executive-pay`. AAPL, JPM, XOM check against the proxy tables: next |
+| D-12 | Form 144 notices, last 12 months; joined to the Form 4 | code and migration in; XML prefetch running through SecClient; dry run of 300: no null fields. Back history (April 2023 on, ~92k more) is a follow-up |
+
 ## 12-hour launch: agent track (started 2026-11-22)
 Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-handover.md](docs/pm-handover.md). Status is updated as each ticket lands.
 
