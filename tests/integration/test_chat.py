@@ -145,13 +145,16 @@ def test_leadership_answer_without_8ks_states_coverage(app, client, auth, items_
     assert not any("newer filings" in n for n in body["notes"])  # 58 days old: not stale
 
 
-def test_pay_question_goes_to_model(app, client, auth, items_aapl):
+def test_pay_question_is_answered_from_the_proxy_table(app, client, auth, items_aapl):
+    # C-13 (2026-11-24): pay comes from the tagged pay-versus-performance table, not the model;
+    # with no table stored the answer says so and states no figure
     fake = FakeLLM()
     app.state.llm_factory = lambda: fake
     body = client.post(
         "/v1/chat", json={"message": "What is Apple's executive pay?"}, headers=auth
     ).json()
-    assert body["answered_by"] == "model" and fake.calls
+    assert body["answered_by"] == "data" and body["intent"] == "pay" and not fake.calls
+    assert "No pay-versus-performance table is tagged" in body["answer"]
 
 
 def test_check_answer_flags_citations_on_their_own_line():

@@ -10,6 +10,7 @@ the filing URL and accession number an agent needs to cite it.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 import httpx
@@ -203,6 +204,56 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik"],
         },
     },
+    "executive_pay": {
+        "title": "Executive pay versus performance",
+        "description": "The proxy's pay-versus-performance table, as disclosed: for each fiscal "
+        "year the PEO's Summary Compensation Table total and compensation actually paid, the "
+        "average for the other named executives, company and peer TSR, net income and the "
+        "company-selected measure, each linking its proxy. Per-executive rows are not tagged. "
+        "Information, not signals. Not investment advice.",
+        "path": "/v1/companies/{cik}/executive-pay",
+        "params": {"as_of": "as_of"},
+        "schema": {"type": "object", "properties": {"cik": _CIK, "as_of": _DATE},
+                   "required": ["cik"]},
+    },  # fmt: skip
+    "insider_plans": {
+        "title": "Trading plans and proposed sales",
+        "description": "Rule 10b5-1 and other trading plans adopted or terminated by directors "
+        "and officers (Item 408(a), from 10-Q and 10-K), and Form 144 notices of proposed sale, "
+        "each with the Form 4 sale that followed when one matches (the rule is in notes). "
+        "Information, not signals. Not investment advice.",
+        "path": "/v1/companies/{cik}/insider-plans",
+        "params": {"since": "since", "as_of": "as_of", "limit": "limit"},
+        "schema": {"type": "object", "properties": {
+            "cik": _CIK, "since": _DATE, "as_of": _DATE, "limit": _LIMIT},
+            "required": ["cik"]},
+    },  # fmt: skip
+    "filing_changes": {
+        "title": "What changed in a 10-K",
+        "description": "Risk factors and MD&A headings added, removed and reworded in an annual "
+        "report against the previous one, with each section's text and both filing links. Give "
+        "cik for the latest 10-K (filed by as_of), or accession for one report. Only for the "
+        "companies read for this; otherwise changes_not_available with the reason.",
+        "path": "/v1/companies/{cik}/changes",
+        "params": {"as_of": "as_of"},
+        "schema": {"type": "object", "properties": {
+            "cik": _CIK, "as_of": _DATE,
+            "accession": {"type": "string", "pattern": r"^\d{10}-\d{2}-\d{6}$",
+                          "description": "One annual report, e.g. 0000320193-25-000079"}}},
+    },  # fmt: skip
+    "company_calendar": {
+        "title": "Company calendar",
+        "description": "Dated items for one company: filing deadlines (derived from the filer "
+        "category and the report periods, with the rule and the report that met each one), "
+        "late-filing notices, IPO lock-up and quiet-period ends, and Form 144 windows.",
+        "path": "/v1/companies/{cik}/calendar",
+        "params": {"from": "from", "to": "to", "kinds": "kinds"},
+        "schema": {"type": "object", "properties": {
+            "cik": _CIK, "from": _DATE, "to": _DATE,
+            "kinds": {"type": "string", "description": "Comma-separated: filing_deadline, "
+                      "late_notice, lockup_expiry, quiet_period_end, proposed_sale_window_end"}},
+            "required": ["cik"]},
+    },  # fmt: skip
     "company_segments": {
         "title": "Segments",
         "description": "Revenue and segment profit (operating income, or pretax income for "
@@ -466,6 +517,13 @@ async def call_tool(request: Request, name: str, args: dict[str, Any]) -> dict[s
     if unknown:
         raise ValueError(f"unknown argument: {', '.join(unknown)}")
     path = tool["path"]
+    if name == "filing_changes" and args.get("accession"):
+        acc = str(args["accession"]).strip()
+        if not re.fullmatch(r"\d{10}-\d{2}-\d{6}", acc):
+            raise ValueError("accession must look like 0000320193-25-000079")
+        path = f"/v1/filings/{acc}/changes"
+    elif name == "filing_changes" and not args.get("cik"):
+        raise ValueError("give cik or accession")
     if "{cik}" in path:
         cik = str(args["cik"]).strip()
         if not cik.isdigit() or len(cik) > 10:

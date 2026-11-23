@@ -1,5 +1,7 @@
 """C-06: chat intents for today's data, answered from stored data without a model: 13F holders,
-segments, the auditor, insider signals, 5% holders (Schedules 13D/G) and the LEI. Every sentence
+segments, the auditor, insider signals, 5% holders (Schedules 13D/G) and the LEI; C-13: pay
+versus performance, trading plans, Form 144 notices and what changed in the latest
+10-K. Every sentence
 that states a figure cites its filing; with nothing stored the answer says so, with no figure.
 """
 
@@ -15,6 +17,34 @@ from app.db.models import InsiderActivity
 from app.services.intel import Brief, display_name, money
 
 INTENTS = (  # first match wins
+    # C-13 (2026-11-24): pay versus performance, trading plans, Form 144 notices, 10-K changes
+    (
+        "pay",
+        re.compile(
+            r"\b((?:ceo|chief executive|executive|peo|neo)s?'?\s+(?:pay|comp\w*|salar\w*)|"
+            r"pay (?:versus|vs\.?|and) (?:performance|tsr)|compensation actually paid|"
+            r"executive compensation|say on pay)\b",
+            re.I,
+        ),
+    ),  # fmt: skip
+    (
+        "trading_plans",
+        re.compile(r"\b(10b5-?1|trading (?:plans?|arrangements?)|selling plans?)\b", re.I),
+    ),
+    (
+        "proposed_sales",
+        re.compile(r"\b(form 144|proposed (?:insider )?sales?|notices? of (?:proposed )?sale)\b",
+                   re.I),
+    ),  # fmt: skip
+    (
+        "changes",
+        re.compile(
+            r"(\brisk factors?\b.*\b(add\w*|new|chang\w*|remov\w*|drop\w*|reword\w*)\b|"
+            r"\b(add\w*|new|chang\w*|remov\w*|drop\w*)\b.*\brisk factors?\b|"
+            r"what changed in .*\b(10-k|annual report)\b)",
+            re.I,
+        ),
+    ),  # fmt: skip
     (
         "five_percent",
         re.compile(
@@ -306,13 +336,152 @@ def lei(db: Session, b: Brief, as_of: date | None) -> str:
     return f"{_name(b)}'s LEI is {block['lei']}{holder}, {how} [{n}]."
 
 
+def pay(db: Session, b: Brief, as_of: date | None) -> str:
+    """C-13: the proxy's pay-versus-performance table (D-10), as disclosed."""
+    from app.services import executive_pay
+
+    block = executive_pay.for_company(db, b.company.cik, as_of)
+    if not block["years"]:
+        return (f"No pay-versus-performance table is tagged in the proxies loaded here for "
+                f"{_name(b)}.")  # fmt: skip
+    cur = block["currency"] or "USD"
+
+    def amt(v) -> str:
+        return money(v, cur) if v is not None else "not given"
+
+    y = block["years"][0]
+    src = y["source"]
+    n = _cite(b, f"{src['form']} filed {src['filed_date']}", src["source_url"])
+    peo = "; ".join(f"{p['name'] or 'the PEO'}: {amt(p['total_comp'])} total (Summary "
+                    f"Compensation Table), {amt(p['comp_actually_paid'])} compensation actually "
+                    "paid" for p in y["peo"])  # fmt: skip
+    text = (f"For the fiscal year ended {y['fiscal_year_end']}, {_name(b)}'s proxy filed "
+            f"{src['filed_date']} reports {peo} [{n}].")  # fmt: skip
+    neo = y["neo_average"]
+    if neo["total_comp"] is not None:
+        text += (f" The other named executives averaged {amt(neo['total_comp'])} total and "
+                 f"{amt(neo['comp_actually_paid'])} compensation actually paid [{n}].")
+    if y["tsr"] is not None:
+        peer = ""
+        if y["peer_tsr"] is not None:
+            peer = f", against {y['peer_tsr']:g} for the peer group"
+        text += f" Total shareholder return: $100 invested became {y['tsr']:g}{peer} [{n}]."
+    earlier = [x for x in block["years"][1:4]
+               if x["peo"] and x["peo"][0]["comp_actually_paid"] is not None
+               and x["tsr"] is not None]  # fmt: skip
+    if earlier:
+        trend = "; ".join(f"FY ended {x['fiscal_year_end']}: "
+                          f"{amt(x['peo'][0]['comp_actually_paid'])} vs TSR {x['tsr']:g}"
+                          for x in earlier)  # fmt: skip
+        text += f" Earlier years, PEO compensation actually paid vs TSR: {trend} [{n}]."
+    return text + f" As disclosed in the proxy. {NOT_SIGNALS}"
+
+
+def trading_plans(db: Session, b: Brief, as_of: date | None) -> str:
+    """C-13: Rule 10b5-1 and other trading plans, Item 408(a) (D-11)."""
+    from app.services import insider_plans
+
+    ref = as_of or date.today()
+    rows = insider_plans.plans(db, b.company.cik, ref.replace(year=ref.year - 2), as_of, 8)
+    if not rows:
+        return (f"No trading-plan adoptions or terminations are tagged in {_name(b)}'s 10-Q and "
+                f"10-K filings loaded here for the last two years. {NOT_SIGNALS}")  # fmt: skip
+    parts = []
+    for r in rows:
+        f = r["filing"]
+        n = _cite(b, f"{f['form']} filed {f['filed_date']}", f["source_url"])
+        kind = {"rule_10b5_1": "a Rule 10b5-1 plan",
+                "non_rule_10b5_1": "a non-Rule 10b5-1 arrangement"}.get(r["plan_type"], "a plan")
+        when = r["date"] or r["date_as_written"] or "on a date not given"
+        who = r["person_name"] or "an officer or director"
+        title = f" ({r['title']})" if r["title"] else ""
+        extra = f" covering up to {r['shares']:,.0f} shares" if r["shares"] else ""
+        parts.append(f"{who}{title} {r['action']} {kind} on {when}{extra} ({f['form']} filed "
+                     f"{f['filed_date']}) [{n}]")  # fmt: skip
+    return (f"Trading plans at {_name(b)}, as tagged in its 10-Q and 10-K filings: "
+            + "; ".join(parts) + f". {NOT_SIGNALS}")  # fmt: skip
+
+
+def proposed_sales(db: Session, b: Brief, as_of: date | None) -> str:
+    """C-13: Form 144 notices and the Form 4 that followed (D-12)."""
+    from app.services import form144
+
+    ref = as_of or date.today()
+    rows = form144.for_company(db, b.company.cik, ref - timedelta(days=365), as_of, 6)
+    if not rows:
+        return (f"No Form 144 notices of proposed sale for {_name(b)} in the last 12 months are "
+                f"loaded here. {NOT_SIGNALS}")  # fmt: skip
+    parts = []
+    for r in rows:
+        f = r["filing"]
+        n = _cite(b, f"Form 144 filed {f['filed_date']}", f["source_url"])
+        who = filed_owner_name(r["person_name"]) or "an insider"
+        value = (f", about {money(r['aggregate_market_value'], 'USD')} by the filer's estimate"
+                 if r["aggregate_market_value"] else "")  # fmt: skip
+        part = (f"{who} filed a notice on {f['filed_date']} to sell {r['shares']:,.0f} shares"
+                f"{value} [{n}]")  # fmt: skip
+        fb = r["followed_by"]
+        if fb:
+            m = _cite(b, f"Form 4 filed {fb['filed_date']}", fb["source_url"])
+            part += (f", and a Form 4 filed {fb['filed_date']} reports a sale of "
+                     f"{fb['shares']:,.0f} shares on {fb['transaction_date']} [{m}]")  # fmt: skip
+        parts.append(part)
+    return (f"Form 144 notices for {_name(b)}: " + "; ".join(parts) + ". A notice does not "
+            f"oblige a sale. {NOT_SIGNALS}")  # fmt: skip
+
+
+def changes(db: Session, b: Brief, as_of: date | None) -> str:
+    """C-13: risk factors added, removed and reworded against the previous 10-K (X-14)."""
+    from app.services import tenk_sections
+
+    latest = tenk_sections.annual_reports(db, b.company.cik, as_of, limit=1)
+    if not latest:
+        return f"No 10-K annual report for {_name(b)} is loaded here."
+    try:
+        d = tenk_sections.changes(db, latest[0])
+    except tenk_sections.NotAvailable as exc:
+        return f"{exc.message} ({_name(b)}, 10-K filed {latest[0].filing_date})."
+    f, p = d["filing"], d["prior"]
+    n = _cite(b, f"10-K filed {f['filed_date']}", f["source_url"])
+    rf = d["risk_factors"]
+    if p is None:
+        return (f"{_name(b)}'s 10-K filed {f['filed_date']} lists {rf['counts']['now']} risk "
+                f"factors [{n}]; no earlier 10-K is loaded to compare with.")  # fmt: skip
+    m = _cite(b, f"10-K filed {p['filed_date']}", p["source_url"])
+    c = rf["counts"]
+    text = (f"{_name(b)}'s 10-K filed {f['filed_date']} [{n}], compared with the one filed "
+            f"{p['filed_date']} [{m}]: {_count(c['added'], 'risk factor')} added, "
+            f"{c['removed']} removed, {c['reworded']} reworded and {c['unchanged']} "
+            "unchanged.")  # fmt: skip
+    if rf["added"]:
+        text += " Added: " + "; ".join(_quote(h["heading"]) for h in rf["added"][:4]) + f" [{n}]."
+    if rf["removed"]:
+        text += (" Removed: " + "; ".join(_quote(h["heading"]) for h in rf["removed"][:4])
+                 + f" [{m}].")  # fmt: skip
+    return text
+
+
+def _count(n: int, word: str) -> str:
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def _quote(heading: str, limit: int = 160) -> str:
+    """A heading in quotes, cut at a word boundary when it is long."""
+    h = heading if len(heading) <= limit else heading[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    return f"\u201c{h}\u201d"
+
+
 HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
     "holders": "ownership", "five_percent": "holders", "auditor": "overview",
     "segments": "segments", "insiders": "insider-transactions", "lei": "overview",
+    "pay": "executive-pay", "trading_plans": "insider-plans", "proposed_sales": "insider-plans",
+    "changes": "changes",
 }  # fmt: skip
 
 ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
-           "segments": segments, "insiders": insiders, "lei": lei}  # fmt: skip
+           "segments": segments, "insiders": insiders, "lei": lei, "pay": pay,
+           "trading_plans": trading_plans, "proposed_sales": proposed_sales,
+           "changes": changes}  # fmt: skip
 
 
 def answer(db: Session, b: Brief, intent: str, as_of: date | None, text: str = "") -> str:
