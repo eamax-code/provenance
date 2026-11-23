@@ -220,3 +220,30 @@ def test_developer_docs_cover_the_explorer_endpoints_and_watchlist_limits(client
         plan = PLANS[name]
         want = (plan.max_watchlists, plan.max_watchlist_companies, plan.max_watchlist_columns)
         assert shown.get(name) == want, (name, shown.get(name), want)
+
+
+def test_developer_docs_cover_the_24_nov_endpoints_with_their_labels():
+    """Each endpoint added on 24 Nov has a section with an example, the labels it must carry and its
+    error reasons; examples link only to sec.gov/Archives and never show a CUSIP."""
+    import re
+
+    page = (SITE / "developers" / "index.html").read_text()
+    llms = (SITE / "llms.txt").read_text()
+    for path in ("/v1/companies/{cik}/executive-pay", "/v1/companies/{cik}/insider-plans",
+                 "/v1/companies/{cik}/changes", "/v1/filings/{accession}/changes",
+                 "/v1/companies/{cik}/calendar", "/v1/watchlists/{id}/calendar", "/v1/calendar?ciks=",
+                 "/v1/companies/{cik}/comment-letters", "/v1/companies/{cik}/corporate-tree",
+                 "/v1/private-raises"):
+        assert path in page, path
+        assert path.split("?")[0] in llms, path
+    for words in ("as disclosed in the proxy", "self-reported by the issuer on Form D; amounts as filed",
+                  "<strong>derived</strong>", "changes_not_available", "not_read", "prior_not_read",
+                  "not_split", "include_suspect", "exclude_industry", "min_sold"):
+        assert words in page, words
+    for section in ("executive-pay", "insider-plans", "changes", "calendar", "comment-letters",
+                    "corporate-tree", "private-raises"):
+        assert f'href="#{section}"' in page and f'<section id="{section}"' in page, section
+    new = page[page.index('<section id="executive-pay"'):page.index('<section id="ipos"')]
+    urls = re.findall(r"https?://[^\"\s<]+", new)
+    assert urls and all(u.startswith("https://www.sec.gov/Archives/") for u in urls), urls[:5]
+    assert "cusip" not in new.lower()

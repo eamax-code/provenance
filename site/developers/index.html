@@ -94,6 +94,13 @@
         <li><a href="#statements">Statements</a></li>
         <li><a href="#timeline">Timeline</a></li>
         <li><a href="#watchlists">Watchlists</a></li>
+        <li><a href="#executive-pay">Executive pay</a></li>
+        <li><a href="#insider-plans">Trading plans and Form 144</a></li>
+        <li><a href="#changes">What changed in a 10-K</a></li>
+        <li><a href="#calendar">Calendar</a></li>
+        <li><a href="#comment-letters">Comment letters</a></li>
+        <li><a href="#corporate-tree">Corporate tree</a></li>
+        <li><a href="#private-raises">Private raises (Form D)</a></li>
         <li><a href="#ipos">Going public</a></li>
         <li><a href="#connections">Connections</a></li>
         <li><a href="#ownership">Ownership (13F)</a></li>
@@ -391,6 +398,491 @@ curl -s -X POST "{{BASE}}/v1/watchlists/WATCHLIST_ID/watch" -H "X-API-Key: $PROV
         <p>Going over a limit is <code>422</code> <code>watchlist_limit_reached</code>; unknown companies or columns are <code>422</code> naming them. Watchlists need your own key; the demo key is not accepted. Watches made from a list are ordinary watches and count toward the plan's watch limit.</p>
       </section>
 
+      <section id="executive-pay" aria-labelledby="executive-pay-h">
+        <h2 id="executive-pay-h">Executive pay versus performance</h2>
+        <p><code>GET /v1/companies/{cik}/executive-pay</code> returns the pay-versus-performance table from the proxy (Item 402(v)), as tagged in its inline XBRL: for each fiscal year, the principal executive officer’s total pay and compensation actually paid, the average for the other named executives, company and peer total shareholder return, net income and the company-selected measure. Each year links the proxy it comes from. Values are <strong>as disclosed in the proxy</strong>; nothing is recomputed.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/executive-pay" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, trimmed to one item per list</span>
+{
+ "cik": "0000320193",
+ "as_of": null,
+ "currency": "USD",
+ "proxy": {
+  "accession_number": "0001308179-26-000008",
+  "form": "DEF 14A",
+  "filed_date": "2026-01-08",
+  "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000130817926000008/0001308179-26-000008-index.html"
+ },
+ "years": [
+  {
+   "fiscal_year_end": "2025-09-30",
+   "peo": [
+    {
+     "name": "Mr. Cook",
+     "total_comp": 74294811,
+     "comp_actually_paid": 108423733
+    }
+   ],
+   "neo_average": {
+    "total_comp": 23812358,
+    "comp_actually_paid": 34125743,
+    "names": [
+     "Deirdre OBrien"
+    ]
+   },
+   "tsr": 233.88,
+   "peer_tsr": 279.51,
+   "net_income": 112010000000,
+   "company_selected_measure": {
+    "name": "Net Sales",
+    "value": 416161000000
+   },
+   "source": {
+    "accession_number": "0001308179-26-000008",
+    "form": "DEF 14A",
+    "filed_date": "2026-01-08",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000130817926000008/0001308179-26-000008-index.html"
+   }
+  }
+ ],
+ "measures": [
+  "Net Sales"
+ ],
+ "labels": {
+  "disclaimer": "Information, not signals. Not investment advice.",
+  "basis": "As disclosed in the proxy: the PEO and the average of the other named executives, as tagged in the proxy's pay-versus-performance table (Item 402(v))."
+ },
+ "notes": [
+  "Compensation actually paid is the SEC's defined measure (Item 402(v) of Regulation S-K), not realized or take-home pay."
+ ]
+}</code></pre></div>
+        <p>Parameters: <code>as_of</code>. The Summary Compensation Table is not tagged, so there is no row per executive. Smaller reporting companies give three years and no peer TSR; foreign private issuers and emerging growth companies have no table, and <code>years</code> is empty. Responses carry <code>labels.disclaimer</code>: information, not signals; not investment advice.</p>
+      </section>
+
+      <section id="insider-plans" aria-labelledby="insider-plans-h">
+        <h2 id="insider-plans-h">Trading plans and Form 144</h2>
+        <p><code>GET /v1/companies/{cik}/insider-plans</code> gives two lists. <code>plans</code> are Rule 10b5-1 and other trading arrangements adopted or terminated, as tagged under Item 408(a) in 10-Qs and 10-Ks. <code>proposed_sales</code> are Form 144 notices, each with <code>followed_by</code>: the first Form 4 sale by the same person at the same issuer from 7 days before to 90 days after the notice, matched by CIK or else by name (<code>match.rule</code>), and <code>followed_by_status</code> (<code>matched</code>, <code>no_sale_reported</code>, <code>pending</code>). The sale is a fact; the match is ours. A notice does not oblige a sale.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/insider-plans?since=2026-01-01" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, trimmed to one item per list</span>
+{
+ "cik": "0000320193",
+ "as_of": null,
+ "since": "2024-11-24",
+ "plans": [
+  {
+   "person_name": "Tim Cook",
+   "title": "Chief Executive Officer",
+   "action": "adopted",
+   "plan_type": "rule_10b5_1",
+   "date": "2026-05-28",
+   "date_as_written": null,
+   "original_adoption_date": null,
+   "duration_days": 156,
+   "expiration_date": "2026-10-30",
+   "shares": 16250,
+   "filing": {
+    "accession_number": "0000320193-26-000020",
+    "form": "10-Q",
+    "period": "2026-06-30",
+    "filed_date": "2026-07-31",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000020/0000320193-26-000020-index.html"
+   }
+  }
+ ],
+ "proposed_sales": [
+  {
+   "person_name": "LEVINSON ARTHUR D",
+   "person_cik": "0001214128",
+   "relationships": [
+    "Director"
+   ],
+   "security_class": "Common",
+   "shares": 90000,
+   "aggregate_market_value": 31765885,
+   "shares_outstanding": 14532182000,
+   "approx_sale_date": "2026-11-16",
+   "exchange": "NASDAQ",
+   "broker": "Charles Schwab &amp; Co., Inc.",
+   "acquired": [
+    {
+     "date": "2001-02-27",
+     "nature": "Open Market Purchase - See Remarks",
+     "shares": 90000.0
+    }
+   ],
+   "acquired_count": 1,
+   "plan_adoption_date": null,
+   "notice_date": "2026-11-16",
+   "filing": {
+    "accession_number": "0001921094-26-001188",
+    "form": "144",
+    "filed_date": "2026-11-16",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000192109426001188/0001921094-26-001188-index.html"
+   },
+   "followed_by": {
+    "accession_number": "0001140361-26-044773",
+    "form": "4",
+    "filed_date": "2026-11-18",
+    "transaction_date": "2026-11-16",
+    "shares": 90000.0,
+    "average_price": 352.9517,
+    "match": {
+     "rule": "same_person_cik",
+     "days_after_notice": 0
+    },
+    "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000114036126044773/0001140361-26-044773-index.html"
+   },
+   "followed_by_status": "matched"
+  }
+ ],
+ "labels": {
+  "disclaimer": "Information, not signals. Not investment advice."
+ },
+ "notes": [
+  "Trading plans are as tagged under Item 408(a) of Regulation S-K in the company's 10-Q and 10-K (the SEC's Financial Statement and Notes data sets); a …"
+ ]
+}</code></pre></div>
+        <p>Parameters: <code>since</code> (two years back by default), <code>as_of</code>, <code>limit</code> (per list, 1 to 200). Information, not signals; not investment advice.</p>
+      </section>
+
+      <section id="changes" aria-labelledby="changes-h">
+        <h2 id="changes-h">What changed in a 10-K</h2>
+        <p><code>GET /v1/companies/{cik}/changes</code> (the latest annual report) and <code>GET /v1/filings/{accession}/changes</code> compare a 10-K’s risk factors (Item 1A) and MD&amp;A (Item 7) with the previous 10-K, heading by heading: added, removed and reworded. A pair at or above 0.60 similarity is reworded; texts are the first 1,500 characters, with <code>text_length</code> for the full length; both filings are linked.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/changes" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, trimmed to one item per list</span>
+{
+ "filing": {
+  "accession_number": "0000320193-26-000026",
+  "form": "10-K",
+  "period": "2026-09-26",
+  "filed_date": "2026-11-03",
+  "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000026/0000320193-26-000026-index.html"
+ },
+ "prior": {
+  "accession_number": "0000320193-25-000079",
+  "form": "10-K",
+  "period": "2025-09-27",
+  "filed_date": "2025-10-31",
+  "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/0000320193-25-000079-index.html"
+ },
+ "risk_factors": {
+  "counts": {
+   "now": 28,
+   "before": 27,
+   "added": 2,
+   "removed": 1,
+   "reworded": 9,
+   "unchanged": 17
+  },
+  "added": [
+   {
+    "heading": "The Company experiences cybersecurity incidents and inadvertent losses and unauthorized access to or releases of confidential information, including p…",
+    "group": "Business Risks",
+    "text": "The Company’s business requires it to use and store confidential information, including personal and sensitive health and financial information with r…",
+    "text_length": 5045
+   }
+  ],
+  "removed": [
+   {
+    "heading": "Losses or unauthorized access to or releases of confidential information, including personal information, could subject the Company to significant rep…",
+    "group": "Business Risks",
+    "text": "The Company’s business requires it to use and store confidential information, including personal and sensitive health and financial information with r…",
+    "text_length": 3939
+   }
+  ],
+  "reworded": [
+   {
+    "heading": "The Company is subject to the risks of adverse impacts from legal proceedings and government investigations.",
+    "group": "Legal and Regulatory Compliance Risks",
+    "text": "The Company is subject to various claims, legal proceedings and government investigations that have arisen in the ordinary course of business and have…",
+    "text_length": 6308,
+    "heading_before": "The Company’s business, results of operations and financial condition could be adversely impacted by unfavorable results of legal proceedings or gover…",
+    "similarity": 0.74,
+    "text_before": "The Company is subject to various claims, legal proceedings and government investigations that have arisen in the ordinary course of business and have…"
+   }
+  ]
+ },
+ "mdna": {
+  "counts": {
+   "now": 34,
+   "before": 37,
+   "added": 0,
+   "removed": 3,
+   "reworded": 1,
+   "unchanged": 33
+  },
+  "added": [],
+  "removed": [
+   "…"
+  ],
+  "reworded": [
+   "…"
+  ]
+ },
+ "method": {
+  "headings": "Risk factor headings are the bold or italic lead sentences in Item 1A; MD&amp;A headings are its bold or italic sub-headings.",
+  "matching": "A heading is unchanged when its normalized text is identical. Otherwise it is paired with the most similar heading on the other side; a pair at or abo…",
+  "threshold": 0.6
+ }
+}</code></pre></div>
+        <p>Not every report is read yet. Outside the read set the answer is <code>404 changes_not_available</code> with a <code>reason</code>: <code>not_read</code>, <code>prior_not_read</code>, <code>not_split</code> or <code>not_annual_report</code>.</p><div class="code"><pre><code>{
+ "error": {
+  "code": "changes_not_available",
+  "message": "The risk factors of this report or the previous one did not split into headings, so there is no comparison.",
+  "request_id": "req_152080262f78ee4a",
+  "reason": "not_split"
+ }
+}</code></pre></div>
+      </section>
+
+      <section id="calendar" aria-labelledby="calendar-h">
+        <h2 id="calendar-h">Calendar</h2>
+        <p><code>GET /v1/companies/{cik}/calendar</code>, <code>GET /v1/watchlists/{id}/calendar</code> and <code>GET /v1/calendar?ciks=</code> (up to 50) list dated items: 10-K and 10-Q due dates, late filing notices (NT 10-K, NT 10-Q), IPO lock-up and quiet-period ends, and Form 144 windows. Due dates, lock-up and quiet-period ends are <strong>derived</strong> from rules and the company’s own filings: each says <code>derived: true</code> and gives its <code>basis</code>. A deadline already met has <code>met_by</code> with the report; <code>filed_late</code> says if it came after the due date.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/calendar" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, trimmed to one item per list</span>
+{
+ "cik": "0000320193",
+ "from": "2026-08-26",
+ "to": "2027-05-23",
+ "data": [
+  {
+   "date": "2026-11-25",
+   "kind": "filing_deadline",
+   "title": "10-K due (period ending 2026-09-26)",
+   "derived": true,
+   "basis": "Large accelerated filer: 60 days after the fiscal year end (Form 10-K, General Instruction A)",
+   "period_end": "2026-09-26",
+   "upcoming": true,
+   "source": {
+    "accession_number": "0000320193-26-000026",
+    "form": "10-K",
+    "filed_date": "2026-11-03",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000026/0000320193-26-000026-index.html",
+    "why": "filer category and fiscal year end as the SEC lists them for this company; the report periods as filed"
+   },
+   "met_by": {
+    "accession_number": "0000320193-26-000026",
+    "form": "10-K",
+    "filed_date": "2026-11-03",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000026/0000320193-26-000026-index.html"
+   },
+   "filed_late": false,
+   "company": {
+    "cik": "0000320193",
+    "name": "Apple Inc."
+   }
+  }
+ ],
+ "notes": [
+  "Derived dates are computed from rules and the company's own filings; the company's actual filing date can differ. A due date on a weekend or US federa…"
+ ]
+}</code></pre></div>
+        <p>Parameters: <code>from</code> and <code>to</code> (at most 400 days apart; 90 days back to 180 ahead by default) and <code>kinds</code>. The demo key gets at most 10 items per response.</p>
+      </section>
+
+      <section id="comment-letters" aria-labelledby="comment-letters-h">
+        <h2 id="comment-letters-h">SEC comment letters</h2>
+        <p><code>GET /v1/companies/{cik}/comment-letters</code> lists the SEC’s review correspondence with the company, released on EDGAR after a review closes, as threads by SEC file number: each SEC letter (UPLOAD) and company reply (CORRESP) with its date and link. Topics come from a reviewed keyword list, not a model; a scanned letter is listed with <code>readable: false</code>.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/320193/comment-letters?limit=1" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, trimmed to one item per list</span>
+{
+ "cik": "0000320193",
+ "threads": [
+  {
+   "id": "0000000000-24-002512",
+   "file_number": "001-36743",
+   "subject": "Apple Inc. Form 10-K for the fiscal year ended September 30, 2023",
+   "opened": "2024-03-06",
+   "closed": "2024-05-16",
+   "status": "closed",
+   "topics": [
+    "mdna"
+   ],
+   "letters": [
+    {
+     "date": "2024-03-06",
+     "from": "sec",
+     "form": "UPLOAD",
+     "accession_number": "0000000000-24-002512",
+     "topics": [
+      "segments"
+     ],
+     "readable": true,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000000000024002512/0000000000-24-002512-index.html"
+    }
+   ]
+  }
+ ],
+ "topic_keys": {
+  "revenue_recognition": "Revenue recognition",
+  "non_gaap": "Non-GAAP measures",
+  "segments": "Segment reporting",
+  "impairment": "Impairment",
+  "mdna": "MD&amp;A",
+  "income_taxes": "Income taxes",
+  "disclosure_controls": "Disclosure controls",
+  "governance": "Board and governance",
+  "leases": "Leases",
+  "climate": "Climate disclosure",
+  "cybersecurity": "Cybersecurity",
+  "crypto": "Crypto assets",
+  "going_concern": "Going concern",
+  "related_parties": "Related parties",
+  "other": "Other"
+ },
+ "notes": [
+  "Topics are tagged from a reviewed keyword list; a letter can have several. The SEC releases its review correspondence at least 20 business days after …"
+ ],
+ "coverage": "read"
+}</code></pre></div>
+        <p>Parameters: <code>since</code>, <code>topic</code> (one key from <code>topic_keys</code>) and <code>limit</code>.</p>
+      </section>
+
+      <section id="corporate-tree" aria-labelledby="corporate-tree-h">
+        <h2 id="corporate-tree-h">Corporate tree</h2>
+        <p><code>GET /v1/companies/{cik}/corporate-tree</code> gives the company’s direct and ultimate parents from GLEIF Level 2 (CC0), or GLEIF’s reporting exception with its reason code, the entities that report it as their parent, and the subsidiaries in its latest exhibit 21. A subsidiary gets an LEI only when exactly one GLEIF entity has the same legal name and jurisdiction. GLEIF is named as the source, never linked.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/companies/19617/corporate-tree?children_limit=100" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, trimmed to one item per list</span>
+{
+ "cik": "0000019617",
+ "entity": {
+  "lei": "8I5DZWZKVSZI1NUHU748",
+  "name": "Jpmorgan Chase &amp; Co",
+  "jurisdiction": "US-DE",
+  "lei_match": "name_and_jurisdiction"
+ },
+ "parents": {
+  "direct": null,
+  "ultimate": null,
+  "exceptions": [
+   {
+    "kind": "direct",
+    "reason": "NON_CONSOLIDATING",
+    "text": "The parent does not consolidate this entity in its accounts."
+   }
+  ]
+ },
+ "children": {
+  "total": 172,
+  "data": [
+   {
+    "lei": "BMSV765KS3ZUWB7LXV33",
+    "name": "Banco J.P. Morgan S.A.",
+    "jurisdiction": "BR",
+    "status": "ACTIVE",
+    "cik": null,
+    "relationship": "direct"
+   }
+  ]
+ },
+ "subsidiaries": {
+  "total": 18,
+  "filing": {
+   "accession_number": "0001628280-26-008131",
+   "form": "10-K",
+   "filed_date": "2026-02-13",
+   "source_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/corp10k2025exhibit21.htm"
+  },
+  "data": [
+   {
+    "name": "JPMorgan Chase Bank, National Association",
+    "jurisdiction": "United States",
+    "lei": "7H6GLXDRUGQFU57RNE97",
+    "lei_match": "exact_name_and_jurisdiction"
+   }
+  ]
+ },
+ "notes": [
+  "Parents and GLEIF children are from GLEIF Level 2 relationship data (golden copy, CC0) as the entities report them; subsidiaries are as listed in the …"
+ ]
+}</code></pre></div>
+        <p>Parameters: <code>children_limit</code> (1 to 500) and <code>subsidiaries_limit</code> (1 to 1,000). Widely held companies often report <code>NATURAL_PERSONS</code> or <code>NO_KNOWN_PERSON</code>: no parent company, not ownership by individuals.</p>
+      </section>
+
+      <section id="private-raises" aria-labelledby="private-raises-h">
+        <h2 id="private-raises-h">Private raises (Form D)</h2>
+        <p><code>GET /v1/private-raises</code> lists exempt offerings from the SEC’s Form D data sets (the last eight quarters), newest first; <code>GET /v1/companies/{cik}/private-raises</code> gives one issuer’s. Everything is <strong>self-reported by the issuer on Form D; amounts as filed</strong>: a Form D is a notice, not a registration, and the SEC does not review it. “Raised” means the amount sold, never the offering size.</p>
+        <div class="code"><pre><code>curl -s "{{BASE}}/v1/private-raises?industry=Biotechnology&amp;min_sold=50000000&amp;order=sold&amp;exclude_industry=Pooled%20Investment%20Fund" -H "X-API-Key: $PROVENANCE_API_KEY"
+
+<span class="c"># response, trimmed to one item per list</span>
+{
+ "data": [
+  {
+   "issuer": {
+    "cik": "0001708503",
+    "name": "Neuralink Corp.",
+    "state": "CA",
+    "jurisdiction": "NEVADA",
+    "entity_type": "Corporation",
+    "year_of_incorporation": null,
+    "is_registrant": false
+   },
+   "industry_group": "Biotechnology",
+   "total_offering_amount": 649000093,
+   "total_amount_sold": 649000093,
+   "total_remaining": 0,
+   "indefinite": false,
+   "investors": {
+    "total": 49,
+    "non_accredited": null
+   },
+   "first_sale_date": "2025-05-30",
+   "first_sale_yet_to_occur": false,
+   "exemptions": [
+    "06b"
+   ],
+   "minimum_investment": 12019,
+   "sales_commissions": 0,
+   "finders_fees": 0,
+   "related_persons": [
+    {
+     "name": "JARED BIRCHALL",
+     "relationships": [
+      "Executive Officer"
+     ],
+     "city": "FREMONT",
+     "state": "CA"
+    }
+   ],
+   "related_persons_count": 2,
+   "quality_status": "ok",
+   "latest_filing": {
+    "accession_number": "0001708503-25-000003",
+    "form": "D",
+    "filed_date": "2025-06-12",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/1708503/000170850325000003/0001708503-25-000003-index.html"
+   },
+   "filings": [
+    {
+     "accession_number": "0001708503-25-000003",
+     "form": "D",
+     "filed_date": "2025-06-12",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1708503/000170850325000003/0001708503-25-000003-index.html"
+    }
+   ]
+  }
+ ],
+ "meta": {
+  "limit": 1,
+  "has_more": true,
+  "next_cursor": "ZDox"
+ },
+ "labels": {
+  "basis": "Self-reported by the issuer on Form D; amounts as filed."
+ },
+ "notes": [
+  "Exemption codes as filed: 06b = Rule 506(b), 06c = Rule 506(c), 04 = Rule 504, 4a5 = Section 4(a)(5), 3C.1-3C.7 = Investment Company Act exclusions."
+ ]
+}</code></pre></div>
+        <p>Parameters: <code>industry</code> and <code>exclude_industry</code> (an industry group as filed), <code>state</code>, <code>min_amount</code> (offering size), <code>min_sold</code> (amount sold), <code>from</code> and <code>to</code> (filing date), <code>exemption</code> (a code as filed), <code>order=sold</code> for the largest raised first, <code>include_suspect=true</code> to include amounts flagged <code>quality_status: "suspect_amount"</code> (kept as filed, but implausible), <code>limit</code> and <code>cursor</code>.</p>
+      </section>
+
       <section id="ipos" aria-labelledby="ipos-h">
         <h2 id="ipos-h">Companies going public</h2>
         <p>Provenance reads every new EDGAR filing each hour. Companies that register to go public are added on their first filing, and <code>/v1/ipos</code> shows how far each one has got: confidential draft (DRS), filed (S-1, F-1, or Form 10 for a spin-off), amended, effective, listing (8-A and the exchange's certification), priced (424B4) or withdrawn. Each step links its filing.</p>
@@ -546,7 +1038,8 @@ Auth       X-API-Key: YOUR_KEY   or   Authorization: Bearer YOUR_KEY</code></pre
           <tbody>
             <tr><td>401</td><td><code>missing_api_key</code>, <code>invalid_api_key</code></td><td>Send a valid key in <code>X-API-Key</code>.</td></tr>
             <tr><td>403</td><td><code>demo_scope</code>, <code>demo_limit</code>, <code>semantic_needs_key</code>, <code>sessions_need_key</code></td><td>The demo key cannot do this. Use your own key.</td></tr>
-            <tr><td>404</td><td><code>company_not_found</code>, <code>watch_not_found</code>, <code>instrument_not_found</code>, <code>issuer_not_found</code></td><td>Check the identifier. A CIK can be given with or without leading zeros.</td></tr>
+            <tr><td>404</td><td><code>company_not_found</code>, <code>watch_not_found</code>, <code>instrument_not_found</code>, <code>issuer_not_found</code>, <code>filing_not_found</code>, <code>watchlist_not_found</code></td><td>Check the identifier. A CIK can be given with or without leading zeros.</td></tr>
+            <tr><td>404</td><td><code>changes_not_available</code></td><td>That report is not compared yet; <code>error.reason</code> says why (<code>not_read</code>, <code>prior_not_read</code>, <code>not_split</code>, <code>not_annual_report</code>). Try the company’s latest 10-K, or later.</td></tr>
             <tr><td>202</td><td>(not an error)</td><td>The company is being loaded. Retry after the <code>Retry-After</code> seconds.</td></tr>
             <tr><td>413</td><td><code>export_limit_exceeded</code></td><td>Ask for fewer rows, or page through the results.</td></tr>
             <tr><td>422</td><td><code>invalid_parameter</code>, <code>invalid_cursor</code>, <code>invalid_destination</code>, <code>watch_limit_reached</code></td><td>Fix the request; the message names the parameter.</td></tr>

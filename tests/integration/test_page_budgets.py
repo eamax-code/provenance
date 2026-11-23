@@ -35,6 +35,14 @@ BUDGETS = {
     # (CSV per table, a link per answer, a visible Copy), so the budget went to 28 KB
     "chat": (["chat/index.html", "chat.css", "chat.js"], 28_000),
     "ipos": (["ipos/index.html", "ipos/ipos.css", "ipos/ipos.js"], 12_000),
+    # the Explorer (/app/): its page, CSS and every script it loads except the shared shell. 133.4 KB on
+    # 24 Nov after the window's new views (People, Calendar, What changed, letters and tree, What's new,
+    # private raises); the budget is that plus about 10% so it stops growing unnoticed. The connections
+    # graph (graph.js, 14.9 KB) is the first candidate to load only when its tab opens.
+    "explorer": (["app/index.html", "app/app.css", "app/console.js", "app/listings.js", "app/app.js",
+                  "app/graph.js", "prov-card.js", "app/calendar.js", "app/people.js", "app/changes.js",
+                  "app/records.js", "app/whatsnew.js", "app/workspace.js", "app/raises.js",
+                  "app/screener.js", "app/watchlists.js"], 147_000),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
 }
 
@@ -81,3 +89,10 @@ def test_coverage_mapping_exceptions_sentence_matches_the_csv():
     m = re.search(r'id="cov-map-exceptions">([\d,]+) figures at (\d+) compan\w+ stay on mapping ([\d.]+)', html)
     assert m, "the mapping-exceptions sentence is missing from /coverage/"
     assert (int(m.group(1).replace(",", "")), int(m.group(2)), [m.group(3)]) == (figures, companies, versions)
+
+
+def test_the_explorer_budget_counts_every_script_the_page_loads():
+    html = (SITE / "app" / "index.html").read_text()
+    loaded = {m.lstrip("/") for m in re.findall(r'(?:src|href)="(/[^"]+\.(?:js|css))"', html)
+              if not m.startswith("/shell/")}
+    assert loaded <= set(BUDGETS["explorer"][0]), sorted(loaded - set(BUDGETS["explorer"][0]))
