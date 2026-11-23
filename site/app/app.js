@@ -38,6 +38,8 @@
     var t = $('toast'); t.textContent = msg; t.className = 'toast ' + (kind || ''); t.hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 6000);
   }
+  // keyed search has only the EDGAR name (often in capitals): tidy it as the workspace does
+  function shownName(c) { return c.display_name || (c.legal_name && window.Workspace ? window.Workspace.orgName(c.legal_name) : c.legal_name); }
   function storage(get, value) { try { if (get) return localStorage.getItem(KEY); if (value === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, value); } catch (e) { return null; } }
 
   /* ---- API ---- */
@@ -132,7 +134,7 @@
     if (!d || !d.data.length) { list.appendChild(el('li', { class: 'muted', text: 'No showcase companies are loaded yet.' })); return; }
     d.data.forEach(function (c) {
       var rev = c.latest_annual_revenue;
-      var link = el('a', { href: '/app/?c=' + parseInt(c.cik, 10), text: c.display_name || c.legal_name });
+      var link = el('a', { href: '/app/?c=' + parseInt(c.cik, 10), text: shownName(c) });
       link.addEventListener('click', function (e) { if (window.Workspace && !e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(c.cik); } });
       list.appendChild(el('li', {}, [
         el('span', {}, [link, el('span', { class: 'muted', text: ' · ' + [c.ticker, c.exchange].filter(Boolean).join(' · ') })]),
@@ -180,7 +182,7 @@
       }
       data.forEach(function (c) {
         var li = el('li', {}, [
-          el('div', {}, [el('strong', { text: c.display_name || c.legal_name || '(name pending ingestion)' }), ' ', el('span', { class: 'mono', text: (c.ticker || '—') + ' · ' + (c.exchange || '—') + ' · CIK ' + c.cik })]),
+          el('div', {}, [el('strong', { text: shownName(c) || '(name pending ingestion)' }), ' ', el('span', { class: 'mono', text: (c.ticker || '—') + ' · ' + (c.exchange || '—') + ' · CIK ' + c.cik })]),
           c.ingestion_status ? el('span', { class: 'badge ' + (c.ingestion_status === 'complete' ? 'ok' : c.ingestion_status), text: (c.match_type || '') + ' · ' + c.ingestion_status }) : el('span', { class: 'mono', text: (c.match_type || '').replace(/_/g, ' ') })
         ]);
         li.addEventListener('click', function () { openCompany(c.cik); });

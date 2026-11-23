@@ -147,7 +147,7 @@
       strip = el('p', { class: 'ws-ident', id: 'ws-ident' }, bits);
     }
     var itog = strip ? el('button', { type: 'button', class: 'linkish ws-ident-t', 'aria-expanded': 'false', 'aria-controls': 'ws-ident', text: 'Identity: CIK, LEI, incorporation, auditor', on: { click: function () { var o = strip.classList.toggle('open'); itog.setAttribute('aria-expanded', String(o)); } } }) : null;
-    $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [el('h2', { text: c.display_name || c.legal_name || 'CIK ' + c.cik }), chips, acts]), itog, strip,
+    $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [el('h2', { text: c.display_name || (c.legal_name ? orgName(c.legal_name) : 'CIK ' + c.cik) }), chips, acts]), itog, strip,
       S.asofNote ? el('p', { class: 'ws-note', role: 'status', text: S.asofNote }) : null].filter(Boolean));
     var ai = $('ws-asof'); if (ai) ai.value = S.as_of || ''; var ab = $('ws-asof-btn'); if (ab) ab.lastChild.textContent = S.as_of ? day(S.as_of) : 'latest';
     document.title = (c.display_name || 'Company') + (c.ticker ? ' (' + c.ticker + ')' : '') + ' · Explorer · Provenance';
@@ -272,9 +272,11 @@
     $('pane-overview').replaceChildren(el('div', { class: 'ov-grid' }, [figs, events, ownership, ch, seg]));
     drawChart(host, { series: [series('revenue'), series('operating_margin')].filter(Boolean), kinds: ['bar', 'line'], height: 200, compact: true });
   }
-  var KEEP = { LLC: 1, LP: 1, LLP: 1, PLC: 1, NA: 1, AG: 1, SA: 1, SE: 1, NV: 1, FMR: 1, UBS: 1, BNY: 1, KPMG: 1, II: 1, III: 1, USA: 1, US: 1, ADS: 1, ADR: 1 }, LOWER = { OF: 1, AND: 1, THE: 1, FOR: 1 };
+  var KEEP = { LLC: 1, LP: 1, LLP: 1, PLC: 1, NA: 1, AG: 1, SA: 1, SE: 1, NV: 1, FMR: 1, UBS: 1, BNY: 1, KPMG: 1, II: 1, III: 1, USA: 1, US: 1, ADS: 1, ADR: 1, HP: 1, AT: 1, IBM: 1, CVS: 1, UPS: 1, AMD: 1, GE: 1, CSX: 1, PNC: 1, TJX: 1, CME: 1, AES: 1, NRG: 1, ITT: 1 }, LOWER = { OF: 1, AND: 1, THE: 1, FOR: 1 };
   function orgName(n) {
-    n = String(n || '').replace(/\s*\/[A-Za-z]{2,3}\/?\s*$/, '').trim(); if (n !== n.toUpperCase()) return n;
+    n = String(n || '').replace(/\s*\/[A-Za-z]{2,3}\/?\s*$/, '').trim();
+    // mixed case as filed ("CVS HEALTH Corp"): tidy only the shouted words of four letters or more, keep short acronyms
+    if (n !== n.toUpperCase()) return n.replace(/\b[A-Z]{4,}\b/g, function (w) { return KEEP[w] ? w : w.charAt(0) + w.slice(1).toLowerCase(); });
     return n.split(/(\s+|[,.&()-])/).map(function (w, i) { return !/[A-Z]/.test(w) || KEEP[w] ? w : i && LOWER[w] ? w.toLowerCase() : w === 'JPMORGAN' ? 'JPMorgan' : w.charAt(0) + w.slice(1).toLowerCase(); }).join('');
   }
   function qname(iso) { var m = /^(\d{4})-(\d{2})/.exec(iso || ''); return m ? 'Q' + Math.ceil(+m[2] / 3) + ' ' + m[1] : iso; }
@@ -468,10 +470,10 @@
     body = body.reduce(function (acc, tr, ri) { var t = rows[ri].split_break && rows[ri].split_break.text; if (t && said.indexOf(t) < 0) { said.push(t); acc.push(el('tr', { class: 'st-note' }, [el('td', { colspan: String(cols.length + 1) }, [el('p', { text: t })])])); } acc.push(tr); return acc; }, []);
     var notes = (b.notes || []).filter(function (n) { return said.indexOf(n) < 0; });
     var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
-    pane.replaceChildren(stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + '.csv'),
+    pane.replaceChildren.apply(pane, [stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + '.csv'),
       wrap,
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
-      notes.length ? el('p', { class: 'muted small', text: notes.join(' ') }) : null);
+      notes.length ? el('p', { class: 'muted small', text: notes.join(' ') }) : null].filter(Boolean));
     wrap.scrollLeft = wrap.scrollWidth; // open on the latest periods; earlier ones scroll in from the left
     rove(wrap.querySelector('table'));
   }
@@ -629,9 +631,9 @@
       });
       body.forEach(function (tr, i) { if (i >= 8) { tr.hidden = true; tr.classList.add('more-row'); } });
       var allIns = body.length > 8 ? el('button', { type: 'button', class: 'linkish', text: 'Show all ' + body.length, on: { click: function () { body.forEach(function (tr) { tr.hidden = false; }); allIns.remove(); } } }) : null;
-      ins.replaceChildren(ins.firstChild, ins.children[1], rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table ins-table' }, [el('thead', {}, [el('tr', {}, ['Date', 'Insider', 'Transaction', 'Shares', 'Price', 'Value', 'Held after', 'Filing'].map(function (h, i) { return el('th', { scope: 'col', class: (i >= 3 && i <= 6 ? 'n' : '') + (i === 4 || i === 6 ? ' opt2' : ''), text: h }); }))]), el('tbody', {}, body)])])
+      ins.replaceChildren.apply(ins, [ins.firstChild, ins.children[1], rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table ins-table' }, [el('thead', {}, [el('tr', {}, ['Date', 'Insider', 'Transaction', 'Shares', 'Price', 'Value', 'Held after', 'Filing'].map(function (h, i) { return el('th', { scope: 'col', class: (i >= 3 && i <= 6 ? 'n' : '') + (i === 4 || i === 6 ? ' opt2' : ''), text: h }); }))]), el('tbody', {}, body)])])
         : demoSpent(r) ? demoNote('Insider transactions', demoSpent(r)) : el('p', { class: 'muted', text: r.ok ? 'No insider transactions in the filings loaded.' : 'Insider transactions are unavailable right now.' }),
-        allIns, !X.hasKey() && rows.length ? el('p', { class: 'muted small', text: 'The ten most recent; a free key shows more.' }) : null);
+        allIns, !X.hasKey() && rows.length ? el('p', { class: 'muted small', text: 'The ten most recent; a free key shows more.' }) : null].filter(Boolean));
     });
     keyedOrDemo('/v1/companies/' + cik + '/holders?limit=' + (X.hasKey() ? 25 : 10) + asq).then(function (r) {
       if (S.tab !== 'ownership' || S.cik !== cik) return;
@@ -718,10 +720,10 @@
       });
       var table = el('div', { class: 'tw' }, [el('table', { class: 'ov-table cmp-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
       var g = el('div', { class: 'chart-host' }), m = el('div', { class: 'chart-host' });
-      pane.replaceChildren(pane.firstChild,
+      pane.replaceChildren.apply(pane, [pane.firstChild,
         mixed ? el('p', { class: 'ws-note cmp-banner', role: 'note', text: 'These companies report in different currencies (' + curs.filter(function (c, i, a) { return a.indexOf(c) === i; }).join(', ') + '). Each figure is in its company’s own currency; only growth and margins are compared, and nothing is summed or converted.' }) : null,
         table, el('div', { class: 'cmp-charts' }, [el('section', { class: 'ws-sec' }, [el('h3', { text: 'Revenue, indexed to 100 at the first year shown' }), g]), el('section', { class: 'ws-sec' }, [el('h3', { text: 'Operating margin' }), m])]),
-        el('p', { class: 'muted small', text: 'Fiscal years as each company defines them, aligned by fiscal-year number. Click any figure for its filing.' + fyGap(cos) }));
+        el('p', { class: 'muted small', text: 'Fiscal years as each company defines them, aligned by fiscal-year number. Click any figure for its filing.' + fyGap(cos) })].filter(Boolean)); // a null child prints "null"
       multiLine(g, cos, 'revenue', true); multiLine(m, cos, 'operating_margin', false);
     });
   }
@@ -839,7 +841,7 @@
         var path = (X.hasKey() ? '/v1/companies/search?limit=8&q=' : '/v1/public/companies/search?q=') + encodeURIComponent(q.trim());
         X.raw(path).then(function (r) {
           if (!r.ok || input.value !== q) return;
-          var cos = (r.body.data || []).filter(function (c) { return X.hasKey() || c.is_public_page !== false; }).slice(0, 8).map(function (c) { return { label: c.display_name || c.legal_name || 'CIK ' + c.cik, hint: [c.ticker, c.exchange, 'CIK ' + parseInt(c.cik, 10)].filter(Boolean).join(' · ') + (c.matched_former_name ? ' · formerly ' + c.matched_former_name : ''), fn: function () { var ck = String(parseInt(c.cik, 10)); if (palMode === 'compare') { if (ck !== S.cik && S.cmp.indexOf(ck) < 0 && S.cmp.length < 4) S.cmp.push(ck); go('compare'); return; } apply(Object.assign({}, S, { cik: ck, tab: 'overview', as_of: S.as_of }), true); } }; });
+          var cos = (r.body.data || []).filter(function (c) { return X.hasKey() || c.is_public_page !== false; }).slice(0, 8).map(function (c) { return { label: c.display_name || (c.legal_name ? orgName(c.legal_name) : 'CIK ' + c.cik), hint: [c.ticker, c.exchange, 'CIK ' + parseInt(c.cik, 10)].filter(Boolean).join(' · ') + (c.matched_former_name ? ' · formerly ' + c.matched_former_name : ''), fn: function () { var ck = String(parseInt(c.cik, 10)); if (palMode === 'compare') { if (ck !== S.cik && S.cmp.indexOf(ck) < 0 && S.cmp.length < 4) S.cmp.push(ck); go('compare'); return; } apply(Object.assign({}, S, { cik: ck, tab: 'overview', as_of: S.as_of }), true); } }; });
           if (!X.hasKey() && !cos.length && /\S/.test(q)) cos.push({ label: 'Connect a key to search every company', hint: 'without a key the Explorer opens the showcase', fn: function () { var k = $('key-input'); if (k) k.focus(); } });
           items = cos.concat(local(q)); sel = 0; render();
         });

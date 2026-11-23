@@ -10,7 +10,7 @@
 //
 // FAIL: page errors or CSP violations, wrong HTTP status, no <main> or more than one, no skip link to
 // it, no or several h1, missing html lang, images without alt, controls or links without an accessible
-// name, duplicate ids, text under WCAG AA contrast, horizontal page overflow, forbidden source URLs or
+// name, duplicate ids, a stray "null", "undefined" or "NaN" printed as text, text under WCAG AA contrast, horizontal page overflow, forbidden source URLs or
 // fields in the page (data.sec.gov, efts, GLEIF API, FIRDS files, first_detected_at, source_updated_at).
 // WARN: skipped heading levels, touch targets under 24px, text under 12px.
 import { spawn } from 'node:child_process';
@@ -125,7 +125,11 @@ function audit() {
   };
   const seen = new Set(); let low = 0; const lowSamples = [];
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: (n) => n.textContent.trim() ? 1 : 2 });
+  const stray = [];
   while (walker.nextNode()) {
+    // a null or undefined child handed to the DOM prints itself: "null" on the page is always a bug
+    const raw = walker.currentNode.textContent.trim(), pe = walker.currentNode.parentElement;
+    if (/^(null|undefined|NaN)$/.test(raw) && pe && !pe.closest('pre, code') && stray.length < 4) stray.push(`"${raw}" in ${desc(pe)}`);
     const el = walker.currentNode.parentElement; if (!el || seen.has(el) || !vis(el)) continue; seen.add(el);
     if (el.closest('[aria-hidden=true], .sr-only, .visually-hidden, svg')) continue;
     const s = getComputedStyle(el); if (+s.opacity === 0) continue;
@@ -139,6 +143,7 @@ function audit() {
     if (size < 12 && !el.closest('pre, code')) warn.push(`text ${size}px: "${el.textContent.trim().slice(0, 30)}"`);
   }
   if (low) fail.push(`${low} text element(s) under AA contrast, e.g. ${lowSamples.join('; ')}`);
+  if (stray.length) fail.push(`stray text: ${stray.join('; ')}`);
 
   if (document.documentElement.scrollWidth > innerWidth + 1) {
     const wide = [...document.querySelectorAll('body *')].filter((e) => { const r = e.getBoundingClientRect(); return r.right > innerWidth + 1 && vis(e) && !e.closest('[data-scroll-x], pre, table, .table-scroll'); }).slice(0, 3).map(desc);
