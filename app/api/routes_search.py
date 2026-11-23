@@ -31,6 +31,7 @@ COMPANY_HITS = 5
 class CompanyHit(BaseModel):
     cik: str
     legal_name: str
+    display_name: str | None = None
     ticker: str | None
     exchange: str | None
     match: str = Field(
@@ -66,7 +67,8 @@ class ProfileOut(BaseModel):
     cik: str
     name: str
     legal_name_as_filed: dict | None = Field(
-        None, description="The legal name exactly as written on the latest report's cover "
+        None,
+        description="The legal name exactly as written on the latest report's cover "
         "(dei:EntityRegistrantName), with the filing it comes from",
     )
     summary: str = Field(description="A few cited sentences; [n] refers to citations")
@@ -205,11 +207,16 @@ def _section(cik, accession, item, title, form, filed, url, score, snippet) -> S
 
 
 def _companies(db: Session, q: str) -> list[CompanyHit]:
+    from app.services.intel import display_name
+
     hits, _ = search_companies(db, q, limit=COMPANY_HITS)
     out = [
         CompanyHit(
             cik=h.company.cik,
             legal_name=h.company.legal_name,
+            display_name=display_name(
+                h.company.legal_name, h.company.ticker, h.company.registrant_name
+            ),  # fmt: skip
             ticker=h.company.ticker,
             exchange=h.company.exchange,
             match="former_name" if h.match_type == "former_name" else "name",
@@ -235,6 +242,7 @@ def _companies(db: Session, q: str) -> list[CompanyHit]:
                     CompanyHit(
                         cik=c.cik,
                         legal_name=c.legal_name,
+                        display_name=display_name(c.legal_name, c.ticker, c.registrant_name),
                         ticker=c.ticker,
                         exchange=c.exchange,
                         match="profile",

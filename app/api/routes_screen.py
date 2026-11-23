@@ -26,6 +26,16 @@ router = APIRouter(prefix="/v1/facts", tags=["facts"])
 class ScreenRow(LatestRevenueCard):
     cik: str
     legal_name: str
+    display_name: str | None = Field(
+        default=None, description="The name to show: the overview's rule (cover name, cased)"
+    )
+    registrant_cik: str | None = Field(
+        default=None,
+        description="K-05: set when a predecessor registrant filed the figure; the row is listed "
+        "under its current successor (cik, names, ticker)",
+    )
+    predecessor: bool = False
+    registrant_label: str | None = None
     ticker: str | None
     exchange: str | None
     metric: str
@@ -140,7 +150,50 @@ def _screen_from_mart(db, metric, year, period, quarter, unit, order, limit, off
         )
         for f, name, ticker, exchange in rows
     ]
+    out = _present(db, out, None)
     return _result(metric, year, period, quarter, unit, None, out, limit, offset, total)
+
+
+def _present(db: Session, out: list[ScreenRow], as_of: date | None) -> list[ScreenRow]:
+    """display_name on every row (the overview's rule), and K-05 as on the overview: a
+    predecessor registrant's figure is listed under its current successor (as of as_of), saying
+    which registrant filed it. The successor's own row for the same period wins."""
+    from app.db.models import RegistrantSuccession
+    from app.services.intel import display_name
+
+    current: dict[str, str] = {}
+    frontier = {r.cik for r in out}
+    while frontier:  # follow chains (a holdco of a holdco)
+        stmt = select(RegistrantSuccession).where(
+            RegistrantSuccession.predecessor_cik.in_(frontier)
+        )
+        if as_of:
+            stmt = stmt.where(RegistrantSuccession.effective_date <= as_of)
+        step = {s.predecessor_cik: s.successor_cik for s in db.scalars(stmt)}
+        for pred, succ in step.items():
+            for k, v in list(current.items()):
+                if v == pred:
+                    current[k] = succ
+            current.setdefault(pred, succ)
+        frontier = {v for v in step.values() if v not in current}
+    ciks = {r.cik for r in out} | set(current.values())
+    companies = {c.cik: c for c in db.scalars(select(Company).where(Company.cik.in_(ciks)))}
+    own = {(r.cik, r.period_end) for r in out}
+    shown = []
+    for r in out:
+        succ = current.get(r.cik)
+        if succ and succ != r.cik and succ in companies:
+            if (succ, r.period_end) in own:
+                continue  # the successor reported this period itself
+            s = companies[succ]
+            r.registrant_cik, r.predecessor = r.cik, True
+            r.registrant_label = f"Reported by predecessor registrant (CIK {int(r.cik)})"
+            r.cik, r.legal_name, r.ticker, r.exchange = s.cik, s.legal_name, s.ticker, s.exchange
+        c = companies.get(r.cik)
+        if c is not None:
+            r.display_name = display_name(c.legal_name, c.ticker, c.registrant_name)
+        shown.append(r)
+    return shown
 
 
 def _marts_ready(db: Session) -> bool:
@@ -356,6 +409,7 @@ def screen(
                 mapping_version=f.mapping_version or MAPPING_VERSION,
             )
         )
+    out = _present(db, out, as_of)
     return _result(metric, year, period, quarter, unit, as_of, out, limit, offset, len(ranked))
 
 
@@ -415,6 +469,7 @@ def _screen_derived(
             derivation={"method": ratio.kind, "formula": ratio.formula,
                         "inputs": [ratios.ref(item["numerator"]), ratios.ref(item["denominator"])]},
         ))  # fmt: skip
+    out = _present(db, out, as_of)
     return _result(metric, year, period, quarter, ratios.unit_of(ratio, unit), as_of, out, limit,
                    offset, len(paired))  # fmt: skip
 

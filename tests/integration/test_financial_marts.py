@@ -87,6 +87,8 @@ def test_the_screen_reads_the_mart_and_agrees_with_the_facts(client, auth, db, s
     # A point-in-time screen still reads the observations.
     early = client.get(url + "&as_of=2020-01-01", headers=auth).json()
     assert early["data"] == [] and early["as_of"] == "2020-01-01"
+    # the mart path names rows as the overview does
+    assert all(r["display_name"] for r in from_mart["data"])
 
 
 def test_company_years_export(client, auth, db, sec_client):

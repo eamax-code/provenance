@@ -121,7 +121,10 @@ def _schedule_ingestion(cik: str, background: BackgroundTasks, request: Request)
 def _company_out(
     c: Company, match_type: str | None = None, matched_name: str | None = None
 ) -> CompanyOut:
+    from app.services.intel import display_name
+
     out = CompanyOut.model_validate(c)
+    out.display_name = display_name(c.legal_name, c.ticker, c.registrant_name)
     out.match_type = match_type
     out.matched_name = matched_name
     if c.last_processed_at is None:
@@ -234,7 +237,10 @@ def profile(
         raise APIError(404, "company_not_found", "No company with this CIK is available.")
 
     out = CompanyProfile.model_validate(company)
+    from app.services.intel import display_name
     from app.services.ticker_history import legal_name_as_filed
+
+    out.display_name = display_name(company.legal_name, company.ticker, company.registrant_name)
 
     filed = legal_name_as_filed(company)
     out.legal_name_as_filed = LegalNameAsFiled(**filed) if filed else None

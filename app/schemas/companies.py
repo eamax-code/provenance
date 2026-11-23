@@ -13,6 +13,9 @@ from app.services.sec_client import company_filings_url
 class CompanyOut(ORMModel):
     cik: str = Field(description="10-digit zero-padded SEC Central Index Key")
     legal_name: str
+    display_name: str | None = Field(
+        default=None, description="The name to show: the overview's rule (cover name, cased)"
+    )
     ticker: str | None
     exchange: str | None
     sic_code: str | None = None
