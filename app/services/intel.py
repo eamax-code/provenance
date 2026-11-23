@@ -383,20 +383,58 @@ def _sizes(db: Session, ciks: list[str]) -> dict[str, float]:
     return {c: float(v) for c, v, cur in rows if v is not None and cur == "USD"}
 
 
-_KEEP_UPPER = {"LLC", "PLC", "LP", "NV", "SA", "AG", "SE", "USA", "US", "II", "III", "IV"}
+_KEEP_UPPER = {"LLC", "PLC", "LP", "NV", "SA", "AG", "SE", "USA", "US", "II", "III", "IV",
+               "ASA", "AB", "OYJ", "BV", "SAB", "CV", "SPA", "LLP", "NA"}  # fmt: skip
+
+
+# K-06b: brand words whose inner capitals no rule can recover from a name filed in capitals
+# (reviewed list; a word is changed only when the whole word matches)
+_BRAND_CASE = {w.upper(): w for w in (
+    "JPMorgan", "UnitedHealth", "UnitedHealthcare", "PepsiCo", "BlackRock", "FedEx", "AutoZone",
+    "eBay", "PayPal", "CrowdStrike", "NetApp", "HubSpot", "DoorDash", "GoPro", "JetBlue",
+    "DuPont", "ExxonMobil", "ConocoPhillips", "AmerisourceBergen", "MasterCard", "WellCare",
+    "HealthEquity", "LabCorp", "MetLife", "AbbVie", "SkyWest", "CarMax", "AutoNation",
+    "PulteGroup", "NextEra", "FirstEnergy", "CenterPoint", "PayPal", "GlobalFoundries",
+    "ServiceNow", "DexCom", "NVIDIA", "iRobot", "InterDigital", "OneMain", "LendingClub",
+    "SoFi", "MicroStrategy", "AppLovin", "DraftKings", "SolarEdge", "OneSpan",
+)}  # fmt: skip
+
+
+def _shouted(name: str) -> bool:
+    """Mostly capitals ("McKESSON CORPORATION", "CVS HEALTH Corp"): not real casing."""
+    letters = [c for c in name if c.isalpha()]
+    return bool(letters) and sum(c.isupper() for c in letters) / len(letters) >= 0.6
+
+
+def _case_word(w: str, root: str) -> str:
+    bare = w.strip(",.")
+    if bare.upper() in _BRAND_CASE:
+        return w.replace(bare, _BRAND_CASE[bare.upper()])
+    if (w in _KEEP_UPPER or not w[:1].isalpha() or (root and w == root)
+            or re.fullmatch(r"[A-Z]{1,2}/[A-Z]{1,2}", w)):  # S/A, A/S, I/O  # fmt: skip
+        return w
+    if len(bare) <= 4 and bare.isalpha() and bare.isupper() and not re.search(r"[AEIOUY]", bare):
+        return w  # CVS, HSBC, BNY: initials, not a word
+    out = w.capitalize()
+    # McKesson, McDonald's, MacKenzie stays Mackenzie (only "Mc" is a sure prefix)
+    return re.sub(r"\bMc([a-z])", lambda m: "Mc" + m.group(1).upper(), out)
 
 
 def display_name(legal_name: str, ticker: str | None = None, registrant: str | None = None) -> str:
     """ "COSTCO WHOLESALE CORP /NEW" reads as "Costco Wholesale Corp" in an answer (K-06):
     the company's own cover-page name when it is written with real casing ("Apple Inc."), else
     the SEC's conformed name without its state suffix ("TOYOTA MOTOR CORP/" -> "Toyota Motor
-    Corp"), title-cased, with the word that is the company's ticker kept in capitals ("SAP SE")."""
+    Corp"), title-cased, with the word that is the company's ticker kept in capitals ("SAP SE").
+    K-06b: a cover name mostly in capitals ("McKESSON CORPORATION") is not real casing; "Mc"
+    names keep their capital (McKesson), initials stay capitals (CVS), and a short reviewed list
+    restores brand casing (JPMorgan, UnitedHealth, PepsiCo)."""
     from app.services.cover_names import strip_state_suffix, unglue
 
-    if registrant and registrant != registrant.upper():
-        return strip_state_suffix(unglue(registrant))
+    if registrant and not _shouted(registrant):
+        # "Cencora,Inc.": the cover's HTML lost the space after the comma
+        return re.sub(r",(?=[A-Za-z])", ", ", strip_state_suffix(unglue(registrant)))
     name = strip_state_suffix(unglue(legal_name))
-    if name != name.upper():
+    if not _shouted(name):
         return name
     root = (ticker or "").upper().replace(".", "-").split("-")[0]
     words: list[str] = []
@@ -404,9 +442,7 @@ def display_name(legal_name: str, ticker: str | None = None, registrant: str | N
         if w == "COM" and words:  # the SEC drops the dot: "AMAZON COM INC" is Amazon.com
             words[-1] += ".com"
             continue
-        keep = (w in _KEEP_UPPER or not w[:1].isalpha() or (root and w == root)
-                or bool(re.fullmatch(r"[A-Z]{1,2}/[A-Z]{1,2}", w)))  # S/A, A/S, I/O  # fmt: skip
-        words.append(w if keep else w.capitalize())
+        words.append(_case_word(w, root))
     return " ".join(words)
 
 

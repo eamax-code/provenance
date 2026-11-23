@@ -1,5 +1,12 @@
 # D-13 SEC comment letters
 
+**Built 2026-11-24.** Additive: topic keys `governance` (board leadership, Item 407, risk
+oversight) and `leases` (ASC 842); `kind` can be `no_review` (the staff did not review the
+filing: it closes the thread and its thread has no topics). Thread topics come from the SEC's own
+letters; a response's wording counts only when no SEC letter of the thread is readable. Read set:
+the 23 showcase companies and the 100 largest USD filers, letters from 2019 (878 read, 873
+readable). Topic hand-check: 40 threads, 37 right, 2 doubtful, 1 fixed by rule.
+
 `GET /v1/companies/{cik}/comment-letters?since=&topic=&limit=`
 
 **Source.** The SEC releases its review correspondence on EDGAR at least 20 business days after

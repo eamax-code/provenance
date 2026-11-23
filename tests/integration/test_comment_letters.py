@@ -96,3 +96,20 @@ def test_not_read_lists_the_letters(client, auth, db, ingested_aapl):
     db.commit()
     body = client.get(f"/v1/companies/{CIK}/comment-letters", headers=auth).json()
     assert body["coverage"] == "not_read" and body["letters"][0]["from"] == "sec"
+
+
+def test_no_review_letters_carry_no_topics():
+    p = CL.parse(
+        "Re: Example Corp. Registration Statement on Form S-4 File No. 333-123456 Dear "
+        "Ms. Doe: This is to advise you that we have not reviewed and will not review "
+        "your registration statement. Please refer to Rules 460 and 461.",
+        "UPLOAD",
+    )
+    assert p["kind"] == "no_review" and p["closes_review"] and p["topics"] == []
+    gov = CL.parse(
+        "Re: Example Corp. Definitive Proxy Statement File No. 001-12345 Dear Mr. Doe: "
+        "Please expand your discussion of the reasons you believe that your "
+        "leadership structure is appropriate.",
+        "UPLOAD",
+    )
+    assert gov["topics"] == ["governance"]

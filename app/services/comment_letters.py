@@ -38,8 +38,11 @@ TOPICS = {  # key: (label, reviewed keyword pattern)
     "mdna": ("MD&A", r"management.s discussion and analysis|\bmd&a\b|known trends?|"
              r"liquidity and capital resources|critical accounting estimates?"),
     "income_taxes": ("Income taxes", r"income tax|valuation allowance|effective tax rate|asc 740"),
-    "disclosure_controls": ("Disclosure controls", r"disclosure controls|internal control over "
-                            r"financial reporting|material weakness"),
+    "disclosure_controls": ("Disclosure controls", r"disclosure controls and procedures|"
+                            r"internal control over financial reporting|material weakness"),
+    "governance": ("Board and governance", r"leadership structure|item 407|lead director|"
+                   r"board.s role in (?:the )?risk oversight|risk oversight"),
+    "leases": ("Leases", r"asc 842|topic 842|lease liabilit|right-of-use"),
     "climate": ("Climate disclosure", r"climate|greenhouse gas|\bghg\b"),
     "cybersecurity": ("Cybersecurity", r"cybersecurity|item 1c\b|item 106"),
     "crypto": ("Crypto assets", r"crypto|digital assets?|bitcoin"),
@@ -51,10 +54,14 @@ TOPIC_LABELS = {k: v[0] for k, v in TOPICS.items()} | {"other": "Other"}
 _FILE_NO = re.compile(r"File\s+Nos?\.?:?\s*((?:0\d{2}|333|811|814|024|000)-\d{4,6})", re.I)
 _RE = re.compile(r"\bRe:\s*(.{10,300}?)(?:\s+File\s+No|\s+Dear\b|\s+Ladies\b|$)", re.I | re.S)
 _CLOSES = re.compile(r"(?:completed|concluded) (?:its|our) review", re.I)
+_NO_REVIEW = re.compile(r"have not reviewed and will not review", re.I)
 _ACCEL = re.compile(r"request(?:s|ed)? (?:that )?(?:the )?(?:acceleration|effective(?:ness)?)|"
                     r"accelerat\w* (?:of )?the effective (?:date|time)|Rule 461", re.I)  # fmt: skip
 # the SEC's closing boilerplate repeats words that are not the letter's subject
 _BOILER = re.compile(r"We remind you that.*?(?:staff\.|$)|Please contact .*$", re.I | re.S)
+
+
+_TEXT_OPS = re.compile(rb"\((.*?)(?<!\\)\)\s*Tj|\[(.*?)\]\s*TJ|(T\*|Td|TD|ET)", re.S)
 
 
 def pdf_text(data: bytes) -> str:
@@ -66,7 +73,7 @@ def pdf_text(data: bytes) -> str:
             content = zlib.decompress(raw)
         except zlib.error:
             continue
-        for m in re.finditer(rb"\((.*?)(?<!\\)\)\s*Tj|\[(.*?)\]\s*TJ|(T\*|Td|TD|ET)", content, re.S):
+        for m in _TEXT_OPS.finditer(content):
             if m.group(1) is not None:
                 out.append(m.group(1))
             elif m.group(2) is not None:
@@ -96,7 +103,10 @@ def parse(text: str, form: str) -> dict:
     kind = "letter"
     if form == "CORRESP" and _ACCEL.search(head) and len(text) < 6000:
         kind = "acceleration_request"
-    closes = form == "UPLOAD" and bool(_CLOSES.search(text))
+    no_review = form == "UPLOAD" and bool(_NO_REVIEW.search(text))
+    if no_review:
+        kind = "no_review"  # "we have not reviewed and will not review your registration"
+    closes = form == "UPLOAD" and (no_review or bool(_CLOSES.search(text)))
     tags = [] if kind != "letter" or closes else topics(text)
     return {
         "file_number": fno.group(1) if fno else None,
@@ -152,7 +162,7 @@ def _threads(rows: list[CommentLetter]) -> list[list[CommentLetter]]:
     by_file: dict[str, list[list[CommentLetter]]] = {}
     loose: list[CommentLetter] = []
     for r in rows:
-        if r.kind != "letter":
+        if r.kind == "acceleration_request":
             continue
         if not r.file_number:
             loose.append(r)
@@ -182,8 +192,13 @@ def for_company(db: Session, cik: str, since: date | None = None, topic: str | N
     for t in _threads(rows):
         if t[-1].filing_date < since:
             continue
-        tags = sorted({x for r in t for x in json.loads(r.topics)} - {"other"}) or (
-            ["other"] if any(json.loads(r.topics) for r in t) else [])
+        # the staff's letters say what was questioned; a response's own wording adds noise
+        sec = [r for r in t if r.form_type == "UPLOAD" and r.readable and not r.closes_review]
+        basis = sec or [r for r in t if r.form_type == "CORRESP"]
+        if any(r.kind == "no_review" for r in t):
+            basis = []  # the staff did not review: a response's wording is not a topic
+        tags = sorted({x for r in basis for x in json.loads(r.topics)} - {"other"}) or (
+            ["other"] if any(json.loads(r.topics) for r in basis) else [])
         if topic and topic not in tags:
             continue
         first_sec = next((r for r in t if r.form_type == "UPLOAD"), t[0])
