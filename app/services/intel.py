@@ -384,7 +384,8 @@ def _sizes(db: Session, ciks: list[str]) -> dict[str, float]:
 
 
 _KEEP_UPPER = {"LLC", "PLC", "LP", "NV", "SA", "AG", "SE", "USA", "US", "II", "III", "IV",
-               "ASA", "AB", "OYJ", "BV", "SAB", "CV", "SPA", "LLP", "NA"}  # fmt: skip
+               "ASA", "AB", "OYJ", "BV", "SAB", "CV", "SPA", "LLP", "NA", "ETF", "REIT", "ADR",
+               "SPAC", "BDC"}  # fmt: skip
 
 
 # K-06b: brand words whose inner capitals no rule can recover from a name filed in capitals
@@ -396,14 +397,24 @@ _BRAND_CASE = {w.upper(): w for w in (
     "HealthEquity", "LabCorp", "MetLife", "AbbVie", "SkyWest", "CarMax", "AutoNation",
     "PulteGroup", "NextEra", "FirstEnergy", "CenterPoint", "PayPal", "GlobalFoundries",
     "ServiceNow", "DexCom", "NVIDIA", "iRobot", "InterDigital", "OneMain", "LendingClub",
-    "SoFi", "MicroStrategy", "AppLovin", "DraftKings", "SolarEdge", "OneSpan",
+    "SoFi", "MicroStrategy", "AppLovin", "DraftKings", "SolarEdge", "OneSpan", "iShares",
 )}  # fmt: skip
 
 
+_FORM_WORDS = {"LTD", "CORP", "CO", "INC", "HLDGS", "GRP", "MFG", "SVCS", "BLDG", "MGMT", "CTR",
+               "PTY", "PTE", "BHD", "TBK", "SDN", "ST", "MT"}  # fmt: skip
+_SMALL_WORDS = {"OF", "AND", "THE", "FOR", "IN", "ON", "AT", "TO"}  # not DE: a state suffix
+
+
 def _shouted(name: str) -> bool:
-    """Mostly capitals ("McKESSON CORPORATION", "CVS HEALTH Corp"): not real casing."""
+    """Not real casing: all capitals, or mostly capitals with a capitalised word of four letters
+    or more ("McKESSON CORPORATION", "CVS HEALTH Corp"). "ABB Ltd" is real casing: an acronym
+    beside a cased word."""
+    if name == name.upper():
+        return True
     letters = [c for c in name if c.isalpha()]
-    return bool(letters) and sum(c.isupper() for c in letters) / len(letters) >= 0.6
+    long_caps = any(len(w) >= 5 and w.isalpha() and w.isupper() for w in re.split(r"[\s,.]+", name))
+    return bool(letters) and long_caps and sum(c.isupper() for c in letters) / len(letters) >= 0.7
 
 
 def _case_word(w: str, root: str) -> str:
@@ -413,8 +424,12 @@ def _case_word(w: str, root: str) -> str:
     if (w in _KEEP_UPPER or not w[:1].isalpha() or (root and w == root)
             or re.fullmatch(r"[A-Z]{1,2}/[A-Z]{1,2}", w)):  # S/A, A/S, I/O  # fmt: skip
         return w
-    if len(bare) <= 4 and bare.isalpha() and bare.isupper() and not re.search(r"[AEIOUY]", bare):
-        return w  # CVS, HSBC, BNY: initials, not a word
+    if re.fullmatch(r"[A-Z]{1,3}&[A-Z]{1,3}", bare) or re.fullmatch(r"[IVX]{1,5}", bare) \
+            and re.fullmatch(r"X{0,3}(IX|IV|V?I{0,3})", bare):  # fmt: skip
+        return w  # AT&T, S&P; Roman numerals (Fund VII)
+    if (len(bare) <= 4 and bare.isalpha() and bare.isupper() and not re.search(r"[AEIOUY]", bare)
+            and bare not in _FORM_WORDS):  # fmt: skip
+        return w  # CVS, HSBC, BNY: initials, not a word (LTD, CORP are words)
     out = w.capitalize()
     # McKesson, McDonald's, MacKenzie stays Mackenzie (only "Mc" is a sure prefix)
     return re.sub(r"\bMc([a-z])", lambda m: "Mc" + m.group(1).upper(), out)
@@ -437,12 +452,19 @@ def display_name(legal_name: str, ticker: str | None = None, registrant: str | N
     if not _shouted(name):
         return name
     root = (ticker or "").upper().replace(".", "-").split("-")[0]
+    mixed = name != name.upper()  # "CIFC Corp.": the short capitals are an acronym, kept
     words: list[str] = []
     for w in name.split():
         if w == "COM" and words:  # the SEC drops the dot: "AMAZON COM INC" is Amazon.com
             words[-1] += ".com"
             continue
-        words.append(_case_word(w, root))
+        bare = w.strip(",.")
+        if mixed and bare.isalpha() and bare.isupper() and len(bare) <= 4:
+            words.append(w)
+        elif words and bare in _SMALL_WORDS:
+            words.append(w.lower())  # "Bank of America", not "Bank Of America"
+        else:
+            words.append(_case_word(w, root))
     return " ".join(words)
 
 

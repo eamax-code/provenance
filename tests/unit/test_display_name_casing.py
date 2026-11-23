@@ -13,3 +13,15 @@ def test_display_name_casing():
     assert d("HSBC HOLDINGS PLC", "HSBC") == "HSBC Holdings PLC"
     assert d("Apple Inc.", "AAPL", "Apple Inc.") == "Apple Inc."  # real casing as filed
     assert d("COSTCO WHOLESALE CORP /NEW", "COST") == "Costco Wholesale Corp"
+
+
+def test_casing_keeps_what_was_right():
+    assert d("ABB LTD", "ABB", "ABB Ltd") == "ABB Ltd"  # an acronym beside a cased word
+    assert d("CIFC Corp.", None, "CIFC Corp.") == "CIFC Corp."
+    assert d("STORE Capital LLC") == "STORE Capital LLC"
+    assert d("AT&T INC.", "T") == "AT&T Inc."
+    assert d("MFS SERIES TRUST VII") == "MFS Series Trust VII"
+    assert d("AGNICO EAGLE MINES LTD", "AEM") == "Agnico Eagle Mines Ltd"
+    assert d("ST JOSEPH INC") == "St Joseph Inc"
+    assert d("BANK OF AMERICA CORP", "BAC") == "Bank of America Corp"
+    assert d("3M CO", "MMM") == "3M Co"
