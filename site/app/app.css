@@ -637,3 +637,4 @@ table.pr-table { min-width: 900px; }
 @media (max-width: 640px) { .pr-dl { grid-template-columns: minmax(0, 1fr); } }
 #scr-mode { justify-self: start; }
 @media (max-width: 640px) { table.pr-table { min-width: 0; } }
+.st-table td.adj .door { font-style: italic; }

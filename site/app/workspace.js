@@ -513,7 +513,17 @@
     (b.columns || []).forEach(function (c, i) { var k = cols.length ? cols.map(function (x) { return x.key; }).lastIndexOf(c.key) : -1; if (k > -1 && k >= cols.length - 2) idx[k].push(i); else { cols.push(c); idx.push([i]); } });
     var baseRow = rows.filter(function (r) { return r.metric === base; })[0];
     // cells align with columns by position (keys can repeat when a filer reuses a period label); values may come as strings
-    var at = function (r, j) { var c = null; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; return true; } return false; }); return c ? Object.assign({}, c, { value: Number(c.value) }) : null; };
+    var at0 = function (r, j) { var c = null, ci = -1; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; ci = i; return true; } return false; }); return c ? Object.assign({}, c, { value: Number(c.value), _i: ci }) : null; };
+    // S-02: "Split-adjusted" swaps in the API's derived values (split_adjusted) where they differ from the as-filed ones; as filed stays the default
+    var hasAdj = rows.some(function (r) { return r.split_adjusted && r.split_adjusted.values; }), adjOn = hasAdj && S.adj === 'split';
+    var at = function (r, j) {
+      var c = at0(r, j), A = r.split_adjusted; if (!c || !adjOn || !A || !A.values) return c;
+      var v = A.values[c._i]; if (v == null || !isFinite(Number(v)) || Number(v) === c.value) return c;
+      var s = A.source || {};
+      return Object.assign({}, c, { value: Number(v), adj: true, derived: true, source_tag: null, mapping_version: null,
+        formula: 'split-adjusted for the ' + A.ratio + ' split from ' + c.value.toLocaleString('en-US') + ' as filed. ' + (A.basis || '') + (s.evidence ? ' Evidence: ' + s.evidence + '.' : ''),
+        inputs: ARCHIVE.test(s.source_url || '') ? [{ metric: 'the restating ' + (s.form || 'filing'), source_url: s.source_url, form_type: s.form, filed_date: s.filed_date }] : null });
+    };
     // a split_break row mixes share bases: one note above those rows, a tag on each, a rule before the first column after the break
     var colAt = function (k) { for (var q = 0; q < cols.length; q++) if (cols[q].key === k || cols[q].period_label === k) return q; return -1; };
     var sbOf = function (r) { return r.split_break && r.split_break.between ? colAt(r.split_break.between[1]) : -1; };
@@ -521,25 +531,28 @@
     var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
     var body = rows.map(function (r) {
       var ratio = r.unit_kind === 'ratio' || r.unit_kind === 'percent' || r.unit_kind === 'multiple';
-      return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null, r.split_break ? el('span', { class: 'tag tag-sb', title: r.split_break.text || '' }, lab('mixed split basis', 'split')) : null])].concat(cols.map(function (col, i) {
+      return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null, adjOn && r.split_adjusted ? el('span', { class: 'tag', title: (r.split_adjusted.basis || '') + ' Ratio ' + r.split_adjusted.ratio + '.' }, lab('split-adjusted, derived', 'adjusted')) : r.split_break ? el('span', { class: 'tag tag-sb', title: r.split_break.text || '' }, lab('mixed split basis', 'split')) : null])].concat(cols.map(function (col, i) {
         var sb = sbOf(r), sbc = sb > -1 && i === sb ? ' sb' : '';
         var c = at(r, i); if (!c || !isFinite(c.value)) return el('td', { class: 'n muted' + sbc, title: 'not reported', text: '—' });
         var txt;
-        if (S.show === 'yoy') { var back = S.p === 'quarterly' ? 4 : 1, pc = i >= back && !(sb > -1 && i >= sb && i - back < sb) ? at(r, i - back) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
+        if (S.show === 'yoy') { var back = S.p === 'quarterly' ? 4 : 1, pc = i >= back && !(sb > -1 && i >= sb && i - back < sb && !(adjOn && r.split_adjusted)) ? at(r, i - back) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
         else if (S.show === 'common') { var bc = baseRow && at(baseRow, i); txt = ratio || !bc || !bc.value ? '—' : pct(100 * c.value / bc.value); }
         else txt = c.unit === 'ratio' ? pct(100 * c.value) : fmtv(c.value, c.unit, cur);
         var info = Object.assign({ label: r.label, metric: r.metric, currency: cur, fiscal_label: col.period_label || col.key, formula: r.formula }, c);
         var flag = c.quality_status && c.quality_status !== 'ok';
-        return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') + sbc }, [door(txt, info, flag ? 'flag' : ''), flag ? el('span', { class: 'qf', title: c.quality_status.replace(/_/g, ' '), text: '!' }) : null]);
+        return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') + (c.adj ? ' adj' : '') + sbc }, [door(txt, info, flag ? 'flag' : ''), flag ? el('span', { class: 'qf', title: c.quality_status.replace(/_/g, ' '), text: '!' }) : null]);
       })));
     });
     var csvRows = function () { return [['line_item'].concat(cols.map(function (c) { return c.key; })).join(',')].concat(rows.map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(cols.map(function (c, i) { var x = at(r, i); return x ? x.value : ''; })).join(','); })); };
     var said = [];
-    body = body.reduce(function (acc, tr, ri) { var t = rows[ri].split_break && rows[ri].split_break.text; if (t && said.indexOf(t) < 0) { said.push(t); acc.push(el('tr', { class: 'st-note' }, [el('td', { colspan: String(cols.length + 1) }, [el('p', { text: t })])])); } acc.push(tr); return acc; }, []);
+    body = body.reduce(function (acc, tr, ri) { var t = rows[ri].split_break && rows[ri].split_break.text; if (t && said.indexOf(t) < 0) { said.push(t); acc.push(el('tr', { class: 'st-note' }, [el('td', { colspan: String(cols.length + 1) }, [el('p', { text: adjOn && rows[ri].split_adjusted ? t.replace(/\s*They are not adjusted\.?\s*$/, '') + ' In this view, figures before the split are adjusted to the later basis (derived, in italics).' : t })])])); } acc.push(tr); return acc; }, []);
     var notes = (b.notes || []).filter(function (n) { return said.indexOf(n) < 0; });
     var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
-    pane.replaceChildren.apply(pane, [stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + '.csv'),
+    var ctl = stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + (adjOn ? '-split-adjusted' : '') + '.csv');
+    if (hasAdj) ctl.insertBefore(el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Share basis' }, [['filed', 'As filed'], ['split', 'Split-adjusted']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String((S.adj || 'filed') === v[0]), title: v[0] === 'split' ? 'Shares and per-share figures before a split, adjusted to the later basis (derived)' : null, text: v[1], on: { click: function () { S.adj = v[0]; statementsTab(); } } }); })), ctl.children[3]);
+    pane.replaceChildren.apply(pane, [ctl,
       wrap,
+      adjOn ? el('p', { class: 'muted small', text: 'Split-adjusted values are derived (shown in italics): each opens its card with the split ratio, the evidence and the restating filing. Rows the API has not adjusted keep their as-filed values.' }) : null,
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
       notes.length ? el('p', { class: 'muted small', text: notes.join(' ') }) : null].filter(Boolean));
     wrap.scrollLeft = wrap.scrollWidth; // open on the latest periods; earlier ones scroll in from the left
