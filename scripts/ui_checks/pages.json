@@ -26,6 +26,7 @@
     { "path": "/listings/" },
     { "path": "/status/" },
     { "path": "/developers/" },
+    {"path": "/developers/#live-limits", "label": "Watchlist limits come live from /v1/public/plans, plans with equal limits share a row (sample numbers)", "stubs": [{"match": "/v1/public/plans", "body": {"data": [{"name": "free", "label": "Free", "rate_limit_per_minute": 60, "monthly_request_quota": 10000, "max_watches": 3, "max_watchlists": 7, "max_watchlist_companies": 50, "max_watchlist_columns": 8}, {"name": "analyst", "label": "Analyst", "rate_limit_per_minute": 120, "monthly_request_quota": 100000, "max_watches": 25, "max_watchlists": 25, "max_watchlist_companies": 50, "max_watchlist_columns": 8}, {"name": "builder", "label": "Builder", "rate_limit_per_minute": 300, "monthly_request_quota": 500000, "max_watches": 100, "max_watchlists": 25, "max_watchlist_companies": 50, "max_watchlist_columns": 8}], "max_export_rows": 1000}}], "expect": [{"label": "Free shows the stubbed 7 lists; Analyst and Builder share one row", "js": "var r=[].map.call(document.querySelectorAll('#watchlist-limits tbody tr'),function(t){return t.textContent;}); r.length===2 && r[0]==='Free75' + '08' && r[1]==='Analyst and Builder255' + '08'"}]},
     { "path": "/docs/" },
     { "path": "/changelog/" },
     { "path": "/playground/" },

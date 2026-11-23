@@ -97,6 +97,26 @@
         table.append(tr);
       });
       document.getElementById("plans-note").textContent = `Export requests return up to ${fmt(body.max_export_rows)} rows. Prices are on the home page.`;
+      // Watchlist limits, live too; plans with the same limits share a row. The rows in the page are the fallback.
+      const wl = document.querySelector("#watchlist-limits tbody");
+      if (wl && body.data.every((p) => p.max_watchlists != null)) {
+        const groups = [];
+        body.data.forEach((p) => {
+          const k = [p.max_watchlists, p.max_watchlist_companies, p.max_watchlist_columns].join("/");
+          const g = groups.find((x) => x.k === k);
+          if (g) g.labels.push(p.label); else groups.push({ k, labels: [p.label], p });
+        });
+        wl.replaceChildren(...groups.map((g) => {
+          const tr = document.createElement("tr"), n = g.labels.length;
+          const name = n > 1 ? g.labels.slice(0, -1).join(", ") + " and " + g.labels[n - 1] : g.labels[0];
+          [name, fmt(g.p.max_watchlists), fmt(g.p.max_watchlist_companies), fmt(g.p.max_watchlist_columns)].forEach((v) => {
+            const td = document.createElement("td");
+            td.textContent = v;
+            tr.append(td);
+          });
+          return tr;
+        }));
+      }
     }).catch(() => {
       document.getElementById("plans-note").textContent = "Plan limits could not be loaded just now; they are on the home page under Pricing.";
     });
