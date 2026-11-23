@@ -150,3 +150,19 @@ def test_statements_and_timeline_tools(client, ingested_aapl, items_aapl, fake_s
     text = json.dumps(tl) + json.dumps(body)
     assert "data.sec.gov" not in text and "first_detected" not in text
     assert len(fake_sec.calls) == before
+
+
+def test_oversized_results_stay_valid_json():
+    from app.api.routes_mcp import MAX_TEXT, _text
+
+    cell = {"value": 1.0, "source_url": "https://www.sec.gov/Archives/" + "x" * 400}
+    columns = [{"key": f"FY{y}"} for y in range(2005, 2025)]
+    statement = {"columns": columns, "rows": [{"metric": f"m{i}", "cells": [cell] * 20}
+                                              for i in range(20)]}  # fmt: skip
+    out = json.loads(_text(statement))
+    assert len(_text(statement)) <= MAX_TEXT and out["columns"][-1]["key"] == "FY2024"
+    assert all(len(r["cells"]) == len(out["columns"]) for r in out["rows"])
+    assert "periods" in out["truncated"]
+    rows = json.loads(_text({"data": [cell] * 1000}))
+    assert 1 <= len(rows["data"]) < 1000 and "limit" in rows["truncated"]
+    assert "truncated" in json.loads(_text(["x" * (MAX_TEXT + 1)]))

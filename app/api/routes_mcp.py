@@ -420,11 +420,40 @@ def _caller_key(request: Request) -> str:
     return key or DEMO_KEY
 
 
+def _dumps(payload: Any) -> str:
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
 def _text(payload: Any) -> str:
-    text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-    if len(text) > MAX_TEXT:
-        text = text[:MAX_TEXT] + '..."[truncated: ask for fewer rows with limit]"'
-    return text
+    """The result as JSON within MAX_TEXT, and always valid JSON: a statement keeps its latest
+    columns, a list its first rows, with a "truncated" note saying how to ask for the rest."""
+    text = _dumps(payload)
+    if len(text) <= MAX_TEXT:
+        return text
+    too_large = _dumps({"truncated": "The result is too large; ask for fewer rows with limit."})
+    if not isinstance(payload, dict):
+        return too_large
+    p = dict(payload)
+    if isinstance(p.get("columns"), list) and isinstance(p.get("rows"), list):
+        p["rows"] = [dict(r) for r in p["rows"]]
+        while len(text) > MAX_TEXT and len(p["columns"]) > 1:
+            p["columns"] = p["columns"][1:]
+            for r in p["rows"]:
+                r["cells"] = r.get("cells", [])[1:]
+            p["truncated"] = (
+                f"Only the latest {len(p['columns'])} periods fit in one result; ask for fewer "
+                "with periods, or earlier ones with as_of."
+            )
+            text = _dumps(p)
+    elif isinstance(p.get("data"), list):
+        p["data"] = list(p["data"])
+        while len(text) > MAX_TEXT and len(p["data"]) > 1:
+            p["data"] = p["data"][: max(1, len(p["data"]) * 3 // 4)]
+            p["truncated"] = (
+                f"Only the first {len(p['data'])} rows fit in one result; ask for fewer with limit."
+            )
+            text = _dumps(p)
+    return text if len(text) <= MAX_TEXT else too_large
 
 
 async def call_tool(request: Request, name: str, args: dict[str, Any]) -> dict[str, Any]:
