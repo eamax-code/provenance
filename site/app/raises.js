@@ -94,7 +94,7 @@
       });
     };
     var draw = function (b) {
-      if (!rows.length) { out.replaceChildren(el('p', { class: 'muted', text: 'No Form D offerings match these filters in the last eight quarters loaded.' })); return; }
+      if (!rows.length) { out.replaceChildren(el('p', { class: 'muted', text: 'No Form D offerings match these filters in the last eight quarters loaded' + (fe.value.trim() ? ' (with “' + fe.value.trim() + '” left out).' : '.') })); return; }
       var head = el('tr', {}, ['Filed', 'Issuer', 'Industry', 'Offered · raised', 'Investors', 'Exemption', 'Form D'].map(function (h, i) { return el('th', { scope: 'col', class: i === 3 || i === 4 ? 'n' : '', text: h }); }));
       var body = rows.map(function (x) {
         var I = x.issuer || {}, f = x.latest_filing || {}, ck = I.cik ? String(parseInt(I.cik, 10)) : null, nm = o.name ? o.name(I.name || '') : I.name;
@@ -105,7 +105,9 @@
       var more = cursor && o.keyed ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { apply(true); } } }) : null;
       var table = el('table', { class: 'pp-table pr-table pp-stack' }, [el('thead', {}, [head]), el('tbody', {}, body)]), hs = [].map.call(head.children, function (h) { return h.textContent; });
       [].forEach.call(table.tBodies[0].rows, function (r) { [].forEach.call(r.children, function (c, i) { if (i > 1) c.setAttribute('data-l', hs[i]); }); }); // on phones each offering reads as a card
-      out.replaceChildren.apply(out, [el('div', { class: 'tw' }, [table]), more,
+      // never filter silently: what is left out is said above the list, with one click to show it
+      var left = fe.value.trim(), lo = left ? el('p', { class: 'pr-excl', role: 'note' }, [(left.toLowerCase() === FUNDS.toLowerCase() ? 'Pooled investment funds' : '“' + left + '”') + ' left out · ', el('button', { type: 'button', class: 'linkish', text: 'Show them', on: { click: function () { fe.value = ''; apply(false); } } })]) : null;
+      out.replaceChildren.apply(out, [lo, el('div', { class: 'tw' }, [table]), more,
         !o.keyed && rows.length >= 10 ? note('Without a key, the 10 latest matches are shown.') : null, note((b.labels && b.labels.basis) || BASIS), note((b.notes || []).join(' '))].filter(Boolean));
     };
     var form = el('form', { class: 'ch-bar pr-f', on: { submit: function (e) { e.preventDefault(); apply(false); } } }, [
