@@ -255,6 +255,8 @@ def test_insider_plans_endpoint_joins_the_form4(db, client, auth, ingested_aapl)
     _form4(db, "0001415889-26-000001", "0001590947", "Werner Robert F", date(2026, 11, 21), 8275)
     _form4(db, "0001415889-26-000002", "0007777777", "SMITH JANE Q", date(2026, 11, 25), 100)
     _form4(db, "0001415889-26-000003", "0008888888", "SELLS NOBODY", date(2027, 3, 1), 5)  # late
+    # an earlier sale, reported before the notice was filed: never the notice's follow-up
+    _form4(db, "0001415889-26-000004", "0001590947", "Werner Robert F", date(2026, 11, 17), 999)
     db.add(TradingPlan(cik=CIK, accession_number="0000320193-26-000006", form_type="10-Q",
                        filing_date=date(2026, 1, 30), period=date(2025, 12, 27),
                        member="Individual=KevanParekh", person_name="Kevan Parekh",
@@ -275,6 +277,8 @@ def test_insider_plans_endpoint_joins_the_form4(db, client, auth, ingested_aapl)
     assert sales["WERNER ROBERT F."]["followed_by"]["shares"] == 8275
     assert sales["Jane Q. Smith"]["followed_by"]["match"]["rule"] == "same_person_name"
     assert sales["Nobody Sells"]["followed_by"] is None  # 101 days later: outside the window
+    assert sales["Nobody Sells"]["followed_by_status"] == "pending"  # no data set covers it yet
+    assert sales["WERNER ROBERT F."]["followed_by_status"] == "matched"
     assert "first sale (code S)" in " ".join(body["notes"])
     events = insider_plans.emit_plan_events(db) + form144.emit_events(db)
     assert {e.event_type for e in events} == {"sec.trading_plan_adopted", "sec.proposed_sale"}

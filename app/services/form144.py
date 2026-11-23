@@ -5,9 +5,10 @@ is read once through the SEC client (the Archives copy, cached) and stored as gi
 that reported the sale is joined at read time, so later Form 4s join without a reload.
 
 Join rule: the first Form 4 by the same issuer and the same person (the notice filer's CIK,
-else the normalized name: last name and first initial) that reports a sale (code S) dated from
-7 days before to 90 days after the notice date (a notice covers sales within three months,
-Rule 144(h)). No match is normal: a notice does not oblige a sale. Information, not signals.
+else the normalized name: last name and first initial), filed on or after the notice, that
+reports a sale (code S) dated from 7 days before to 90 days after the notice date (a notice
+covers sales within three months, Rule 144(h)). No match is normal: a notice does not oblige a
+sale. Information, not signals.
 """
 
 from __future__ import annotations
@@ -39,9 +40,11 @@ FRESH_DAYS = 1
 NOTES = [
     "Proposed sales are Form 144 notices as filed (values as given in the notice; the market "
     "value is the filer's own estimate). The Form 4 shown with a notice is the first sale "
-    f"(code S) by the same person at the same issuer dated from {BEFORE_DAYS} days before to "
-    f"{AFTER_DAYS} days after the notice date, matched by CIK, else by name; a notice does not "
-    "oblige a sale.",
+    "(code S) by the same person at the same issuer, filed on or after the notice and dated "
+    f"from {BEFORE_DAYS} days before to {AFTER_DAYS} days after the notice date, matched by "
+    "CIK, else by name; a notice does not oblige a sale.",
+    "followed_by_status is pending while the Form 4 data for the notice's 90 days is not "
+    "complete yet (the SEC's quarterly insider data sets, plus the Form 4s read as filed).",
 ]
 
 
@@ -200,6 +203,8 @@ def match(notice: Form144Notice, sales: list[dict], as_of: date | None = None) -
     for s in pool:
         if not (lo <= s["transaction_date"] <= hi):
             continue
+        if s["filing_date"] and s["filing_date"] < notice.filing_date:
+            continue  # filed before the notice: it reports an earlier sale (hand-check 11-24)
         if as_of and s["filing_date"] and s["filing_date"] > as_of:
             continue
         return {"accession_number": s["accession_number"], "form": s["form"] or "4",
@@ -235,6 +240,9 @@ def for_company(db: Session, cik: str, since: date, as_of: date | None, limit: i
     lo = min(n.notice_date or n.filing_date for n in notices) - timedelta(days=BEFORE_DAYS)
     hi = max(n.notice_date or n.filing_date for n in notices) + timedelta(days=AFTER_DAYS)
     sales = _sales(db, cik, lo, hi)
+    from app.services.insiders import dataset_coverage
+
+    covered = dataset_coverage(db)  # the quarterly Form 4 data sets reach this filing date
     f4_urls = dict(
         db.execute(
             select(Filing.accession_number, Filing.source_url).where(
@@ -263,6 +271,10 @@ def for_company(db: Session, cik: str, since: date, as_of: date | None, limit: i
             "filing": {"accession_number": n.accession_number, "form": n.form_type,
                        "filed_date": n.filing_date.isoformat(), "source_url": n.source_url},
             "followed_by": m,
+            "followed_by_status": "matched" if m else (
+                "no_sale_reported" if covered
+                and (n.notice_date or n.filing_date) + timedelta(days=AFTER_DAYS) <= covered
+                else "pending"),
         })  # fmt: skip
     return out
 
