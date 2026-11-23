@@ -64,7 +64,7 @@
     // the open item is part of the link (cho = its place in this list, from 1)
     if (o && o.open === k) { det.open = true; setTimeout(function () { det.scrollIntoView({ block: 'start' }); }, 0); }
     det.addEventListener('toggle', function () { if (o && o.onOpen) o.onOpen(det.open ? k : null); });
-    if (o && o.ask) det.appendChild(el('p', { class: 'small' }, [el('a', { class: 'ask', href: o.ask('What changed in the risk factor "' + String(i.heading).slice(0, 140) + '" in ' + (o.name || 'the company') + '’s ' + (r.filing.form || '10-K') + ' filed ' + day(r.filing.filed_date) + '? (accession ' + r.filing.accession_number + ')'), 'aria-label': 'Ask in chat about this change', text: 'Ask about this change →' })]));
+    if (o && o.ask) det.appendChild(el('p', { class: 'small' }, [el('a', { class: 'ask', href: o.ask('What changed in the risk factor "' + String(i.heading).slice(0, 140) + '" in ' + (o.name || 'the company') + '’s ' + (r.filing.form || '10-K') + ' filed ' + r.filing.filed_date + '? (accession ' + r.filing.accession_number + ')'), 'aria-label': 'Ask in chat about this change', text: 'Ask about this change →' })]));
     return el('li', { class: 'chg-i chg-reworded' }, [det]);
   }
   function part(r, key, title, o) {
