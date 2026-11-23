@@ -100,7 +100,94 @@ class Brief:
         return "\n".join(self.context_lines)
 
 
-def resolve_company(db: Session, text: str, *, follow_up: bool = False) -> Company | None:
+def _variants(phrase: str) -> list[str]:
+    """The phrase as typed, then without punctuation ("Coca-Cola" is COCA COLA CO, "Procter &
+    Gamble" is PROCTER & GAMBLE CO or "and")."""
+    out = [phrase]
+    for v in (re.sub(r"\s+", " ", re.sub(r"[-.]", " ", phrase)).strip(),
+              phrase.replace("&", "and"), re.sub(r"(?i)\band\b", "&", phrase)):
+        if v and v not in out:
+            out.append(v)
+    return out
+
+
+# words that are in many company names and never name one alone ("Software companies over $1B")
+_GENERIC_WORDS = {
+    "companies", "company", "corporation", "software", "industries", "industry", "technologies",
+    "technology", "systems", "energy", "financial", "bank", "banks", "bancorp", "holdings",
+    "group", "international", "global", "american", "united", "national", "general", "capital",
+    "pharmaceuticals", "therapeutics", "partners", "trust", "fund", "resources", "services",
+    "solutions", "brands", "foods", "health", "healthcare", "insurance", "realty", "properties",
+    "semiconductor", "semiconductors", "airlines", "motors", "oil", "gas", "power", "electric",
+    "revenue", "income", "assets", "profit", "margin", "growth",
+}  # fmt: skip
+ACTIVE_DAYS = 730  # an annual report in two years makes a registrant active
+
+
+def _active(db: Session, ciks: list[str]) -> set[str]:
+    from datetime import date as _date
+    from datetime import timedelta as _td
+
+    from app.db.models import MartCompany
+
+    if not ciks:
+        return set()
+    since = _date.today() - _td(days=ACTIVE_DAYS)
+    return set(db.scalars(select(MartCompany.cik).where(
+        MartCompany.cik.in_(list(set(ciks))), MartCompany.latest_annual_report_date >= since)))
+
+
+def _active_starting(db: Session, phrase: str, word_start: bool) -> Company | None:
+    """The largest active filer whose name starts with the phrase ("Pepsi" -> PepsiCo), or, with
+    word_start, has a word starting with it ("Disney" -> Walt Disney Co)."""
+    from datetime import date as _date
+    from datetime import timedelta as _td
+
+    from app.db.models import MartCompany
+
+    low = phrase.lower()
+    like = func.lower(Company.legal_name).like(_like_escape(low) + "%", escape="\\")
+    if word_start:
+        like = func.lower(Company.legal_name).like("% " + _like_escape(low) + "%", escape="\\")
+    since = _date.today() - _td(days=ACTIVE_DAYS)
+    rows = db.execute(
+        select(Company, MartCompany.latest_revenue, MartCompany.reporting_currency)
+        .join(MartCompany, MartCompany.cik == Company.cik)
+        .where(like, MartCompany.latest_annual_report_date >= since,
+               MartCompany.latest_revenue.is_not(None), MartCompany.latest_revenue > 0)
+    ).all()  # fmt: skip
+    # a whole word: "Disney" in Walt Disney Co, never "Industrie" inside "Industries"
+    pat = re.compile(rf"(^|\s){re.escape(low)}(\b|$)") if word_start else \
+        re.compile(rf"^{re.escape(low)}")  # fmt: skip
+    rows = [r for r in rows if pat.search(r[0].legal_name.lower())]
+    if not rows:
+        return None
+    return max(rows, key=lambda r: (r[2] == "USD", float(r[1])))[0]
+
+
+def _like_escape(v: str) -> str:
+    return v.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _successor_of(db: Session, c: Company, notes: list | None) -> Company:
+    """An inactive registrant with a K-05 successor resolves to the successor, saying so."""
+    from app.services import successions
+
+    s = successions.successor(db, c.cik)
+    if s is None:
+        return c
+    succ = db.scalar(select(Company).where(Company.cik == s.successor_cik))
+    if succ is None:
+        return c
+    if notes is not None:
+        notes.append(f"{display_name(c.legal_name, c.ticker, c.registrant_name)} is now "
+                     f"{display_name(succ.legal_name, succ.ticker, succ.registrant_name)}, its "
+                     f"successor registrant since {s.effective_date.isoformat()}.")  # fmt: skip
+    return succ
+
+
+def resolve_company(db: Session, text: str, *, follow_up: bool = False,
+                    notes: list | None = None) -> Company | None:  # fmt: skip
     """Find the company a free-text question is about: ticker or CIK first, then names.
 
     In a follow-up (a company is already under discussion) only a clearly named company
@@ -128,21 +215,44 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False) -> Compa
                     phrase = phrase[:-1]
                 if len(phrase) < 3:
                     continue
-                hits, _ = search_companies(db, phrase, limit=50)
-                found += [
-                    (h, phrase)
-                    for h in hits
-                    if h.match_type in _MATCH_RANK
-                    and _names_it(h, phrase)
-                    and (not follow_up or _named(h, phrase))
-                ]
+                for variant in _variants(phrase):
+                    hits, _ = search_companies(db, variant, limit=50)
+                    found += [
+                        (h, variant)
+                        for h in hits
+                        if h.match_type in _MATCH_RANK
+                        and _names_it(h, variant)
+                        and (not follow_up or _named(h, variant))
+                    ]
             if found:
                 # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal;
-                # "the main risks for Anthropic": a named company beats a word that is a ticker.
-                sizes = _sizes(db, [h.company.cik for h, _ in found])
-                best, _ = max(found, key=lambda x: (_named(*x), _match_rank(*x),
-                                                    _name_score(*x, sizes)))  # fmt: skip
+                # "the main risks for Anthropic": a named company beats a word that is a ticker;
+                # an active registrant beats one with no annual report in two years ("Lucid").
+                ciks = [h.company.cik for h, _ in found]
+                sizes, active = _sizes(db, ciks), _active(db, ciks)
+                best, phrase = max(found, key=lambda x: (
+                    _named(*x), x[0].company.cik in active, _match_rank(*x),
+                    _name_score(*x, sizes)))  # fmt: skip
+                if best.company.cik in active:
+                    return best.company
+                succ = _successor_of(db, best.company, notes)
+                if succ is not best.company:
+                    return succ
+                if phrase[:1].isupper() and " " not in phrase:  # "Pepsi": PepsiCo, not the bottler
+                    alt = _active_starting(db, phrase, word_start=False)
+                    if alt is not None:
+                        return alt
                 return best.company
+    # "Disney" starts a word of Walt Disney Co: the largest active filer, only when no name
+    # starts with what was typed
+    for size in (2, 1):
+        for i in range(len(useful) - size + 1):
+            phrase = " ".join(useful[i : i + size])
+            if (len(phrase) >= 4 and phrase[:1].isupper()
+                    and not set(phrase.lower().split()) & _GENERIC_WORDS):  # fmt: skip
+                hit = _active_starting(db, phrase, word_start=True)
+                if hit is not None:
+                    return hit
     # A typo ("Mircosoft", "amazn"): the nearest name within one or two letters.
     best = None
     for size in (2, 1):

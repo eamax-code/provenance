@@ -90,7 +90,9 @@ def test_successor_overview_continues_the_history(db, reorganised):
 def test_the_reviewed_file_is_complete_and_quotes_every_stored_pair():
     rows = successions.reviewed()
     stored = [r for r in rows.values() if r["decision"] == "store"]
-    assert len(rows) == 33 and len(stored) == 16
+    assert len(rows) == 34 and len(stored) == 17
+    # 2026-11-24: Google Inc. -> Alphabet Inc. (its 8-K of 2015-10-02 names the successor issuer)
+    assert rows[("0001288776", "0001652044")]["decision"] == "store"
     assert all(r["quote"] and r["quote_url"].startswith("https://www.sec.gov/Archives/")
                for r in stored)  # fmt: skip
     assert rows[("0000034088", "0002115436")]["confidence"] == "high"  # ExxonMobil
