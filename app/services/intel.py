@@ -139,7 +139,9 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False) -> Compa
             if found:
                 # "How fast is Tesla growing": Tesla is a whole name, "fast" only starts Fastenal;
                 # "the main risks for Anthropic": a named company beats a word that is a ticker.
-                best, _ = max(found, key=lambda x: (_named(*x), _match_rank(*x), _name_score(*x)))
+                sizes = _sizes(db, [h.company.cik for h, _ in found])
+                best, _ = max(found, key=lambda x: (_named(*x), _match_rank(*x),
+                                                    _name_score(*x, sizes)))  # fmt: skip
                 return best.company
     # A typo ("Mircosoft", "amazn"): the nearest name within one or two letters.
     best = None
@@ -215,10 +217,19 @@ def is_coverage_question(text: str) -> bool:
 _MATCH_RANK = {"ticker": 3, "name_exact": 2, "name_prefix": 1, "former_name": 1}
 
 
+def _ticker_word(hit, phrase: str) -> bool:
+    """A capitalised word that is the company's ticker and starts its name ("Meta" is META,
+    Meta Platforms; "Snap" is SNAP): it names the company as surely as the ticker in capitals."""
+    c = hit.company
+    return (hit.match_type == "ticker" and phrase[:1].isupper() and " " not in phrase.strip()
+            and bool(c.ticker) and c.ticker.upper() == phrase.upper()
+            and _core_name(c.legal_name).startswith(phrase.lower()))  # fmt: skip
+
+
 def _named(hit, phrase: str) -> bool:
     """Whether the phrase clearly names this company rather than merely starting its name."""
     if hit.match_type == "ticker":
-        return phrase.isupper()
+        return phrase.isupper() or _ticker_word(hit, phrase)
     if hit.match_type == "former_name":
         return _core_name(hit.former_name or "") == _core_name(phrase) or phrase[:1].isupper()
     if hit.match_type == "name_exact" or _core_name(hit.company.legal_name) == _core_name(phrase):
@@ -229,17 +240,33 @@ def _named(hit, phrase: str) -> bool:
 def _match_rank(hit, phrase: str) -> int:
     # A lower-case word that happens to be a ticker ("fast" is FAST) is no stronger than a prefix.
     if hit.match_type == "ticker" and not phrase.isupper():
-        return 1
+        return _MATCH_RANK["ticker"] if _ticker_word(hit, phrase) else 1
     return _MATCH_RANK[hit.match_type]
 
 
 _core_name = core_name
 
 
-def _name_score(hit, phrase: str) -> tuple:
-    """ "Apple" means Apple Inc., not Apple REIT Six; "Hawaiian Electric" the listed parent."""
+def _name_score(hit, phrase: str, sizes: dict | None = None) -> tuple:
+    """ "Apple" means Apple Inc., not Apple REIT Six; "Hawaiian Electric" the listed parent;
+    between names that start the same way, the larger filer by latest annual revenue ("Meta"
+    is not Meta Data Ltd), then the shorter name."""
     c = hit.company
-    return (bool(c.ticker), _core_name(c.legal_name) == _core_name(phrase), -len(c.legal_name))
+    size = (sizes or {}).get(c.cik) or 0
+    return (bool(c.ticker), _core_name(c.legal_name) == _core_name(phrase), size,
+            -len(c.legal_name))  # fmt: skip
+
+
+def _sizes(db: Session, ciks: list[str]) -> dict[str, float]:
+    """Latest annual revenue in US dollars (other currencies count as unknown: never converted)."""
+    from app.db.models import MartCompany
+
+    if not ciks:
+        return {}
+    rows = db.execute(select(MartCompany.cik, MartCompany.latest_revenue,
+                             MartCompany.reporting_currency)
+                      .where(MartCompany.cik.in_(list(set(ciks))))).all()  # fmt: skip
+    return {c: float(v) for c, v, cur in rows if v is not None and cur == "USD"}
 
 
 _KEEP_UPPER = {"LLC", "PLC", "LP", "NV", "SA", "AG", "SE", "USA", "US", "II", "III", "IV"}
