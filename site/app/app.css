@@ -524,3 +524,38 @@ td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }
   .cal-grid td { height: 48px; padding: 3px; } .cal-lab { display: none; } .cal-marks { display: flex; flex-wrap: wrap; gap: 2px; } .cal-marks li::before { margin: 0; }
   .cal-mtitle { min-width: 0; }
 }
+
+/* X-17 people */
+.pp-sec { display: grid; gap: 8px; }
+.pp-lead { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.pp-lead li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.pp-role { font: 600 .7rem var(--font-body); letter-spacing: .04em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+table.pp-table { min-width: 640px; }
+table.pp-pay { min-width: 980px; }
+.pp-table th[scope="row"] { font-weight: 600; text-align: left; }
+.pp-title { display: block; font-weight: 400; }
+.pp-act.is-new { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.pp-act.is-end { color: var(--muted); }
+.pp-match { display: block; }
+.pp-gone summary { cursor: pointer; color: var(--muted); font-size: .88rem; min-height: 28px; }
+.pp-chart-wrap { display: grid; gap: 6px; }
+.pp-chart { display: block; max-width: 100%; height: auto; }
+.pp-chart .grid { stroke: var(--line); } .pp-chart .zero { stroke: var(--muted); }
+.pp-chart .axis { fill: var(--muted); font: 11px var(--font-body); }
+.pp-chart .pp-bar { fill: color-mix(in srgb, var(--fg) 45%, transparent); }
+.pp-chart .pp-tsr { stroke: var(--accent-hi); stroke-width: 2.5; } .pp-chart .pp-tsr-dot { fill: var(--accent-hi); }
+.pp-chart .pp-peer { stroke: var(--warn); stroke-width: 2; stroke-dasharray: 6 4; } .pp-chart .pp-peer-dot { fill: var(--warn); }
+.pp-key { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--muted); margin: 0; }
+.pp-key span { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+.pp-key .k-bar { background: color-mix(in srgb, var(--fg) 45%, transparent); }
+.pp-key .k-tsr { height: 3px; background: var(--accent-hi); } .pp-key .k-peer { height: 0; border-top: 2px dashed var(--warn); }
+.pp-table th[scope="row"] { color: var(--fg); }
+.pp-about summary { cursor: pointer; color: var(--muted); font-size: .85rem; min-height: 28px; }
+@media (max-width: 640px) {
+  table.pp-stack { min-width: 0; }
+  .pp-stack thead { display: none; }
+  .pp-stack tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .pp-stack td, .pp-stack th { display: block; border: 0; padding: 0; text-align: left; }
+  .pp-stack tr > :first-child, .pp-stack tr > th[scope="row"] { grid-column: 1 / -1; }
+  .pp-stack td[data-l]::before { content: attr(data-l); display: block; color: var(--muted); font-size: .72rem; }
+}

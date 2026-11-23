@@ -36,7 +36,7 @@
   }
 
   var X = window.ProvenanceExplorer;
-  var TABS = ['overview', 'statements', 'chart', 'timeline', 'calendar', 'ownership', 'segments', 'compare', 'filings', 'connections', 'freshness', 'facts'];
+  var TABS = ['overview', 'statements', 'chart', 'timeline', 'calendar', 'ownership', 'people', 'segments', 'compare', 'filings', 'connections', 'freshness', 'facts'];
   var KEYED = { filings: 1, connections: 1, freshness: 1, facts: 1 };
   var S = { cmp: [], cik: null, d: null, tab: 'overview', m: ['revenue', 'operating_margin'], p: 'annual', scale: 'linear', mk: ['8k', 'officer', 'auditor'], st: 'income', show: 'values', as_of: null, asofNote: '' };
 
@@ -165,7 +165,7 @@
     if (!S.d) return;
     showPanes(S.tab);
     if (KEYED[S.tab] && !X.hasKey()) { var p = $('pane-' + S.tab); keyNeeded(p); return; }
-    if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
+    if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'people') peopleTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
   }
   function keyNeeded(p) {
     if (!p) return; var n = p.querySelector('.ws-keyneeded');
@@ -650,6 +650,14 @@
     });
   }
 
+  /* ---- X-17 people (people.js): officers and directors, pay versus performance, trading plans, Form 144 ---- */
+  function peopleTab() {
+    if (!window.ProvenancePeople) return;
+    var cik = S.cik, a = S.as_of;
+    window.ProvenancePeople.render($('pane-people'), { cik: cik, d: S.d, keyed: X.hasKey(), has: apiHas, name: orgName,
+      load: function (path) { return keyedOrDemo(path + (a ? '?as_of=' + a : '')).then(function (r) { return S.cik === cik ? r : null; }); } });
+  }
+
   /* ---- X-04 ownership: 13F, insiders (Forms 3/4/5), 5% holders ---- */
   function ownershipTab() {
     var d = S.d, cik = S.cik, pane = $('pane-ownership'), cur = (d.company || {}).reporting_currency || 'USD';
@@ -940,6 +948,6 @@
     var o = readURL(); if (asof && o.as_of) asof.value = o.as_of;
     apply(o, false);
   }
-  window.Workspace = { landing: function () { if (!S.cik) landing(); }, orgName: function (n) { return orgName(n); }, open: function (cik) { apply(Object.assign({}, S, { cik: String(parseInt(cik, 10)), tab: 'overview' }), true); }, palette: palette, state: S, reload: function () { if (S.cik) { S.cik = null; apply(readURL(), false); } } };
+  window.Workspace = { landing: function () { if (!S.cik) landing(); }, orgName: function (n) { return orgName(n); }, open: function (cik) { apply(Object.assign({}, S, { cik: String(parseInt(cik, 10)), tab: 'overview' }), true); }, palette: palette, rove: rove, state: S, reload: function () { if (S.cik) { S.cik = null; apply(readURL(), false); } } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
