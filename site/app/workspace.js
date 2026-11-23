@@ -164,8 +164,8 @@
   function renderTab() {
     if (!S.d) return;
     showPanes(S.tab);
-    if (KEYED[S.tab] && !X.hasKey()) { var p = $('pane-' + S.tab); keyNeeded(p); if (S.tab === 'filings') changesSection(); return; }
-    if (S.tab === 'filings') changesSection();
+    if (KEYED[S.tab] && !X.hasKey()) { var p = $('pane-' + S.tab); keyNeeded(p); if (S.tab === 'filings') changesSection(); if (S.tab === 'connections') treeSection(); return; }
+    if (S.tab === 'filings') changesSection(); if (S.tab === 'connections') treeSection();
     if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'people') peopleTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
   }
   function keyNeeded(p) {
@@ -663,6 +663,18 @@
       host.hidden = !y; if (!y || S.cik !== cik) return;
       C.render(host, { cik: cik, accession: acc, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } });
     });
+    // X-20: the SEC's comment letters, under What changed
+    var R = window.ProvenanceRecords, cl = $('cl-host') || el('section', { id: 'cl-host', class: 'ws-sec cl', 'aria-labelledby': 'cl-h', hidden: 'hidden' });
+    host.after(cl);
+    if (R) apiHas('/v1/companies/{cik}/comment-letters').then(function (y) { cl.hidden = !y; if (y && S.cik === cik) R.letters(cl, { cik: cik, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } }); });
+  }
+  /* X-18: the corporate tree at the top of Connections */
+  function treeSection() {
+    var pane = $('pane-connections'), R = window.ProvenanceRecords; if (!R || !pane) return;
+    var host = $('ct-host') || el('section', { id: 'ct-host', class: 'ws-sec ct', 'aria-labelledby': 'ct-h', hidden: 'hidden' });
+    pane.prepend(host);
+    var cik = S.cik, nm = (S.d.company || {}).display_name || orgName((S.d.company || {}).legal_name || '');
+    apiHas('/v1/companies/{cik}/corporate-tree').then(function (y) { host.hidden = !y; if (y && S.cik === cik) R.tree(host, { cik: cik, name: nm, keyed: X.hasKey(), load: function (path) { return keyedOrDemo(path).then(function (r) { return S.cik === cik ? r : null; }); } }); });
   }
 
   /* ---- X-17 people (people.js): officers and directors, pay versus performance, trading plans, Form 144 ---- */
