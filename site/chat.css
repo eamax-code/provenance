@@ -49,7 +49,7 @@
 .cx-top{display:flex;align-items:center;gap:8px;padding:10px 14px;min-height:56px}
 .cx-open-side{display:none}
 .cx.side-closed .cx-open-side{display:inline-grid}
-.cx-title{font:500 15px var(--font-body);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-title{margin:0;font:500 15px var(--font-body);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cx-company-chip{margin-left:auto;max-width:50%;white-space:nowrap;display:flex;align-items:center;gap:6px;border:1px solid var(--field);background:var(--field);color:var(--field-ink);border-radius:999px;padding:6px 8px 6px 12px;font:500 13px var(--font-body);cursor:pointer;animation:cx-pop .4s var(--ease) both;transition:border-color .2s}
 .cx-company-chip:hover{background:var(--charcoal);border-color:var(--charcoal)}
 .cx-company-chip span{overflow:hidden;text-overflow:ellipsis}
@@ -117,6 +117,10 @@
 .cx-act svg{width:16px;height:16px}
 .cx-act.cx-open{display:inline-flex;padding:3px 8px;font-size:.82rem;color:var(--accent-text);text-decoration:none;border:1px solid var(--line)}
 .cx-act.cx-open:hover{text-decoration:none}
+.cx-act.cx-act-l{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;font-size:.82rem;color:var(--muted);text-decoration:none;min-height:28px}
+.cx-act.cx-act-l svg{width:15px;height:15px}
+.cx-act.done{color:var(--good)}
+.cx-act:focus-visible,.cx-dl:focus-visible{outline:2px solid var(--accent-hi);outline-offset:1px}
 .cx-note{font-size:12.5px;color:var(--muted);margin-top:6px}
 .cx-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .cx-chip{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:999px;padding:5px 12px;font:13px var(--font-body);cursor:pointer;transition:border-color .2s}
@@ -153,7 +157,13 @@
 .cx-widget{margin:14px 0 6px;border:1px solid var(--line);border-radius:20px;background:var(--panel);box-shadow:var(--shadow);padding:16px 18px;animation:cx-rise .55s var(--ease) both}
 .cx-widget-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .cx-widget h3{margin:0;font:600 15px var(--font-display);color:var(--fg)}
-.cx-widget-sub{color:var(--muted);font-size:12.5px}
+.cx-widget-sub{color:var(--muted);font-size:12.5px;margin-left:auto}
+.cx-widget-head{justify-content:flex-start}
+/* C-08: each table downloads as CSV; small, at the head's end, never in the reading line */
+.cx-dl{display:inline-flex;align-items:center;gap:4px;margin-left:auto;align-self:center;border:1px solid var(--line);background:none;color:var(--muted);border-radius:8px;padding:3px 8px;min-height:28px;font:600 11.5px var(--font-body);letter-spacing:.02em;cursor:pointer}
+.cx-widget-sub + .cx-dl{margin-left:0}
+.cx-dl:hover{color:var(--fg);border-color:var(--slate)}
+.cx-dl svg{width:14px;height:14px}
 /* tiles are type, not cards: figures in a row with thin rules; change is coloured text */
 .cx-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-top:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .cx-tile{padding:10px 14px;min-width:0;border-left:1px solid var(--line)}.cx-tile:first-child{border-left:0;padding-left:0}
@@ -178,7 +188,7 @@
 .cx-list-table{font-size:13.5px;min-width:560px}
 .cx-list-table td{white-space:nowrap}
 .cx-list-table td,.cx-list-table th{text-align:left}
-.cx-list-table a{color:var(--red-ink)}
+.cx-list-table a{color:var(--accent-text)}
 .cx-more{margin-top:10px}
 .cx-widget .cx-note{margin-top:8px}
 

@@ -261,6 +261,10 @@
     head.appendChild(el('h3', null, w.title));
     var pts = w.points;
     head.appendChild(el('span', 'cx-widget-sub', pts[0].label + ' – ' + pts[pts.length - 1].label + ' · from annual reports'));
+    head.appendChild(csvButton(w.title, function () {
+      return [['Fiscal year', 'Period end', 'Value', 'Unit', 'Change from prior year (%)', 'Form', 'Filed', 'Accession number', 'Filing']]
+        .concat(pts.map(function (p) { return [p.label, p.period_end, p.value, curOf(w), p.change_pct == null ? '' : Math.round(p.change_pct * 10) / 10, p.form_type, p.filed_date, p.accession_number, p.source_url]; }));
+    }));
     box.appendChild(head);
     var grid = el('div', 'cx-tiles');
     var byCite = {}; (w.points || []).forEach(function (p) { if (p.citation) byCite[p.citation] = p; });
@@ -350,6 +354,11 @@
     var hist = w.history, fc = w.forecast;
     head.appendChild(el('span', 'cx-widget-sub', hist[0].label + ' – ' + fc[fc.length - 1].label + ' · ' +
       (w.summary.method === 'model' ? 'forecast by ' + (w.summary.model || 'a reasoning model') : 'forecast from the trend')));
+    head.appendChild(csvButton(w.title, function () {
+      return [['Fiscal year', 'Kind', 'Low', 'Base', 'High', 'Unit', 'Filing']]
+        .concat(hist.map(function (p) { return [p.label, 'Reported', '', p.value, '', curOf(w), p.source_url]; }))
+        .concat(fc.map(function (f) { return [f.label, 'Forecast (estimate, not reported)', f.low, f.base, f.high, curOf(w), '']; }));
+    }));
     box.appendChild(head);
     var grid = el('div', 'cx-tiles');
     (w.stats || []).forEach(function (t, i) { grid.appendChild(tile(t, byN, i)); });
@@ -492,6 +501,15 @@
   function tableWidget(w) {
     var box = el('section', 'cx-widget');
     var head = el('div', 'cx-widget-head'); head.appendChild(el('h3', null, w.title)); box.appendChild(head);
+    head.appendChild(csvButton(w.title, function () {
+      // each column that links a filing gets the link beside it
+      var linked = w.columns.map(function (c, j) { return w.rows.some(function (r) { return r[j] && r[j].url; }); });
+      var hd = []; w.columns.forEach(function (c, j) { hd.push(c); if (linked[j]) hd.push(c + ' link'); });
+      return [hd].concat(w.rows.map(function (r) {
+        var o = []; r.forEach(function (cell, j) { o.push(cell && cell.text); if (linked[j]) o.push(cell && /^https:\/\/www\.sec\.gov\//.test(cell.url || '') ? cell.url : ''); });
+        return o;
+      }));
+    }));
     var wrap = el('div', 'cx-table-wrap'), table = el('table', 'cx-table cx-list-table');
     var thead = el('thead'), hr = el('tr');
     w.columns.forEach(function (c) { hr.appendChild(el('th', null, c)); });
@@ -516,6 +534,49 @@
     }
     if (w.note) box.appendChild(el('p', 'cx-note', w.note));
     return box;
+  }
+
+  // ---- export and permalink (C-08) ----
+  function csvCell(v) {
+    if (v == null) return '';
+    var s = String(v);
+    if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; // a spreadsheet must not run a cell as a formula
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function slug(s) { return String(s || 'table').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'table'; }
+  // a small "CSV" button for a widget's head: rows() gives the header row first, raw numbers, and full filing links
+  function csvButton(title, rows) {
+    var b = el('button', 'cx-dl'); b.type = 'button'; b.title = 'Download as CSV'; b.setAttribute('aria-label', 'Download ' + title + ' as CSV');
+    b.appendChild(svg('<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>')); b.appendChild(el('span', null, 'CSV'));
+    b.onclick = function () {
+      var text = '﻿' + rows().map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
+      var url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+      var a = el('a'); a.href = url; a.download = slug(title) + '.csv'; a.hidden = true;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    };
+    return b;
+  }
+  function today() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+  // the same question, company and filing date: a fresh tab asks it again and gets this answer,
+  // because the answer only reads what was filed by that date
+  function permalink(q, reply) {
+    if (!q || (!reply.company && BACK_RE.test(q))) return null; // "their revenue" needs the previous answer
+    var p = new URLSearchParams(); p.set('q', q);
+    if (reply.company && /^\d{1,10}$/.test(String(parseInt(reply.company.cik, 10)))) p.set('cik', String(parseInt(reply.company.cik, 10)));
+    var a = (reply.brief && reply.brief.as_of) || ($('cx-asof') && $('cx-asof').value) || reply._asked || today();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(a)) p.set('as_of', a);
+    return location.origin + '/chat/?' + p.toString();
+  }
+  // a quiet action that says what it did ("Copied") for a moment, also to screen readers
+  function flash(btn, done) {
+    var t = btn.querySelector('.cx-act-text'), was = t.textContent;
+    t.textContent = done; btn.classList.add('done');
+    setTimeout(function () { t.textContent = was; btn.classList.remove('done'); }, 1800);
+  }
+  function copyText(text) {
+    try { return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return false; }); }
+    catch (e) { return Promise.resolve(false); }
   }
 
   // ---- messages ----
@@ -603,17 +664,30 @@
     var by = reply.answered_by === 'data' ? 'Read from filings' : (reply.model ? reply.model + ' (local)' : null);
     if (by) row.appendChild(el('span', null, by + (reply.brief && reply.brief.as_of ? ' · as of ' + human(reply.brief.as_of) : '')));
     if (reply.answer) {
-      var copy = el('button', 'cx-act'); copy.type = 'button'; copy.title = 'Copy answer'; copy.setAttribute('aria-label', 'Copy answer');
+      var copy = el('button', 'cx-act cx-act-l'); copy.type = 'button'; copy.title = 'Copy the answer as text';
       copy.appendChild(svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>'));
-      copy.onclick = function () { try { navigator.clipboard.writeText(reply.answer); copy.title = 'Copied'; } catch (e) { /* clipboard blocked */ } };
+      var ct = el('span', 'cx-act-text', 'Copy'); ct.setAttribute('aria-live', 'polite'); copy.appendChild(ct);
+      copy.onclick = function () { copyText(reply.answer).then(function (ok) { flash(copy, ok ? 'Copied' : 'Copy blocked'); }); };
       row.appendChild(copy);
+    }
+    // C-08: a link to this answer that opens in a fresh tab
+    var pl = permalink(bot.q, reply);
+    if (pl) {
+      var la = el('a', 'cx-act cx-act-l cx-link'); la.href = pl; la.title = 'Copy a link to this answer; it reads the filings as of ' + human(new URLSearchParams(pl.split('?')[1]).get('as_of') || '');
+      la.appendChild(svg('<path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/>'));
+      var lt = el('span', 'cx-act-text', 'Link'); lt.setAttribute('aria-live', 'polite'); la.appendChild(lt);
+      la.onclick = function (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; // open it in a new tab as usual
+        e.preventDefault(); copyText(pl).then(function (ok) { flash(la, ok ? 'Link copied' : 'Copy blocked'); if (!ok) window.open(pl, '_blank', 'noopener'); });
+      };
+      row.appendChild(la);
     }
     bot.body.appendChild(row);
     if ((reply.follow_ups || []).length) { var fu = el('div', 'cx-chips cx-follow'); reply.follow_ups.slice(0, 3).forEach(function (f) { var b = el('button', 'cx-chip', f); b.type = 'button'; b.onclick = function () { ask(f, true); }; fu.appendChild(b); }); bot.body.appendChild(fu); }
     (reply.notes || []).slice(1).forEach(function (n) { bot.body.appendChild(el('div', 'cx-note', n)); });
   }
   function showReply(bot, reply, animate, q) {
-    bot.msg.classList.remove('thinking');
+    bot.msg.classList.remove('thinking'); bot.q = q;
     var content = el('div'); bot.body.appendChild(content);
     if (!reply.company && reply.answer) {
       // Answered from the data across companies (coverage, recent IPOs, a ranking, a follow-up
@@ -700,12 +774,14 @@
   var FORECAST_RE = /\b(forecast\w*|predict\w*|projections?|outlook|estimates?|(?:next|coming|following|upcoming)\s+(?:\d{1,2}\s+|two\s+|three\s+|four\s+|five\s+)?(?:fiscal\s+)?years?)\b/i;
   function headers() { return { 'Content-Type': 'application/json', 'X-API-Key': state.key }; }
 
+  // in a conversation the page heading is the company, or 'Chat' until one is named
+  function titled() { if (!$('cx-title').textContent) $('cx-title').textContent = 'Chat'; }
   function ask(q, fresh) {
     q = (q || '').trim().slice(0, 500);
     if (!q || state.busy) return;
     state.busy = true; send.disabled = true;
     var bot;
-    var go = function () { body.dataset.state = 'chat'; addUser(q); bot = addBot(); };
+    var go = function () { body.dataset.state = 'chat'; titled(); addUser(q); bot = addBot(); };
     (body.dataset.state === 'home' ? transition(go) : (go(), Promise.resolve())).then(function () { request(q, bot); });
   }
 
@@ -736,7 +812,7 @@
           bot.body.appendChild(el('p', null, (res.body.error && res.body.error.message) || ('Error ' + res.status)));
           return;
         }
-        var reply = res.body;
+        var reply = res.body; reply._asked = payload.as_of || today();
         showReply(bot, reply, true, q);
         remember(q, reply);
         if (reply.session_id && state.connected) {
@@ -807,11 +883,11 @@
       if (!s) { state.sessionId = null; setHash(); return; }
       transition(function () {
         thread.textContent = ''; state.sessionId = s.id; state.cik = s.company_cik; state.context = null; state.history = []; setHash();
-        body.dataset.state = 'chat'; drawer(false);
+        body.dataset.state = 'chat'; titled(); drawer(false);
         var lastQ = '';
         s.messages.forEach(function (m) {
           if (m.role === 'user') { addUser(m.content); lastQ = m.content; }
-          else if (m.reply) { var bot = addBot(); showReply(bot, m.reply, false); remember(lastQ, m.reply); }
+          else if (m.reply) { var bot = addBot(); showReply(bot, m.reply, false, lastQ); remember(lastQ, m.reply); }
         });
         markCurrent(); keepScrolled(true);
       });
@@ -905,11 +981,11 @@
     loadSessions();
     if (hashId && state.connected) openSession(hashId);
     else if (!state.connected && (sload('cx_demo') || []).length) {
-      body.dataset.state = 'chat';
+      body.dataset.state = 'chat'; titled();
       sload('cx_demo').forEach(function (t) { addUser(t.q); showReply(addBot(), t.reply, false, t.q); remember(t.q, t.reply); });
       keepScrolled(true);
     }
-    if (q0) ask(q0);
+    if (q0) { ask(q0); history.replaceState(null, '', location.pathname + location.hash); }
   });
   if (mobile.matches) { body.classList.remove('side-open'); input.placeholder = 'Ask about a company…'; }
   input.focus();
