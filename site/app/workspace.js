@@ -444,26 +444,34 @@
     var baseRow = rows.filter(function (r) { return r.metric === base; })[0];
     // cells align with columns by position (keys can repeat when a filer reuses a period label); values may come as strings
     var at = function (r, j) { var c = null; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; return true; } return false; }); return c ? Object.assign({}, c, { value: Number(c.value) }) : null; };
-    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c) { return el('th', { scope: 'col', class: 'n', title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
+    // a split_break row mixes share bases: one note above those rows, a tag on each, a rule before the first column after the break
+    var colAt = function (k) { for (var q = 0; q < cols.length; q++) if (cols[q].key === k || cols[q].period_label === k) return q; return -1; };
+    var sbOf = function (r) { return r.split_break && r.split_break.between ? colAt(r.split_break.between[1]) : -1; };
+    var sbCols = rows.map(sbOf).filter(function (q) { return q > -1; });
+    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
     var body = rows.map(function (r) {
       var ratio = r.unit_kind === 'ratio' || r.unit_kind === 'percent' || r.unit_kind === 'multiple';
-      return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null])].concat(cols.map(function (col, i) {
-        var c = at(r, i); if (!c || !isFinite(c.value)) return el('td', { class: 'n muted', title: 'not reported', text: '—' });
+      return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null, r.split_break ? el('span', { class: 'tag tag-sb', title: r.split_break.text || '' }, lab('mixed split basis', 'split')) : null])].concat(cols.map(function (col, i) {
+        var sb = sbOf(r), sbc = sb > -1 && i === sb ? ' sb' : '';
+        var c = at(r, i); if (!c || !isFinite(c.value)) return el('td', { class: 'n muted' + sbc, title: 'not reported', text: '—' });
         var txt;
-        if (S.show === 'yoy') { var back = S.p === 'quarterly' ? 4 : 1, pc = i >= back ? at(r, i - back) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
+        if (S.show === 'yoy') { var back = S.p === 'quarterly' ? 4 : 1, pc = i >= back && !(sb > -1 && i >= sb && i - back < sb) ? at(r, i - back) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
         else if (S.show === 'common') { var bc = baseRow && at(baseRow, i); txt = ratio || !bc || !bc.value ? '—' : pct(100 * c.value / bc.value); }
         else txt = c.unit === 'ratio' ? pct(100 * c.value) : fmtv(c.value, c.unit, cur);
         var info = Object.assign({ label: r.label, metric: r.metric, currency: cur, fiscal_label: col.period_label || col.key, formula: r.formula }, c);
         var flag = c.quality_status && c.quality_status !== 'ok';
-        return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') }, [door(txt, info, flag ? 'flag' : ''), flag ? el('span', { class: 'qf', title: c.quality_status.replace(/_/g, ' '), text: '!' }) : null]);
+        return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') + sbc }, [door(txt, info, flag ? 'flag' : ''), flag ? el('span', { class: 'qf', title: c.quality_status.replace(/_/g, ' '), text: '!' }) : null]);
       })));
     });
     var csvRows = function () { return [['line_item'].concat(cols.map(function (c) { return c.key; })).join(',')].concat(rows.map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(cols.map(function (c, i) { var x = at(r, i); return x ? x.value : ''; })).join(','); })); };
+    var said = [];
+    body = body.reduce(function (acc, tr, ri) { var t = rows[ri].split_break && rows[ri].split_break.text; if (t && said.indexOf(t) < 0) { said.push(t); acc.push(el('tr', { class: 'st-note' }, [el('td', { colspan: String(cols.length + 1) }, [el('p', { text: t })])])); } acc.push(tr); return acc; }, []);
+    var notes = (b.notes || []).filter(function (n) { return said.indexOf(n) < 0; });
     var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
     pane.replaceChildren(stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + '.csv'),
       wrap,
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
-      (b.notes || []).length ? el('p', { class: 'muted small', text: b.notes.join(' ') }) : null);
+      notes.length ? el('p', { class: 'muted small', text: notes.join(' ') }) : null);
     wrap.scrollLeft = wrap.scrollWidth; // open on the latest periods; earlier ones scroll in from the left
     rove(wrap.querySelector('table'));
   }
@@ -471,7 +479,7 @@
   // starting on the latest figure of the first row, so Tab can leave a 15 x 12 table in one press
   function rove(table) {
     if (!table || !table.tBodies[0]) return;
-    var M = Array.prototype.map.call(table.tBodies[0].rows, function (tr) { return Array.prototype.map.call(tr.querySelectorAll('td'), function (td) { return td.querySelector('.door'); }); });
+    var M = Array.prototype.filter.call(table.tBodies[0].rows, function (tr) { return !tr.classList.contains('st-note'); }).map(function (tr) { return Array.prototype.map.call(tr.querySelectorAll('td'), function (td) { return td.querySelector('.door'); }); });
     var start = null;
     M.some(function (r) { for (var j = r.length - 1; j >= 0; j--) if (r[j]) { start = r[j]; return true; } return false; });
     if (!start) return;
