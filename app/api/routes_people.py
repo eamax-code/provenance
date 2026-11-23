@@ -53,3 +53,51 @@ def get_insider_plans(
     cik = _parse_cik_param(cik)
     _require_company(db, cik)
     return insider_plans.for_company(db, cik, since, as_of, limit)
+
+
+@router.get(
+    "/{cik}/corporate-tree",
+    responses=_ERRORS,
+    summary="GLEIF parents or reporting exceptions, GLEIF children, and exhibit 21 subsidiaries "
+    "with their LEIs",
+)
+def get_corporate_tree(
+    cik: str = Path(max_length=13),
+    children_limit: int = Query(100, ge=1, le=500),
+    subsidiaries_limit: int = Query(200, ge=1, le=1000),
+    db: Session = Depends(db_session),
+    _key=Depends(require_reader),
+) -> dict:
+    """Parents and children from GLEIF Level 2 (golden copy, CC0; named, not linked);
+    subsidiaries from the latest exhibit 21, each linking its filing."""
+    from app.services import corporate_tree
+
+    cik = _parse_cik_param(cik)
+    company = _require_company(db, cik)
+    return corporate_tree.for_company(db, company, children_limit, subsidiaries_limit)
+
+
+@router.get(
+    "/{cik}/comment-letters",
+    responses=_ERRORS,
+    summary="SEC comment letters and the company's responses, grouped by review, with topics",
+)
+def get_comment_letters(
+    cik: str = Path(max_length=13),
+    since: date | None = Query(None, description="Threads with a letter on or after this date"),
+    topic: str | None = Query(None, max_length=40, description="One topic key"),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(db_session),
+    _key=Depends(require_reader),
+) -> dict:
+    """Topics are tagged from a reviewed keyword list, never a model. Each letter links its
+    filing; the letters' text is not returned."""
+    from app.core.errors import APIError
+    from app.services import comment_letters
+
+    if topic and topic not in comment_letters.TOPIC_LABELS:
+        keys = ", ".join(comment_letters.TOPIC_LABELS)
+        raise APIError(422, "invalid_parameter", f"topic must be one of: {keys}")
+    cik = _parse_cik_param(cik)
+    _require_company(db, cik)
+    return comment_letters.for_company(db, cik, since, topic, limit)

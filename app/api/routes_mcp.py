@@ -254,6 +254,33 @@ TOOLS: dict[str, dict[str, Any]] = {
                       "late_notice, lockup_expiry, quiet_period_end, proposed_sale_window_end"}},
             "required": ["cik"]},
     },  # fmt: skip
+    "corporate_tree": {
+        "title": "Corporate tree",
+        "description": "The company's direct and ultimate accounting parents (or GLEIF's stated "
+        "reason there is none), the entities that report it as their parent, and its latest "
+        "exhibit 21 subsidiaries with an LEI where exactly one matches by name and "
+        "jurisdiction. GLEIF Level 2 data, CC0.",
+        "path": "/v1/companies/{cik}/corporate-tree",
+        "params": {"children_limit": "children_limit", "subsidiaries_limit": "subsidiaries_limit"},
+        "schema": {"type": "object", "properties": {
+            "cik": _CIK, "children_limit": _LIMIT, "subsidiaries_limit": _LIMIT},
+            "required": ["cik"]},
+    },  # fmt: skip
+    "comment_letters": {
+        "title": "SEC comment letters",
+        "description": "The SEC's comment letters to the company and its responses, grouped by "
+        "review (file number), with topics tagged from a reviewed keyword list (revenue "
+        "recognition, non-GAAP, segments, impairment, MD&A, ...) and whether the review closed. "
+        "Each letter links its filing.",
+        "path": "/v1/companies/{cik}/comment-letters",
+        "params": {"since": "since", "topic": "topic", "limit": "limit"},
+        "schema": {"type": "object", "properties": {
+            "cik": _CIK, "since": _DATE, "limit": _LIMIT,
+            "topic": {"type": "string", "description": "revenue_recognition, non_gaap, "
+                      "segments, impairment, mdna, income_taxes, disclosure_controls, climate, "
+                      "cybersecurity, crypto, going_concern, related_parties, other"}},
+            "required": ["cik"]},
+    },  # fmt: skip
     "company_segments": {
         "title": "Segments",
         "description": "Revenue and segment profit (operating income, or pretax income for "

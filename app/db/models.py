@@ -1519,3 +1519,75 @@ class Form144Notice(Base):
     plan_adoption_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class CommentLetter(Base):
+    """An SEC comment letter (UPLOAD) or a company's response (CORRESP), read once for its file
+    number, subject, topics and whether it closes the review (D-13,
+    docs/contracts/comment-letters.md). The text is kept for tagging only; responses quote
+    short snippets with the Archives link, never the text whole."""
+
+    __tablename__ = "comment_letters"
+    __table_args__ = (Index("ix_comment_letters_cik_filed", "cik", "filing_date"),)
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    form_type: Mapped[str] = mapped_column(Text, nullable=False)  # UPLOAD, CORRESP
+    filing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    file_number: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subject: Mapped[str | None] = mapped_column(Text, nullable=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)  # letter, acceleration_request
+    readable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    closes_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    topics: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON list
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    reader_version: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class GleifRelationship(Base):
+    """A GLEIF Level 2 accounting-consolidation relationship (D-14): the child's direct or
+    ultimate parent, as the child reports it (golden copy, CC0). Kept where a filer's LEI is on
+    either side."""
+
+    __tablename__ = "gleif_relationships"
+    __table_args__ = (Index("ix_gleif_relationships_parent", "parent_lei"),)
+
+    child_lei: Mapped[str] = mapped_column(String(20), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)  # direct, ultimate
+    parent_lei: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str | None] = mapped_column(Text, nullable=True)  # ACTIVE, INACTIVE
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class GleifException(Base):
+    """A GLEIF Level 2 reporting exception: why an entity reports no direct or ultimate parent
+    (NATURAL_PERSONS, NON_CONSOLIDATING, NO_KNOWN_PERSON, ...), as GLEIF gives it."""
+
+    __tablename__ = "gleif_exceptions"
+
+    lei: Mapped[str] = mapped_column(String(20), primary_key=True)
+    kind: Mapped[str] = mapped_column(Text, primary_key=True)  # direct, ultimate
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class GleifName(Base):
+    """Name, jurisdiction and status of an LEI that a Level 2 relationship or an exhibit 21 match
+    refers to (kept apart from gleif_entities, which drives filer matching)."""
+
+    __tablename__ = "gleif_names"
+
+    lei: Mapped[str] = mapped_column(String(20), primary_key=True)
+    legal_name: Mapped[str] = mapped_column(Text, nullable=False)
+    jurisdiction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entity_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class SubsidiaryLei(Base):
+    """An exhibit 21 subsidiary linked to an LEI: exactly one GLEIF entity has the same
+    normalised legal name and an agreeing jurisdiction (a doubtful link is worse than none)."""
+
+    __tablename__ = "subsidiary_leis"
+
+    subsidiary_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    lei: Mapped[str] = mapped_column(String(20), nullable=False)
