@@ -7,7 +7,9 @@
     not_read: 'This report has not been read for changes yet. The largest filers are read first; the rest follow.',
     prior_not_read: 'The previous annual report has not been read yet, so there is nothing to compare with.',
     not_split: 'The risk factors in this report could not be split into headings, so they are not compared. The full text is in the filing.',
-    not_annual_report: 'Changes are compared for annual reports (10-K, 20-F) only.'
+    not_annual_report: 'Changes are compared for 10-K annual reports only.',
+    form_not_read: 'Changes are compared for 10-K annual reports only; this company files a 20-F or 40-F.',
+    no_annual_report: 'No annual report to compare in the filings loaded.'
   };
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);

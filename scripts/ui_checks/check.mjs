@@ -261,9 +261,9 @@ async function view(page, theme, width) {
     const { browserContextId } = await send('Target.createBrowserContext', {});
     const { targetId } = await send('Target.createTarget', { url: 'about:blank', browserContextId });
     const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
-    const errors = []; let status = 0;
+    const errors = [], netErr = new Map(); let status = 0; // netErr: a resource-load error line -> its request (url, id)
     listeners.push({ session: sessionId, method: 'Runtime.exceptionThrown', fn: (p) => errors.push('JS: ' + (p.exceptionDetails.exception?.description || p.exceptionDetails.text).split('\n')[0]) });
-    listeners.push({ session: sessionId, method: 'Log.entryAdded', fn: (p) => { if (p.entry.level === 'error') errors.push((/Content Security Policy/.test(p.entry.text) ? 'CSP: ' : 'console: ') + p.entry.text.slice(0, 200)); } });
+    listeners.push({ session: sessionId, method: 'Log.entryAdded', fn: (p) => { if (p.entry.level !== 'error') return; const t = (/Content Security Policy/.test(p.entry.text) ? 'CSP: ' : 'console: ') + p.entry.text.slice(0, 200) + (p.entry.source === 'network' && p.entry.url ? ' [' + p.entry.url.replace(/^https?:\/\/[^/]+/, '') + ']' : ''); errors.push(t); if (p.entry.source === 'network') netErr.set(t, { url: p.entry.url || '', id: p.entry.networkRequestId }); } });
     listeners.push({ session: sessionId, method: 'Runtime.consoleAPICalled', fn: (p) => { if (p.type === 'error') errors.push('console.error: ' + p.args.map((a) => a.value ?? a.description ?? '').join(' ').slice(0, 200)); } });
     listeners.push({ session: sessionId, method: 'Network.responseReceived', fn: (p) => { if (p.type === 'Document') status = p.response.status; } });
     for (const d of ['Page', 'Runtime', 'Log', 'Network']) await send(d + '.enable', {}, sessionId);
@@ -311,7 +311,18 @@ async function view(page, theme, width) {
     const want = page.status || 200;
     if (status !== want) res.fail.unshift(`HTTP ${status} (want ${want})`);
     const allowed = (page.allowConsole || []).map((p) => new RegExp(p));
-    res.fail.push(...[...new Set(errors)].filter((e) => !(want === 404 && /404/.test(e)) && !allowed.some((re) => re.test(e))));
+    // allow404: [{url, code}] excuses Chrome's resource-load line for one documented 404 only: the request's URL must
+    // match and its JSON body's error.code must equal code (e.g. /changes answering changes_not_available); any other
+    // 404 on the page still fails. allowConsole stays for lines that are not a documented API answer.
+    const excused = new Set();
+    for (const [line, req] of netErr) {
+      const rules = (page.allow404 || []).filter((a) => /status of 404/.test(line) && new RegExp(a.url).test(req.url));
+      if (!rules.length || !req.id) continue;
+      const got = await send('Network.getResponseBody', { requestId: req.id }, sessionId).catch(() => null);
+      let code = null; try { code = JSON.parse(got.base64Encoded ? Buffer.from(got.body, 'base64').toString() : got.body).error.code; } catch {}
+      if (rules.some((a) => a.code === code)) excused.add(line);
+    }
+    res.fail.push(...[...new Set(errors)].filter((e) => !excused.has(e) && !(want === 404 && /404/.test(e)) && !allowed.some((re) => re.test(e))));
     // page-specific expectations: each a JS expression that must be true once the page has settled
     for (const ex of page.expect || []) {
       let okEx = false;
