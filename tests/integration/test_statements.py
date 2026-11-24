@@ -173,3 +173,23 @@ def test_split_adjusted_series_from_a_restating_filing(client, auth, db):
     assert rows["shares_basic_weighted"]["split_adjusted"]["values"][0] == 5_217_242e3 * 4
     assert [c["value"] for c in rows["eps_basic"]["cells"]] == [9.27, 3.0]  # as filed stays
     assert any("Split-adjusted values (4:1)" in n for n in body["notes"])
+
+
+def test_a_reviewed_split_counts_when_income_swings_too(db):
+    """S-02b (2026-11-24): NVIDIA's 10:1 split year (FY2022 to FY2023 columns) has net income
+    down 55%, so shares x EPS swings 0.44x and the income guard rejects it. A pair outside the
+    guard counts only with a clean ratio in the reviewed split list (each read in the filing's
+    own disclosure); a later filing's restatement alone failed the hand-check (7 of 30)."""
+    from app.services import statements as st
+
+    keys = ["FY2022", "FY2023"]
+    values = {"shares_diluted_weighted": [2_535_000_000, 25_070_000_000],
+              "eps_diluted": [3.85, 0.17],
+              "net_income": [9_752_000_000, 4_368_000_000]}  # fmt: skip
+    assert st.split_breaks(values, keys) == {}
+    assert st.split_breaks(values, keys, lambda b, h: False) == {}
+    brk = st.split_breaks(values, keys, lambda b, h: ("0001045810", h) in st.reviewed_splits())
+    assert brk["eps_diluted"] == {"between": ["FY2022", "FY2023"], "ratio_hint": "10:1"}
+    assert ("0001045810", "10:1") in st.reviewed_splits()
+    assert ("0000929351", "1:14") not in st.reviewed_splits()  # Starz: 15-to-1, not a clean read
+    assert len(st.reviewed_splits()) == 12

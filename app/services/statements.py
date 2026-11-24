@@ -7,7 +7,10 @@ been filed by that date. Ratios are derived here from the cells and list their i
 
 from __future__ import annotations
 
+import csv
 from datetime import date
+from functools import lru_cache
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -162,15 +165,30 @@ EPS_ROWS = ("eps_basic", "eps_diluted")
 SPLIT_MIN_FACTOR = 1.9
 SPLIT_INTEGER_TOLERANCE = 0.10  # the factor within 10% of a whole number (buybacks move it)
 SPLIT_MAX_INCOME_SWING = 2.0  # shares x EPS (about net income) changes by less than 2x
+# S-02b: a pair outside that swing (NVIDIA's FY2023, the 10:1 split year: net income fell 55%)
+# counts only with a clean ratio found in the reviewed split list (confirm, from the route). A
+# later filing's restatement alone was tried and failed the hand-check: 7 of 30 were corrections
+# or had the ratio off by one (Starz 15:1 read as 14:1).
+SPLIT_MAX_CLEAN_FACTOR = 100
+REVIEWED_SPLITS = Path(__file__).resolve().parents[1] / "data" / "splits_reviewed.csv"
 
 
-def split_breaks(values: dict[str, list[float | None]], keys: list[str]) -> dict[str, dict]:
+@lru_cache(maxsize=1)
+def reviewed_splits() -> set[tuple[str, str]]:
+    """(cik, ratio) of splits read in the filing's own disclosure (app/data/splits_reviewed.csv)."""
+    with REVIEWED_SPLITS.open(newline="") as f:
+        return {(r["cik"], r["ratio"]) for r in csv.DictReader(f)}
+
+
+def split_breaks(values: dict[str, list[float | None]], keys: list[str],
+                 confirm=None) -> dict[str, dict]:  # fmt: skip
     """Where adjacent columns mix share bases: a later filing restated some years for a stock
     split and the earlier years stay as originally filed (Apple FY2017 5.2B shares, FY2018
     19.8B). Flag only, nothing is adjusted: a share row jumps by a near-whole factor and an EPS
     row moves inversely across the same pair. Returns {metric: {"between": [a, b],
     "ratio_hint": "4:1"}} for each share and EPS row with values on both sides of the latest
-    such pair; "1:4" is a reverse split."""
+    such pair; "1:4" is a reverse split. confirm(between, hint) may accept a pair whose income
+    swing is too large (S-02b): the route checks the reviewed split list."""
     found = None
     for i in range(1, len(keys)):
         for s in SHARE_ROWS:
@@ -188,8 +206,11 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str]) -> dict
                     continue
                 inverse = (y / x < 1) == (r > 1)
                 swing = r * (y / x)
-                if inverse and 1 / SPLIT_MAX_INCOME_SWING < swing < SPLIT_MAX_INCOME_SWING:
-                    found = (i, f"{whole}:1" if r > 1 else f"1:{whole}")
+                hint = f"{whole}:1" if r > 1 else f"1:{whole}"
+                if inverse and (1 / SPLIT_MAX_INCOME_SWING < swing < SPLIT_MAX_INCOME_SWING
+                                or (confirm is not None and whole <= SPLIT_MAX_CLEAN_FACTOR
+                                    and confirm([keys[i - 1], keys[i]], hint))):  # fmt: skip
+                    found = (i, hint)
                     break
             if found and found[0] == i:
                 break
@@ -260,7 +281,7 @@ def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[s
         row = by_metric.get(metric)
         # the first new-basis year (Apple FY2018: 11.91 as filed, 2.98 restated) and then the
         # old-basis years, newest first; an older split (Apple 7:1, 2014) is not this one
-        for cell in (reversed(row.cells[: cut + 2]) if row else []):
+        for cell in reversed(row.cells[: cut + 2]) if row else []:
             if cell is None:
                 continue
             facts = reported(metric, cell)

@@ -764,9 +764,14 @@ def statement(
     notes = ["Values are as reported in each filing, in the company's reporting currency; "
              "nothing is converted. Derived rows and quarters say derived and list their "
              "inputs."]  # fmt: skip
+
+    def restated(between: list[str], hint: str) -> bool:  # S-02b: a reviewed split
+        return (cik, hint) in statements_service.reviewed_splits()
+
     breaks = statements_service.split_breaks(
         {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
         [c.key for c in columns],
+        restated,
     )
     if breaks:
         b = next(iter(breaks.values()))
