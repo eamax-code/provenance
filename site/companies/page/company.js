@@ -148,6 +148,8 @@
     // not three tiles of "not reported" and an empty chart
     var anyFig = pick.some(function (m) { return d.key_figures.some(function (x) { return x.metric === m; }); });
     k.classList.toggle('kpis-empty', !anyFig);
+    var dl = $('co-div') || k.parentNode.insertBefore(el('p', { class: 'co-div', id: 'co-div', hidden: 'hidden' }), k.nextSibling);
+    dv().then(function (D) { return D.load(P.cik, { asOf: d.as_of }).then(function (r) { D.line(dl, r); }); }).catch(function () {});
     $('chart').parentNode.hidden = !d.years.some(function (y) { return y.revenue != null; });
     if (!anyFig) k.appendChild(el('p', { class: 'kpi-none', text: (d.company.predecessors || []).length
       ? 'No annual report under this CIK yet; the years below were filed by its predecessor.'
@@ -173,6 +175,8 @@
     $('chart-cap').textContent = 'Revenue by fiscal year; the line is operating margin. Each bar opens its annual report.' + (d.years.some(function (y) { return y.predecessor; }) ? ' Paler bars were reported by the predecessor registrant.' : '');
   }
 
+  // dividends (Q-04): a shared module, loaded only when the page shows them; a deep link below the block re-anchors once it is drawn
+  var dvP; function dv() { return dvP || (dvP = new Promise(function (ok, no) { if (window.prvDividends) return ok(window.prvDividends); var sc = document.createElement('script'); sc.src = '/app/dividends.js'; sc.onload = function () { window.prvDividends ? ok(window.prvDividends) : no(); }; sc.onerror = function () { dvP = null; no(); }; document.head.appendChild(sc); })); }
   /* ---- financial statements ---- */
   function statements(d) {
     var st = d.statements, box = $('fin-table'), tabs = $('fin-tabs');
@@ -219,6 +223,7 @@
     t.appendChild(tb);
     var pc = Object.keys(predCiks);
     box.replaceChildren(t);
+    if (tab === 'income') { var dh = el('section', { class: 'dv', 'aria-label': 'Dividends' }); box.appendChild(dh); dv().then(function (D) { return D.load(P.cik, { asOf: d.as_of }).then(function (r) { if (!dh.isConnected) return; D.block(dh, r, { cols: idx.map(function (i) { return st.fiscal_years[i]; }), basis: 'as_reported', period: 'annual', newestFirst: narrow.matches }); var h = /^#([a-z][\w-]*)$/.exec(location.hash), tg = h && $(h[1]); if (tg && dh.compareDocumentPosition(tg) & 4) tg.scrollIntoView(); }); }).catch(function () {}); }
     if (pc.length) {
       var who = (d.company.predecessors || []).filter(function (p) { return pc.indexOf(String(p.cik)) > -1 || pc.indexOf(String(parseInt(p.cik, 10))) > -1; })[0];
       box.appendChild(el('p', { class: 'pred-note' }, [el('span', { class: 'pred-swatch', 'aria-hidden': 'true' }), 'Shaded figures were reported by the predecessor registrant' + (who ? ', ' + P.orgName(who.display_name || who.name) : '') + ' (CIK ' + pc.join(', ') + '), each linked to its own filing.']));

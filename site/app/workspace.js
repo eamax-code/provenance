@@ -211,6 +211,8 @@
     if (S.tab === 'filings') changesSection(); if (S.tab === 'connections') treeSection();
     if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'people') peopleTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
   }
+  // dividends (Q-04): a shared module, loaded only when a view shows them
+  var dvP; function dv() { return dvP || (dvP = new Promise(function (ok, no) { if (window.prvDividends) return ok(window.prvDividends); var sc = document.createElement('script'); sc.src = '/app/dividends.js'; sc.onload = function () { window.prvDividends ? ok(window.prvDividends) : no(); }; sc.onerror = function () { dvP = null; no(); }; document.head.appendChild(sc); })); }
   function keyNeeded(p) {
     if (!p) return; var n = p.querySelector('.ws-keyneeded');
     if (!n) p.prepend(el('p', { class: 'ws-keyneeded muted', text: 'This tab reads the keyed API. Connect a free key above to use it.' }));
@@ -274,10 +276,13 @@
         el('td', { class: 'spark-c' }, [s ? spark(s.pts.map(function (x) { return x.v; })) : null])
       ]);
     });
+    var ovDiv = el('p', { class: 'ov-div', hidden: 'hidden' }), ovCik = S.cik;
+    dv().then(function (D) { return D.load(ovCik, { asOf: S.as_of }).then(function (r) { if (S.cik === ovCik) D.line(ovDiv, r); }); }).catch(function () {});
     var figs = el('section', { class: 'ov-figs', 'aria-labelledby': 'ov-figs-h' }, [
       el('h3', { id: 'ov-figs-h', text: 'Key figures' }),
       el('div', { class: 'tw' }, [el('table', { class: 'ov-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
-      el('p', { class: 'muted small ov-foot', text: 'In ' + cur + ', as reported. Click any figure for its filing, tag and mapping. Growth only between positive years; green and red only on flows.' })
+      el('p', { class: 'muted small ov-foot', text: 'In ' + cur + ', as reported. Click any figure for its filing, tag and mapping. Growth only between positive years; green and red only on flows.' }),
+      ovDiv
     ]);
     // events: the API's own labels (a Form 25 says what it is), information, not signals
     var evs = (d.events || []).slice(0, 7);
@@ -594,8 +599,10 @@
     var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
     var ctl = stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as reported' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + (adjOn ? '-split-adjusted' : '') + '.csv');
     if (hasAdj) ctl.insertBefore(el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Share basis' }, [['filed', 'As reported'], ['split', 'Split-adjusted']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String((S.adj || 'filed') === v[0]), title: v[0] === 'split' ? 'Shares and per-share figures before a split, adjusted to the later basis (derived)' : null, text: v[1], on: { click: function () { keep({ adj: v[0] }); statementsTab(); } } }); })), ctl.children[3]);
+    var dvHost = S.st === 'income' ? el('section', { class: 'dv', 'aria-label': 'Dividends' }) : null;
+    if (dvHost) { var dvCik = S.cik, dvCols = cols.map(function (c) { return c.period_label || c.key; }), dvP2 = S.p; dv().then(function (D) { return D.load(dvCik, { period: dvP2, asOf: S.as_of }).then(function (r) { if (dvHost.isConnected) var lw = wrap.querySelector('th.stick'); D.block(dvHost, r, { cols: dvCols, basis: adjOn ? 'split_adjusted' : 'as_reported', period: dvP2, labelWidth: lw ? Math.round(lw.getBoundingClientRect().width) : 0 }); }); }).catch(function () {}); }
     pane.replaceChildren.apply(pane, [ctl,
-      wrap,
+      wrap, dvHost,
       adjOn ? el('p', { class: 'muted small', text: 'Split-adjusted values are derived (shown in italics): each opens its card with the split ratio, the evidence and the restating filing. Rows the API has not adjusted keep their reported values.' }) : null,
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
       notes.length ? el('p', { class: 'muted small', text: notes.join(' ') }) : null].filter(Boolean));
