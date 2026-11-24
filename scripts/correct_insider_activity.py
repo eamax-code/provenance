@@ -1,10 +1,13 @@
 #!/usr/bin/env python
-"""F-03c: correct stored insider activity events for the 4/A-aware rules (049fef3).
+"""Correct stored insider activity events after a rule change, as corrections.
 
   python scripts/correct_insider_activity.py --out actions.jsonl     # dry run: counts, no writes
   python scripts/correct_insider_activity.py --write                 # retract, update, add
+  python scripts/correct_insider_activity.py --change f03b           # joint filers as one buyer
 
-Only issuers with a Form 4/A carrying open-market lines can change. Events are never deleted:
+--change f03c (default): the 4/A-aware rules (049fef3); only issuers with a Form 4/A carrying
+open-market lines can change. --change f03b: joint filers count as one buyer for cluster buying;
+only issuers with a stored cluster event can change. Events are never deleted:
 retracted ones keep a reason, corrected ones what they said before (previous_values), new ones
 are backfill (skipped, never notified).
 """
@@ -19,18 +22,28 @@ from collections import Counter
 from _bootstrap import bootstrap
 from sqlalchemy import select
 
-from app.db.models import InsiderFiling, InsiderTransaction
+from app.db.models import InsiderActivity, InsiderFiling, InsiderTransaction
 from app.services import insider_activity
+
+JOINT = (
+    "joint filers counted as separate buyers: the reporting owners of one Form 4, and "
+    "entities that file together, are one buyer"
+)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", default=None, help="the actions as JSONL")
+    ap.add_argument("--change", choices=("f03c", "f03b"), default="f03c")
+    ap.add_argument("--no-add", action="store_true", help="retract and update only (F-03b)")
     args = ap.parse_args()
     _, Session = bootstrap()
     db = Session()
-    ciks = sorted(set(db.scalars(
+    rules = None if args.change == "f03c" else {"joint_as_one": False}
+    ciks = sorted(set(db.scalars(select(InsiderActivity.cik).where(
+        InsiderActivity.activity_type == insider_activity.CLUSTER)))) if rules else \
+        sorted(set(db.scalars(
         select(InsiderFiling.issuer_cik).join(
             InsiderTransaction,
             InsiderTransaction.accession_number == InsiderFiling.accession_number)
@@ -40,7 +53,15 @@ def main() -> int:
     counts: Counter = Counter()
     out = open(args.out, "w") if args.out else None
     for i, cik in enumerate(ciks, 1):
-        for a in insider_activity.reconcile(db, cik, start, write=args.write):
+        for a in insider_activity.reconcile(
+            db,
+            cik,
+            start,
+            write=args.write,
+            before_rules=rules,
+            reason=JOINT if rules else None,
+            adds=not args.no_add,
+        ):
             counts[(a["action"], a["key"][0].split(".")[-1], a.get("reason", ""))] += 1
             if out:
                 row = {"cik": cik, "action": a["action"], "type": a["key"][0],

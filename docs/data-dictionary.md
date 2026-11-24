@@ -330,6 +330,16 @@ least as many lines, pairing with one original) gives its figures and dates and 
 it lists; one of 0 shares cancels the trade. Partial or ambiguous 4/As leave the original as
 filed.
 
+**Joint filers are one buyer (F-03b, 2026-11-25).** For cluster buying, the reporting owners of
+one Form 4 (a fund, its general partner, its manager) are one buyer, and so is every entity that
+ever files together with them at the issuer (one group); `detail.insiders` counts buyers, and a
+cluster needs three buyers filing apart. Stored clusters that counted joint filers separately
+were retracted ("joint filers counted as separate buyers…") or updated in place. **Interim limit
+until F-03d:** affiliates that never share a Form 4 (David Abrams and Abrams Capital's funds; two
+General Atlantic entity sets) still count as separate buyers, and clusters this rule newly finds
+in old filings are held, not stored (the tracker stores a cluster only when a new filing forms
+it, for a company already stored).
+
 **Corrections, never deletions (F-03c).** `status` is `active` or `retracted`. When a rule
 change means an event is no longer found, it is retracted, with `retracted_at` and a
 `retraction_reason` ("counted twice: a Form 4/A repeating its original Form 4", "the trade was

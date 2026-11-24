@@ -38,6 +38,9 @@ TYPES = {
                  "Large insider sale"),
 }  # fmt: skip
 CLUSTER_DAYS = 30
+# F-03b (PM, 2026-11-25): clusters the joint-filer rule finds in old filings of a company already
+# stored are held until affiliate linking (F-03d) is checked; new filings still form clusters
+HOLD_OLD_CLUSTERS = True
 CLUSTER_MIN = 3
 FIRST_BUY_GAP_DAYS = 730
 LARGE_SALE_USD = Decimal(1_000_000)
@@ -149,19 +152,44 @@ def _amended(trades: list[Trade]) -> list[Trade]:
     return out
 
 
+def buyers(trades: list[Trade]) -> dict[str, str]:
+    """F-03b: owner CIK -> buyer. The reporting owners of one Form 4 are one buyer (a fund, its
+    general partner and its managers), and so is every entity that ever files together with
+    them at this issuer (one group): a cluster needs three buyers who file apart."""
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        while parent.setdefault(x, x) != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for t in trades:
+        ciks = [o["owner_cik"] for o in t.owners]
+        for c in ciks[1:]:
+            a, b = find(ciks[0]), find(c)
+            if a != b:
+                parent[max(a, b)] = min(a, b)
+        for c in ciks:
+            find(c)
+    return {c: find(c) for c in parent}
+
+
 def detect(db: Session, cik: str, coverage_start: date | None = None,
-           amended: bool = True) -> list[dict]:  # fmt: skip
+           amended: bool = True, joint_as_one: bool = True) -> list[dict]:  # fmt: skip
     """Every activity the rules find for one issuer, oldest first (not stored). amended=False
-    reads trades as before Q-03d (each filing on its own), for F-03c's correction."""
+    reads trades as before Q-03d (each filing on its own) and joint_as_one=False counts every
+    reporting owner as a buyer (before F-03b), for the corrections of stored events."""
     trades = _trades(db, cik, amended)
     buys = [t for t in trades if t.code == "P"]
     out: list[dict] = []
+    group = buyers(trades) if joint_as_one else {}
 
     # cluster buying: a new cluster only after 30 days without one
     last_cluster: date | None = None
     for i, t in enumerate(buys):
         window = [b for b in buys[: i + 1] if (t.trans_date - b.trans_date).days <= CLUSTER_DAYS]
-        people = {o["owner_cik"] for b in window for o in b.owners}
+        people = {group.get(o["owner_cik"], o["owner_cik"]) for b in window for o in b.owners}
         if len(people) >= CLUSTER_MIN and (
             last_cluster is None or (t.trans_date - last_cluster).days > CLUSTER_DAYS
         ):
@@ -219,6 +247,8 @@ def store(
         if f"{a['type']}|{t.accession}" in have:
             continue
         fresh = new_accessions is not None and t.accession in new_accessions
+        if HOLD_OLD_CLUSTERS and a["type"] == CLUSTER and have and not fresh:
+            continue  # F-03b: clusters the joint-filer rule newly finds wait for F-03d
         row = InsiderActivity(
             cik=cik, activity_type=a["type"], activity_date=t.trans_date,
             filing_date=t.filing_date, accession_number=t.accession,
@@ -283,7 +313,8 @@ def as_dict(row: InsiderActivity) -> dict:
 
 
 def reconcile(db: Session, cik: str, coverage_start: date | None = None, write: bool = False,
-              now=None) -> list[dict]:  # fmt: skip
+              now=None, before_rules: dict | None = None,
+              reason: str | None = None, adds: bool = True) -> list[dict]:  # fmt: skip
     """F-03c: correct one issuer's stored events for 049fef3 (the rules read trades as amended
     by their Forms 4/A), as a correction and only where that change moves the result: the
     rules are run both ways and only their differences act on stored events. An event no longer
@@ -297,8 +328,10 @@ def reconcile(db: Session, cik: str, coverage_start: date | None = None, write: 
         return {"activity_date": a["trade"].trans_date.isoformat(), "owners": a["owners"],
                 "detail": a["detail"]}  # fmt: skip
 
+    rules = before_rules if before_rules is not None else {"amended": False,
+                                                            "joint_as_one": False}  # fmt: skip
     before = {(a["type"], a["trade"].accession): a
-              for a in detect(db, cik, coverage_start, amended=False)}  # fmt: skip
+              for a in detect(db, cik, coverage_start, **rules)}  # fmt: skip
     after = {(a["type"], a["trade"].accession): a for a in detect(db, cik, coverage_start)}
     rows = db.scalars(select(InsiderActivity).where(InsiderActivity.cik == cik))
     have = {(r.activity_type, r.accession_number): r for r in rows}
@@ -311,15 +344,17 @@ def reconcile(db: Session, cik: str, coverage_start: date | None = None, write: 
         if b is not None and a is None:
             if r is None or r.status == "retracted":
                 continue
-            if forms.get(key[1]) == "4/A":
-                reason = "counted twice: a Form 4/A repeating its original Form 4"
+            if reason is not None:
+                why = reason
+            elif forms.get(key[1]) == "4/A":
+                why = "counted twice: a Form 4/A repeating its original Form 4"
             elif key[1] not in trades:
-                reason = "the trade was cancelled by its Form 4/A"
+                why = "the trade was cancelled by its Form 4/A"
             else:
-                reason = "no longer meets the rule once Form 4/A corrections are applied"
-            actions.append({"action": "retract", "key": key, "row": r, "reason": reason})
+                why = "no longer meets the rule once Form 4/A corrections are applied"
+            actions.append({"action": "retract", "key": key, "row": r, "reason": why})
             if write:
-                r.status, r.retracted_at, r.retraction_reason = "retracted", now, reason
+                r.status, r.retracted_at, r.retraction_reason = "retracted", now, why
         elif a is not None and r is not None:
             old = {"activity_date": r.activity_date.isoformat(), "owners": json.loads(r.owners),
                    "detail": json.loads(r.detail)}  # fmt: skip
@@ -332,7 +367,7 @@ def reconcile(db: Session, cik: str, coverage_start: date | None = None, write: 
                     r.activity_date, r.owners, r.detail = t.trans_date, \
                         json.dumps(a["owners"]), json.dumps(a["detail"])  # fmt: skip
                     r.status, r.retracted_at, r.retraction_reason = "active", None, None
-        elif a is not None and b is None:
+        elif a is not None and b is None and adds:
             t = a["trade"]
             actions.append({"action": "add", "key": key, "new": view(a)})
             if write:

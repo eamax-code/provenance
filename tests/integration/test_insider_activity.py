@@ -184,3 +184,80 @@ def test_stored_events_are_corrected_never_deleted(db, client, auth, settings):
     accs = {i.get("accession_number") for i in tl["data"]}
     assert other in accs and twin not in accs
     assert insider_activity.reconcile(db, CIK, start) == []  # done once
+
+
+def test_chat_leaves_out_retracted_events(db):
+    """F-03c: chat's insider answer cites active events only."""
+    import json
+
+    from app.services import chat_intents
+    from app.services.intel import Brief
+
+    _company(db)
+    for n, day, status in ((1, D0, "active"), (2, D0 + timedelta(days=5), "retracted")):
+        db.add(InsiderActivity(cik=CIK, activity_type=insider_activity.LARGE_SALE,
+                               activity_date=day, filing_date=day, accession_number=f"x-{n}",
+                               owners=json.dumps([]), detail=json.dumps({"value_usd": 2e6}),
+                               source_url=f"https://www.sec.gov/Archives/{n}",
+                               status=status))  # fmt: skip
+    db.commit()
+    company = db.scalar(select(Company).where(Company.cik == CIK))
+    text = chat_intents.insiders(db, Brief(company=company, as_of=None), None, "insider activity")
+    assert str(D0) in text and str(D0 + timedelta(days=5)) not in text
+
+
+def test_joint_filers_are_one_buyer(db):
+    """F-03b: the reporting owners of one Form 4 (a fund, its general partner, its manager) are
+    one buyer, and so are entities that ever file together; a cluster needs three buyers filing
+    apart (CIK 1037390: one fund group of seven entities made every purchase a cluster)."""
+    _company(db)
+    start = D0 - timedelta(days=900)
+    _trade(db, 1, 1, start, "P", 100, 10)
+    joint = _trade(db, 2, 11, D0, "P", 100, 10)  # owners 11, 12 and 13 on one Form 4
+    for owner in (12, 13):
+        db.add(InsiderFiling(accession_number=joint, issuer_cik=CIK, owner_cik=f"{owner:010d}",
+                             owner_name=f"OWNER {owner}", is_officer=False, is_director=False,
+                             form_type="4", filing_date=D0, period_of_report=D0,
+                             source="filing"))  # fmt: skip
+    _trade(db, 3, 12, D0 + timedelta(days=2), "P", 100, 10)  # the same group, on its own
+    db.commit()
+    kinds = [a["type"] for a in insider_activity.detect(db, CIK, start)]
+    assert insider_activity.CLUSTER not in kinds
+    assert insider_activity.CLUSTER in [  # as counted before F-03b
+        a["type"] for a in insider_activity.detect(db, CIK, start, joint_as_one=False)
+    ]
+    _trade(db, 4, 21, D0 + timedelta(days=3), "P", 100, 10)  # two more buyers, filing apart
+    _trade(db, 5, 22, D0 + timedelta(days=4), "P", 100, 10)
+    db.commit()
+    cl = [a for a in insider_activity.detect(db, CIK, start)
+          if a["type"] == insider_activity.CLUSTER]  # fmt: skip
+    assert len(cl) == 1 and cl[0]["detail"]["insiders"] == 3  # the group, 21 and 22
+
+
+def test_old_clusters_newly_found_wait_for_f03d(db):
+    """F-03b hold: for a company already stored, a cluster the joint-filer rule newly finds in old
+    filings is not added by the tracker's store(); one formed by a new filing is."""
+    _company(db)
+    start = D0 - timedelta(days=900)
+    _trade(db, 1, 1, start, "P", 100, 10)
+    _trade(db, 2, 2, D0, "P", 100, 10)
+    _trade(db, 3, 3, D0 + timedelta(days=1), "P", 100, 10)
+    third = _trade(db, 4, 4, D0 + timedelta(days=2), "P", 100, 10)
+    db.commit()
+    db.add(
+        InsiderActivity(
+            cik=CIK,
+            activity_type=insider_activity.FIRST_BUY,
+            activity_date=D0,
+            filing_date=D0,
+            accession_number="0001-26-000002",
+            owners="[]",
+            detail="{}",
+            source_url="x",
+        )
+    )  # the company is stored already
+    db.commit()
+    kinds = {r.activity_type for r in insider_activity.store(db, CIK, set(), start)}
+    assert insider_activity.CLUSTER not in kinds  # an old cluster: held
+    kinds = {r.activity_type for r in insider_activity.store(db, CIK, {third}, start)}
+    assert insider_activity.CLUSTER in kinds  # formed by a new filing: stored
