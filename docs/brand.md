@@ -84,7 +84,7 @@ Rules:
 
 ## Pre-launch gates (before the site is public)
 
-- [ ] **dembrandt competitor check:** extract Koyfin, Fiscal.ai, TIKR, Finviz and AlphaSense with dembrandt 0.41.0 (commands in `provenance-review/brand/dembrandt/RUN.md`, for the owner to run), and confirm that no competitor uses a near-identical yellow-and-black mark or palette. If one does, revise before launch.
+- [x] **dembrandt competitor check: passed on 24 Nov 2026.** dembrandt 0.41.0 (run by the owner, `provenance-review/brand/dembrandt/RUN.md`) on Koyfin, Fiscal.ai, TIKR, Finviz and AlphaSense found no brand colour within ΔE 10 of the marker (the nearest is TIKR's orange, ΔE 27.5) and no mark that could be confused with the highlight-and-leader. Near-black ink is shared by all of them, as text colour. Details: `provenance-review/brand/dembrandt/COMPARISON.md`. Re-run before launch if the mark or the marker changes.
 - [ ] **Trademark clearance** for the name and the mark (owner).
 - [ ] **Real tab check** of the favicon on light and dark after any icon change.
 - [x] Contrast (WCAG AA) on all four themes at 1440 and 390 (`scripts/ui_checks/check.mjs`).
