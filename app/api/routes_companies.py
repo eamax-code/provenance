@@ -847,51 +847,61 @@ def statement(
             reviewed_only=True,
         )
     if breaks:
-        b = next(iter(breaks.values()))
 
         def month(d: str) -> str:
             return statements_service.date_label(d)
 
-        if bases:
-            is_reviewed, split_date = True, b["split_date"]
-        else:
-            is_reviewed, split_date = reviewed_match(b["between"], b["ratio_hint"])
-        restated_in = filing_at(b["between"][1])
-        # S-02c: only a reviewed split names its ratio and gets adjusted values; the guard alone
-        # failed a hand-check of 30 (IPOs and mergers read as splits, reverse ratios off)
-        filed_where = (f"restated in the {restated_in['form']} filed {restated_in['filed_date']}"
-                       if restated_in else "restated in a later filing")  # fmt: skip
-        earlier = b.get("earlier", [])
-        for e in earlier if not bases else []:
-            e["split_date"] = reviewed_match(e["between"], e["ratio_hint"])[1]
-        pre = b.get("pre_split_columns") or []
-        in_order = b.get("in_order", True)  # else name the pre-split columns (MNST quarterly)
-        if is_reviewed:
-            lead = (f"{b['ratio_hint']} split, {month(split_date)}: shares" if split_date
-                    else "Shares")  # fmt: skip
-            where = "" if split_date else f", {filed_where}"
-            scope = (f"before {b['between'][1]}" if in_order
-                     else "in " + ", ".join(pre) + " (filed before the split)")  # fmt: skip
-            text = (
-                f"{lead} and per-share figures {scope} are on the pre-split "
-                f"share basis, as reported in the filing each cites; later filings restated "
-                f"some {'years' if period == 'annual' else 'periods'} for a stock split "
-                f"({b['ratio_hint']}{where}), so {b['between'][0]} and {b['between'][1]} are "
-                "on different share bases."
-                + "".join(f" An earlier split ({e['ratio_hint']}"
-                          + (f", {month(e['split_date'])}" if e["split_date"] else "")
-                          + f") also separates {e['between'][0]} and {e['between'][1]}."
-                          for e in earlier)
-                + " They are not adjusted."
-            )  # fmt: skip
-        else:
-            text = (f"The share basis changes here ({filed_where}): shares and per-share "
-                    f"figures before {b['between'][1]} are on the earlier share basis, as "
-                    f"reported in the filing each cites, so "
-                    f"{b['between'][0]} and {b['between'][1]} are on different share bases. "
-                    "They are not adjusted.")  # fmt: skip
-        notes.append(text)
-        for v in breaks.values():
+        def note(b: dict) -> tuple:
+            """A row's split note, built from that row's own break (rows can differ: EPS cited
+            from one filing, shares from another)."""
+            if bases:
+                is_reviewed, split_date = True, b["split_date"]
+            else:
+                is_reviewed, split_date = reviewed_match(b["between"], b["ratio_hint"])
+            restated_in = filing_at(b["between"][1])
+            # S-02c: only a reviewed split names its ratio and gets adjusted values; the guard
+            # alone failed a hand-check of 30 (IPOs and mergers read as splits, ratios off)
+            filed_where = (f"restated in the {restated_in['form']} filed "
+                           f"{restated_in['filed_date']}" if restated_in
+                           else "restated in a later filing")  # fmt: skip
+            earlier = b.get("earlier", [])
+            for e in earlier if not bases else []:
+                e["split_date"] = reviewed_match(e["between"], e["ratio_hint"])[1]
+            left, right = b["between"]
+            also = "".join(f" An earlier split ({e['ratio_hint']}"
+                           + (f", {month(e['split_date'])}" if e["split_date"] else "")
+                           + f") also separates {e['between'][0]} and {e['between'][1]}."
+                           for e in earlier)  # fmt: skip
+            if is_reviewed and not b.get("in_order", True):
+                # PM-approved copy (2026-11-25): the page marks each pre-split cell
+                lead = (f"{b['ratio_hint']} split, {month(split_date)}: shares" if split_date
+                        else "Shares")  # fmt: skip
+                marked = "marked years" if period == "annual" else "marked quarters"
+                text = (f"{lead} and per-share figures in the {marked} (filed before the split) "
+                        "are on the pre-split share basis, as reported in the filing each "
+                        f"cites; later filings restated some periods, so {left} and {right} "
+                        f"are on different share bases.{also} They are not adjusted.")  # fmt: skip
+            elif is_reviewed:
+                lead = (f"{b['ratio_hint']} split, {month(split_date)}: shares" if split_date
+                        else "Shares")  # fmt: skip
+                where = "" if split_date else f", {filed_where}"
+                text = (f"{lead} and per-share figures before {right} are on the pre-split "
+                        "share basis, as reported in the filing each cites; later filings "
+                        f"restated some {'years' if period == 'annual' else 'periods'} for a "
+                        f"stock split ({b['ratio_hint']}{where}), so {left} and {right} are on "
+                        f"different share bases.{also} They are not adjusted.")  # fmt: skip
+            else:
+                text = (f"The share basis changes here ({filed_where}): shares and per-share "
+                        f"figures before {right} are on the earlier share basis, as reported in "
+                        f"the filing each cites, so {left} and {right} are on different share "
+                        "bases. They are not adjusted.")  # fmt: skip
+            return text, split_date, restated_in, is_reviewed
+
+        for m in [r.metric for r in rows if r.metric in breaks]:
+            v = breaks[m]
+            text, split_date, restated_in, is_reviewed = note(v)
+            if text not in notes:
+                notes.append(text)
             v["text"], v["split_date"], v["restated_in"] = text, split_date, restated_in
             v["reviewed"] = is_reviewed
             v.pop("in_order", None)

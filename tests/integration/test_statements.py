@@ -451,7 +451,11 @@ def test_columns_filed_out_of_order_each_get_their_own_basis(client, auth, db, m
     brk = row["split_break"]
     assert brk["between"] == ["FY2019", "FY2020"] and brk["ratio_hint"] == "8:1"
     assert brk["pre_split_columns"] == ["FY2017", "FY2019"]
-    assert "figures in FY2017, FY2019 (filed before the split) are on the pre-split" in brk["text"]
+    assert brk["text"].startswith(
+        "8:1 split, July 2022: shares and per-share figures in the "
+        "marked years (filed before the split) are on the pre-split"
+    )
+    assert "so FY2019 and FY2020 are on different share bases" in brk["text"]
     assert row["split_adjusted"]["values"] == [0.5, 0.5, 0.525, 0.6]
     assert [c["value"] for c in row["cells"]] == [4.0, 0.5, 4.2, 0.6]  # as filed stays
 
@@ -488,16 +492,22 @@ def test_quarterly_split_break_is_per_column(client, auth, db, monkeypatch):
         db.add(Filing(cik=cik, accession_number=acc, form_type="10-K" if key == "k" else "10-Q",
                       filing_date=filed, first_detected_at=now, quality_status="ok",
                       source_url=url))  # fmt: skip
-    for start, end, cls, key, shares in facts:
+    # EPS cited from other filings than the shares (as Apple's are): its own pair of columns
+    q3, q1 = (date(2025, 7, 1), date(2025, 9, 30)), (date(2026, 1, 1), date(2026, 3, 31))
+    facts += [(*q3, "quarterly", "q3", 0.53, "eps_basic"),
+              (*q1, "quarterly", "q1", 0.99, "eps_basic")]  # fmt: skip
+    for start, end, cls, key, shares, *metric in facts:
         acc = f"{cik}-26-00000{list(filings).index(key) + 1}"
+        m, unit = (metric[0], "USD/shares") if metric else ("shares_basic_weighted", "shares")
         db.add(FinancialFact(
-            cik=cik, metric="shares_basic_weighted", value=shares, unit="shares", currency=None,
+            cik=cik, metric=m, value=shares, unit=unit, currency=None,
             period_start=start, period_end=end, period_type="duration", period_class=cls,
             fiscal_year=end.year, fiscal_period="Q", form_type="10-Q", filed_date=filings[key],
             accession_number=acc, source_tag="t", source_taxonomy="us-gaap",
             source_url=f"https://www.sec.gov/Archives/edgar/data/783/{acc}-index.html",
             mapping_version="1.5.0", quality_status="ok", derived=False, first_detected_at=now,
-            processed_at=now, observation_key=hashlib.sha256(f"s{start}{end}".encode()).hexdigest(),
+            processed_at=now,
+            observation_key=hashlib.sha256(f"{m}{start}{end}".encode()).hexdigest(),
         ))  # fmt: skip
     db.commit()
     _reviewed(monkeypatch, {(cik, "2:1"): ("2026-08-10",)})
@@ -513,3 +523,14 @@ def test_quarterly_split_break_is_per_column(client, auth, db, monkeypatch):
     adj = dict(zip(keys, row["split_adjusted"]["values"], strict=True))
     assert adj["Q1 FY2026"] == 1_956_618e3 and adj["Q3 FY2025"] == 1_953_217e3
     assert cells["Q2 FY2026"]["value"] == 978_662e3  # as filed stays the default
+    # each row's note names that row's own pair (Apple's quarterly note named another row's)
+    eps = next(r for r in body["rows"] if r["metric"] == "eps_basic")["split_break"]
+    assert eps["between"] == ["Q3 FY2025", "Q1 FY2026"]
+    for b in (brk, eps):
+        left, right = b["between"]
+        assert f"so {left} and {right} are on different share bases" in b["text"]
+        assert b["text"] in body["notes"]
+    assert brk["text"].startswith(
+        "2:1 split, August 2026: shares and per-share figures in the "
+        "marked quarters (filed before the split)"
+    )

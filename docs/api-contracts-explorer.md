@@ -190,8 +190,13 @@ Rules:
   2026 2:1 split) sit beside a restated Q3 2025 and a post-split Q3 2026. `split_break` adds
   `pre_split_columns` (every column on an earlier basis; they need not come first), `between` is
   the latest pair of adjacent columns on different bases, and when the pre-split columns are not
-  simply the ones before it the text names them ("... figures in Q1 FY2026, Q2 FY2026 (filed
-  before the split) are on the pre-split share basis ..."). `split_adjusted.values` adjusts every
+  simply the ones before it the text reads (PM-approved): "2:1 split, August 2026: shares and
+  per-share figures in the marked quarters (filed before the split) are on the pre-split share
+  basis, as reported in the filing each cites; later filings restated some periods, so Q2 FY2026
+  and Q3 FY2026 are on different share bases. They are not adjusted." ("marked years" on annual
+  views; the page marks each cell in `pre_split_columns`). Each row's `text` is built from that
+  row's own break: rows cited from different filings (EPS and shares) can name different pairs,
+  and `notes` lists each distinct text once. `split_adjusted.values` adjusts every
   pre-split cell wherever it sits (a later filing's restated value where one agrees within 2%,
   else the as-filed value by the ratio, compounded across splits); a cell filed within a split
   given only to the month has `null`. `source` is the first filing found restating a shown period
