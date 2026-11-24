@@ -12,7 +12,7 @@
 
 ## MCP server (for AI agents)
 - POST /mcp  Model Context Protocol, Streamable HTTP transport, JSON responses. Send your key as X-API-Key or Authorization: Bearer; without one the demo key and its limits apply.
-- Tools: search_companies, company_overview, get_figures (as_of), company_statements (as_of), company_timeline (as_of), list_filings, rank_companies, search_filings, recent_events, listing_events, company_connections, insider_transactions, screen_insider_trades (as_of), institutional_ownership, company_segments, companies_going_public, executive_pay (as_of), insider_plans (as_of), filing_changes (as_of), company_calendar, corporate_tree, comment_letters, private_raises. Each result keeps source_url and accession_number; cite them.
+- Tools: search_companies, company_overview, get_figures (as_of), company_statements (as_of), company_timeline (as_of), list_filings, rank_companies, search_filings, recent_events, listing_events, company_connections, insider_transactions, institutional_ownership, company_segments, companies_going_public, executive_pay (as_of), insider_plans (as_of), filing_changes (as_of), company_calendar, corporate_tree, comment_letters, private_raises. Each result keeps source_url and accession_number; cite them.
 - Claude Code: claude mcp add --transport http provenance https://THIS-HOST/mcp --header "X-API-Key: YOUR_KEY"
 
 ## Endpoints
