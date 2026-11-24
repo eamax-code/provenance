@@ -19,6 +19,11 @@
   var NS = 'http://www.w3.org/2000/svg';
   function sv(tag, attrs, text) { var n = document.createElementNS(NS, tag); Object.keys(attrs || {}).forEach(function (k) { if (attrs[k] != null) n.setAttribute(k, attrs[k]); }); if (text != null) n.textContent = text; return n; }
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // S-05: a fiscal column's header says what it covers and how the company names it (label_basis on statements)
+  function fyTip(c, basis) {
+    var l = c.period_label || c.key || '', q = /^Q\d/.test(l); if (!c.period_end) return '';
+    return l + ': the ' + (q ? 'quarter' : 'year') + ' ended ' + day(c.period_end) + (!/FY\d{4}/.test(l) || !basis ? '.' : /10-K/.test(basis) ? ', named as in the company\u2019s 10-K.' : q ? ', named by the year its fiscal year ends in.' : ', named by the year it ends in.');
+  }
   function day(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? +m[3] + ' ' + MON[+m[2] - 1] + ' ' + m[1] : '—'; }
   var ARCHIVE = /^https:\/\/www\.sec\.gov\/Archives\//;
   function money(v, cur, d) {
@@ -577,7 +582,7 @@
     // columns on an earlier share basis (split_break.pre_split_columns): they need not come first (a later filing restates
     // only the periods it shows again), so each such cell is marked and YoY only compares two cells on the same basis
     var preOf = function (r) { var ks = r.split_break && r.split_break.pre_split_columns; if (!ks) return null; var set = {}; ks.forEach(function (k) { var q = colAt(k); if (q > -1) set[q] = 1; }); return set; };
-    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
+    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: fyTip(c, b.label_basis), text: c.period_label || c.key }); })));
     var body = rows.map(function (r) {
       var ratio = r.unit_kind === 'ratio' || r.unit_kind === 'percent' || r.unit_kind === 'multiple';
       return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null, adjOn && r.split_adjusted ? el('span', { class: 'tag', title: (r.split_adjusted.basis || '') + ' Ratio ' + r.split_adjusted.ratio + '.' }, lab('split-adjusted, derived', 'adjusted')) : r.split_break ? el('span', { class: 'tag tag-sb', title: r.split_break.text || '' }, lab('mixed split basis', 'split')) : null])].concat(cols.map(function (col, i) {
