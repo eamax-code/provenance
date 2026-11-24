@@ -187,7 +187,7 @@ def _insider(db, cik, start, end, ref) -> list[dict]:
     out = []
     rows = db.scalars(
         select(InsiderActivity).where(
-            InsiderActivity.cik == cik,
+            InsiderActivity.cik == cik, InsiderActivity.status == "active",
             InsiderActivity.filing_date >= start,
             InsiderActivity.filing_date <= min(end, ref),
         )  # fmt: skip

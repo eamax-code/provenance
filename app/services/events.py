@@ -176,6 +176,7 @@ def fetch_page(
             .join(Company, Company.cik == InsiderActivity.cik)
             .where(
                 InsiderActivity.stream_status == "published",
+                InsiderActivity.status == "active",  # F-03c: retracted events leave the feed
                 InsiderActivity.stream_at.is_not(None),
                 InsiderActivity.stream_at <= until,
                 _after(InsiderActivity.stream_at, InsiderActivity.id, "insider", after),

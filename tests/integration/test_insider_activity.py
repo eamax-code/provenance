@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.models import Company, InsiderActivity, InsiderFiling, InsiderTransaction, utcnow
 from app.services import events, insider_activity
@@ -125,3 +125,62 @@ def test_owners_a_4a_adds_bought_on_the_trade_date(db):
             if a["type"] == insider_activity.FIRST_BUY]  # fmt: skip
     got = {a["owners"][0]["owner_cik"]: (a["trade"].accession, a["trade"].trans_date) for a in buys}
     assert got == {f"{7:010d}": (orig, D0), f"{8:010d}": (orig, D0)}
+
+
+def test_stored_events_are_corrected_never_deleted(db, client, auth, settings):
+    """F-03c: events stored under the rules before 049fef3 are corrected as such: one a 4/A
+    counted twice is retracted with its reason and leaves the feed and the public strip; one
+    whose 4/A changed its figures is updated with what it said before; one found only now is
+    added as backfill. Nothing is deleted."""
+    import json
+
+    settings.events_settle_seconds = 0
+    _company(db)
+    start = D0 - timedelta(days=900)
+    _trade(db, 1, 1, start, "P", 100, 10)
+    sale = _trade(db, 2, 4, D0, "S", 30000, 40, plan=False)  # $1.2M
+    twin = _trade(db, 3, 4, D0, "S", 30000, 40, plan=False, form="4/A",
+                  filed=D0 + timedelta(days=2))  # the same sale again  # fmt: skip
+    other = _trade(db, 4, 5, D0, "S", 30000, 40, plan=False)  # $1.2M as first filed
+    _trade(db, 5, 5, D0, "S", 30000, 50, plan=False, form="4/A",
+           filed=D0 + timedelta(days=3))  # restated: $1.5M  # fmt: skip
+    small = _trade(db, 6, 6, D0, "S", 20000, 40, plan=False)  # $0.8M as first filed
+    _trade(db, 7, 6, D0, "S", 30000, 40, plan=False, form="4/A",
+           filed=D0 + timedelta(days=3))  # restated: $1.2M, a large sale now  # fmt: skip
+    db.commit()
+    now = utcnow()
+    for a in insider_activity.detect(db, CIK, start, amended=False):  # as stored before
+        t = a["trade"]
+        db.add(InsiderActivity(cik=CIK, activity_type=a["type"], activity_date=t.trans_date,
+                               filing_date=t.filing_date, accession_number=t.accession,
+                               owners=json.dumps(a["owners"]), detail=json.dumps(a["detail"]),
+                               source_url="https://www.sec.gov/Archives/x",
+                               stream_status="published", stream_at=now))  # fmt: skip
+    db.commit()
+    before = db.scalar(select(func.count()).select_from(InsiderActivity))
+    acts = insider_activity.reconcile(db, CIK, start, write=True, now=now)
+    db.commit()
+    got = {(a["action"], a["key"][1]) for a in acts if a["key"][0] == insider_activity.LARGE_SALE}
+    # the 4/As counted as sales of their own are retracted too (#5, #7)
+    assert got == {("retract", twin), ("retract", "0001-26-000005"),
+                   ("retract", "0001-26-000007"), ("update", other), ("add", small)}  # fmt: skip
+    assert db.scalar(select(func.count()).select_from(InsiderActivity)) == before + 1
+    rows = {r.accession_number: r for r in db.scalars(select(InsiderActivity).where(
+        InsiderActivity.activity_type == insider_activity.LARGE_SALE))}  # fmt: skip
+    gone = insider_activity.as_dict(rows[twin])
+    assert gone["status"] == "retracted" and "counted twice" in gone["retraction_reason"]
+    fixed = insider_activity.as_dict(rows[other])
+    assert fixed["detail"]["value_usd"] == 1_500_000
+    assert fixed["previous_values"]["detail"]["value_usd"] == 1_200_000
+    assert rows[small].stream_status == "skipped" and rows[sale].status == "active"
+    since = (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+    feed = client.get(f"/v1/events?types=insider&since={since}", headers=auth).json()["data"]
+    assert twin not in {e["data"]["accession_number"] for e in feed}
+    public_service.reset_cache()
+    strip = client.get("/v1/public/insider-activity?limit=5").json()["data"]
+    assert twin not in {r["accession_number"] for r in strip}
+    frm = (D0 - timedelta(days=30)).isoformat()
+    tl = client.get(f"/v1/companies/{CIK}/timeline?types=insider&from={frm}", headers=auth).json()
+    accs = {i.get("accession_number") for i in tl["data"]}
+    assert other in accs and twin not in accs
+    assert insider_activity.reconcile(db, CIK, start) == []  # done once

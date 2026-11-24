@@ -332,6 +332,7 @@ def insiders(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
                 + "; ".join(parts) + f". {NOT_SIGNALS}")  # fmt: skip
     rows = list(db.scalars(
         select(InsiderActivity).where(InsiderActivity.cik == b.company.cik,
+                                      InsiderActivity.status == "active",
                                       InsiderActivity.filing_date <= ref,
                                       InsiderActivity.filing_date >= since)
         .order_by(InsiderActivity.filing_date.desc()).limit(5)

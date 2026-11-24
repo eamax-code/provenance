@@ -22,6 +22,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.timeutil import iso_z
 from app.db.models import InsiderActivity, InsiderFiling, InsiderTransaction, utcnow
 from app.services.sec_client import filing_index_url
 
@@ -68,7 +69,7 @@ def _role(f: InsiderFiling) -> str:
     return f.other_text or "Insider"
 
 
-def _trades(db: Session, cik: str) -> list[Trade]:
+def _trades(db: Session, cik: str, amended: bool = True) -> list[Trade]:
     filings: dict[str, list[InsiderFiling]] = {}
     for f in db.scalars(select(InsiderFiling).where(InsiderFiling.issuer_cik == cik)):
         filings.setdefault(f.accession_number, []).append(f)
@@ -103,7 +104,8 @@ def _trades(db: Session, cik: str) -> list[Trade]:
         t.shares += r.shares or 0
         t.lines += 1
         t.trans_date = min(t.trans_date, r.trans_date)
-    return sorted(_amended(list(by_key.values())),
+    trades = list(by_key.values())
+    return sorted(_amended(trades) if amended else trades,
                   key=lambda t: (t.trans_date, t.filing_date, t.accession))  # fmt: skip
 
 
@@ -147,9 +149,11 @@ def _amended(trades: list[Trade]) -> list[Trade]:
     return out
 
 
-def detect(db: Session, cik: str, coverage_start: date | None = None) -> list[dict]:
-    """Every activity the rules find for one issuer, oldest first (not stored)."""
-    trades = _trades(db, cik)
+def detect(db: Session, cik: str, coverage_start: date | None = None,
+           amended: bool = True) -> list[dict]:  # fmt: skip
+    """Every activity the rules find for one issuer, oldest first (not stored). amended=False
+    reads trades as before Q-03d (each filing on its own), for F-03c's correction."""
+    trades = _trades(db, cik, amended)
     buys = [t for t in trades if t.code == "P"]
     out: list[dict] = []
 
@@ -269,4 +273,76 @@ def as_dict(row: InsiderActivity) -> dict:
         "filing_date": row.filing_date.isoformat(), "accession_number": row.accession_number,
         "owners": json.loads(row.owners), "detail": json.loads(row.detail),
         "filing_url": row.source_url,
+        # F-03c: a retracted event says why; a corrected one what it said before
+        "status": row.status or "active",
+        **({"retracted_at": iso_z(row.retracted_at), "retraction_reason": row.retraction_reason}
+           if row.status == "retracted" else {}),
+        **({"corrected_at": iso_z(row.corrected_at),
+            "previous_values": json.loads(row.previous_values)} if row.corrected_at else {}),
     }  # fmt: skip
+
+
+def reconcile(db: Session, cik: str, coverage_start: date | None = None, write: bool = False,
+              now=None) -> list[dict]:  # fmt: skip
+    """F-03c: correct one issuer's stored events for 049fef3 (the rules read trades as amended
+    by their Forms 4/A), as a correction and only where that change moves the result: the
+    rules are run both ways and only their differences act on stored events. An event no longer
+    found is retracted (status, retracted_at, a reason), never deleted; one found with another
+    date, value or owners is corrected in place, keeping what it said before in
+    previous_values; one found for the first time is added as backfill (skipped, never
+    notified). Returns the actions; writes them only with write=True."""
+    now = now or utcnow()
+
+    def view(a: dict) -> dict:
+        return {"activity_date": a["trade"].trans_date.isoformat(), "owners": a["owners"],
+                "detail": a["detail"]}  # fmt: skip
+
+    before = {(a["type"], a["trade"].accession): a
+              for a in detect(db, cik, coverage_start, amended=False)}  # fmt: skip
+    after = {(a["type"], a["trade"].accession): a for a in detect(db, cik, coverage_start)}
+    rows = db.scalars(select(InsiderActivity).where(InsiderActivity.cik == cik))
+    have = {(r.activity_type, r.accession_number): r for r in rows}
+    trades = {t.accession for t in _trades(db, cik)}
+    forms = dict(db.execute(select(InsiderFiling.accession_number, InsiderFiling.form_type)
+                            .where(InsiderFiling.issuer_cik == cik)).all())  # fmt: skip
+    actions: list[dict] = []
+    for key in sorted(set(before) | set(after)):
+        b, a, r = before.get(key), after.get(key), have.get(key)
+        if b is not None and a is None:
+            if r is None or r.status == "retracted":
+                continue
+            if forms.get(key[1]) == "4/A":
+                reason = "counted twice: a Form 4/A repeating its original Form 4"
+            elif key[1] not in trades:
+                reason = "the trade was cancelled by its Form 4/A"
+            else:
+                reason = "no longer meets the rule once Form 4/A corrections are applied"
+            actions.append({"action": "retract", "key": key, "row": r, "reason": reason})
+            if write:
+                r.status, r.retracted_at, r.retraction_reason = "retracted", now, reason
+        elif a is not None and r is not None:
+            old = {"activity_date": r.activity_date.isoformat(), "owners": json.loads(r.owners),
+                   "detail": json.loads(r.detail)}  # fmt: skip
+            new = view(a)
+            if (b is None or view(b) != new) and old != new:
+                actions.append({"action": "update", "key": key, "row": r, "old": old, "new": new})
+                if write:
+                    r.previous_values, r.corrected_at = json.dumps(old), now
+                    t = a["trade"]
+                    r.activity_date, r.owners, r.detail = t.trans_date, \
+                        json.dumps(a["owners"]), json.dumps(a["detail"])  # fmt: skip
+                    r.status, r.retracted_at, r.retraction_reason = "active", None, None
+        elif a is not None and b is None:
+            t = a["trade"]
+            actions.append({"action": "add", "key": key, "new": view(a)})
+            if write:
+                db.add(InsiderActivity(
+                    cik=cik, activity_type=key[0], activity_date=t.trans_date,
+                    filing_date=t.filing_date, accession_number=t.accession,
+                    owners=json.dumps(a["owners"]), detail=json.dumps(a["detail"]),
+                    source_url=filing_index_url(cik, t.accession), stream_status="skipped",
+                    created_at=now,
+                ))  # fmt: skip
+    if write:
+        db.flush()
+    return actions

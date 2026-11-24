@@ -515,6 +515,7 @@ def _add_clusters(db: Session, rows: list[dict], s: Screen) -> None:
     for part in _chunks(issuers):
         for e in db.scalars(select(InsiderActivity).where(
                 InsiderActivity.activity_type == CLUSTER, InsiderActivity.cik.in_(part),
+                InsiderActivity.status == "active",
                 InsiderActivity.activity_date >= s.since)):  # fmt: skip
             if s.as_of and e.filing_date > s.as_of:
                 continue

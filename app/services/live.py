@@ -336,7 +336,7 @@ def insider_rows(
     stmt = (
         select(InsiderActivity, Company.legal_name, Company.ticker)
         .join(Company, Company.cik == InsiderActivity.cik)
-        .where(InsiderActivity.filing_date >= since)
+        .where(InsiderActivity.filing_date >= since, InsiderActivity.status == "active")
         .order_by(InsiderActivity.filing_date.desc(), InsiderActivity.activity_type)
         .limit(limit)
     )

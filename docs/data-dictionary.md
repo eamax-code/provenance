@@ -324,6 +324,24 @@ information about what insiders did, never a recommendation.
 feed (kind `insider`), type watches and MCP. Public: `/v1/public/insider-activity`; the company
 overview's `insider_activity`.
 
+**Trades as amended (049fef3, 2026-11-25).** The rules read each Form 4 as its Forms 4/A amend
+it: a paired 4/A never counts on its own; one that restates the trade in full (same code, at
+least as many lines, pairing with one original) gives its figures and dates and adds the owners
+it lists; one of 0 shares cancels the trade. Partial or ambiguous 4/As leave the original as
+filed.
+
+**Corrections, never deletions (F-03c).** `status` is `active` or `retracted`. When a rule
+change means an event is no longer found, it is retracted, with `retracted_at` and a
+`retraction_reason` ("counted twice: a Form 4/A repeating its original Form 4", "the trade was
+cancelled by its Form 4/A", "no longer meets the rule once Form 4/A corrections are applied").
+Retracted events leave the feed, type watches, timelines, the company overview, the public strip,
+the screener's `cluster` and chat. An event found with another date, value or owners is updated in
+place, with `corrected_at` and `previous_values` (what it said before: `activity_date`, `owners`,
+`detail`); one found only now is added as backfill (`skipped`, never notified). Every event
+carries `status`, and when it applies `retracted_at`, `retraction_reason`, `corrected_at` and
+`previous_values`. Run once for 049fef3 by `scripts/correct_insider_activity.py` (dry run first;
+a dump of `insider_activity` and `notification_deliveries` beforehand).
+
 ## company_lei, lei_overrides (launch plan K-01)
 
 An SEC filer's LEI and, through it, its listings in Europe, the UK and Canada

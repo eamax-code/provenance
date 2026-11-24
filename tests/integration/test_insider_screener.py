@@ -427,3 +427,14 @@ def test_a_buy_cancelled_by_a_4a_is_never_a_cluster_buy(client, auth, db, trades
     poe = rows["0000000203"]
     assert poe["amended"] is True and poe["shares"] == 0 and poe["cluster"] is None
     assert rows["0000000202"]["cluster"] is not None  # the others' purchases still count
+
+
+def test_a_retracted_cluster_event_marks_no_row(client, auth, db, trades):
+    """F-03c: a cluster event retracted after a rule correction no longer marks purchases."""
+    from sqlalchemy import update
+
+    assert any(r["cluster"] for r in _get(client, auth, cik=B).json()["data"])
+    retract = {"status": "retracted", "retracted_at": utcnow(), "retraction_reason": "test"}
+    db.execute(update(InsiderActivity).where(InsiderActivity.cik == B).values(**retract))
+    db.commit()
+    assert not any(r["cluster"] for r in _get(client, auth, cik=B).json()["data"])

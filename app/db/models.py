@@ -315,6 +315,13 @@ class InsiderActivity(Base):
     stream_status: Mapped[str] = mapped_column(Text, nullable=False, default="skipped")
     stream_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    # F-03c: a rule change retracts an event (never deletes it) or corrects it in place
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="active",
+                                        server_default="active")  # fmt: skip
+    retracted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    retraction_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    corrected_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    previous_values: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
 
 
 class FirstReported(Base):
