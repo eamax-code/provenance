@@ -23,6 +23,8 @@ the search page, the MCP tool and the chat question "which filings mention …".
 
 - `supply chain`: every word must appear in the section, in any order. Words are matched on their
   English stem (`tariffs` finds `tariff`). Common words (`the`, `of`, …) are ignored.
+- `"activations"`: a quoted word matches exactly as written (unquoted, the English stem
+  `activ` also finds `activities`).
 - `"going concern"`: a quoted phrase. **Every hit contains the phrase itself**: the words, in that
   order and next to each other, ignoring case and the punctuation or line breaks between them, with
   no stemming (`"material weakness"` does not find `material weaknesses`). Phrases and words mix:
@@ -92,7 +94,10 @@ A query with no searchable word (only common words or symbols) is `422 invalid_q
   word that appears in the text (`tariffs`).
 - `relevance` is between 0 and 1 with `sort=relevance`, and `null` with `sort=date`. Under
   relevance, a section whose title names the query (`risk factors`) ranks higher; ties go to the
-  newer filing.
+  newer filing. Relevance ranks the newest 2,000 matching sections (ranking reads each section's
+  stored index; a note says so); narrow with filters to rank older ones.
+- With a quoted phrase, sections are checked for the phrase as written; if 5,000 have been checked
+  (or 800 read in full) without filling the page, the page ends there with a note.
 - `company` is the company's current name; `ticker` is its primary ticker or `null`.
 - No total count: `has_more` says whether another page exists. Pages stop at `offset` 500; narrow
   the query or the filters to see past that.
@@ -108,7 +113,8 @@ A query with no searchable word (only common words or symbols) is `422 invalid_q
 
 ## MCP and chat
 
-- The MCP tool `search_filings` moves to this endpoint, with the same parameters (`query` for `q`).
+- The MCP tool `search_filings` moves to this endpoint, with the same parameters (`query` for `q`,
+  `as_of` for `filed_to`).
 - Chat answers "which filings mention X", "who talks about X in their risk factors" and similar
   questions with the top hits as cited passages, each linked to its document, and says what the
   search covers when no hit is found.

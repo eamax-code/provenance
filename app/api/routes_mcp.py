@@ -213,8 +213,11 @@ TOOLS: dict[str, dict[str, Any]] = {
         "Information, not signals. Not investment advice.",
         "path": "/v1/companies/{cik}/executive-pay",
         "params": {"as_of": "as_of"},
-        "schema": {"type": "object", "properties": {"cik": _CIK, "as_of": _DATE},
-                   "required": ["cik"]},
+        "schema": {
+            "type": "object",
+            "properties": {"cik": _CIK, "as_of": _DATE},
+            "required": ["cik"],
+        },
     },  # fmt: skip
     "insider_plans": {
         "title": "Trading plans and proposed sales",
@@ -224,9 +227,11 @@ TOOLS: dict[str, dict[str, Any]] = {
         "Information, not signals. Not investment advice.",
         "path": "/v1/companies/{cik}/insider-plans",
         "params": {"since": "since", "as_of": "as_of", "limit": "limit"},
-        "schema": {"type": "object", "properties": {
-            "cik": _CIK, "since": _DATE, "as_of": _DATE, "limit": _LIMIT},
-            "required": ["cik"]},
+        "schema": {
+            "type": "object",
+            "properties": {"cik": _CIK, "since": _DATE, "as_of": _DATE, "limit": _LIMIT},
+            "required": ["cik"],
+        },
     },  # fmt: skip
     "filing_changes": {
         "title": "What changed in a 10-K",
@@ -236,10 +241,18 @@ TOOLS: dict[str, dict[str, Any]] = {
         "companies read for this; otherwise changes_not_available with the reason.",
         "path": "/v1/companies/{cik}/changes",
         "params": {"as_of": "as_of"},
-        "schema": {"type": "object", "properties": {
-            "cik": _CIK, "as_of": _DATE,
-            "accession": {"type": "string", "pattern": r"^\d{10}-\d{2}-\d{6}$",
-                          "description": "One annual report, e.g. 0000320193-25-000079"}}},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "as_of": _DATE,
+                "accession": {
+                    "type": "string",
+                    "pattern": r"^\d{10}-\d{2}-\d{6}$",
+                    "description": "One annual report, e.g. 0000320193-25-000079",
+                },
+            },
+        },
     },  # fmt: skip
     "company_calendar": {
         "title": "Company calendar",
@@ -248,11 +261,20 @@ TOOLS: dict[str, dict[str, Any]] = {
         "late-filing notices, IPO lock-up and quiet-period ends, and Form 144 windows.",
         "path": "/v1/companies/{cik}/calendar",
         "params": {"from": "from", "to": "to", "kinds": "kinds"},
-        "schema": {"type": "object", "properties": {
-            "cik": _CIK, "from": _DATE, "to": _DATE,
-            "kinds": {"type": "string", "description": "Comma-separated: filing_deadline, "
-                      "late_notice, lockup_expiry, quiet_period_end, proposed_sale_window_end"}},
-            "required": ["cik"]},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "from": _DATE,
+                "to": _DATE,
+                "kinds": {
+                    "type": "string",
+                    "description": "Comma-separated: filing_deadline, "
+                    "late_notice, lockup_expiry, quiet_period_end, proposed_sale_window_end",
+                },
+            },
+            "required": ["cik"],
+        },
     },  # fmt: skip
     "corporate_tree": {
         "title": "Corporate tree",
@@ -262,9 +284,11 @@ TOOLS: dict[str, dict[str, Any]] = {
         "jurisdiction. GLEIF Level 2 data, CC0.",
         "path": "/v1/companies/{cik}/corporate-tree",
         "params": {"children_limit": "children_limit", "subsidiaries_limit": "subsidiaries_limit"},
-        "schema": {"type": "object", "properties": {
-            "cik": _CIK, "children_limit": _LIMIT, "subsidiaries_limit": _LIMIT},
-            "required": ["cik"]},
+        "schema": {
+            "type": "object",
+            "properties": {"cik": _CIK, "children_limit": _LIMIT, "subsidiaries_limit": _LIMIT},
+            "required": ["cik"],
+        },
     },  # fmt: skip
     "comment_letters": {
         "title": "SEC comment letters",
@@ -274,12 +298,21 @@ TOOLS: dict[str, dict[str, Any]] = {
         "Each letter links its filing.",
         "path": "/v1/companies/{cik}/comment-letters",
         "params": {"since": "since", "topic": "topic", "limit": "limit"},
-        "schema": {"type": "object", "properties": {
-            "cik": _CIK, "since": _DATE, "limit": _LIMIT,
-            "topic": {"type": "string", "description": "revenue_recognition, non_gaap, "
-                      "segments, impairment, mdna, income_taxes, disclosure_controls, climate, "
-                      "cybersecurity, crypto, going_concern, related_parties, other"}},
-            "required": ["cik"]},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "since": _DATE,
+                "limit": _LIMIT,
+                "topic": {
+                    "type": "string",
+                    "description": "revenue_recognition, non_gaap, "
+                    "segments, impairment, mdna, income_taxes, disclosure_controls, climate, "
+                    "cybersecurity, crypto, going_concern, related_parties, other",
+                },
+            },
+            "required": ["cik"],
+        },
     },  # fmt: skip
     "private_raises": {
         "title": "Private raises (Form D)",
@@ -289,13 +322,28 @@ TOOLS: dict[str, dict[str, Any]] = {
         "Investment Fund), state, min_amount (USD), from/to (filing date) and exemption, or "
         "give cik for one issuer. Self-reported by the issuer on Form D; amounts as filed.",
         "path": "/v1/private-raises",
-        "params": {"industry": "industry", "state": "state", "min_amount": "min_amount",
-                   "from": "from", "to": "to", "exemption": "exemption", "limit": "limit"},
-        "schema": {"type": "object", "properties": {
-            "cik": _CIK, "industry": {"type": "string"}, "state": {"type": "string"},
-            "min_amount": {"type": "number", "minimum": 0}, "from": _DATE, "to": _DATE,
-            "exemption": {"type": "string", "description": "06b, 06c, 04, 3C.1, 3C.7, ..."},
-            "limit": _LIMIT}},
+        "params": {
+            "industry": "industry",
+            "state": "state",
+            "min_amount": "min_amount",
+            "from": "from",
+            "to": "to",
+            "exemption": "exemption",
+            "limit": "limit",
+        },
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "industry": {"type": "string"},
+                "state": {"type": "string"},
+                "min_amount": {"type": "number", "minimum": 0},
+                "from": _DATE,
+                "to": _DATE,
+                "exemption": {"type": "string", "description": "06b, 06c, 04, 3C.1, 3C.7, ..."},
+                "limit": _LIMIT,
+            },
+        },
     },  # fmt: skip
     "company_segments": {
         "title": "Segments",
@@ -381,25 +429,39 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
     },
     "search_filings": {
-        "title": "Search filing text",
-        "description": "Passages from filing sections (prospectuses, 8-K officer changes, earnings "
-        "releases) matching words, each with its filing link and a snippet.",
-        "path": "/v1/search",
+        "title": "Search inside filings",
+        "description": "Full-text search over stored filing sections (10-K risk factors and "
+        "MD&A, prospectus sections, earnings releases, 8-K officer changes): words by stem, "
+        '"quoted phrases" exactly as written, `or`, `-` to exclude. Each hit has its filing, '
+        "a snippet and the sec.gov/Archives document; coverage says what is searchable.",
+        "path": "/v1/search/filings",
         "params": {
             "query": "q",
             "cik": "cik",
             "form": "form",
-            "as_of": "as_of",
+            "section": "section",
+            "filed_from": "filed_from",
+            "as_of": "filed_to",
+            "sort": "sort",
             "limit": "limit",
+            "offset": "offset",
         },  # fmt: skip
         "schema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string"},
+                "query": {"type": "string", "description": 'e.g. "going concern" tariffs'},
                 "cik": _CIK,
-                "form": {"type": "string", "description": "e.g. S-1, 8-K"},
+                "form": {"type": "string", "description": "comma-separated, e.g. 10-K,S-1"},
+                "section": {
+                    "type": "string",
+                    "description": "annual_report, prospectus, "
+                    "earnings_release, 8k_officers, or an item code",
+                },  # fmt: skip
+                "filed_from": _DATE,
                 "as_of": _DATE,
-                "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 10},
+                "sort": {"type": "string", "enum": ["date", "relevance"], "default": "date"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20},
+                "offset": {"type": "integer", "minimum": 0, "maximum": 500, "default": 0},
             },
             "required": ["query"],
         },

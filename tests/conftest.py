@@ -94,15 +94,17 @@ def _one_suite_per_postgres_test_db():
 def _fresh_process_caches():
     """Each test has its own database, so the in-process caches (the stats snapshot, public
     responses) must not carry counts from the test before."""
-    from app.services import public, stats, thirteenf
+    from app.services import filing_search, public, stats, thirteenf
 
     stats.reset_cache()
     public.reset_cache()
     thirteenf.clear_cache()
+    filing_search.reset_section_map()
     yield
     stats.reset_cache()
     public.reset_cache()
     thirteenf.clear_cache()
+    filing_search.reset_section_map()
 
 
 @pytest.fixture

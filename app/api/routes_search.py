@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -14,7 +15,7 @@ from app.core.config import Settings
 from app.core.errors import APIError
 from app.db.models import Company, CompanyDocument, utcnow
 from app.schemas.common import ErrorEnvelope
-from app.services import documents, section_search, semantic_search
+from app.services import documents, filing_search, section_search, semantic_search
 from app.services.company_lookup import search_companies
 from app.services.public import showcase_ciks
 from app.services.sec_client import company_filings_url, normalize_cik
@@ -250,3 +251,174 @@ def _companies(db: Session, q: str) -> list[CompanyHit]:
                     )
                 )
     return out
+
+
+# -- Q-01: full-text search inside filings (docs/contracts/filing-search.md) -------------------
+
+_FORM = re.compile(r"^[A-Z0-9][A-Z0-9-]{0,11}(/A)?$")
+FILING_SEARCH_NOTE = (
+    "Searches the filing sections this service has stored (see coverage), not every filing on "
+    "EDGAR."
+)
+
+
+class FilingRef(BaseModel):
+    accession_number: str
+    form: str
+    filed_date: date | None
+    source_url: str = Field(description="The sec.gov/Archives document the section was read from")
+
+
+class SectionRef(BaseModel):
+    item: str
+    title: str
+
+
+class FilingHit(BaseModel):
+    cik: str
+    company: str | None
+    ticker: str | None
+    filing: FilingRef
+    section: SectionRef
+    snippet: str = Field(description="Plain text, about 35 words, around the matching terms")
+    highlights: list[list[int]] = Field(
+        description="[start, end) character offsets into snippet of each phrase or word shown"
+    )
+    relevance: float | None = Field(description="0 to 1 with sort=relevance, else null")
+
+
+class FilingSearchQuery(BaseModel):
+    q: str
+    phrases: list[str]
+    words: list[str]
+    excluded: list[str]
+    filters: dict
+    sort: str
+
+
+class FilingSearchMeta(BaseModel):
+    limit: int
+    offset: int
+    has_more: bool
+    next_offset: int | None
+
+
+class FilingSearchResult(BaseModel):
+    query: FilingSearchQuery
+    hits: list[FilingHit]
+    meta: FilingSearchMeta
+    coverage: list[dict]
+    notes: list[str]
+
+
+@router.get(
+    "/search/filings",
+    response_model=FilingSearchResult,
+    responses=_ERRORS,
+    summary="Full-text search inside filings",
+    description="Stored filing sections (10-K risk factors and MD&A, prospectus sections, "
+    'earnings releases, 8-K item 5.02) matching the query: words by English stem, "quoted '
+    'phrases" exactly as written, `or` between alternatives, `-` to exclude. One hit per '
+    "section, with a snippet and the sec.gov/Archives document it was read from. `coverage` "
+    "says what is searchable.",
+)
+def search_filings(
+    request: Request,
+    q: str = Query(..., min_length=2, max_length=filing_search.MAX_QUERY_LENGTH),
+    cik: str | None = Query(None, max_length=13, description="Only this company's filings"),
+    form: str | None = Query(
+        None,
+        max_length=120,
+        description="Comma-separated forms, e.g. 10-K,S-1 (a form includes its amendments)",
+    ),  # fmt: skip
+    section: str | None = Query(
+        None,
+        max_length=40,
+        description="annual_report, prospectus, "
+        "earnings_release, 8k_officers, or an item code from coverage",
+    ),  # fmt: skip
+    filed_from: date | None = Query(None, description="Filed on or after this date"),
+    filed_to: date | None = Query(None, description="Filed on or before this date (as of)"),
+    sort: str = Query("date", pattern="^(date|relevance)$"),
+    limit: int = Query(20, ge=1, le=filing_search.MAX_LIMIT),
+    offset: int = Query(0, ge=0, le=filing_search.MAX_OFFSET),
+    db: Session = Depends(db_session),
+    settings: Settings = Depends(settings_dep),
+    _key=Depends(require_reader),
+):
+    from app.services.intel import display_name
+
+    try:
+        query = filing_search.parse(q)
+    except filing_search.InvalidQuery as exc:
+        raise APIError(422, "invalid_query", str(exc)) from exc
+    try:
+        cik = normalize_cik(cik) if cik else None
+    except ValueError as exc:
+        raise APIError(422, "invalid_parameter", "cik must be numeric.") from exc
+    forms = [f.strip().upper() for f in form.split(",") if f.strip()] if form else None
+    if forms and (len(forms) > 10 or not all(_FORM.match(f) for f in forms)):
+        raise APIError(422, "invalid_parameter", "form must list up to 10 forms, e.g. 10-K,S-1.")
+    if section and section not in filing_search.FAMILIES:
+        if section not in filing_search.known_items(db):
+            raise APIError(422, "invalid_parameter", "section must be one of "
+                           + ", ".join(filing_search.FAMILIES) + " or an item code from "
+                           "coverage.")  # fmt: skip
+    if filed_from and filed_to and filed_from > filed_to:
+        raise APIError(422, "invalid_parameter", "filed_from is after filed_to.")
+    notes = [FILING_SEARCH_NOTE]
+    demo = getattr(request.state, "demo", False)
+    allowed = set(showcase_ciks(db, settings)[0]) if demo else None
+    if allowed is not None and cik and cik not in allowed:
+        raise APIError(403, "demo_scope", "The demo key covers the public showcase companies only.")
+    if allowed is not None:
+        limit, offset = min(limit, 10), 0
+    filters = filing_search.Filters(
+        cik=cik,
+        forms=forms,
+        section=section,
+        filed_from=filed_from,
+        filed_to=filed_to,
+        allowed=allowed,
+    )
+    found = filing_search.search(db, query, filters, sort=sort, limit=limit, offset=offset)
+    has_more = found.has_more
+    if allowed is not None and has_more:
+        has_more = False
+        notes.append("The demo key shows at most 10 hits, from the showcase companies; this "
+                     "list was trimmed.")  # fmt: skip
+    if found.truncated:
+        notes.append("The search stopped before checking every section for the quoted "
+                     "phrase; "
+                     "narrow the query or the filters to see more.")  # fmt: skip
+    if sort == "relevance":
+        notes.append(f"Relevance ranks the newest {filing_search.RELEVANCE_POOL:,} matching "
+                     "sections.")  # fmt: skip
+    ciks = {h.row.cik for h in found.hits}
+    companies = {c.cik: c for c in db.scalars(select(Company).where(Company.cik.in_(ciks)))}
+    hits = []
+    for h in found.hits:
+        c = companies.get(h.row.cik)
+        hits.append(FilingHit(
+            cik=h.row.cik,
+            company=display_name(c.legal_name, c.ticker, c.registrant_name) if c else None,
+            ticker=c.ticker if c else None,
+            filing=FilingRef(accession_number=h.row.accession_number, form=h.row.form,
+                             filed_date=h.row.filed, source_url=h.row.source_url),
+            section=SectionRef(item=h.row.item, title=section_search.section_title(h.row.item)),
+            snippet=h.snippet, highlights=h.highlights, relevance=h.relevance,
+        ))  # fmt: skip
+    return FilingSearchResult(
+        query=FilingSearchQuery(
+            q=query.q, phrases=query.phrases, words=query.words,
+            excluded=[t.text for t in query.excluded],
+            filters={"cik": cik, "form": forms, "section": section,
+                     "filed_from": filed_from.isoformat() if filed_from else None,
+                     "filed_to": filed_to.isoformat() if filed_to else None},
+            sort=sort),
+        hits=hits,
+        meta=FilingSearchMeta(limit=limit, offset=offset, has_more=has_more,
+                              next_offset=offset + limit if has_more else None),
+        coverage=filing_search.coverage(db),
+        notes=notes,
+    )  # fmt: skip

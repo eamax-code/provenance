@@ -250,10 +250,55 @@ def private_raise_filters(text: str, today: date) -> dict:
     return out
 
 
+# Q-01: "which filings mention X", "who talks about X in their risk factors"
+_MENTION_VERB = (r"(?:mentions?|mentioned|discuss(?:es|ed)?|talks? about|talked about|"
+                 r"disclos(?:e|es|ed)|cites?|cited|refers? to|warns? (?:about|of))")  # fmt: skip
+_MENTION = re.compile(
+    rf"\b(?:which|what)\b[^?]*?\b(?:filings?|compan(?:y|ies)|10-ks?|prospectus(?:es)?|"
+    rf"reports?|issuers?|releases?)\b[^?]*?\b{_MENTION_VERB}\b\s*(?P<rest>.+)|"
+    rf"\bwho\s+(?:else\s+)?{_MENTION_VERB}\s+(?P<rest2>.+)",
+    re.IGNORECASE,
+)
+_MENTION_SECTIONS = (
+    (re.compile(r"risk factors?", re.I), {"10k:1A", "pr:risk"}, "risk factors"),
+    (re.compile(r"md&a|management'?s discussion", re.I), {"10k:7", "pr:mdna"}, "MD&A"),
+    (re.compile(r"earnings releases?|press releases?", re.I), {"ex:99.1"}, "earnings releases"),
+    (re.compile(r"prospectus(?:es)?|s-1s?\b", re.I), None, "prospectuses"),
+)
+
+
+def mention_request(text: str) -> tuple[str, set[str] | None, str | None, str | None] | None:
+    """(the words asked about, section items, section label, family) for "which filings mention
+    X [in their risk factors]", or None."""
+    m = _MENTION.search(text)
+    if not m:
+        return None
+    rest = (m.group("rest") or m.group("rest2") or "").strip()
+    quoted = re.search(r'["“‘\']([^"”’\']{2,80})["”’\']', rest)
+    tail = ""
+    if quoted:
+        term, tail = quoted.group(1), rest[quoted.end() :]
+    else:
+        cut = re.search(r"\s+in\s+(?:their|the|its|his|her)\b|\s+(?:in|within)\s+(?=\S*"
+                        r"(?:10-k|prospectus|release|filing))|[?.!]", rest, re.I)  # fmt: skip
+        term, tail = (rest[: cut.start()], rest[cut.start() :]) if cut else (rest, "")
+    term = " ".join(term.split()).strip(" ,;:")
+    if len(term) < 2:
+        return None
+    for pat, items, label in _MENTION_SECTIONS:
+        if pat.search(tail):
+            return term, items, label, None if items else "prospectus"
+    if re.search(r"10-ks?|annual reports?", tail, re.I):
+        return term, None, "annual reports", "annual_report"
+    return term, None, None, None
+
+
 def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) -> Plan | None:
     """The cross-company intent a question names, or None for the company flow."""
     if _OUT_OF_SCOPE.search(text):
         return Plan("out_of_scope")
+    if mention_request(text):
+        return Plan("filing_search", filters={"text": text})
     if _is_private_raise(text):
         return Plan("private_raises", filters={"text": text})
     if db is not None and _COMPARE.search(text):
@@ -316,7 +361,64 @@ def answer(db: Session, p: Plan, ctx: ConversationContext | None, today: date) -
         return _screen(db, p)
     if p.kind == "private_raises":
         return _private_raises(db, p, today)
+    if p.kind == "filing_search":
+        return _filing_search(db, p, today)
     raise ValueError(p.kind)
+
+
+def _filing_search(db: Session, p: Plan, today: date) -> DataAnswer:
+    """Q-01: the stored sections that mention a phrase, newest first, each cited."""
+    from app.services import filing_search as fs
+    from app.services.section_search import section_title
+
+    term, items, label, fam = mention_request(p.filters.get("text", "")) or ("", None, None, None)
+    words = term.split()
+    q = f'"{term}"' if 1 < len(words) <= 5 and '"' not in term else term
+    where = f" in {label}" if label else ""
+    try:
+        query = fs.parse(q)
+    except fs.InvalidQuery:
+        return DataAnswer("Which words should I look for in the filings? Quote them, e.g. "
+                          'which filings mention "going concern".', "filing_search")  # fmt: skip
+    filters = fs.Filters(items=items, section=fam, filed_to=today)
+    found = fs.search(db, query, filters, sort="date", limit=TABLE_ROWS)
+    how = [{"endpoint": "/v1/search/filings",
+            "parameters": {"q": q, **({"section": fam} if fam else {}),
+                           "filed_to": today.isoformat()}}]  # fmt: skip
+    if not found.hits:
+        cov = "; ".join(
+            f"{c['section'].replace('_', ' ')} ({c['sections']:,} sections, "
+            f"{c['first_filed']} to {c['last_filed']})"
+            for c in fs.coverage(db)
+        )
+        return DataAnswer(f"No stored filing section mentions “{term}”{where}. The search "
+                          f"covers only the sections stored here: {cov}.", "filing_search",
+                          how=how)  # fmt: skip
+    cites: list[dict] = []
+    names = {c.cik: c for c in db.scalars(select(Company).where(
+        Company.cik.in_({h.row.cik for h in found.hits})))}  # fmt: skip
+    rows, cos = [], []
+    for h in found.hits:
+        c = names.get(h.row.cik)
+        name = _name(c) if c else h.row.cik
+        n = _cite(cites, f"{name} {h.row.form} filed {_d(h.row.filed)}", h.row.source_url)
+        if name not in cos:
+            cos.append(name)
+        rows.append([_cell(name), _cell(h.row.form, h.row.source_url), _cell(_d(h.row.filed)),
+                     _cell(section_title(h.row.item)),
+                     _cell(h.snippet + (f" [{n}]" if n else ""))])  # fmt: skip
+    k = len(found.hits)
+    more = " or more" if found.has_more else ""
+    text = (f"{k}{more} stored filing {_plural(k, 'section', 'sections')} mention “{term}”"
+            f"{where}, newest first; the most recent are from {', '.join(cos[:3])}.")  # fmt: skip
+    widget = _table(f"Filings that mention “{term}”{where}",
+                    ["Company", "Form", "Filed", "Section", "Passage"], rows,
+                    note=(f"Showing the newest {TABLE_ROWS}." if found.has_more
+                          else None))  # fmt: skip
+    return DataAnswer(text, "filing_search", [widget], citations=cites, how=how,
+                      notes=["Searches the filing sections stored here (10-K risk factors and "
+                             "MD&A, prospectuses, earnings releases, 8-K item 5.02), not every "
+                             "filing on EDGAR."])  # fmt: skip
 
 
 def _one_offering(db: Session, asked: str, one: dict | None) -> DataAnswer:
