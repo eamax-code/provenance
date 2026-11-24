@@ -539,7 +539,8 @@
     // cells align with columns by position (keys can repeat when a filer reuses a period label); values may come as strings
     var at0 = function (r, j) { var c = null, ci = -1; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; ci = i; return true; } return false; }); return c ? Object.assign({}, c, { value: Number(c.value), _i: ci }) : null; };
     // S-02: "Split-adjusted" swaps in the API's derived values (split_adjusted) where they differ from the as-filed ones; as filed stays the default
-    var hasAdj = rows.some(function (r) { return r.split_adjusted && r.split_adjusted.values; }), adjOn = hasAdj && S.adj === 'split';
+    // only a split confirmed from the company's own filings (split_break.reviewed) offers the switch; an unreviewed break keeps its note
+    var hasAdj = rows.some(function (r) { return r.split_break && r.split_break.reviewed === true; }) && rows.some(function (r) { return r.split_adjusted && r.split_adjusted.values; }), adjOn = hasAdj && S.adj === 'split';
     var at = function (r, j) {
       var c = at0(r, j), A = r.split_adjusted; if (!c || !adjOn || !A || !A.values) return c;
       var v = A.values[c._i]; if (v == null || !isFinite(Number(v)) || Number(v) === c.value) return c;
