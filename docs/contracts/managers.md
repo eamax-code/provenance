@@ -16,6 +16,14 @@ managers a quarter); earlier quarters only for some managers. `coverage` in each
 the first and last complete quarter loaded, and `history` lists only quarters loaded for that
 manager, so the page never implies a longer record.
 
+**Filings still in thousands after 2023.** Some managers kept reporting thousands after the
+switch, so their values are 1,000 times too small, and a filing-date rule cannot see it. Per
+filing, each position's implied price (value over shares) is compared with the median implied
+price of the same security across all managers that quarter; when the filing's median ratio is
+between 1/2,000 and 1/500, the filing is `value_scale_suspect: true`. Its values stay as filed
+(never scaled), but they are left out of totals, `pct_of_portfolio`, `sort=value` and every
+ranking that uses value, with a note. Shares are unaffected.
+
 **Reporting lag.** Managers file Form 13F up to 45 days after each quarter end, so holdings are
 as of the quarter end, not today. Every response carries `reporting_lag` (that sentence, for the
 page to show). A quarter is shown once its 45-day filing deadline has passed and the loaded data
@@ -109,13 +117,24 @@ quarter before.
   `totals.matched_value_usd` and `matched_positions` count those matched to a company here.
 - `pct_of_portfolio` is **derived**: the position's value over `totals.value_usd`.
 - `change.status`: `new` (not held the quarter before), `added`, `reduced`, `unchanged`, compared
-  on shares of the same company and class. `exited` lists positions held the quarter before and
+  on shares of the same company and class.
+- **Stock splits between the two quarter ends.** Where a reviewed split of the company
+  (the reviewed split list the statements use) falls after the previous quarter end and on or
+  before this one, the previous shares are put on the post-split basis before comparing, and
+  the change says `split_adjusted: true` (and `split: "10:1"`), with a note. For other
+  securities, when all managers' total shares moved by 1.9 times or more (or 0.55 or less)
+  while their total value moved by under 30%, `change` is `null` with a note ("possible split;
+  not compared"), and the security is left out of the activity ranking. Without this guard
+  NVIDIA's 10:1 split read as every holder adding 900%. `exited` lists positions held the quarter before and
   not now, **only when the manager filed holdings for this quarter** (no filing yet is not an
   exit). Changes compare shares, never values, so price moves are not read as buying or
   selling. When the quarter before is not loaded for the manager, `change` is `null` and
   `exited` is empty, with a note.
 - `sort=change` orders by the absolute share change times this quarter's price per share (value
   over shares), so a large sale and a large purchase both rank high.
+- `filing.value_scale_suspect` is `true` for a filing that looks like thousands after 2023 (see
+  Values); `totals.value_usd` and `pct_of_portfolio` are then `null` and `history` marks the
+  quarter the same way.
 - `totals.value_usd` is the sum of the manager's positions as stored (shares only); a 13F's own
   cover-page total can differ (it includes options and principal-amount rows).
 - `filing` is the 13F-HR the quarter's positions come from, with any amendments applied listed
@@ -157,7 +176,9 @@ manager's change against the quarter before.
 - Only managers that filed holdings for both quarters count for `added`, `reduced` and
   `exited`; `new` counts managers holding it now and not before.
 - `net_managers` is (new + added) − (reduced + exited). `bought` ranks by it, highest first;
-  `sold` lowest first; ties by `shares_change_pct`.
+  `sold` lowest first; ties by `shares_change_pct`. A reviewed split between the quarters is
+  adjusted for (the row says `split_adjusted: true`); a possible unreviewed split leaves the
+  security out, with a note counting them.
 - `shares` and `shares_previous` are the sums over all managers holding it; they are 13F
   positions, not the company's shares outstanding.
 - Only securities matched to a company here are ranked (a name as filed is not enough to add
@@ -174,8 +195,9 @@ manager's change against the quarter before.
 ## MCP and chat
 
 - MCP tools `search_managers`, `manager_portfolio`, `fund_activity`.
-- Chat answers "what did Berkshire buy last quarter", "most bought stocks by funds", "who sold
-  Apple" with the rows, each linked to its 13F, and the disclaimer.
+- Chat answers "what did Berkshire buy last quarter", "most bought stocks by funds" with the rows,
+  each linked to its 13F, and the disclaimer; "who sold Apple" links to the company's existing
+  holders view and uses the same split guard.
 
 ## Gate before release
 
@@ -183,6 +205,9 @@ manager's change against the quarter before.
   positions against the 13F information table XML (shares and value per class after amendment
   precedence, the change against the quarter before), including a manager whose table has put
   and call rows (left out: shares only), an amended 13F-HR/A, an unmatched position's name as
-  filed, and one pre-2023 filing if any are loaded. At most 1 wrong. The issuer-name table is a
+  filed, one reviewed split between quarters and one detected possible split, one
+  `value_scale_suspect` filing, and one pre-2023 filing if any are loaded. At most 1 wrong. The
+  count of `value_scale_suspect` filings per quarter is reported with the dry run. The issuer-name table is a
   data load of its own: dry run, then 30 names hand-checked against the filings.
-- R-2: p95 under 500 ms for search, a large portfolio (Berkshire, Vanguard) and the activity list.
+- R-2: p95 under 500 ms for search, a large portfolio (Berkshire, Vanguard, including
+  `sort=change` on Vanguard's 3,000+ positions) and the activity list.
