@@ -79,7 +79,7 @@ def funds(db):
     _filing(db, "0000900003-24-000001", M3, "Gamma Trust Co", Q1, f1)
     _hold(db, "0000900003-24-000001", M3, AAPL, Q1, f1, 100, 17)
     _filing(db, "0000900003-24-000002", M3, "Gamma Trust Co", Q2, f2)
-    _hold(db, "0000900003-24-000002", M3, AAPL, Q2, f2, 100, 21)
+    _hold(db, "0000900003-24-000002", M3, AAPL, Q2, f2, 100, 21, "CAP STK CL A")  # its own words
     _hold(db, "0000900003-24-000002", M3, NVDA, Q2, f2, 50, 6)
     # M4 holds Apple in both quarters (a third price for the median)
     for acc, q, f, v in (("0000900004-24-000001", Q1, f1, 17_000),
@@ -145,6 +145,9 @@ def test_a_filing_still_in_thousands_is_flagged_not_scaled(client, auth, db, fun
     assert body["totals"]["value_usd"] is None
     assert all(p["pct_of_portfolio"] is None for p in body["positions"])
     assert {p["value_usd"] for p in body["positions"]} == {21, 6}  # as filed
+    # one manager's own class wording does not relabel the security: most managers say COM
+    aapl = next(p for p in body["positions"] if p["issuer"]["cik"] == "0000320193")
+    assert (aapl["class_label"], aapl["title_of_class"]) == ("Common stock", "CAP STK CL A")
     assert any("thousands" in n for n in body["notes"])
 
 

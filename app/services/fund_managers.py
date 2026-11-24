@@ -61,9 +61,17 @@ def current_accessions(db: Session, period: date, as_of: date | None = None,
     return out, set(per)
 
 
-def _stream(db: Session, period: date, order):
-    q = (select(Holding13F.accession_number, Holding13F.cusip, Holding13F.filer_cik,
-                Holding13F.shares, Holding13F.value_usd)
+def _stream(db: Session, period: date, order, titles: bool = False):
+    cols = [
+        Holding13F.accession_number,
+        Holding13F.cusip,
+        Holding13F.filer_cik,
+        Holding13F.shares,
+        Holding13F.value_usd,
+    ]
+    if titles:
+        cols.append(Holding13F.title_of_class)
+    q = (select(*cols)
          .where(Holding13F.report_period == period).order_by(order)
          .execution_options(yield_per=STREAM))  # fmt: skip
     return db.execute(q)
@@ -76,6 +84,7 @@ def build_stats(db: Session, period: date, write: bool = True) -> dict:
     stats: list[dict] = []
     group: str | None = None
     per_filer: dict[str, list[float]] = {}
+    titles: dict[str, int] = {}
 
     def close():
         if group is None or not per_filer:
@@ -86,14 +95,18 @@ def build_stats(db: Session, period: date, write: bool = True) -> dict:
         prices = [v / s for s, v in held if v > 0]
         stats.append({"cusip": group, "report_period": period, "holders": len(held),
                       "shares": sum(s for s, _ in held), "value_usd": sum(v for _, v in held),
-                      "median_price": statistics.median(prices) if prices else None})  # fmt: skip
+                      "median_price": statistics.median(prices) if prices else None,
+                      "title": max(titles, key=titles.get) if titles else None})  # fmt: skip
 
-    for acc, cusip, filer, shares, value in _stream(db, period, Holding13F.cusip):
+    for acc, cusip, filer, shares, value, title in _stream(db, period, Holding13F.cusip,
+                                                            titles=True):  # fmt: skip
         if acc not in live:
             continue
         if cusip != group:
             close()
-            group, per_filer = cusip, {}
+            group, per_filer, titles = cusip, {}, {}
+        if title:
+            titles[title] = titles.get(title, 0) + 1
         sv = per_filer.setdefault(filer, [0.0, 0.0])
         sv[0] += float(shares)
         sv[1] += float(value)
@@ -148,11 +161,26 @@ def _bump_stats_version(db: Session) -> None:
         row.value, row.updated_at = now.isoformat(), now
 
 
-def keymap(db: Session) -> dict[str, tuple[str, str]]:
-    """CUSIP -> (company CIK, class label): securities matched to a company here."""
-    return {c: (cik, thirteenf.class_label(t) or "Shares")
+def keymap(db: Session, period: date) -> dict[str, tuple[str, str]]:
+    """CUSIP -> (company CIK, class label) for securities matched to a company here, labelled
+    from the class title most managers gave it that quarter (else the quarter before)."""
+    titles = class_titles(db, period)
+    return {c: (cik, thirteenf.class_label(titles.get(c) or t) or "Shares")
             for c, cik, t in db.execute(select(IssuerCusip.cusip, IssuerCusip.cik,
                                                IssuerCusip.class_title))}  # fmt: skip
+
+
+def class_titles(db: Session, period: date) -> dict[str, str]:
+    """CUSIP -> the class title most managers gave it in the quarter, else the quarter before."""
+    prev = thirteenf.previous_quarter(period)
+    out: dict[str, str] = {}
+    st = ThirteenFSecurityStat
+    for c, q, t in db.execute(select(st.cusip, st.report_period, st.title)
+                              .where(st.report_period.in_((period, prev)),
+                                     st.title.is_not(None))):  # fmt: skip
+        if q == period or c not in out:
+            out[c] = t
+    return out
 
 
 def split_between(cik: str, prev: date, cur: date) -> tuple[str, float] | None:
@@ -214,7 +242,7 @@ def same_after_split(now: float, prev: float, ratio: str | None) -> bool:
 def build_activity(db: Session, period: date, write: bool = True) -> dict:
     """Most bought and sold by funds for a quarter against the quarter before."""
     prev = thirteenf.previous_quarter(period)
-    keys = keymap(db)
+    keys = keymap(db, period)
     cur_now, filed_now = current_accessions(db, period)
     cur_prev, filed_prev = current_accessions(db, prev)
     both = filed_now & filed_prev
@@ -367,6 +395,7 @@ def reset_cache() -> None:
     global _cik_map
     _cik_map = None
     _views.clear()
+    _title_cache.clear()
 
 
 _views: dict[tuple, tuple[float, dict, list]] = {}
@@ -397,12 +426,28 @@ def cached_view(db: Session, cik: str, quarter: date, as_of: date | None):
     return p, h
 
 
-def _grouped(db: Session, pos: dict[str, dict], period: date,
-             names: bool = True) -> dict[tuple, dict]:  # fmt: skip
-    """Positions per (company, class) or, unmatched, per security under its name as filed."""
+def _titles(db: Session, period: date) -> dict[str, str]:
+    """class_titles per quarter, cached per process like the CUSIP map."""
+    import time
+
+    hit = _title_cache.get(period)
+    if hit is None or time.monotonic() - hit[0] > CIK_MAP_TTL:
+        hit = _title_cache[period] = (time.monotonic(), class_titles(db, period))
+    return hit[1]
+
+
+_title_cache: dict[date, tuple[float, dict[str, str]]] = {}
+
+
+def _grouped(db: Session, pos: dict[str, dict], period: date, names: bool = True,
+             label_period: date | None = None) -> dict[tuple, dict]:  # fmt: skip
+    """Positions per (company, class) or, unmatched, per security under its name as filed. A
+    matched security's class label is from the title most managers gave it (label_period's,
+    so two quarters compare on one label), not from this manager's own wording."""
     from app.db.models import ThirteenFIssuerName
 
     keys = _ciks(db)
+    majority = _titles(db, label_period or period)
     unmatched = [c for c in pos if c not in keys]
     found = {}
     if names and unmatched:
@@ -412,7 +457,10 @@ def _grouped(db: Session, pos: dict[str, dict], period: date,
         found = dict(db.execute(q).all())
     out: dict[tuple, dict] = {}
     for cusip, p in pos.items():
-        label = thirteenf.class_label(p["title"]) or "Shares"
+        label = (
+            thirteenf.class_label((majority.get(cusip) if cusip in keys else None) or p["title"])
+            or "Shares"
+        )
         # an unmatched security is one key per CUSIP: its title as filed can change wording
         # between quarters ("GOLD SHS" against "GOLD SHARES"), which read as new plus exited
         k = ("c", keys[cusip], label) if cusip in keys else ("u", cusip, "")
@@ -437,9 +485,8 @@ def portfolio(db: Session, cik: str, quarter: date, as_of: date | None = None) -
     pcur, _ = current_accessions(db, prev_q, as_of=as_of, filer=cik)
     pfs = pcur.get(cik)
     now = _grouped(db, _positions(db, [f.accession_number for f in fs]), quarter)
-    before = (
-        _grouped(db, _positions(db, [f.accession_number for f in pfs]), prev_q) if pfs else None
-    )
+    before = (_grouped(db, _positions(db, [f.accession_number for f in pfs]), prev_q,
+                       label_period=quarter) if pfs else None)  # fmt: skip
     matched = {k[1] for k in now if k[0] == "c"} | {k[1] for k in (before or {}) if k[0] == "c"}
     companies = {c.cik: c for c in db.scalars(select(Company).where(Company.cik.in_(matched)))}
     act = {(a.issuer_cik, a.class_label): a for a in db.scalars(select(ThirteenFActivity).where(

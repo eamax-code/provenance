@@ -506,6 +506,7 @@ class ThirteenFSecurityStat(Base):
     shares: Mapped[float] = mapped_column(Float, nullable=False)
     value_usd: Mapped[float] = mapped_column(Float, nullable=False)
     median_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)  # most managers' class title
 
 
 class ThirteenFFilingScale(Base):
