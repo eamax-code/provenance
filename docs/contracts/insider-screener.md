@@ -3,7 +3,7 @@
 `GET /v1/insider-transactions?type=&since=&until=&as_of=&min_value=&max_value=&role=&title=&cik=&owner_cik=&plan_10b5_1=&cluster=&sort=&limit=&offset=`
 
 Open-market purchases (Form 4 code `P`) and sales (code `S`) across every company, one row per
-Form 4: its lines of one code are added up, with the weighted average price. Built from the Form
+Form 4, code and security class: those lines are added up, with the weighted average price. Built from the Form
 3/4/5 data already stored (the SEC's quarterly insider data sets, plus Form 4s read as filed for
 the newest weeks). Information about what insiders reported, not signals.
 
@@ -39,17 +39,20 @@ the newest weeks). Information about what insiders reported, not signals.
       ],
       "type": "sell",
       "trans_code": "S",
+      "security_title": "Common Stock",
       "first_date": "2026-10-02",
       "last_date": "2026-10-03",
       "lines": 4,
       "shares": 129963,
       "average_price": 254.83,
       "value": 33118461.0,
+      "value_partial": false,
       "shares_after": 3280295,
       "holdings_change_pct": -3.8,
       "direct_indirect": "D",
       "plan_10b5_1": true,
       "cluster": null,
+      "amended_by": [],
       "filing": {"accession_number": "0001214156-26-000012", "form": "4",
                  "filed_date": "2026-10-03",
                  "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000121415626000012/"}
@@ -67,17 +70,30 @@ the newest weeks). Information about what insiders reported, not signals.
 
 ## Field rules
 
-- **One row per Form 4 and code.** A Form 4 with both purchases and sales gives two rows. Lines of
-  one code are added up: `shares` is their sum, `average_price` is weighted by shares, and
-  `value` is shares × price summed over lines with a price. `first_date` and `last_date` are the
-  earliest and latest transaction dates on those lines; `lines` counts them.
+- **One row per Form 4, code and security class.** A Form 4 with both purchases and sales gives
+  two rows, and so does one that sells Class A and Class C shares (Alphabet, Meta, Berkshire):
+  classes are never added together. `security_title` is the class as filed. Lines of one row are
+  added up: `shares` is their sum; `value` is shares × price summed over the lines with a price;
+  `average_price` is that value over those lines' shares (the priced lines only). `first_date`
+  and `last_date` are the earliest and latest transaction dates; `lines` counts them.
+- `value_partial` is `true` when some lines have a price and others do not: `value` then
+  understates the trade. `min_value` and `max_value` leave out rows whose `value` is `null`, and
+  `sort=value` puts them last.
+- **Amendments (Form 4/A) never make a row of their own,** so a trade is never counted twice.
+  Rows come from original Forms 4, with the figures as first filed. `amended_by` lists each Form
+  4/A for the same issuer, a reporting owner of the row, and the same reporting period, filed on
+  or after the original: `[{"accession_number", "filed_date", "source_url"}]`. When it is not
+  empty, the page says the figures may have been corrected and links the amendment. A 4/A whose
+  original Form 4 is not stored is not shown (since January 2025: 156 of 1,137 open-market 4/As);
+  `notes` says so.
 - **Derivative rows (table II), grants, exercises, gifts and tax withholding are not included.**
   The per-company `/v1/companies/{cik}/insider-transactions` keeps every code.
 - `value` is `null` when no line has a price. A line priced 0 counts as no price.
 - `shares_after` is the holding after the last line, as filed. `holdings_change_pct` is
   **derived**: `shares` against the holding before the trades (`shares_after` plus the shares
-  sold, or minus the shares bought). It is `null` when `shares_after` is missing or the holding
-  before would be 0 or less.
+  sold, or minus the shares bought). It is `null` when `shares_after` is missing, when the holding
+  before would be 0 or less, or when the lines mix direct and indirect holdings (the last line's
+  `shares_after` may then be the indirect one).
 - `direct_indirect` is `D` or `I` as filed on the last line; when the lines mix both, it is
   `mixed`.
 - `plan_10b5_1` is the Form 4's own checkbox: `true`, `false`, or `null` for Form 4s filed before
@@ -121,5 +137,7 @@ the newest weeks). Information about what insiders reported, not signals.
 
 - A dry run of the default screen and 5 filtered screens, then a hand-check of 30 random rows
   against their Form 4 XML (shares, weighted price, value, dates, owner, role, 10b5-1 box, and
-  the cluster flag against the F-03 event). At most 1 wrong.
+  the cluster flag against the F-03 event), with at least one dual-class issuer's row and one row
+  that has a Form 4/A, chosen on purpose. At most 1 wrong. The CSV export carries the disclaimer
+  in its header.
 - R-2: p95 under 500 ms for the default screen and the filtered shapes.
