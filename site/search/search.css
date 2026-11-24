@@ -50,3 +50,7 @@
 .fs-ex a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: .95rem; text-decoration-line: none; }
 .fs-ex a:hover { border-color: var(--soft); }
 .fs-ex a:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+/* What's searched: the coverage by section, behind a toggle (closed on phones) */
+.fs-what { margin: -10px 0 18px; font-size: .9rem; color: var(--soft); max-width: 110ch; }
+.fs-what > summary { cursor: pointer; min-height: 32px; display: list-item; color: var(--ink); font-weight: 600; }
+.fs-what p { margin: 2px 0 0; }

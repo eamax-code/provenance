@@ -98,6 +98,10 @@
     return 'searches the sections we hold: ' + cov.map(function (c) { return (bit[c.section] || c.section + ' for ') + Number(c.companies).toLocaleString('en-US') + ' companies'; }).join(', ') + '; not all of EDGAR';
   }
   function say(text) { $('fs-sum').textContent = text; }
+  // the per-section coverage sits under "What's searched" (PM, 24 Nov): open on desktop, closed on phones; the summary keeps one line
+  var what = $('fs-what'); what.open = !(window.matchMedia && matchMedia('(max-width: 760px)').matches);
+  function covList(cov) { var bit = { annual_report: '10-K risk factors and MD&A for ', prospectus: 'prospectuses for ', earnings_release: 'earnings releases for ', '8k_officers': 'officer-change 8-Ks for ' };
+    return cov.map(function (c) { return (bit[c.section] || c.section + ' for ') + Number(c.companies).toLocaleString('en-US') + ' companies'; }).join(', '); }
   function run(append) {
     syncUrl();
     if (!st.q) { hitsBox.textContent = ''; more.hidden = true; return; }
@@ -105,7 +109,7 @@
     document.body.classList.remove('fs-empty');
     var my = ++seq, off = append ? next : 0;
     if (!append) { hitsBox.textContent = ''; shown = 0; lastAcc = null; $('fs-h').textContent = /"/.test(st.q) ? 'Filings that say: ' + st.q : 'Filings that say “' + st.q + '”'; document.title = st.q + ' · Search inside filings · Provenance'; say('Searching…'); }
-    more.hidden = true;
+    more.hidden = true; if (!append) what.hidden = true;
     fetch('/v1/search/filings?' + query(off).toString() + '&limit=' + LIMIT, { headers: { Accept: 'application/json', 'X-API-Key': key() } })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { return { ok: r.ok, status: r.status, b: b }; }); })
       .then(function (r) {
@@ -125,7 +129,9 @@
         more.hidden = !m.has_more || next > MAXOFF;
         var sort = st.sort === 'relevance' ? 'most relevant first' : 'newest filing first', asof = st.filed_to ? ' · as known on ' + day(st.filed_to) : '';
         if (!shown) say('No stored section matches this search. It ' + coverage(b.coverage) + '.');
-        else say(shown + ' section' + (shown === 1 ? '' : 's') + ' shown' + (m.has_more ? (next > MAXOFF ? ', more than 500: narrow the search to see the rest' : ', more below') : '') + ' · ' + sort + asof + ' · ' + coverage(b.coverage) + '.');
+        else say(shown + ' section' + (shown === 1 ? '' : 's') + ' shown' + (m.has_more ? (next > MAXOFF ? ', more than 500: narrow the search to see the rest' : ', more below') : '') + ' · ' + sort + asof + ' · not all of EDGAR.');
+        what.hidden = !shown || !(b.coverage && b.coverage.length);
+        if (!what.hidden) $('fs-what-p').textContent = 'Searches the sections we hold: ' + covList(b.coverage) + '.';
         // the summary line already says what is searched, so the API's coverage note is not repeated (PM, 24 Nov); other notes show
         $('fs-cov').textContent = (b.notes || []).filter(function (n) { return !/not every filing on EDGAR/.test(n); }).join(' ');
         var api = $('fs-api'); api.hidden = false;
