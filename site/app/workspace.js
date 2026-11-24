@@ -569,14 +569,17 @@
     var colAt = function (k) { for (var q = 0; q < cols.length; q++) if (cols[q].key === k || cols[q].period_label === k) return q; return -1; };
     var sbOf = function (r) { return r.split_break && r.split_break.between ? colAt(r.split_break.between[1]) : -1; };
     var sbCols = rows.map(sbOf).filter(function (q) { return q > -1; });
+    // columns on an earlier share basis (split_break.pre_split_columns): they need not come first (a later filing restates
+    // only the periods it shows again), so each such cell is marked and YoY only compares two cells on the same basis
+    var preOf = function (r) { var ks = r.split_break && r.split_break.pre_split_columns; if (!ks) return null; var set = {}; ks.forEach(function (k) { var q = colAt(k); if (q > -1) set[q] = 1; }); return set; };
     var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: c.period_end ? 'ended ' + day(c.period_end) : '', text: c.period_label || c.key }); })));
     var body = rows.map(function (r) {
       var ratio = r.unit_kind === 'ratio' || r.unit_kind === 'percent' || r.unit_kind === 'multiple';
       return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null, adjOn && r.split_adjusted ? el('span', { class: 'tag', title: (r.split_adjusted.basis || '') + ' Ratio ' + r.split_adjusted.ratio + '.' }, lab('split-adjusted, derived', 'adjusted')) : r.split_break ? el('span', { class: 'tag tag-sb', title: r.split_break.text || '' }, lab('mixed split basis', 'split')) : null])].concat(cols.map(function (col, i) {
-        var sb = sbOf(r), sbc = sb > -1 && i === sb ? ' sb' : '';
+        var sb = sbOf(r), pre = preOf(r), adjRow = adjOn && r.split_adjusted, sbc = (sb > -1 && i === sb ? ' sb' : '') + (pre && pre[i] && !adjRow ? ' pre' : '');
         var c = at(r, i); if (!c || !isFinite(c.value)) return el('td', { class: 'n muted' + sbc, title: 'not reported', text: '—' });
         var txt;
-        if (S.show === 'yoy') { var back = S.p === 'quarterly' ? 4 : 1, pc = i >= back && !(sb > -1 && i >= sb && i - back < sb && !(adjOn && r.split_adjusted)) ? at(r, i - back) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
+        if (S.show === 'yoy') { var back = S.p === 'quarterly' ? 4 : 1, pc = i >= back && !(!adjRow && (pre ? !pre[i] !== !pre[i - back] : sb > -1 && i >= sb && i - back < sb)) ? at(r, i - back) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
         else if (S.show === 'common') { var bc = baseRow && at(baseRow, i); txt = ratio || !bc || !bc.value ? '—' : pct(100 * c.value / bc.value); }
         else txt = c.unit === 'ratio' ? pct(100 * c.value) : fmtv(c.value, c.unit, cur);
         var info = Object.assign({ label: r.label, metric: r.metric, currency: cur, fiscal_label: col.period_label || col.key, formula: r.formula }, c);
