@@ -346,3 +346,23 @@ def test_title_forms_that_are_not_the_officer_and_matching_owner_first(client, a
     (row,) = [r for r in body["data"] if r["filing"]["accession_number"] == acc]
     assert row["owners"][0]["officer_title"] == "CEO"
     assert body["through"] == "2026-11-10" and "datasets_through" in body  # 4/A on 11-12 not
+
+
+def test_role_ceo_cfo_is_the_companys_own_principal_officers(client, auth, db, trades):
+    from app.services.insider_screener import principal_roles as pr
+
+    yes = {"CEO": {"ceo"}, "Chairman, President and Chief Executive Officer": {"ceo"},
+           "EVP & CFO": {"cfo"}, "Interim CEO": {"ceo"}, "Co-CEO": {"ceo"},
+           "CEO ad interim": {"ceo"}, "SVP Finance, Treasurer, & CFO": {"cfo"},
+           "E.V.P., CFO, CSO": {"cfo"}, "CFO and Assistant Secretary": {"cfo"},
+           "Deputy CEO & CFO": {"cfo"}, "CEO, CFO and Secretary": {"ceo", "cfo"}}  # fmt: skip
+    for title, want in yes.items():
+        assert pr(title) == want, title
+    for title in ("KFC Division CEO", "CEO, Medicare Advantage", "Chief Executive Officer, Optum",
+                  "Group CEO", "Centennial Bank CEO", "Strategic Advisor to CEO",
+                  "Chief Executive Assistant", "Former CFO", "CEO Designate", "CEO of Manager",
+                  "Global COO & Deputy CEO", "President and CEO, Retail"):  # fmt: skip
+        assert pr(title) == set(), title
+    ceo = {r["issuer"]["cik"] for r in _get(client, auth, role="ceo").json()["data"]}
+    cfo = {r["issuer"]["cik"] for r in _get(client, auth, role="cfo").json()["data"]}
+    assert ceo == {A} and cfo == {C}  # Jane Smith, CEO of A; the CFOs of C

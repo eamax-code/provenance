@@ -25,7 +25,7 @@ from app.services.insider_activity import CLUSTER
 from app.services.sec_client import filing_index_url
 
 TYPES = {"buy": "P", "sell": "S"}
-ROLES = ("director", "officer", "ten_percent_owner", "other")
+ROLES = ("director", "officer", "ten_percent_owner", "other", "ceo", "cfo")
 MAX_DAYS = 366
 PRICE_OUTLIER = 20  # times the median price of the issuer's lines of the class nearby
 OUTLIER_DAYS = 30  # days either side of a row's trades for that median
@@ -88,6 +88,69 @@ _NOT_THE_OFFICER = re.compile(r"\b(?:advis[eo]r|assistant|aide|counsel(?:or)?|ch
 _NOT_AFTER = re.compile(r"\s*(?:assistant|advis[eo]r|aide)\b", re.IGNORECASE)  # "CEO Assistant"
 
 
+# role=ceo,cfo (PM decision, 24 Nov): the company's own principal executive and financial
+# officers. The title is split into parts (commas, &, /, "and", dashes, brackets). The part
+# naming the CEO or CFO may add only interim, acting or co; every other part must hold a role
+# word ("SVP Finance", "Chief Risk Officer", "Director (Class II)"), so a part that is a
+# business, unit or place ("CEO, Medicare Advantage", "President and CEO, Retail", "CEO - Asia
+# Pacific") leaves the title out, as do unit and other-person words anywhere (division, group,
+# bank, subsidiary, deputy, advisor, assistant, former, designate, elect, "to the", "of X"). A
+# missed row is better than a wrong one: title= still finds it.
+_CEO = re.compile(r"\b(?:ceo|(?:principal|chief)\s+exec(?:utive|\.)?(?:\s+off(?:icer|\.|ice)?)?"
+                  r")(?![a-z])", re.I)  # fmt: skip
+_CFO = re.compile(r"\b(?:cfo|(?:principal|chief)\s+financial(?:\s+off(?:icer|\.|ice)?)?)(?![a-z])",
+                  re.I)  # fmt: skip
+_SPLIT = re.compile(r"\s*(?:[,;/&|()+]|\band\b|\s[-\u2013\u2014]\s?|-\s)\s*", re.I)
+_LEAD_OK = {"interim", "acting", "co", "ad", "int", "the", "company"}
+_ROLE_WORDS = set("""
+officer off ofc ofcr offr chief president pres chairman chair chairwoman chairperson chrm chrmn
+chmn director dir directors md vp evp svp sevp csvp sr senior vice treasurer treas secretary sec
+controller contr counsel founder cofounder member trustee ceo cfo coo cao cto cio cco clo cbo cso
+cro cmo cpo gm head principal board bod executive exec manager partner cob ctlr secy pao pfo
+peo cc gc bd
+""".split())  # fmt: skip
+_NEUTRAL = set("""
+see remarks footnote footnotes note class i ii iii the of and co interim acting finance
+accounting treasury corp corporate dev development strategy admin administration
+""".split())  # fmt: skip
+_NOT_COMPANY = re.compile(r"\b(?:division\w*|segment|unit|group|region\w*|subsidiar\w*|bank\w*|"
+                          r"advis[eo]r|aide|former|designate|elect|emerit\w*)\b"
+                          r"|\bassistant\s+(?:to|ceo|cfo|chief)\b|\bexecutive\s+assistant\b"
+                          r"|\bto\s+(?:the\s+)?(?:ceo|cfo|chief)\b", re.I)  # fmt: skip
+_WORD = re.compile(r"[a-z]+")
+
+
+def principal_roles(title: str | None) -> set[str]:
+    """{"ceo", "cfo"} or a part of it: the company's own principal officers in the title."""
+    # "E.V.P." is evp, "Chief Exec. Officer" chief exec officer
+    t = " ".join((title or "").lower().replace("co-", "co ").replace(".", "").split())
+    if not (_CEO.search(t) or _CFO.search(t)) or _NOT_COMPANY.search(t):
+        return set()
+    for m in re.finditer(r"\bof\s+(?:the\s+)?([a-z]+)", t):
+        if m.group(1) not in _ROLE_WORDS | _NEUTRAL | {"company", "directors"}:
+            return set()  # "CEO of Manager", "CEO of Logistics": somebody else's officer
+    found: set[str] = set()
+    for part in (x for x in _SPLIT.split(t) if x and x.strip()):
+        hits = [(k, rx) for k, rx in (("ceo", _CEO), ("cfo", _CFO)) if rx.search(part)]
+        if hits:
+            rest = part
+            for _, rx in hits:
+                rest = rx.sub(" ", rest)
+            if "deputy" in _WORD.findall(rest):
+                continue  # "Deputy CEO & CFO": the deputy part is not the CEO; the CFO counts
+            # beside the CEO or CFO, only company-level role words ("Sr VP Chief Financial
+            # Officer"); "head" there names a business ("CEO Head Universal Banking")
+            if any(w not in _LEAD_OK and (w not in _ROLE_WORDS or w == "head")
+                   for w in _WORD.findall(rest)):  # fmt: skip
+                return set()  # "Group CEO", "KFC Division CEO", "CEO Head Universal Banking"
+            found |= {k for k, _ in hits}
+        else:
+            words = _WORD.findall(part)
+            if words and not (set(words) & _ROLE_WORDS) and not set(words) <= _NEUTRAL:
+                return set()  # a business, unit or place: "Medicare Advantage", "Retail"
+    return found
+
+
 def _matches(f, s: Screen) -> bool:
     """The owner meets the screen's role, title and owner filters (listed first on its row)."""
     if s.owner_cik and f.owner_cik != s.owner_cik:
@@ -98,7 +161,7 @@ def _matches(f, s: Screen) -> bool:
 
 
 def _role_keys(f: InsiderFiling) -> set[str]:
-    keys = set()
+    keys = set(principal_roles(f.officer_title)) if f.is_officer else set()
     if f.is_director:
         keys.add("director")
     if f.is_officer:

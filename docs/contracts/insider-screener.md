@@ -13,7 +13,7 @@ the newest weeks). Information about what insiders reported, not signals.
 | `since`, `until` | ISO dates on the transaction date, inclusive; at most 366 days apart | the 30 days to `until` |
 | `as_of` | ISO date: only Form 4s filed by then (no look-ahead); `until` defaults to it | none (today) |
 | `min_value`, `max_value` | US dollars, on the row's `value` | none |
-| `role` | comma-separated: `director`, `officer`, `ten_percent_owner`, `other` | none |
+| `role` | comma-separated: `director`, `officer`, `ten_percent_owner`, `other`, `ceo`, `cfo` (the company's own principal executive and financial officers; rule below) | none |
 | `title` | words in the officer title as filed, case ignored; up to 6 comma-separated alternatives, any of which matches, e.g. `chief executive,chief financial,ceo,cfo`. "Advisor to the CEO", "Assistant to the CFO", "Deputy CEO" and "Chief Executive Assistant" do not match | none |
 | `cik` | one issuer CIK | none |
 | `owner_cik` | one reporting person's CIK | none |
@@ -22,6 +22,17 @@ the newest weeks). Information about what insiders reported, not signals.
 | `sort` | `date` (newest transaction first), `value` (largest first) or `filed` (newest filing first) | `date` |
 | `limit` | 1-100 | 50 |
 | `offset` | 0-5000 | 0 |
+
+`role=ceo` and `role=cfo` (PM decision, 24 Nov) mean the company's own CEO and CFO, by the officer
+title as filed: one part of the title names the CEO or CFO (CEO, Chief Executive Officer,
+Principal Executive Officer; the same for CFO), alone or with company-level roles (Chairman,
+President, EVP, SVP, Treasurer, Director, Secretary, Co-, Interim, Acting, other C-level roles).
+Left out: unit and business CEOs ("KFC Division CEO", "CEO, Medicare Advantage", "Chief Executive
+Officer, Optum", "Group CEO"), subsidiaries and banks, regions, "advisor/assistant to the CEO",
+"Chief Executive Assistant", former, designate and elect, and a "Deputy CEO" (whose CFO title
+still counts). Where a title is not clear-cut it is left out: `title=` still finds it.
+Hand-check (four fresh samples of 30 matched and 30 excluded titles with CEO or CFO): 0 wrong among
+the matched; at most 1 clear miss among the excluded in the final sample.
 
 `role` and `title` keep a row when any of its reporting owners matches; the matching owners are
 listed first in `owners`.
