@@ -414,3 +414,16 @@ def test_a_4a_that_restates_the_row_shows_its_figures(client, auth, db, trades):
     rows = _get(client, auth, cik=E).json()["data"]
     assert sorted(x["shares"] for x in rows) == [300, 700]
     assert not any(x["amended"] for x in rows)
+
+
+def test_a_buy_cancelled_by_a_4a_is_never_a_cluster_buy(client, auth, db, trades):
+    """Q-03d: a 4/A of 0 shares ("No such sale has occurred") cancels the purchase: the row stays
+    (amended, 0 shares) but never carries a cluster, even though its owner is in the event."""
+    _filing(db, "0000000002-26-000004", B, "0000000203", "POE ANN", date(2026, 11, 7),
+            form="4/A", period=date(2026, 11, 5), director=True)  # fmt: skip
+    _line(db, "0000000002-26-000004", B, 1, "P", date(2026, 11, 4), 0, 0, 0)
+    db.commit()
+    rows = {r["owners"][0]["cik"]: r for r in _get(client, auth, cik=B).json()["data"]}
+    poe = rows["0000000203"]
+    assert poe["amended"] is True and poe["shares"] == 0 and poe["cluster"] is None
+    assert rows["0000000202"]["cluster"] is not None  # the others' purchases still count

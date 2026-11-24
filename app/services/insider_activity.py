@@ -53,6 +53,9 @@ class Trade:
     owners: list[dict]
     plan_10b5_1: bool | None
     officer_or_director: bool
+    form: str = "4"
+    period: date | None = None
+    lines: int = 0
 
 
 def _role(f: InsiderFiling) -> str:
@@ -94,11 +97,54 @@ def _trades(db: Session, cik: str) -> list[Trade]:
                         for o in owners],
                 plan_10b5_1=owners[0].plan_10b5_1,
                 officer_or_director=any(o.is_officer or o.is_director for o in owners),
+                form=owners[0].form_type, period=owners[0].period_of_report,
             )  # fmt: skip
         t.value += value
         t.shares += r.shares or 0
+        t.lines += 1
         t.trans_date = min(t.trans_date, r.trans_date)
-    return sorted(by_key.values(), key=lambda t: (t.trans_date, t.filing_date, t.accession))
+    return sorted(_amended(list(by_key.values())),
+                  key=lambda t: (t.trans_date, t.filing_date, t.accession))  # fmt: skip
+
+
+def _amended(trades: list[Trade]) -> list[Trade]:
+    """Q-03d for the activity rules: a Form 4/A paired with an original Form 4 (same code and
+    period, a reporting owner in common, filed on or after it) never counts on its own. The
+    latest such 4/A restates the original when it has at least as many lines and pairs with no
+    other original: its figures count, and a 4/A of 0 shares cancels the trade ("No such sale
+    has occurred"), so a cancelled purchase is never one of a cluster's buyers. A partial or
+    ambiguous 4/A leaves the original as filed; a 4/A with no stored original still counts."""
+    amends = [t for t in trades if t.form == "4/A"]
+    if not amends:
+        return trades
+    owners = {id(t): {o["owner_cik"] for o in t.owners} for t in trades}
+    pick: dict[int, Trade] = {}
+    paired: set[int] = set()
+    for t in trades:
+        if t.form != "4" or t.period is None:
+            continue
+        cands = [a for a in amends if a.code == t.code and a.period == t.period
+                 and a.filing_date >= t.filing_date and owners[id(a)] & owners[id(t)]]  # fmt: skip
+        paired.update(id(a) for a in cands)
+        if cands:
+            pick[id(t)] = max(cands, key=lambda a: (a.filing_date, a.accession))
+    uses: dict[int, int] = {}
+    for a in pick.values():
+        uses[id(a)] = uses.get(id(a), 0) + 1
+    out = []
+    for t in trades:
+        if t.form == "4/A" and id(t) in paired:
+            continue
+        a = pick.get(id(t))
+        if a is not None and uses[id(a)] == 1 and a.lines >= t.lines:
+            if not a.shares:
+                continue  # cancelled by its 4/A
+            # a 4/A can add reporting owners (a fund's general partners): they bought too
+            t.owners = t.owners + [o for o in a.owners if o["owner_cik"] not in owners[id(t)]]
+            # the 4/A's figures; the event keeps citing the original (stored events stay put)
+            t.value, t.shares, t.trans_date = a.value, a.shares, a.trans_date
+        out.append(t)
+    return out
 
 
 def detect(db: Session, cik: str, coverage_start: date | None = None) -> list[dict]:

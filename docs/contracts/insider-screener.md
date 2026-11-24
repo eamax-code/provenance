@@ -128,7 +128,11 @@ listed first in `owners`.
   Not applied, and the row stays as first filed with the 4/A in `amended_by`: a 4/A with fewer
   lines for the class than the original (it corrects some of them: a one-line 4/A against 29
   lines), a 4/A that pairs with two rows, a 4/A with the same figures or none for the class.
-  Otherwise `amended` is `false` and `first_filed` `null`. A year of buys and sales to
+  Otherwise `amended` is `false` and `first_filed` `null`. A 4/A that restates the row in full
+  (at least as many lines) and adds reporting owners (a fund's general partners) adds them to
+  `owners`. A buy a 4/A cancels (0 shares) never carries `cluster`, and the F-03 activity rules
+  (cluster buying, first purchase, large sale) read trades the same way: a paired 4/A never
+  counts on its own, a full restatement's figures and owners count, a cancelled trade does not. A year of buys and sales to
   2026-11-24: 532 rows paired with a 4/A, 137 show the 4/A's figures, 17 partial and 7 ambiguous
   4/As left as first filed. Gate: 30 paired rows (15 of each) against both filings' XML, 30
   right. A 4/A whose

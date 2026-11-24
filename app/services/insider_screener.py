@@ -490,11 +490,14 @@ def _apply_restatements(db: Session, rows: list[dict], restating: list[tuple], c
             if agg is None:
                 continue
         new = _row(agg, fs)
-        if all(new[k] == r[k] for k in FIRST_FILED):
-            continue  # the same lines again: as first filed
         if new["lines"] < r["lines"]:
             counts["restatement_partial"] = counts.get("restatement_partial", 0) + 1
             continue
+        # a 4/A can add reporting owners (a fund's general partners) to the same trade
+        mine = {o["cik"] for o in r["owners"]}
+        r["owners"] = r["owners"] + [o for o in new["owners"] if o["cik"] not in mine]
+        if all(new[k] == r[k] for k in FIRST_FILED):
+            continue  # the same lines again: as first filed
         r["first_filed"] = {**{k: r[k] for k in FIRST_FILED}, "filing": r["filing"]}
         for k in FIRST_FILED:
             r[k] = new[k]
@@ -526,6 +529,8 @@ def _add_clusters(db: Session, rows: list[dict], s: Screen) -> None:
                                  "source_url": e.source_url},
             })  # fmt: skip
     for r in buys:
+        if not r["shares"]:
+            continue  # cancelled by a 4/A (0 shares): never part of a cluster
         mine = {o["cik"] for o in r["owners"]}
         for e in sorted(events.get(r["issuer_cik"], []), key=lambda e: e["event_date"]):
             if mine & e["owners"] and e["first_trade"] <= r["first_date"] <= e["event_date"]:
