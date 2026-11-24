@@ -108,7 +108,10 @@ def parse(q: str) -> Query:
             terms = [Term([w], False) for w in _WORD.findall(raw.lower()) if w not in _STOP]
         else:
             words = _WORD.findall(quoted.lower())
-            terms = [Term(words, True)] if words else []  # a quoted word: exactly as written
+            # a quoted single word is matched by its stem, as unquoted: exact single words would
+            # need a second, unstemmed index ("activations" stems to "activ", thousands of
+            # sections, each read to find the rare exact word: over a second)
+            terms = [Term(words, len(words) > 1)] if words else []
         for t in terms:
             if neg:
                 t.negated = True

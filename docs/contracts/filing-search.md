@@ -23,8 +23,9 @@ the search page, the MCP tool and the chat question "which filings mention …".
 
 - `supply chain`: every word must appear in the section, in any order. Words are matched on their
   English stem (`tariffs` finds `tariff`). Common words (`the`, `of`, …) are ignored.
-- `"activations"`: a quoted word matches exactly as written (unquoted, the English stem
-  `activ` also finds `activities`).
+- Stems are PostgreSQL's English stemmer, so `activations` (stem `activ`) also finds
+  `activities`. A quoted single word is matched by its stem too; only phrases of two or more
+  words are matched exactly.
 - `"going concern"`: a quoted phrase. **Every hit contains the phrase itself**: the words, in that
   order and next to each other, ignoring case and the punctuation or line breaks between them, with
   no stemming (`"material weakness"` does not find `material weaknesses`). Phrases and words mix:

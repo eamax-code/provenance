@@ -54,19 +54,17 @@ TERMS = (
 READ = ("320193", "789019", "19617", "1067983", "1326801", "12927")
 
 
-# Q-01: words, phrases, exclusions and section filters, each in both sorts
+# Q-01: 15 query shapes (words, phrases, a quoted word, or-groups, exclusions, filters), each in
+# both sorts: 30 shapes
 FILING_QUERIES = (
-    "tariffs",
-    "%22going%20concern%22",
-    "%22material%20weakness%22",
-    "%22supply%20chain%22%20disruption",
-    "%22artificial%20intelligence%22%20-crypto",
-    "layoffs%20or%20restructuring",
-    "%22reverse%20stock%20split%22",
-    "revenue",
-    "%22interest%20rate%22%20-inflation",
-    "cybersecurity&section=annual_report",
-)
+    "tariffs", "%22going%20concern%22", "%22material%20weakness%22",
+    "%22supply%20chain%22%20disruption", "%22artificial%20intelligence%22%20-crypto",
+    "layoffs%20or%20restructuring", "%22reverse%20stock%20split%22", "revenue",
+    "%22interest%20rate%22%20-inflation", "cybersecurity&section=annual_report",
+    "%22going%20concern%22&form=S-1,F-1", "tariffs&filed_from=2026-01-01&filed_to=2026-06-30",
+    "%22will%20be%20available%22", "guidance%20or%20outlook&section=earnings_release",
+    "%22risk%20factors%22&cik=320193",
+)  # fmt: skip
 SHOWCASE_PAGES = ("overview", "statements/income", "timeline", "insiders", "holders", "ownership")
 
 
@@ -106,8 +104,8 @@ def requests_for(
         ("calendar ciks", "GET", "/v1/calendar?ciks=320193,789019,19617,1067983,1326801", None),
         ("corporate tree", "GET", f"/v1/companies/{cik}/corporate-tree", None),
         ("comment letters", "GET", f"/v1/companies/{cik}/comment-letters", None),
-        ("filing search", "GET", f"/v1/search/filings?q={FILING_QUERIES[i % 10]}"
-                                 f"&sort={('date', 'relevance')[i // 10 % 2]}", None),
+        ("filing search", "GET", f"/v1/search/filings?q={FILING_QUERIES[i % 15]}"
+                                 f"&sort={('date', 'relevance')[i // 15 % 2]}", None),
     ]  # fmt: skip
     if watchlist:
         plan.append(("watchlist rows", "GET", f"/v1/watchlists/{watchlist}/rows", None))
