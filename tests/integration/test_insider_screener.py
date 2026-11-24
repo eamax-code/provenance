@@ -269,3 +269,58 @@ def test_class_names_lose_the_data_sets_csv_quoting(client, auth, db, trades):
     (row,) = [r for r in _get(client, auth, owner_cik="501").json()["data"]]
     assert row["security_title"] == 'Class A Common Stock ("Common Stock")'
     assert row["shares_after"] == 90 and "_title" not in row
+
+
+def test_price_outlier_is_per_class_local_and_stable(client, auth, db, trades):
+    """PM review: the median is per issuer and class, within 30 days of the row's trades, so
+    share classes and a reverse split never trip it, and the query's dates do not change it."""
+    D = "0002999104"
+    db.add(Company(cik=D, legal_name="Dogwood Example Holdings", source_url="https://www.sec.gov/",
+                   first_detected_at=utcnow(), last_processed_at=utcnow()))  # fmt: skip
+    n = 0
+
+    def sale(day, price, title, shares=10):
+        nonlocal n
+        n += 1
+        acc = f"0000000006-26-{n:06d}"
+        _filing(db, acc, D, f"0000000{600 + n}", f"OWNER{n} X", day, officer=True, title="VP")
+        _line(db, acc, D, 1, "S", day, shares, price, 1000, title)
+        return acc
+
+    for i in range(4):  # Class A near $700k, Class B near $470, the same days
+        sale(date(2026, 11, 2 + i), 700_000 + i, "Class A Common Stock")
+        sale(date(2026, 11, 2 + i), 470 + i, "Class B Common Stock")
+    for i in range(4):  # before a 1:50 reverse split, more than 30 days earlier, at $2
+        sale(date(2026, 9, 1 + i), 2, "Common Stock")
+    for i in range(4):  # after it, at $100
+        sale(date(2026, 11, 10 + i), 100 + i, "Common Stock")
+    typo = sale(date(2026, 11, 14), 1_000_000, "Common Stock")  # the total in the price box
+    db.commit()
+
+    def flags(since, until):
+        body = _get(client, auth, cik=D, since=since, until=until, limit=100).json()
+        return {r["filing"]["accession_number"]: r["price_outlier"] for r in body["data"]}
+
+    year, month = flags("2026-01-01", "2026-11-24"), flags("2026-11-01", "2026-11-24")
+    assert {a for a, f in year.items() if f} == {typo}
+    assert {a for a, f in month.items() if f} == {typo}
+
+
+def test_a_giant_value_needs_a_year_of_prices_behind_it(client, auth, db, trades):
+    """PM decision: a row worth $5B or more is flagged unless 4+ same-class lines within a year
+    have a median price within 20x: a single preferred line of 40M shares at $40M is."""
+    _filing(db, "0000000007-26-000001", C, "0000000701", "FUND BIG", date(2026, 11, 9))
+    _line(db, "0000000007-26-000001", C, 1, "S", date(2026, 11, 9), 40_000_000, 40_000_000, 0,
+          "5.364% Series A Preferred")  # fmt: skip
+    _filing(db, "0000000007-26-000002", A, "0000000702", "HOLDER LONG", date(2026, 11, 9))
+    _line(db, "0000000007-26-000002", A, 1, "S", date(2026, 11, 9), 50_000_000, 120, 0,
+          "Class A Common Stock")  # fmt: skip  # $6B, backed by a year of prices
+    for i in range(4):
+        _filing(db, f"0000000007-26-00001{i}", A, "0000000703", "TRADER T", date(2026, 3, 2 + i))
+        _line(db, f"0000000007-26-00001{i}", A, 1, "S", date(2026, 3, 2 + i), 10, 110 + i, 0,
+              "Class A Common Stock")  # fmt: skip
+    db.commit()
+    rows = {r["filing"]["accession_number"]: r
+            for r in _get(client, auth, since="2026-01-01", limit=100).json()["data"]}  # fmt: skip
+    assert rows["0000000007-26-000001"]["price_outlier"] is True
+    assert rows["0000000007-26-000002"]["price_outlier"] is False

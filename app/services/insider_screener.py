@@ -8,6 +8,7 @@ than three years before it, are as-filed errors and left out. Information, not s
 
 from __future__ import annotations
 
+import bisect
 import json
 import re
 import statistics
@@ -26,7 +27,10 @@ from app.services.sec_client import filing_index_url
 TYPES = {"buy": "P", "sell": "S"}
 ROLES = ("director", "officer", "ten_percent_owner", "other")
 MAX_DAYS = 366
-PRICE_OUTLIER = 20  # times the median price of the issuer's other rows
+PRICE_OUTLIER = 20  # times the median price of the issuer's lines of the class nearby
+OUTLIER_DAYS = 30  # days either side of a row's trades for that median
+GIANT_VALUE = 5e9  # a row this large needs a year of the class's prices to back it
+GIANT_DAYS = 365
 STALE_DAYS = 3 * 365  # a line dated this long before its filing is an as-filed error
 MAX_LIMIT = 100
 MAX_OFFSET = 5000
@@ -392,24 +396,62 @@ def _ranked_value(r: dict) -> float | None:
 
 def _flag_price_outliers(db: Session, rows: list[dict], s: Screen) -> None:
     """price_outlier: the row's average price is more than PRICE_OUTLIER times above or below the
-    median price of the issuer's open-market lines in the screen's dates (4 or more), whatever
-    the other filters. Filed prices with the total in the price box made a 15,000-share sale
-    worth $18.5 billion; ADR and local share prices also differ, so the row stays, flagged, out
-    of value filters and value ranking."""
+    median price of the same issuer's lines of the same class within OUTLIER_DAYS of the row's
+    trade dates (4 or more lines; fewer: no flag). Per class (Berkshire A and B differ 1,500x;
+    preferred beside common) and local in time (a 1:50 reverse split inside a year), so the flag
+    belongs to the row, not to the query. Filed prices with the total in the price box made a
+    15,000-share sale worth $18.5 billion; the row stays, with its value as filed, but out of
+    value filters and value ranking."""
     t = InsiderTransaction
-    issuers = sorted({r["issuer_cik"] for r in rows if r["average_price"]})
-    prices: dict[str, list[float]] = defaultdict(list)
+    keys = {(r["issuer_cik"], r["_title"]) for r in rows if r["average_price"]}
+    issuers = sorted({k[0] for k in keys})
+    lo, hi = s.since - timedelta(OUTLIER_DAYS), s.until + timedelta(OUTLIER_DAYS)
+    lines: dict[tuple, list[tuple[date, float]]] = defaultdict(list)
+    title = func.coalesce(t.security_title, "")
     for part in _chunks(issuers):
-        q = select(t.issuer_cik, t.price).where(
+        q = select(t.issuer_cik, title, t.trans_date, t.price).where(
             t.issuer_cik.in_(part), t.trans_code.in_(("P", "S")), t.is_derivative.is_(False),
-            t.price > 0, t.trans_date >= s.since, t.trans_date <= s.until)  # fmt: skip
-        for issuer, price in db.execute(q):
-            prices[issuer].append(float(price))
-    med = {k: statistics.median(v) for k, v in prices.items() if len(v) >= 4}
+            t.price > 0, t.trans_date >= lo, t.trans_date <= hi)  # fmt: skip
+        for issuer, ti, day, price in db.execute(q):
+            if (issuer, ti) in keys:
+                lines[(issuer, ti)].append((day, float(price)))
+    for v in lines.values():
+        v.sort()
     for r in rows:
-        m = med.get(r["issuer_cik"])
-        ratio = r["average_price"] / m if r["average_price"] and m else None
-        r["price_outlier"] = ratio is not None and not (1 / PRICE_OUTLIER <= ratio <= PRICE_OUTLIER)
+        r["price_outlier"] = False
+        got = lines.get((r["issuer_cik"], r["_title"]))
+        if not r["average_price"] or not got:
+            continue
+        days = [d for d, _ in got]
+        i = bisect.bisect_left(days, r["first_date"] - timedelta(OUTLIER_DAYS))
+        j = bisect.bisect_right(days, r["last_date"] + timedelta(OUTLIER_DAYS))
+        near = [p for _, p in got[i:j]]
+        if len(near) < 4:
+            continue
+        ratio = r["average_price"] / statistics.median(near)
+        r["price_outlier"] = not (1 / PRICE_OUTLIER <= ratio <= PRICE_OUTLIER)
+    _flag_unsupported_giants(db, rows)
+
+
+def _flag_unsupported_giants(db: Session, rows: list[dict]) -> None:
+    """A row worth GIANT_VALUE or more is a price outlier unless 4 or more lines of the same
+    issuer and class within a year have a median price within PRICE_OUTLIER times of its price.
+    The largest real open-market sale in a year was $3.77 billion (a foundation selling in a
+    takeover); thin classes hid a $18.5 billion and a $1.6 quadrillion "sale" from the local rule
+    (one line, 40 million shares at $40 million)."""
+    t = InsiderTransaction
+    title = func.coalesce(t.security_title, "")
+    for r in rows:
+        if r["price_outlier"] or (r["value"] or 0) < GIANT_VALUE or not r["average_price"]:
+            continue
+        q = select(t.price).where(
+            t.issuer_cik == r["issuer_cik"], title == r["_title"], t.trans_code.in_(("P", "S")),
+            t.is_derivative.is_(False), t.price > 0,
+            t.trans_date >= r["first_date"] - timedelta(GIANT_DAYS),
+            t.trans_date <= r["last_date"] + timedelta(GIANT_DAYS))  # fmt: skip
+        prices = [float(p) for p in db.scalars(q)]
+        ratio = r["average_price"] / statistics.median(prices) if len(prices) >= 4 else None
+        r["price_outlier"] = ratio is None or not (1 / PRICE_OUTLIER <= ratio <= PRICE_OUTLIER)
 
 
 def sort_rows(rows: list[dict], how: str) -> list[dict]:

@@ -88,11 +88,17 @@ the newest weeks). Information about what insiders reported, not signals.
   understates the trade. `min_value` and `max_value` leave out rows whose `value` is `null`, and
   `sort=value` puts them last.
 - `price_outlier` is `true` when the row's average price is more than 20 times above or below
-  the median price of the issuer's open-market lines in the screen's dates (when there are 4
-  or more), whatever the other filters.
-  Filed prices sometimes carry the total in the price box (a 15,000-share sale "worth" $18.5
-  billion); ADR and local-share prices also differ, so the row stays with its value as filed,
-  but `min_value`, `max_value` and `sort=value` treat its value as missing.
+  the median price of the same issuer's open-market lines of the same class within 30 days of
+  the row's trade dates (when there are 4 or more; otherwise it is `false`). Per class and local
+  in time, so share classes (Berkshire A and B) and reverse splits do not trip it, and the flag
+  does not change with the query's dates. Filed prices sometimes carry the total in the price
+  box (a 15,000-share sale "worth" $18.5 billion), so the row stays with its value as filed, but
+  `min_value`, `max_value` and `sort=value` treat its value as missing.
+  A row worth $5 billion or more is also `price_outlier` unless 4 or more lines of the same
+  issuer and class within 365 days have a median price within 20 times of its price (the largest
+  real open-market sale in a year was $3.77 billion; thin classes hid a $18.5 billion and a $1.6
+  quadrillion "sale" from the 30-day rule). Known edges: a reverse split on the trade day with no
+  later lines can be flagged, and penny stocks whose prices swing widely can be.
 - **Amendments (Form 4/A) never make a row of their own,** so a trade is never counted twice.
   Rows come from original Forms 4, with the figures as first filed. `amended_by` lists each Form
   4/A for the same issuer, a reporting owner of the row, and the same reporting period, filed on
