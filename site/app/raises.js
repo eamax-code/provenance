@@ -44,6 +44,16 @@
       if (!r.ok) { host.replaceChildren(head, failed(r, 'Form D offerings')); return; }
       var items = r.body.data || [];
       if (!items.length) { host.replaceChildren(head, note('No Form D offerings by this company in the SEC’s Form D data sets loaded here (the last eight quarters).')); return; }
+      // D-15d: a related person who files Forms 3, 4 and 5 for this company (insider_cik) links to its insiders; the rest stay text
+      var persons = function (ps, cik) {
+        var out = [];
+        ps.forEach(function (p, i) {
+          var rel = p.relationships && p.relationships.length ? ' (' + p.relationships.join(', ') + ')' : '';
+          if (i) out.push('; ');
+          out.push(p.insider_cik ? el('a', { href: '/app/?c=' + parseInt(cik, 10) + '&tab=ownership', title: 'Files Forms 3, 4 and 5 for this company as CIK ' + p.insider_cik + ': see its insiders', text: p.name }) : p.name, rel);
+        });
+        return out;
+      };
       var rows = items.map(function (x) {
         var f = x.latest_filing || {}, ps = x.related_persons || [];
         var det = el('details', { class: 'pr-d' }, [el('summary', {}, [el('span', { class: 'pr-when', text: day(f.filed_date) }), el('span', {}, amounts(x, 'This offering')), el('span', { class: 'muted small', text: (x.industry_group || '') + ' · ' + exem(x.exemptions) })]),
@@ -51,7 +61,7 @@
             el('dt', { text: 'First sale' }), el('dd', { text: x.first_sale_yet_to_occur ? 'Yet to occur' : day(x.first_sale_date) }),
             el('dt', { text: 'Remaining' }), el('dd', { text: x.indefinite ? '—' : money(x.total_remaining) }),
             x.minimum_investment != null ? el('dt', { text: 'Minimum investment' }) : null, x.minimum_investment != null ? el('dd', { text: money(x.minimum_investment) }) : null,
-            ps.length ? el('dt', { text: 'Related persons' }) : null, ps.length ? el('dd', { text: ps.map(function (p) { return p.name + (p.relationships && p.relationships.length ? ' (' + p.relationships.join(', ') + ')' : ''); }).join('; ') + (x.related_persons_count > ps.length ? ' and ' + (x.related_persons_count - ps.length) + ' more' : '') }) : null,
+            ps.length ? el('dt', { text: 'Related persons' }) : null, ps.length ? el('dd', {}, persons(ps, o.cik).concat(x.related_persons_count > ps.length ? [' and ' + (x.related_persons_count - ps.length) + ' more'] : [])) : null,
             el('dt', { text: 'Filings' }), el('dd', {}, (x.filings || [f]).map(function (g) { return ARCHIVE.test(g.source_url || '') ? el('a', { href: g.source_url, target: '_blank', rel: 'noopener', text: (g.form || 'D') + ' ' + day(g.filed_date) + ' ↗ ' }) : null; }))]),
           el('p', { class: 'small' }, [askLink('Tell me about the Form D offering filed ' + (f.filed_date || '') + ' (accession ' + (f.accession_number || '') + '): how much was raised, from how many investors, under which exemption?', o.cik, 'this Form D offering')])]);
         return el('li', {}, [det]);
