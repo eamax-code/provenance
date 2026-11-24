@@ -56,7 +56,7 @@
 .pipe-filters { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 15px; }
 .pipe-filters label { display: flex; gap: 8px; align-items: center; min-height: 32px; cursor: pointer; max-width: 100%; }
 .pipe-filters input { flex: none; }
-.pipe-filters input { width: 18px; height: 18px; accent-color: var(--accent); }
+.pipe-filters input { width: 18px; height: 18px; accent-color: var(--accent-hi); }
 .pipe-table { font-size: 15px; }
 .pipe-table th[scope="row"] { font-weight: 600; text-align: left; color: var(--ink); }
 .row-open { all: unset; cursor: pointer; text-decoration: underline; text-decoration-color: var(--mist); text-underline-offset: 3px; }

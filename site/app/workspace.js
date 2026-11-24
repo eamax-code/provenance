@@ -14,6 +14,8 @@
     (kids || []).forEach(function (c) { if (c != null && c !== '') n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return n;
   }
+  // the company's seal (brand, /shell/seal.js): decorative, seeded by the CIK; nothing when the script is missing
+  function seal(cik) { return window.prvSeal ? el('span', { class: 'ws-seal' }, [window.prvSeal(cik)]) : null; }
   var NS = 'http://www.w3.org/2000/svg';
   function sv(tag, attrs, text) { var n = document.createElementNS(NS, tag); Object.keys(attrs || {}).forEach(function (k) { if (attrs[k] != null) n.setAttribute(k, attrs[k]); }); if (text != null) n.textContent = text; return n; }
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -172,7 +174,7 @@
       parentBit(strip, S.cik);
     }
     var itog = strip ? el('button', { type: 'button', class: 'linkish ws-ident-t', 'aria-expanded': 'false', 'aria-controls': 'ws-ident', text: 'Identity: CIK, LEI, incorporation, auditor', on: { click: function () { var o = strip.classList.toggle('open'); itog.setAttribute('aria-expanded', String(o)); } } }) : null;
-    $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [el('h2', { text: c.display_name || (c.legal_name ? orgName(c.legal_name) : 'CIK ' + c.cik) }), chips, acts]), itog, strip,
+    $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [seal(c.cik), el('h2', { text: c.display_name || (c.legal_name ? orgName(c.legal_name) : 'CIK ' + c.cik) }), chips, acts]), itog, strip,
       S.asofNote ? el('p', { class: 'ws-note', role: 'status', text: S.asofNote }) : null].filter(Boolean));
     var ai = $('ws-asof'); if (ai) ai.value = S.as_of || ''; var ab = $('ws-asof-btn'); if (ab) ab.lastChild.textContent = S.as_of ? day(S.as_of) : 'latest';
     document.title = (c.display_name || 'Company') + (c.ticker ? ' (' + c.ticker + ')' : '') + ' · Explorer · Provenance';

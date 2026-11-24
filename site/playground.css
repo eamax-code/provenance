@@ -6,7 +6,7 @@
 .pg-group:first-child { margin-top: 2px; }
 .pg-item { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; border: 1px solid transparent; background: transparent; color: var(--fg); font: inherit; font-size: .88rem; padding: 7px 8px; border-radius: 4px; cursor: pointer; }
 .pg-item:hover { border-color: var(--line); background: var(--bg-2); }
-.pg-item[aria-current="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.pg-item[aria-current="true"] { border-color: var(--accent-hi); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .pg-item .m { font-family: var(--font-mono); font-size: .75rem; color: var(--accent-text); flex: 0 0 auto; }
 .pg-item .tag { margin-left: auto; font-size: .75rem; color: var(--good); }
 .pg-main { display: grid; gap: 14px; min-width: 0; }

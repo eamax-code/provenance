@@ -16,7 +16,14 @@ from pathlib import Path
 
 SITE = Path(__file__).resolve().parent.parent / "site"
 SHELL = SITE / "shell"
-HEAD = '<link rel="stylesheet" href="/shell/shell.css">\n<script src="/shell/shell.js"></script>'
+# the brand's icons live with the tokens in site/shell/ (Trace, 24 Nov 2026): an SVG that follows the
+# reader's light or dark scheme, a PNG tile for browsers without SVG icons, the home-screen icon
+ICONS = (
+    '<link rel="icon" href="/shell/favicon.svg" type="image/svg+xml">\n'
+    '<link rel="icon" href="/shell/favicon-32.png" sizes="32x32" type="image/png">\n'
+    '<link rel="apple-touch-icon" href="/shell/apple-touch-icon.png">\n'
+)
+HEAD = ICONS + '<link rel="stylesheet" href="/shell/shell.css">\n<script src="/shell/shell.js"></script>'
 PAGES = (
     "index.html",
     "companies/index.html",

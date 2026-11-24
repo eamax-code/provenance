@@ -27,9 +27,10 @@ SITE = Path(__file__).resolve().parents[2] / "site"
 BUDGETS = {
     "company page": (
         ["companies/page/snapshot.html", "companies/page/page.css", "companies/page/page.js",
-         "companies/page/company.js"],
+         "companies/page/company.js", "shell/seal.js"],
         28_000,
     ),
+    # the company seal (shell/seal.js, brand B-3, 24 Nov) is counted with each page that loads it
     "company page, lower sections (loaded later)": (["companies/page/company-lower.js"], 8_500),
     # chat: 25.3 KB on 23 Nov with C-01/C-02 (figure chips, how, hand-off); 27.3 KB on 24 Nov with C-08
     # (CSV per table, a link per answer, a visible Copy), so the budget went to 28 KB
@@ -42,7 +43,7 @@ BUDGETS = {
     "explorer": (["app/index.html", "app/app.css", "app/console.js", "app/listings.js", "app/app.js",
                   "app/graph.js", "prov-card.js", "app/calendar.js", "app/people.js", "app/changes.js",
                   "app/records.js", "app/whatsnew.js", "app/workspace.js", "app/raises.js",
-                  "app/screener.js", "app/watchlists.js"], 147_000),
+                  "app/screener.js", "app/watchlists.js", "shell/seal.js"], 147_000),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
 }
 

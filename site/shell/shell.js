@@ -10,10 +10,10 @@
 
   /* ---------- themes: dark everywhere; chat and the Explorer let a reader choose ---------- */
   var THEMES = [
-    { id: 'dark', name: 'Dark', note: 'The site theme', sw: ['#141719', '#20252a', '#ff5a4f'] },
-    { id: 'light', name: 'Light', note: 'Grey paper, charcoal ink', sw: ['#eef2f5', '#ffffff', '#c92f28'] },
-    { id: 'ledger', name: 'Ledger', note: 'Warm paper, serif headings', sw: ['#f4efe6', '#fffcf6', '#1f6b4f'] },
-    { id: 'terminal', name: 'Terminal', note: 'Dense, amber, fixed-width figures', sw: ['#0d1117', '#161d26', '#e8990f'] }
+    { id: 'dark', name: 'Dark', note: 'The site theme', sw: ['#141719', '#20252a', '#f3e04c'] },
+    { id: 'light', name: 'Light', note: 'Grey paper, charcoal ink', sw: ['#eef2f5', '#ffffff', '#f3e04c'] },
+    { id: 'ledger', name: 'Ledger', note: 'Warm paper, serif headings', sw: ['#f4efe6', '#fffcf6', '#eed43a'] },
+    { id: 'terminal', name: 'Terminal', note: 'Dense, fixed-width figures', sw: ['#0d1117', '#161d26', '#f3e04c'] }
   ];
   var STORE = 'prv-theme';
   var valid = function (t) { return THEMES.some(function (x) { return x.id === t; }); };

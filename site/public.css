@@ -5,12 +5,12 @@
 .pub-head > p.muted { font-size: var(--step-body); max-width: 60ch; color: var(--ink); }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
 .card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 16px; display: grid; gap: 8px; min-width: 0; color: var(--fg); position: relative; transition: border-color .25s, transform .25s; }
-.card:hover { border-color: var(--accent); text-decoration: none; transform: translateY(-3px); }
+.card:hover { border-color: var(--accent-hi); text-decoration: none; transform: translateY(-3px); }
 .card .ticker { font-size: .85rem; color: var(--soft); font-weight: 600; }
 .card .name { font-family: var(--font-display); font-weight: 600; font-size: 1rem; }
 .card .big { font-family: var(--font-display); font-size: 1.35rem; }
 .card .fine { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
-.cta-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--panel); padding: 14px 16px; }
+.cta-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border: 1px solid var(--line); border-left: 3px solid var(--accent-hi); border-radius: var(--radius); background: var(--panel); padding: 14px 16px; }
 .notice { border: 1px solid var(--line); border-left: 3px solid var(--accent-2); border-radius: var(--radius); background: var(--panel); padding: 12px 14px; font-size: .88rem; }
 .state { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); }
 .breadcrumb { font-family: var(--font-mono); font-size: .76rem; color: var(--muted); }

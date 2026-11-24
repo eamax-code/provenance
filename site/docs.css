@@ -86,7 +86,7 @@
 
 /* 404 and error pages */
 .lost { display: grid; gap: 20px; padding-block: clamp(24px, 6vw, 96px) 0; max-width: 980px; }
-.lost .code-num { font: 800 var(--step-display)/0.85 var(--display); letter-spacing: -0.06em; color: var(--accent-hi); margin: 0; }
+.lost .code-num { font: 800 var(--step-display)/0.85 var(--display); letter-spacing: -0.06em; color: var(--ink); margin: 0; }
 .lost h1 { font-size: var(--step-head); font-weight: var(--display-weight); letter-spacing: -0.04em; line-height: 1; }
 .lost > p { font-size: var(--step-body); max-width: 60ch; margin: 0; }
 .lost form { display: flex; gap: 10px; flex-wrap: wrap; max-width: 620px; }

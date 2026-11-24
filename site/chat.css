@@ -20,7 +20,7 @@
 .cx.side-closed .cx-side{opacity:0;pointer-events:none}
 .cx-side-top{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 6px}
 .cx-brand{font-family:var(--font-display);font-size:15px;color:var(--fg);text-decoration:none;display:flex;align-items:center;gap:8px;white-space:nowrap}
-.cx-brand .dot{width:10px;height:10px;border-radius:50%;background:var(--red)}
+.cx-brand .dot,.cx-brandmark i{width:1.3em;height:1.3em;flex:none;background:var(--mark);-webkit-mask:url(/shell/mark.svg) center/contain no-repeat;mask:url(/shell/mark.svg) center/contain no-repeat}.cx-brand,.cx-brandmark{text-transform:lowercase;font-family:"Schibsted Grotesk",sans-serif;font-weight:800}
 .cx-icon{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;border:0;background:none;color:var(--muted);cursor:pointer;transition:background .2s,color .2s}
 .cx-icon:hover{background:var(--soft);color:var(--fg)}
 .cx-new{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:999px;border:0;background:var(--red-deep);color:var(--accent-ink);font:600 14px var(--font-body);cursor:pointer;transition:transform .2s var(--ease),background .2s}
@@ -75,7 +75,7 @@
 .cx-pill:hover,.cx-pill.on{color:var(--fg);border-color:var(--slate)}
 .cx-pill svg{width:15px;height:15px}
 .cx-asof-input{border:1px solid var(--line);background:var(--bg-2);color:var(--fg);border-radius:8px;padding:4px 8px;font:13px var(--font-body);animation:cx-pop .3s var(--ease) both}
-.cx-send{margin-left:auto;width:36px;height:36px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--red);color:var(--accent-ink);cursor:pointer;transition:transform .2s var(--ease),opacity .2s,background .2s}
+.cx-send{margin-left:auto;width:36px;height:36px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);cursor:pointer;transition:transform .2s var(--ease),opacity .2s,background .2s}
 .cx-send:disabled{opacity:1;background:var(--mist-2);color:var(--soft);cursor:default}
 .cx-send:not(:disabled):hover{transform:scale(1.06);background:var(--red-deep)}
 .cx-send.stop{background:var(--muted)}
@@ -265,7 +265,7 @@
 
 /* the wordmark in the top bar, for phones where the sidebar is closed */
 .cx-brandmark{display:none;align-items:center;gap:8px;color:inherit;font:800 16px var(--font-body);letter-spacing:-.02em;text-decoration:none}
-.cx-brandmark i{width:8px;height:8px;border-radius:50%;background:var(--red)}
+
 @media (max-width:860px){body[data-state="home"] .cx-brandmark{display:inline-flex}}
 .cx-ipo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:12px}
 .cx-ipo-item{background:color-mix(in srgb,var(--fg) 6%,transparent);border-radius:12px;padding:10px 12px}

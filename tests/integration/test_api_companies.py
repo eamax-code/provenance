@@ -291,7 +291,7 @@ def test_explorer_app_is_served(client):
     assert js.status_code == 200 and "/v1/companies/search" in js.text and "X-API-Key" in js.text
     assert "localStorage" in js.text
     css = client.get("/shell/shell.css")  # the site palette, shared by every page
-    assert css.status_code == 200 and "--accent-hi: #ff5a4f" in css.text
+    assert css.status_code == 200 and "--accent-hi: #f3e04c" in css.text  # brand: Trace (docs/brand.md)
     assert "/shell/shell.css" in r.text
 
 
