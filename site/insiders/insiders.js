@@ -24,6 +24,8 @@
   var int = function (v) { return v == null ? '—' : Math.round(v).toLocaleString('en-US'); };
   var usd = function (v, dp) { return v == null ? '—' : '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: dp || 0, maximumFractionDigits: dp || 0 }); };
   var big = function (v) { if (v == null) return '—'; var a = Math.abs(v); return a >= 1e9 ? '$' + (v / 1e9).toFixed(1) + 'B' : a >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : a >= 1e4 ? '$' + Math.round(v / 1e3) + 'K' : usd(v); };
+  // a share price: cents, or up to four decimals under $1 so $0.098 is not read as $0.10
+  var px = function (v) { return v == null ? '—' : '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 1 ? 4 : 2 }); };
   var pct = function (v) { return v == null ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + '%'; };
   // plain common equity says nothing ("Common Stock, no par value", "Ordinary Shares", "Common units"); a class, preferred stock or anything else shows as filed
   var commonStock = function (t) { t = String(t || '').trim(); return !t || /^(common|ordinary)( stock| shares?| units?)?\b(?!.*\b(class|series|preferred)\b)/i.test(t); };
@@ -77,7 +79,13 @@
   function flags(r) {
     var out = [];
     if (!commonStock(r.security_title)) out.push(el('span', { class: 'it-flag', title: 'Security class as filed: ' + r.security_title, text: r.security_title }));
-    (r.amended_by || []).slice(0, 1).forEach(function (a) {
+    // Q-03d: a 4/A that restated the row: the figures shown are the 4/A's, the original's are said beside them
+    var ff = r.amended && r.first_filed, fff = ff && ff.filing || {};
+    if (ff) {
+      out.push(el('span', { class: 'it-flag', title: 'Figures as amended on ' + dmy((r.filing || {}).filed_date) + '; first filed: ' + int(ff.shares) + ' shares' + (ff.average_price != null ? ' at ' + px(ff.average_price) : '') + ' (Form ' + (fff.form || '4') + ')', text: 'Amended (4/A)' }));
+      out.push(el('span', { class: 'it-ff' }, ['First filed: ' + int(ff.shares) + (ff.average_price != null ? ' at ' + px(ff.average_price) : '') + ' ', ARCHIVE.test(fff.source_url || '') ? el('a', { href: fff.source_url, target: '_blank', rel: 'noopener', text: 'Form ' + (fff.form || '4') + ' ↗', 'aria-label': 'The original Form ' + (fff.form || '4') + ' filed ' + dmy(fff.filed_date) + ' on sec.gov' }) : null]));
+    }
+    (ff ? [] : r.amended_by || []).slice(0, 1).forEach(function (a) {
       var t = 'Amended (4/A) on ' + dmy(a.filed_date) + ': the figures may have been corrected. Open the amendment on sec.gov.';
       out.push(ARCHIVE.test(a.source_url || '') ? el('a', { class: 'it-flag', href: a.source_url, target: '_blank', rel: 'noopener', title: t, text: 'Amended (4/A)' + ((r.amended_by || []).length > 1 ? ' ×' + r.amended_by.length : '') }) : el('span', { class: 'it-flag', title: t, text: 'Amended (4/A)' }));
     });
@@ -105,11 +113,11 @@
       cell('it-ins', who(r).concat([flags(r)]), 'Insider'),
       cell('it-tr', [trade(r)], 'Trade'),
       cell('n', [int(r.shares)], 'Shares'),
-      cell('n', [r.average_price == null ? '—' : usd(r.average_price, 2)], 'Avg price'),
-      cell('n it-val', [el(r.price_outlier ? 's' : 'span', { class: r.price_outlier ? 'it-off' : null, title: r.price_outlier ? 'As filed; the price looks wrong, so this value is left out of value filters and ranking' : r.value == null ? 'No line had a price' : usd(r.value) + (r.value_partial ? ' (some lines had no price)' : ''), text: big(r.value) + (r.value_partial ? '*' : '') })], 'Value'),
+      cell('n', [px(r.average_price)], 'Avg price'),
+      cell('n it-val', [r.amended && !r.shares ? (ARCHIVE.test((r.filing || {}).source_url || '') ? el('a', { href: r.filing.source_url, target: '_blank', rel: 'noopener', text: 'Cancelled by 4/A' }) : 'Cancelled by 4/A') : el(r.price_outlier ? 's' : 'span', { class: r.price_outlier ? 'it-off' : null, title: r.price_outlier ? 'As filed; the price looks wrong, so this value is left out of value filters and ranking' : r.value == null ? 'No line had a price' : usd(r.value) + (r.value_partial ? ' (some lines had no price)' : ''), text: big(r.value) + (r.value_partial ? '*' : '') })], 'Value'),
       cell('n', [el('span', { title: r.holdings_change_pct == null ? (r.direct_indirect === 'mixed' ? 'Not worked out: direct and indirect holdings mixed' : 'Not worked out: no holding after the trade, or none before') : 'Derived: ' + int(r.shares) + ' shares against the ' + int(r.shares_after + (r.type === 'sell' ? r.shares : -r.shares)) + ' held before', text: pct(r.holdings_change_pct) })], 'Holding change'),
       cell('it-plan', [r.plan_10b5_1 === true ? 'Yes' : r.plan_10b5_1 === false ? 'No' : '—'], '10b5-1'),
-      cell('it-f', [ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: 'Form 4 ↗', 'aria-label': 'Form 4 filed ' + dmy(f.filed_date) + ' on sec.gov' }) : 'Form 4'], 'Filing')
+      cell('it-f', [ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: 'Form ' + (f.form || '4') + ' ↗', 'aria-label': 'Form ' + (f.form || '4') + ' filed ' + dmy(f.filed_date) + ' on sec.gov' }) : 'Form ' + (f.form || '4')], 'Filing')
     ]);
   }
   function words(b) {
@@ -152,10 +160,10 @@
   // ---- CSV: the rows shown, the disclaimer as the first line ----
   $('it-csv').addEventListener('click', function () {
     var q = function (v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-    var lines = [q(DISC), ['filed_date', 'first_date', 'last_date', 'issuer_cik', 'issuer', 'ticker', 'owners', 'role_or_title', 'type', 'security_title', 'shares', 'average_price', 'value', 'value_partial', 'shares_after', 'holdings_change_pct_derived', 'plan_10b5_1', 'amended_by', 'cluster_event_date', 'accession_number', 'form_4_url'].join(',')];
+    var lines = [q(DISC), ['filed_date', 'first_date', 'last_date', 'issuer_cik', 'issuer', 'ticker', 'owners', 'role_or_title', 'type', 'security_title', 'shares', 'average_price', 'value', 'value_partial', 'shares_after', 'holdings_change_pct_derived', 'plan_10b5_1', 'amended_by', 'amended', 'first_filed_shares', 'first_filed_average_price', 'first_filed_value', 'first_filed_accession', 'cluster_event_date', 'accession_number', 'form', 'filing_url'].join(',')];
     rows.forEach(function (r) {
       var i = r.issuer || {}, f = r.filing || {}, o = (r.owners || [])[0] || {};
-      lines.push([f.filed_date, r.first_date, r.last_date, i.cik, i.name, i.ticker, (r.owners || []).map(function (x) { return x.name; }).join('; '), o.officer_title || o.role, r.type, r.security_title, r.shares, r.average_price, r.value, r.value_partial, r.shares_after, r.holdings_change_pct, r.plan_10b5_1, (r.amended_by || []).map(function (a) { return a.source_url; }).join(' '), r.cluster && r.cluster.event_date, f.accession_number, f.source_url].map(q).join(','));
+      lines.push([f.filed_date, r.first_date, r.last_date, i.cik, i.name, i.ticker, (r.owners || []).map(function (x) { return x.name; }).join('; '), o.officer_title || o.role, r.type, r.security_title, r.shares, r.average_price, r.value, r.value_partial, r.shares_after, r.holdings_change_pct, r.plan_10b5_1, (r.amended_by || []).map(function (a) { return a.source_url; }).join(' '), !!r.amended, r.first_filed && r.first_filed.shares, r.first_filed && r.first_filed.average_price, r.first_filed && r.first_filed.value, r.first_filed && (r.first_filed.filing || {}).accession_number, r.cluster && r.cluster.event_date, f.accession_number, f.form, f.source_url].map(q).join(','));
     });
     (lastBody && lastBody.notes || []).forEach(function (n) { if (/demo key/i.test(n)) lines.splice(1, 0, q(n)); });
     var a = el('a', { href: URL.createObjectURL(new Blob([lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' })), download: 'insider-trades-' + new Date().toISOString().slice(0, 10) + '.csv' });

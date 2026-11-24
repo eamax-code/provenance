@@ -30,7 +30,7 @@
 .it-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 .it-table .n { text-align: right; white-space: nowrap; }
 .it-filed, .it-date { white-space: nowrap; color: var(--soft); }
-.it-co a, .it-f a { color: var(--ink); text-decoration-line: underline; text-decoration-color: var(--link-line); }
+.it-co a, .it-f a, .it-val a { color: var(--ink); text-decoration-line: underline; text-decoration-color: var(--link-line); }
 .it .tag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; font: 500 11.5px var(--mono); color: var(--soft); vertical-align: 1px; }
 .it-who { display: block; font-weight: 600; }
 .it-role { display: block; font-size: .8rem; color: var(--soft); }
@@ -39,6 +39,8 @@
 .it-sell { background: transparent; color: var(--ink); border-style: dashed; }
 .it-flags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .it-flag { display: inline-block; padding: 0 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); color: var(--ink); font-size: .75rem; font-weight: 600; line-height: 1.6; cursor: help; text-decoration-line: none; }
+.it-ff { flex-basis: 100%; font-size: .78rem; color: var(--soft); }
+.it-ff a { color: var(--ink); text-decoration-line: underline; text-decoration-color: var(--link-line); }
 a.it-flag { cursor: pointer; text-decoration-line: underline; text-decoration-color: var(--link-line); }
 .it-plan, .it-f { white-space: nowrap; }
 .it-off { color: var(--soft); text-decoration-color: var(--soft); }
