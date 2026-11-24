@@ -17,7 +17,8 @@ Common to all, as for the Explorer endpoints (`docs/api-contracts-explorer.md`):
 - `X-API-Key` is required. One request is one metered unit. The demo key works on the showcase
   companies only (`403 demo_scope` elsewhere) and gets at most 10 rows on any list (`data`, and the named lists `plans`, `proposed_sales`,
   `threads`, `parents`, `children`, `subsidiaries`; a `total` beside a list still counts every
-  row, and `notes` says the list was trimmed). Chat tables for the demo key show at most 10 rows.
+  row, and `notes` says the list was trimmed). Every chat table for the demo key shows at most 10 rows, with `total` counting every row and
+  a note ("Showing 10 of N. … The demo key shows at most 10 rows.").
 - Errors use the standard envelope: `404 company_not_found`, `422 invalid_parameter`, and `429`
   with `Retry-After`.
 - `as_of` (an ISO date) is accepted wherever it is listed. Only data filed by that date is used,

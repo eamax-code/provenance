@@ -467,7 +467,7 @@ def chat(
     if not reply.blocks:  # every reply carries blocks (C-01); chips only where facts are known
         reply.blocks = _blocks(reply.answer, reply.citations, reply.widgets, [])
     _say_switch(db, given, reply)
-    if getattr(request.state, "demo", False) and reply.intent in DEMO_CAPPED:
+    if getattr(request.state, "demo", False):  # "at most 10 rows on any list", chat included
         _cap_tables(reply, settings.demo_max_limit)
     if reply.company and not reply.follow_ups:  # C-03: only what the stored data can answer
         comp = db.scalar(select(Company).where(Company.cik == reply.company["cik"]))
@@ -625,16 +625,23 @@ SINGLE = ("pay", "trading_plans", "proposed_sales", "changes", "calendar", "priv
 
 
 # 24 Nov intents whose answers carry a table: the demo key's 10-row cap applies to it
-DEMO_CAPPED = ("private_raises",)
+_SHOWING = re.compile(r"^Showing \d+ of (\d+)\.\s*")
 
 
 def _cap_tables(reply: ChatReply, cap: int) -> None:
+    """The demo key's row cap on every chat table: trimmed to `cap` rows, with `total` counting
+    every row (the table's own "Showing 50 of N." when it was already cut) and a note saying so."""
     for w in [*(reply.widgets or []), *(reply.blocks or [])]:
         if isinstance(w, dict) and w.get("type") == "table" and len(w.get("rows") or []) > cap:
-            w["rows"] = w["rows"][:cap]
+            note = w.get("note") or ""
+            m = _SHOWING.match(note)
+            total = int(m.group(1)) if m else len(w["rows"])
+            rest = _SHOWING.sub("", note).strip()
+            w["rows"], w["total"] = w["rows"][:cap], total
             w["note"] = " ".join(
-                x for x in (w.get("note"), f"The demo key shows at most {cap} rows.") if x
-            )
+                x for x in (f"Showing {cap} of {total}.", rest,
+                            f"The demo key shows at most {cap} rows.") if x
+            )  # fmt: skip
 
 
 def _is_given(given: str | None, cik: str) -> bool:

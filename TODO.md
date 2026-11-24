@@ -29,6 +29,7 @@ Plan: [docs/plan-next-8h.md](docs/plan-next-8h.md) (PM). Contracts: [docs/contra
 | C-15 | Chat: brand aliases for tickers that collide with famous short names | After the freeze. "HP" resolves to Helmerich & Payne by its ticker, though most people mean HP Inc (HPQ); "GE" after the spin-offs is similar. Needs a reviewed brand-alias list (name → cik), applied before the ticker match |
 | X-22 | Explorer: lazy-load graph.js (14.9 KB gz) when Connections opens | After the freeze. The Explorer page budget is 147 KB; 133.4 KB measured at 489e2ee |
 | C-16 | Chat intents for comment letters and the corporate tree | After the freeze. Today they are MCP tools only (`comment_letters`, `corporate_tree`); the changelog says so |
+| D-10b | Pay versus performance: exact fiscal year ends | After the freeze. `fiscal_year_end` comes from the FS&N data sets' ddate, which is rounded to the month end (Apple FY2024 shows 2024-09-30; it ended 2024-09-28). Take the period end from the filing's own dei:DocumentPeriodEndDate where we have it |
 
 ## 12-hour launch: agent track (started 2026-11-22)
 Plan: [docs/launch-12h.md](docs/launch-12h.md) (PM session). Handover: [docs/pm-handover.md](docs/pm-handover.md). Status is updated as each ticket lands.
