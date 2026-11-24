@@ -804,10 +804,35 @@ def statement(
     def restated(between: list[str], hint: str) -> bool:  # S-02b: a reviewed split
         return reviewed_match(between, hint)[0]
 
+    def placed() -> list[tuple[int, str]]:
+        """S-02c: each reviewed split of this company at the pair of columns whose filings
+        bracket its date (after the older column's filing, by the newer one's)."""
+        if not isinstance(reviewed, dict):
+            return []
+        filed = []
+        for lab in labels:
+            f = filing_at(lab)
+            filed.append(date.fromisoformat(f["filed_date"]) if f and f["filed_date"] else None)
+        out = []
+        for (c_, hint), dates in reviewed.items():
+            if c_ != cik:
+                continue
+            for d in [dates] if isinstance(dates, str) else dates:
+                if not d:
+                    continue
+                first, last = statements_service.date_span(d)
+                for i in range(1, len(labels)):
+                    lo, hi = filed[i - 1], filed[i]
+                    if lo and hi and last > lo and first <= hi:
+                        out.append((i, hint))
+                        break
+        return out
+
     breaks = statements_service.split_breaks(
         {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
         labels,
         restated,
+        placed(),
     )
     if breaks:
         b = next(iter(breaks.values()))

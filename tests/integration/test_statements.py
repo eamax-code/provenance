@@ -206,9 +206,10 @@ def test_a_reviewed_split_counts_when_income_swings_too(db):
     assert brk["eps_diluted"] == {"between": ["FY2022", "FY2023"], "ratio_hint": "10:1"}
     assert ("0001045810", "10:1") in st.reviewed_splits()
     assert ("0000929351", "1:14") not in st.reviewed_splits()  # Starz: 15-to-1, not a clean read
-    # 51 rows read in each filing's own disclosure; Amphenol, Fastenal and Texas Pacific Land
-    # split twice at one ratio, so 48 (cik, ratio) keys
-    assert len(st.reviewed_splits()) == 48
+    # 53 rows read in each filing's own disclosure; Amphenol, Fastenal and Texas Pacific Land
+    # split twice at one ratio, so 50 (cik, ratio) keys (Tesla 5:1 and 3:1, Alphabet 20:1 too)
+    assert len(st.reviewed_splits()) == 50
+    assert st.reviewed_splits()[("0001318605", "3:1")] == ("2022-08",)
     assert st.reviewed_splits()[("0000820313", "2:1")] == ("2024-06-11", "2021-03-04")
     assert st.date_label("2024-06-07") == "June 2024" and st.date_label("2020-08") == "August 2020"
 
@@ -295,3 +296,59 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     late = rows["eps_basic"]["split_break"]
     assert late["reviewed"] is False and late["ratio_hint"] is None
     assert rows["eps_basic"]["split_adjusted"] is None
+
+
+def test_a_reviewed_split_is_placed_by_its_date_without_a_share_row(client, auth, db, monkeypatch):
+    """S-02c (2026-11-24, provenance-pm): Alphabet's 20:1 (July 2022) left FY2019 (10-K filed
+    2022-02) and FY2020 (restated in the 10-K filed 2023-02) on different bases, but with no share
+    row the guard never saw it. A reviewed split is placed at the pair of columns whose filings
+    bracket its date, whether or not the guard sees it, and adjusted from the restating filing."""
+    import hashlib
+    from datetime import UTC, date, datetime
+
+    from app.db.models import Company, Filing, FinancialFact
+    from app.services import statements as st
+
+    now, cik = datetime.now(UTC), "0000000780"
+    db.add(Company(cik=cik, legal_name="NOSHARES INC", ticker="NOSH",
+                   source_url="https://www.sec.gov/", first_detected_at=now,
+                   last_processed_at=now, quality_status="ok"))  # fmt: skip
+    facts = [  # (fiscal year, filed, accession suffix, eps); no share row at all
+        (2019, date(2022, 2, 2), "22", 49.16),
+        (2020, date(2021, 2, 3), "21", 58.61),  # FY2020 as first filed
+        (2020, date(2023, 2, 3), "23", 2.93),  # restated for the 20:1
+    ]
+    seen = set()
+    for y, filed, suf, eps in facts:
+        acc = f"{cik}-{suf}-000001"
+        url = f"https://www.sec.gov/Archives/edgar/data/780/{acc.replace('-', '')}/{acc}-index.html"
+        if acc not in seen:
+            seen.add(acc)
+            db.add(Filing(cik=cik, accession_number=acc, form_type="10-K", filing_date=filed,
+                          source_url=url, first_detected_at=now, quality_status="ok"))  # fmt: skip
+        db.add(FinancialFact(
+            cik=cik, metric="eps_basic", value=eps, unit="USD/shares", currency="USD",
+            period_start=date(y, 1, 1), period_end=date(y, 12, 31), period_type="duration",
+            period_class="annual", fiscal_year=y, fiscal_period="FY", form_type="10-K",
+            filed_date=filed, accession_number=acc, source_tag="t", source_taxonomy="us-gaap",
+            source_url=url, mapping_version="1.5.0", quality_status="ok", derived=False,
+            first_detected_at=now, processed_at=now,
+            observation_key=hashlib.sha256(f"eps{y}{suf}".encode()).hexdigest(),
+        ))  # fmt: skip
+    db.commit()
+
+    def eps_row():
+        body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
+        return next(r for r in body["rows"] if r["metric"] == "eps_basic")
+
+    assert eps_row()["split_break"] is None  # the guard alone: no share row, no break
+    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "20:1"): ("2022-07-15",)})
+    row = eps_row()
+    brk = row["split_break"]
+    assert brk["between"] == ["FY2019", "FY2020"] and brk["ratio_hint"] == "20:1"
+    assert brk["reviewed"] is True and brk["split_date"] == "2022-07-15"
+    assert brk["text"].startswith("20:1 split, July 2022: shares and per-share figures before")
+    assert row["split_adjusted"]["values"] == [2.458, 2.93]  # 49.16 / 20; FY2020 as restated
+    # a date that falls outside both columns' filings places nothing
+    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "20:1"): ("2024-07-15",)})
+    assert eps_row()["split_break"] is None

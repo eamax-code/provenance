@@ -204,8 +204,8 @@ def date_label(d: str) -> str:
     return first.strftime("%B %Y") if d.count("-") >= 1 else str(first.year)
 
 
-def split_breaks(values: dict[str, list[float | None]], keys: list[str],
-                 confirm=None) -> dict[str, dict]:  # fmt: skip
+def split_breaks(values: dict[str, list[float | None]], keys: list[str], confirm=None,
+                 forced: list[tuple[int, str]] | None = None) -> dict[str, dict]:  # fmt: skip
     """Where adjacent columns mix share bases: a later filing restated some years for a stock
     split and the earlier years stay as originally filed (Apple FY2017 5.2B shares, FY2018
     19.8B). Flag only, nothing is adjusted: a share row jumps by a near-whole factor and an EPS
@@ -214,7 +214,9 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str],
     such pair; "1:4" is a reverse split. Older pairs that confirm(between, hint) accepts (NVIDIA:
     4:1 in 2021, then 10:1 in 2024) are listed under "earlier", newest first; confirm may also
     accept a latest pair whose income swing is too large (S-02b). The route's confirm checks the
-    reviewed split list."""
+    reviewed split list. forced [(column index, ratio)] are reviewed splits placed by their dates
+    (Alphabet's 20:1 has no share row to detect it; Tesla's 3:1 came with a loss turning to a
+    profit); they count whether or not the guard sees them."""
     found: list[tuple[int, str]] = []
     for i in range(1, len(keys)):
         hit = None
@@ -243,6 +245,9 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str],
                 break
         if hit:
             found.append(hit)
+    if forced:  # a reviewed split's own ratio wins at its column
+        by_i = dict(found) | dict(forced)
+        found = sorted(by_i.items())
     if not found:
         return {}
     i, hint = found[-1]
