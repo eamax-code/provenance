@@ -74,6 +74,21 @@ def test_the_marker_is_only_the_highlight():
         assert re.search(r"color: var\(--marker\)", rule) is None, f"{where}: the marker is never a text colour"
 
 
+def test_data_marks_are_never_the_accent():
+    # a chart's latest bar, end dot or own row is --data-hi (a neutral); yellow reaches a data mark only as the
+    # highlight on hover or when it opens its filing (background: var(--marker))
+    rule = re.compile(r"([^{}]*)\{([^}]*)\}")
+    found = []
+    for p in _site_files():
+        if p.suffix not in {".css", ".html"}:
+            continue
+        for sel, body in rule.findall(p.read_text(encoding="utf-8")):
+            if re.search(r"chart|spark|\.bar|\.col|bar-h|ui-bars|pp-tsr|k-tsr", sel) and ":hover" not in sel and ":focus" not in sel:
+                if re.search(r"(fill|stroke|background)(-color)?: ?var\(--(accent|accent-hi|marker)\)", body):
+                    found.append(f"{p.relative_to(SITE)}: {sel.strip()[:60]}")
+    assert not found, "data marks use --data-hi, not the accent: " + "; ".join(found)
+
+
 def test_every_page_carries_the_brand_icons_and_the_logo():
     for name in ("favicon.svg", "favicon-32.png", "apple-touch-icon.png", "mark.svg", "seal.js"):
         assert (SHELL / name).is_file(), name

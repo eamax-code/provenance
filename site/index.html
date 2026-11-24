@@ -137,9 +137,9 @@ code, pre { font-family: var(--code); }
 .ui-events li { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 10px; }
 .ui-bars { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); align-items: end; gap: 6px; height: 120px; }
 .ui-bars a, .ui-bars div { position: relative; height: var(--h); min-height: 4px; background: var(--mist); border-radius: 2px 2px 0 0; transition: background-color var(--t-hover) ease; }
-.ui-bars .last { background: var(--accent-hi); }
+.ui-bars .last { background: var(--data-hi); }
 .ui-bars a:hover { background: var(--slate); }
-.ui-bars a.last:hover { background: var(--accent); }
+.ui-bars a.last:hover { background: var(--marker); color: var(--marker-ink); }
 .ui-axis { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: 6px; font-size: 12px; color: var(--soft); text-align: center; }
 .ui-axis b { display: block; color: var(--ink); font-weight: 600; font-size: 13px; }
 .ui-seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--bg); border-radius: 6px; }
@@ -373,6 +373,8 @@ html:not(.js) .tabpanel[hidden] { visibility: visible; }
 @media (hover: hover) and (pointer: fine) { .pick button:not([aria-pressed="true"]):hover { background: var(--mist); } }
 .hero-live .record { transition: opacity 160ms ease; }
 .hero-live .ui-big { font-size: clamp(26px, 7.4vw, 40px); white-space: nowrap; overflow-wrap: normal; }
+/* the hero card is a provenance card: its figure carries the highlight (brand, docs/brand.md) */
+#live-value { display: inline-block; background: var(--marker); color: var(--marker-ink); padding: 2px 8px; border-radius: 4px; }
 .hero-live .record.is-loading { opacity: 0.55; }
 .ui-chip.is-note { background: var(--surface-2); color: var(--ink); }
 .same-call { display: grid; gap: 6px; min-width: 0; }

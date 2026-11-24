@@ -2,7 +2,7 @@
    cardinal red for actions, graph lines and highlights.
    Text sits on --red-deep and --slate-deep (5.4:1 and 6.1:1 with white); the exact palette
    red and slate are for icons, marks and charts. */
-.cx{--charcoal:var(--side);--slate-2:color-mix(in srgb,var(--slate) 70%,var(--ink));--mist-2:var(--surface-2);--mist-3:var(--line-soft);--red:var(--accent-hi);--red-deep:var(--accent);--red-ink:var(--accent-hover);
+.cx{--charcoal:var(--side);--slate-2:color-mix(in srgb,var(--slate) 70%,var(--ink));--mist-2:var(--surface-2);--mist-3:var(--line-soft);--red:var(--data-hi);--red-deep:var(--accent);--red-ink:var(--accent-hover);
   --bg-2:var(--surface);--accent-2:var(--accent-hi);
   margin:0;background:var(--bg);background-image:none;color:var(--fg);font-family:var(--font-body);height:100dvh;overflow:hidden;
   --ease:cubic-bezier(.2,.8,.2,1);--side-w:264px;--drawer-w:380px;--col:780px;--surface:var(--panel);
@@ -147,7 +147,7 @@
 .cx-change-facts dd{margin:0}
 .cx-change-text{margin-top:10px;font-size:14px}
 .cx-change details{margin-top:10px;font-size:13px}
-.cx-change summary{cursor:pointer;color:var(--red-deep);font-weight:500;list-style:none;display:inline-flex;align-items:center;gap:6px}
+.cx-change summary{cursor:pointer;color:var(--accent-text);font-weight:500;list-style:none;display:inline-flex;align-items:center;gap:6px}
 .cx-change summary::-webkit-details-marker{display:none}
 .cx-change summary::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .2s}
 .cx-change details[open] summary::before{transform:rotate(45deg)}
@@ -179,7 +179,7 @@
 .cx-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;color:var(--muted)}
 .cx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 .cx-widget details{margin-top:10px;font-size:13px}
-.cx-widget summary{cursor:pointer;color:var(--red-deep);font-weight:500}
+.cx-widget summary{cursor:pointer;color:var(--accent-text);font-weight:500}
 .cx-table{width:100%;border-collapse:collapse;margin-top:8px}
 .cx-table th,.cx-table td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
 .cx-table th:first-child,.cx-table td:first-child{text-align:left}

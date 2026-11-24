@@ -5,7 +5,7 @@
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; overflow-x: clip; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 400 15px/1.5 var(--face); letter-spacing: -0.005em; overflow-x: clip; }
-a { color: var(--accent-text); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a { color: var(--accent-text); text-decoration-thickness: 0.09em; text-underline-offset: 2px; text-decoration-color: var(--link-line); }
 h1, h2, h3, p { margin: 0; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
@@ -32,14 +32,14 @@ tr:last-child td { border-bottom: 0; }
 .rev-chart { display: block; width: 100%; height: auto; }
 .rev-chart .col { fill: var(--mist); }
 .rev-chart a:hover .col { fill: var(--slate); }
-.rev-chart .col.latest { fill: var(--accent-hi); }
+.rev-chart .col.latest { fill: var(--data-hi); }
 .rev-chart .axis { font: 11px var(--face); fill: var(--muted); }
 .rev-chart .val { font: 600 11px var(--face); fill: var(--ink); }
 .rev-chart .margin-line { fill: none; stroke: var(--slate-deep); stroke-width: 2; }
 .rev-chart .margin-label { font: 600 11px var(--face); fill: var(--slate-deep); }
 .spark { width: 88px; height: 24px; }
 .spark polyline { fill: none; stroke: var(--slate); stroke-width: 1.6; }
-.spark circle { fill: var(--accent-hi); }
+.spark circle { fill: var(--data-hi); }
 .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--bg); color: var(--ink); font-size: 12.5px; font-weight: 600; }
 .chip.warn { background: var(--bad-soft); color: var(--bad); }
 .legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--muted); }
@@ -83,7 +83,7 @@ dialog.fv[open] { animation: fv-in .18s ease-out; }
 .fv-chart { display: block; max-width: 100%; height: auto; }
 .fv-chart .col { fill: var(--mist); }
 .fv-chart a:hover .col { fill: var(--slate); }
-.fv-chart .col.latest { fill: var(--accent-hi); }
+.fv-chart .col.latest { fill: var(--data-hi); }
 .fv-chart .col.neg { fill: color-mix(in srgb, var(--ink) 35%, var(--panel)); }
 .fv-chart .grid { stroke: var(--line-soft); }
 .fv-chart .zero { stroke: var(--stone); }

@@ -421,7 +421,7 @@
           { type: 'bar', label: 'Reported', data: hist.map(function (p) { return p.value; }).concat(fc.map(function () { return null; })), backgroundColor: grad, borderRadius: 8, maxBarThickness: 48, grouped: false, order: 3 },
           { type: 'bar', label: 'Base case', data: pad(fc.map(function (f) { return f.base; }), nh), backgroundColor: css('--mist-soft'), borderColor: slate, borderWidth: 2, borderDash: [6, 4], borderRadius: 8, maxBarThickness: 48, grouped: false, order: 2 },
           { type: 'line', label: 'Low case', data: low, borderColor: red, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, tension: 0.3, fill: false, spanGaps: false, order: 1 },
-          { type: 'line', label: 'High case', data: high, borderColor: red, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, tension: 0.3, fill: '-1', backgroundColor: css('--accent-soft'), spanGaps: false, order: 1 }
+          { type: 'line', label: 'High case', data: high, borderColor: red, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, tension: 0.3, fill: '-1', backgroundColor: css('--mist-soft'), spanGaps: false, order: 1 }
         ]
       },
       options: {

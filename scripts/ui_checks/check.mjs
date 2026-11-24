@@ -12,7 +12,8 @@
 // it, no or several h1, missing html lang, images without alt, controls or links without an accessible
 // name, duplicate ids, a stray "null", "undefined" or "NaN" printed as text, text under WCAG AA contrast, horizontal page overflow, forbidden source URLs or
 // fields in the page (data.sec.gov, efts, GLEIF API, FIRDS files, first_detected_at, source_updated_at),
-// a figure drawn in the brand's marker yellow (it may only sit behind a figure as the highlight).
+// a figure or data mark (chart label, SVG shape, HTML bar, Chart.js dataset) drawn in the brand's marker
+// yellow (it may only sit behind a figure as the highlight).
 // WARN: skipped heading levels, touch targets under 24px, text under 12px.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -133,6 +134,22 @@ function audit() {
   const FIGURE = /^[(−+\-]?\s?[$€£¥]?\s?\d[\d,.]*\s?(%|[KMBT]|bn|pp)?\)?$/;
   const yellow = [];
   for (const t of document.querySelectorAll('svg text')) if (FIGURE.test(t.textContent.trim()) && near(parse(getComputedStyle(t).fill), marker)) yellow.push(`chart label "${t.textContent.trim()}"`);
+  // data marks are figures too: SVG chart shapes, empty HTML bars, and Chart.js datasets (canvas)
+  const mark = (c) => near(parse(c) || hex(c), marker);
+  for (const g of document.querySelectorAll('svg[role=img], svg.spark, svg[class*=chart]')) {
+    for (const sh of g.querySelectorAll('rect, circle, ellipse, path, polyline, polygon, line')) {
+      const cs = getComputedStyle(sh); if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+      if ((mark(cs.fill) || mark(cs.stroke)) && yellow.length < 6) yellow.push(`chart mark ${sh.tagName}.${sh.getAttribute('class') || ''} in svg.${g.getAttribute('class') || ''}`);
+    }
+  }
+  for (const el of document.querySelectorAll('main *')) {
+    if (!/(^|\s)(bar|bar-h|col|last|latest|hot|dot)(\s|$)/.test(typeof el.className === 'string' ? el.className : '') || el.textContent.trim() || el.closest('svg, .theme-pick') || /^(INPUT|SELECT|TEXTAREA|IMG|CANVAS)$/.test(el.tagName) || !vis(el)) continue;
+    const cs = getComputedStyle(el); if (cs.maskImage && cs.maskImage !== 'none') continue; // the logo, drawn as a mask
+    if (mark(cs.backgroundColor) && yellow.length < 6) yellow.push(`data mark ${desc(el)}`);
+  }
+  if (window.Chart && window.Chart.instances) for (const c of Object.values(window.Chart.instances)) for (const d of c.data.datasets) {
+    for (const k of ['backgroundColor', 'borderColor', 'pointBackgroundColor', 'pointBorderColor']) for (const v of [].concat(d[k] || [])) if (typeof v === 'string' && mark(v) && yellow.length < 6) yellow.push(`chart dataset "${d.label}" ${k}`);
+  }
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: (n) => n.textContent.trim() ? 1 : 2 });
   const stray = [];
   while (walker.nextNode()) {

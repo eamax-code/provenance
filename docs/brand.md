@@ -31,15 +31,23 @@ Chosen by the owner on 24 Nov 2026, from three directions (Hallmark, Accession, 
 | `--accent` | #f3e04c | #f3e04c | #eed43a | #f3e04c | fill behind ink: buttons, the one action |
 | `--accent-ink` | #16181b | #16181b | #16181b | #0d1117 | text on `--accent` |
 | `--accent-hi` | #f3e04c | #6b5d00 | #5f5200 | #f3e04c | the accent as a line: focus, selected tab, latest bar |
-| `--accent-text` | #f3e04c | #6b5d00 | #5f5200 | #f3e04c | links and current-page text |
+| `--accent-text` | #e7ebee | #6b5d00 | #5f5200 | #d6dde6 | link text: ink on dark grounds, olive on light ones |
+| `--link-line` | #f3e04c | currentColor | currentColor | #f3e04c | the link underline: a marker underline on dark grounds |
+| `--data-hi` | ink | ink | ink | ink | the marked data point: latest bar, end dot, own row. A neutral, never yellow |
 | `--marker` / `--marker-ink` | #f3e04c / #16181b | #f3e04c / #16181b | #eed43a / #16181b | #f3e04c / #0d1117 | the highlight only |
 | `--mark` | #f3e04c | #16181b | #1f1c17 | #f3e04c | the logo and the seal |
 | `--warn` | #f0883e | #a34a07 | #9a4a12 | #f0883e | warnings: orange, never amber |
 
 Rules, each checked by a test or the UI audit:
 
-1. Yellow is a fill behind ink, or the marker on a dark ground. On light grounds the accent becomes marker deep (olive) as a line or as text (`tests/integration/test_brand.py`).
-2. **The marker is never a figure's own colour.** It may only sit behind a figure as the highlight, with `--marker-ink` on it. In practice that is the hover on a figure link that opens its filing, and selection. `scripts/ui_checks/check.mjs` fails any figure, in text or as a chart label, drawn in the marker yellow.
+1. Yellow is spent sparingly. It is a fill behind ink (the primary button), the highlight, and a line on dark grounds (focus, the selected tab, the current nav item's underline, link underlines). On dark grounds links are ink with a marker underline. On light grounds the accent becomes marker deep (olive) as a line or as text (`tests/integration/test_brand.py`).
+   - The current nav item is ink with an underline, never coloured text.
+2. **The marker is never a figure's own colour, and never a data mark's.** It may only sit behind a figure as the highlight, with `--marker-ink` on it. That covers:
+   - the hero card's figure, the one static use, because that card is a provenance card;
+   - the hover on a figure link or a bar that opens its filing;
+   - selection.
+
+   The latest bar and end dots use `--data-hi`. `scripts/ui_checks/check.mjs` fails a figure or data mark in the marker yellow, whether it's text, a chart label, an SVG shape, an empty HTML bar, or a Chart.js dataset.
 3. Yellow never means up or down. Changes stay `--good` and `--bad`, and only on flows.
 4. `--warn` is orange, so a warning never meets the marker.
 5. Brand hexes appear only in `site/shell/`. Pages read tokens (`test_brand_colours_are_defined_only_in_the_shell`).
