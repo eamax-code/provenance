@@ -156,8 +156,9 @@ Rules:
   10-K filed 2020-10-30)". A pair whose income swing is over 2x counts only from the reviewed list.
   S-02c (2026-11-24): `reviewed` (bool). Only a reviewed split names its ratio in `text` and gets
   `split_adjusted`; any other break reads "The share basis changes here (restated in the 10-K filed
-  <date>): …" with no adjusted values (its `ratio_hint` is a hint only: a hand-check of 30 found
-  IPO and merger share changes read as splits and reverse-split ratios off). As filed stays the
+  <date>): …" with no adjusted values and `ratio_hint: null` (a hand-check of 30 found IPO and
+  merger share changes read as splits and reverse-split ratios off: about 80% wrong, so an
+  unreviewed ratio is never shown, in the API, MCP or chat). As filed stays the
   default.
 - `split_adjusted` (S-02, 2026-11-24, additive): beside the as-filed cells of a row with a
   `split_break`, the row on the post-split basis: `{"ratio": "4:1", "derived": true, "values":

@@ -119,7 +119,9 @@ def test_split_break_on_the_statement(client, auth, db):
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     brk = rows["eps_basic"]["split_break"]
-    assert brk["between"] == ["FY2017", "FY2018"] and brk["ratio_hint"] == "4:1"
+    # S-02c: not in the reviewed list, so no ratio is shown
+    assert brk["between"] == ["FY2017", "FY2018"] and brk["ratio_hint"] is None
+    assert brk["reviewed"] is False
     assert rows["shares_basic_weighted"]["split_break"] == brk
     assert rows["net_income"]["split_break"] is None
     assert brk["text"] in body["notes"] and "not adjusted" in brk["text"]
@@ -169,6 +171,7 @@ def test_split_adjusted_series_from_a_restating_filing(client, auth, db, monkeyp
     rows = {r["metric"]: r for r in body["rows"]}
     assert rows["eps_basic"]["split_adjusted"] is None
     assert rows["eps_basic"]["split_break"]["reviewed"] is False
+    assert rows["eps_basic"]["split_break"]["ratio_hint"] is None
     note = rows["eps_basic"]["split_break"]["text"]
     assert note.startswith("The share basis changes here (restated in the 10-K filed")
     monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "4:1"): "2020-08-31"})
@@ -257,6 +260,7 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     rows = {r["metric"]: r for r in body["rows"]}
     plain = rows["eps_basic"]["split_break"]
     assert "earlier" not in plain and plain["split_date"] is None and plain["reviewed"] is False
+    assert plain["ratio_hint"] is None  # an unreviewed ratio is never shown
     assert plain["restated_in"]["filed_date"] == "2020-11-01"  # the filing behind FY2018
     assert plain["text"].startswith("The share basis changes here (restated in the 10-K filed "
                                     "2020-11-01)") and "3:1" not in plain["text"]  # fmt: skip

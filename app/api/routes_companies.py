@@ -830,6 +830,8 @@ def statement(
         for v in breaks.values():
             v["text"], v["split_date"], v["restated_in"] = text, split_date, restated_in
             v["reviewed"] = is_reviewed
+            if not is_reviewed:  # about 80% of unreviewed ratios were wrong: never shown
+                v["ratio_hint"] = None
     for r in rows:
         r.split_break = breaks.get(r.metric)
     reviewed_breaks = breaks if breaks and next(iter(breaks.values()))["reviewed"] else {}
