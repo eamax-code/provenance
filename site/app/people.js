@@ -194,7 +194,7 @@
       if (!yes) { planSec.remove(); saleSec.remove(); return; }
       o.load('/v1/companies/' + o.cik + '/insider-plans').then(function (r) {
         if (!r || !r.ok) { put(planSec, [failed(r && Object.assign(r, { key: o.keyed }), 'Trading plans')]); saleSec.remove(); return; }
-        var b = r.body, cap = function (n) { return !o.keyed && n >= 10 ? note('Without a key, up to 10 rows are shown.') : null; }, dis = function () { return note(((b.labels || {}).disclaimer) || DISCLAIMER); }; // a node can sit in one place only
+        var b = r.body, cap = function (n) { return !o.keyed && n === 10 ? note('Without a key, up to 10 rows are shown.') : null; }, dis = function () { return note(((b.labels || {}).disclaimer) || DISCLAIMER); }; // a node can sit in one place only
         put(planSec, plans(b, name).concat([note((b.notes || [])[0] || ''), cap((b.plans || []).length), dis()]));
         put(saleSec, sales(b, name).concat([note((b.notes || [])[1] || ''), cap((b.proposed_sales || []).length), dis()]));
       });

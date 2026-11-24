@@ -643,3 +643,4 @@ table.pr-table { min-width: 900px; }
 .ask { font-size: .78rem; white-space: nowrap; }
 .tag-sus { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); margin-left: 6px; }
 .pr-excl { margin: 4px 0 8px; font-size: .88rem; color: var(--warn); } .pr-excl .linkish { font-size: inherit; }
+.pr-f input.pr-wide { max-width: none; width: 15.5em; }

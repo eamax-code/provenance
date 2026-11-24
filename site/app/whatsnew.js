@@ -54,7 +54,7 @@
     var since = iso(new Date((o.asOf ? Date.parse(o.asOf) : Date.now()) - 90 * 864e5));
     fetchOnce('ins' + o.cik + o.asOf, function () { return o.load('/v1/companies/' + o.cik + '/insider-plans?since=' + since + (o.asOf ? '&as_of=' + o.asOf : '')); }).then(function (r) {
       if (!r || !r.ok) { c.set(r && r.status === 403 ? 'Needs a free key for this company.' : 'Not available just now.', 'muted'); return; }
-      var b = r.body, ps = b.plans || [], ss = b.proposed_sales || [], cap = function (n) { return !o.keyed && n >= 10 ? '10+' : String(n); };
+      var b = r.body, ps = b.plans || [], ss = b.proposed_sales || [], cap = function (n) { return !o.keyed && n === 10 ? '10+' : String(n); };
       var ad = ps.filter(function (p) { return p.action !== 'terminated'; }).length, te = ps.length - ad;
       var bits = [ad ? cap(ad) + ' plan' + (ad === 1 ? '' : 's') + ' adopted' : null, te ? te + ' ended' : null, ss.length ? cap(ss.length) + ' Form 144 notice' + (ss.length === 1 ? '' : 's') : null].filter(Boolean);
       c.set(bits.length ? [el('b', { text: bits.join(', ') }), ' in 90 days. Information, not signals.'] : 'No trading plans or Form 144 notices in 90 days.', bits.length ? '' : 'muted');

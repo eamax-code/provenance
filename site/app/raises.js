@@ -47,7 +47,7 @@
       var rows = items.map(function (x) {
         var f = x.latest_filing || {}, ps = x.related_persons || [];
         var det = el('details', { class: 'pr-d' }, [el('summary', {}, [el('span', { class: 'pr-when', text: day(f.filed_date) }), el('span', {}, amounts(x, 'This offering')), el('span', { class: 'muted small', text: (x.industry_group || '') + ' · ' + exem(x.exemptions) })]),
-          el('dl', { class: 'pr-dl' }, [el('dt', { text: 'Investors' }), el('dd', { text: !x.investors || x.investors.total == null ? '—' : x.investors.total === 0 ? 'No investors yet' : x.investors.total + (x.investors.non_accredited > 0 ? ', ' + x.investors.non_accredited + ' not accredited' : x.investors.non_accredited === 0 ? ', all accredited' : '') }),
+          el('dl', { class: 'pr-dl' }, [el('dt', { text: 'Investors' }), el('dd', { text: !x.investors || x.investors.total == null ? '—' : x.investors.total === 0 ? 'No investors yet' : Number(x.investors.total).toLocaleString('en-US') + (x.investors.non_accredited > 0 ? ', ' + x.investors.non_accredited + ' not accredited' : x.investors.non_accredited === 0 ? ', all accredited' : '') }),
             el('dt', { text: 'First sale' }), el('dd', { text: x.first_sale_yet_to_occur ? 'Yet to occur' : day(x.first_sale_date) }),
             el('dt', { text: 'Remaining' }), el('dd', { text: x.indefinite ? '—' : money(x.total_remaining) }),
             x.minimum_investment != null ? el('dt', { text: 'Minimum investment' }) : null, x.minimum_investment != null ? el('dd', { text: money(x.minimum_investment) }) : null,
@@ -71,7 +71,7 @@
     var fq = el('input', { type: 'checkbox' }); fq.checked = q.get('pq') === '1';
     // cash and liquidity funds roll subscriptions over, so they top 'largest raised'; left out there unless asked for
     var FUNDS = 'Pooled Investment Fund', xi = q.get('pxi'), dflt = function () { return order === 'sold' ? FUNDS : ''; };
-    var fe = el('input', { type: 'text', list: 'pr-ind', value: xi == null ? dflt() : xi === 'none' ? '' : xi, placeholder: 'None', 'aria-label': 'Leave out an industry group, as filed' });
+    var fe = el('input', { type: 'text', list: 'pr-ind', class: 'pr-wide', value: xi == null ? dflt() : xi === 'none' ? '' : xi, placeholder: 'None', 'aria-label': 'Leave out an industry group, as filed' });
     var feL = el('label', { class: 'scr-l', title: 'Leave out one industry group as filed. “Pooled Investment Fund” (cash and liquidity funds whose subscriptions roll over) is left out of Largest raised unless you clear it.' }, ['Leave out ', fe]);
     var fqL = el('label', { class: 'scr-l check', title: 'Offerings of $100B or more from issuers that are not cash or liquidity funds, kept as filed but flagged' }, [fq, ' Include implausible amounts']);
     var fo = el('span', { class: 'seg', role: 'group', 'aria-label': 'Order' }, [['new', 'Newest first'], ['sold', 'Largest raised']].map(function (x) { return el('button', { type: 'button', class: 'seg-btn', 'aria-pressed': String(order === x[0]), text: x[1], on: { click: function () { order = x[0]; if (new URLSearchParams(location.search).get('pxi') == null) fe.value = dflt(); [].forEach.call(fo.children, function (b, i) { b.setAttribute('aria-pressed', String(['new', 'sold'][i] === order)); }); apply(false); } } }); }));
@@ -99,7 +99,7 @@
       var body = rows.map(function (x) {
         var I = x.issuer || {}, f = x.latest_filing || {}, ck = I.cik ? String(parseInt(I.cik, 10)) : null, nm = o.name ? o.name(I.name || '') : I.name;
         return el('tr', {}, [el('td', { text: day(f.filed_date) }), el('th', { scope: 'row' }, [I.is_registrant && ck ? el('a', { href: '/app/?c=' + ck, text: nm }) : el('span', { text: nm }), el('span', { class: 'muted small pp-title', text: [I.state, I.entity_type, I.is_registrant ? 'files reports with the SEC' : null].filter(Boolean).join(' · ') })]),
-          el('td', { class: 'muted', text: x.industry_group || '—' }), el('td', { class: 'n' }, amounts(x, nm)), el('td', { class: 'n', text: !x.investors || x.investors.total == null ? '—' : x.investors.total === 0 ? 'None yet' : String(x.investors.total) }), el('td', { class: 'muted', text: exem(x.exemptions) }),
+          el('td', { class: 'muted', text: x.industry_group || '—' }), el('td', { class: 'n' }, amounts(x, nm)), el('td', { class: 'n', text: !x.investors || x.investors.total == null ? '—' : x.investors.total === 0 ? 'None yet' : Number(x.investors.total).toLocaleString('en-US') }), el('td', { class: 'muted', text: exem(x.exemptions) }),
           el('td', {}, [ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: (f.form || 'D') + ' ↗' }) : '—', ' ', askLink('Tell me about ' + nm + '’s Form D offering filed ' + (f.filed_date || '') + ' (accession ' + (f.accession_number || '') + ').', I.is_registrant ? I.cik : null, nm + '’s offering')])]);
       });
       var more = cursor && o.keyed ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { apply(true); } } }) : null;
