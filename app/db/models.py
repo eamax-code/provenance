@@ -59,6 +59,9 @@ class Company(Base):
     state_of_incorporation_cover: Mapped[str | None] = mapped_column(Text, nullable=True)
     state_of_incorporation_accession: Mapped[str | None] = mapped_column(String(25), nullable=True)
     fiscal_year_end: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # S-05: years to add to the end-year fiscal label, as the latest 10-K words it (-1: the year
+    # is named by the calendar year it starts in); null: not read, the end-year rule applies
+    fiscal_year_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Identity the SEC publishes in the submissions (issue #9); empty strings are stored as null.
     filer_category: Mapped[str | None] = mapped_column(Text, nullable=True)  # Large accelerated…
     sec_office: Mapped[str | None] = mapped_column(Text, nullable=True)  # ownerOrg

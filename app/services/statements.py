@@ -96,12 +96,11 @@ def annual_cells(
         cur = best.setdefault(r.metric, {}).get(r.period_end)
         if cur is None or _pref(r, company.cik) > _pref(cur, company.cik):
             best[r.metric][r.period_end] = r
-    fye = company.fiscal_year_end
     by_label: dict[str, dict[str, FinancialFact]] = {}
     ends: dict[str, date] = {}
     for m, per_end in best.items():
         for end, f in per_end.items():
-            lab = periods.label(end, "annual", fye)
+            lab = periods.label(end, "annual", periods.convention(company))
             prev = by_label.setdefault(m, {}).get(lab)
             if prev is None or f.period_end > prev.period_end:
                 by_label[m][lab] = f

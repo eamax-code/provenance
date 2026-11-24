@@ -49,7 +49,7 @@ def head_for(db: Session, settings, cik: str, origin: str) -> dict:
                 "to its SEC filing.")  # fmt: skip
         if rev:
             fy = periods.label(date.fromisoformat(rev["period_end"]), "annual",
-                               company.fiscal_year_end)  # fmt: skip
+                               periods.convention(company))  # fmt: skip
             who = (
                 f"{name} ({', '.join(x for x in (ticker, company.exchange) if x)})"
                 if ticker

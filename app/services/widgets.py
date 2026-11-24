@@ -133,7 +133,7 @@ def add_trend(b: intel.Brief, db: Session, metric: str, years: int) -> dict | No
         return None
     facts.reverse()
     label = intel.METRIC_LABELS[metric]
-    names = periods.labels([f.period_end for f in facts], "annual", b.company.fiscal_year_end)
+    names = periods.labels([f.period_end for f in facts], "annual", periods.convention(b.company))
     points = []
     for i, f in enumerate(facts):
         prev = float(facts[i - 1].value) if i else None

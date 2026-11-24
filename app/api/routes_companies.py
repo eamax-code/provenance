@@ -429,10 +429,11 @@ def facts(
     if stated:
         notes.append(first_reported.NOTE)
     for f in page:  # the period's own fiscal year, whatever filing reported it
-        f.period_fiscal_year = periods.fiscal_year(f.period_end, company.fiscal_year_end)
+        f.period_fiscal_year = periods.fiscal_year(f.period_end, periods.convention(company))
         f.calendar_period = periods.calendar_period(f.period_start, f.period_end, f.period_class)
         if f.period_class in ("annual", "quarterly"):
-            f.period_label = periods.label(f.period_end, f.period_class, company.fiscal_year_end)
+            f.period_label = periods.label(f.period_end, f.period_class,
+                                           periods.convention(company))
     has_more = offset + limit < total
     return FactList(
         data=page,
@@ -551,10 +552,11 @@ def _derived_page(cik, company, metric, ratio, rows, limit, offset, as_of) -> Fa
         )  # fmt: skip
     out.sort(key=lambda f: f.period_end, reverse=True)
     for f in out:
-        f.period_fiscal_year = periods.fiscal_year(f.period_end, company.fiscal_year_end)
+        f.period_fiscal_year = periods.fiscal_year(f.period_end, periods.convention(company))
         f.calendar_period = periods.calendar_period(f.period_start, f.period_end, f.period_class)
         if f.period_class in ("annual", "quarterly"):
-            f.period_label = periods.label(f.period_end, f.period_class, company.fiscal_year_end)
+            f.period_label = periods.label(f.period_end, f.period_class,
+                                           periods.convention(company))
     page = out[offset : offset + limit]
     has_more = offset + limit < len(out)
     notes = [
@@ -708,12 +710,12 @@ def statement(
     for (_, end), f in by_key.items():
         if f.period_start and end in ends:
             starts.setdefault(end, f.period_start)
-    fye = company.fiscal_year_end
     columns = []
     for end in ends:
-        label = periods.label(end, period, fye)
+        conv = periods.convention(company)  # S-05: the company's own naming
+        label = periods.label(end, period, conv)
         columns.append(StatementColumn(
-            key=label, period_label=label, period_fiscal_year=periods.fiscal_year(end, fye),
+            key=label, period_label=label, period_fiscal_year=periods.fiscal_year(end, conv),
             period_start=starts.get(end), period_end=end,
             calendar_period=periods.calendar_period(starts.get(end), end, period),
         ))  # fmt: skip
@@ -931,7 +933,9 @@ def statement(
     return StatementOut(
         cik=cik, statement=statement, period=period,
         as_of=as_of.isoformat() if as_of else None, reporting_currency=currency,
-        mapping_version=MAPPING_VERSION, columns=columns, rows=rows, notes=notes,
+        mapping_version=MAPPING_VERSION, fiscal_year_end=company.fiscal_year_end,
+        label_basis=periods.label_basis(periods.convention(company)),
+        columns=columns, rows=rows, notes=notes,
     )  # fmt: skip
 
 

@@ -993,7 +993,7 @@ def annual_fact(db: Session, company: Company, metric: str, year: int | None,
         return rows[0] if rows else None
     from app.services import periods
 
-    fye = company.fiscal_year_end
+    fye = periods.convention(company)
     return next((f for f in rows if periods.fiscal_year(f.period_end, fye) == year), None)
 
 

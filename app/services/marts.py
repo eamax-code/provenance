@@ -335,13 +335,15 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
         )
         .subquery()
     )  # fmt: skip
-    fye = dict(
-        db.execute(
-            select(Company.cik, Company.fiscal_year_end).where(
+    # S-05: each company's fiscal year end with its naming convention
+    fye = {
+        cik: (end, off)
+        for cik, end, off in db.execute(
+            select(Company.cik, Company.fiscal_year_end, Company.fiscal_year_offset).where(
                 Company.cik.in_(ciks) if ciks else True
             )
-        ).all()
-    )
+        )
+    }
     if ciks:
         db.execute(delete(MartFinancial).where(MartFinancial.cik.in_(ciks)))
         db.execute(delete(MartCompanyPeriod).where(MartCompanyPeriod.cik.in_(ciks)))

@@ -72,6 +72,16 @@ class StatementOut(BaseModel):
     as_of: str | None = None
     reporting_currency: str | None = None
     mapping_version: str
+    fiscal_year_end: str | None = Field(
+        None, description="The company's fiscal year end (MMDD), as the SEC records it."
+    )
+    label_basis: str = Field(
+        "end-year rule",
+        description="How the column labels name fiscal years (S-05): \"company's 10-K wording\" "
+        "(e.g. Gap's year ended 2026-01-31 is FY2025, as its 10-K names it), optionally \"from "
+        "FYyyyy (end-year rule before)\", or \"end-year rule\" (the calendar year the fiscal "
+        "year ends in).",
+    )
     columns: list[StatementColumn]
     rows: list[StatementRow]
     notes: list[str]

@@ -30,6 +30,7 @@ company's EDGAR filing list as `filings_url`.
 | `legal_name` | Name from SEC submissions (or the ticker file before first ingestion) |
 | `ticker`, `exchange` | Current primary ticker/exchange as listed by the SEC. Not a permanent identity. |
 | `sic_code`, `sic_description`, `entity_type`, `state_of_incorporation`, `fiscal_year_end` | As reported in SEC submissions |
+| `fiscal_year_offset` | S-05 (derived): years added to the end-year fiscal label, as the company's latest annual report names the year it reports ("fiscal 2025 ended January 31, 2026": -1, as Gap, Target and Home Depot; 0 where the wording confirms the end-year name). Set by `scripts/set_fiscal_year_offsets.py` for companies whose filings' DEI fiscal year proposes a different name; the DEI alone never sets it (Mentor Graphics tags 2016 for the year its 10-K calls fiscal 2017). Applies to every year (the report names its prior years the same way). Null: no such wording read, labels follow the end-year rule. Responses say which in `label_basis` |
 | `source_url` | SEC submissions URL (or ticker file URL before ingestion) |
 | `source_updated_at` | `Last-Modified` header of the submissions response, when the SEC sends one |
 | `first_detected_at` | First time this service saw the company |

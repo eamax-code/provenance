@@ -434,7 +434,7 @@ def _peers(db: Session, company: Company, today: date) -> dict | None:
             "accounting": basis_of.get(m.cik),
             "period_end": m.latest_revenue_period_end,
             "fiscal_label": periods.label(m.latest_revenue_period_end, "annual",
-                                          c.fiscal_year_end)
+                                          periods.convention(c))
             if m.latest_revenue_period_end else None,
             "accession_number": rev.get("accession"), "form_type": rev.get("form_type"),
             "filed_date": rev.get("filed_date"), "source_url": rev.get("url"),
@@ -578,8 +578,8 @@ def build(
     if as_of:
         key_figures, years = _figures_as_of(db, company, as_of)
     else:
-        key_figures = _key_figures(mart, company.fiscal_year_end)
-        years = _years(db, cik, company.fiscal_year_end)
+        key_figures = _key_figures(mart, periods.convention(company))
+        years = _years(db, cik, periods.convention(company))
     _card_fields(db, cik, key_figures, years)
     trailing = ttm.compute(db, company, list(METRICS), as_of=as_of, today=today)
     for kf in key_figures:

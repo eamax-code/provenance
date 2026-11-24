@@ -91,13 +91,15 @@ def export_facts(
     now = datetime.now(UTC)
     filename = export_filename(metric, cik_list, format, now)
     headers = _headers(filename, len(rows), truncated, requested)
-    year_ends = dict(
-        db.execute(
-            select(Company.cik, Company.fiscal_year_end).where(
+    # S-05: each company's fiscal year end with its naming convention
+    year_ends = {
+        cik: (fye, off)
+        for cik, fye, off in db.execute(
+            select(Company.cik, Company.fiscal_year_end, Company.fiscal_year_offset).where(
                 Company.cik.in_({r.cik for r in rows})
             )
-        ).all()
-    )
+        )
+    }
     if format == "csv":
         body = render_csv(rows, year_ends)
         media = "text/csv; charset=utf-8"

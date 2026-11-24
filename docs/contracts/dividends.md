@@ -75,6 +75,10 @@ not signals. **No yield** until end-of-day prices exist (P-01).
   `period_end` and the fiscal year come from the same source and labelling as
   `/v1/companies/{cik}/statements` (`periods.label`, the company's fiscal year end), so
   "FY2024" or "Q1 FY2025" here is the statements' column key for the same company and period.
+  S-05 (2026-11-25): each row also gives `fiscal_year_end` (MMDD) and `label_basis`:
+  "company's 10-K wording" where the company's latest annual report names its years (Gap's
+  year ended 2026-01-31 is FY2025), else "end-year rule"; the statements response carries the
+  same two fields.
 - **One value per period:** the latest filing (by `as_of`) that reports it; a later 10-K that
   restates a year (after a split) wins, as on the statements.
 - **Quarterly** values are as reported. A Q4 is **derived** (FY minus the first three quarters)

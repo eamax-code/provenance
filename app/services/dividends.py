@@ -82,7 +82,7 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
     from app.api.routes_companies import _row_to_normalized
     from app.db.models import MartCompany
 
-    cik, fye = company.cik, company.fiscal_year_end
+    cik, fye, conv = company.cik, company.fiscal_year_end, periods.convention(company)
     ciks = [cik] + [p.predecessor_cik for p in successions.predecessors(db, cik)]
     q = select(DividendFact).where(DividendFact.cik.in_(ciks), DividendFact.metric == METRIC,
                                    DividendFact.derived.is_(False))  # fmt: skip
@@ -121,11 +121,12 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
         mi, su = d.derivation["minuend"], d.derivation["subtrahend"]
         filed = [date.fromisoformat(x["filed_date"]) if x["filed_date"] else None for x in (mi, su)]
         if d.value is not None and d.value < 0:
-            notes.append(f"{periods.label(d.period_end, 'quarterly', fye)}: not derived, the year "
-                         "less nine months is negative.")  # fmt: skip
+            q4 = periods.label(d.period_end, "quarterly", conv)
+            notes.append(f"{q4}: not derived, the year less nine months is negative.")
             continue
         if straddles(*filed):
-            notes.append(f"{periods.label(d.period_end, 'quarterly', fye)}: not derived, its "
+            q4 = periods.label(d.period_end, "quarterly", conv)
+            notes.append(f"{q4}: not derived, its "
                          "inputs were filed on either side of a stock split.")  # fmt: skip
             continue
         derived[d.period_end] = {"fact": d, "inputs": [mi, su]}
@@ -174,10 +175,12 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
         factor = fac.get(e)
         start = f.period_start
         row = {
-            "period_label": periods.label(e, cls, fye),
+            "period_label": periods.label(e, cls, conv),
             "period_start": start.isoformat() if start else None,
             "period_end": e.isoformat(),
-            "period_fiscal_year": periods.fiscal_year(e, fye),
+            "period_fiscal_year": periods.fiscal_year(e, conv),
+            "fiscal_year_end": fye,
+            "label_basis": periods.label_basis(conv),
             "calendar_period": periods.calendar_period(start, e, cls),
             "declared_per_share": value,
             "unit": f.unit,
@@ -195,7 +198,7 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
         }  # fmt: skip
         if inputs:
             row["inputs"] = [{"period_label": periods.label(date.fromisoformat(x["period_end"]),
-                                                            "annual" if i == 0 else "ytd", fye),
+                                                            "annual" if i == 0 else "ytd", conv),
                               "value": float(x["value"]), "accession_number": x["accession_number"],
                               "source_url": f.source_url if i == 0 else None}
                              for i, x in enumerate(inputs)]  # fmt: skip

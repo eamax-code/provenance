@@ -5,7 +5,11 @@
   the first week of January belongs to the year before (Advance Auto Parts' year ending
   2022-01-01 is fiscal 2021, its next one ending 2022-12-31 is fiscal 2022);
 - a quarter belongs to the fiscal year that contains it (Apple's quarter ending December 2025 is
-  Q1 of fiscal 2026) and is numbered from the fiscal year's start.
+  Q1 of fiscal 2026) and is numbered from the fiscal year's start;
+- S-05 (2026-11-25): then the company's own convention, as its latest 10-K words it (`offset`,
+  Company.fiscal_year_offset): Gap, Target and Home Depot name a year ending in January by the
+  calendar year it starts in, so their offset is -1 (Gap's year ended 2026-01-31 is FY2025). A
+  company whose wording could not be read keeps the end-year rule.
 """
 
 from __future__ import annotations
@@ -13,6 +17,25 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 EARLY_JANUARY_DAYS = 7
+
+
+Convention = tuple  # (fiscal year end MMDD or None, offset or None)
+
+
+def convention(company=None, fiscal_year_end: str | None = None,
+               offset: int | None = None) -> Convention:  # fmt: skip
+    """A company's naming convention, (fiscal year end MMDD, offset), to pass wherever a fiscal
+    year end is expected (S-05): the functions below accept either form."""
+    if company is not None:
+        return company.fiscal_year_end, company.fiscal_year_offset
+    return fiscal_year_end, offset
+
+
+def _split(fiscal_year_end, offset: int | None) -> tuple[str | None, int]:
+    if isinstance(fiscal_year_end, tuple):
+        fye, off = fiscal_year_end
+        return fye, (offset if offset else (off or 0))
+    return fiscal_year_end, offset or 0
 
 
 def _fye_month(fiscal_year_end: str | None) -> int:
@@ -26,33 +49,38 @@ def _fye_month(fiscal_year_end: str | None) -> int:
     return 12
 
 
-def fiscal_year(period_end: date, fiscal_year_end: str | None = None) -> int:
-    """The fiscal year a period ending on this date belongs to."""
+def fiscal_year(period_end: date, fiscal_year_end: str | None = None,
+                offset: int | None = 0) -> int:  # fmt: skip
+    """The fiscal year a period ending on this date belongs to, as the company names it."""
+    fiscal_year_end, offset = _split(fiscal_year_end, offset)
     shifted = period_end - timedelta(days=EARLY_JANUARY_DAYS)
     fye = _fye_month(fiscal_year_end)
     # Days near the turn of the year shift back into the year they close; a quarter ending
     # after the fiscal year-end month opens the next fiscal year.
-    return shifted.year + (1 if shifted.month > fye else 0)
+    return shifted.year + (1 if shifted.month > fye else 0) + offset
 
 
 def fiscal_quarter(period_end: date, fiscal_year_end: str | None = None) -> int:
     """1 to 4: which quarter of its fiscal year a quarter ending on this date is."""
+    fiscal_year_end, _ = _split(fiscal_year_end, 0)
     shifted = period_end - timedelta(days=EARLY_JANUARY_DAYS)
     fye = _fye_month(fiscal_year_end)
     return (shifted.month - fye - 1) % 12 // 3 + 1
 
 
-def label(period_end: date, period_class: str, fiscal_year_end: str | None = None) -> str:
-    fy = fiscal_year(period_end, fiscal_year_end)
+def label(period_end: date, period_class: str, fiscal_year_end: str | None = None,
+          offset: int | None = 0) -> str:  # fmt: skip
+    fy = fiscal_year(period_end, fiscal_year_end, offset)
     if period_class == "quarterly":
         return f"Q{fiscal_quarter(period_end, fiscal_year_end)} FY{fy}"
     return f"FY{fy}"
 
 
-def labels(ends: list[date], period_class: str, fiscal_year_end: str | None = None) -> list[str]:
+def labels(ends: list[date], period_class: str, fiscal_year_end: str | None = None,
+           offset: int | None = 0) -> list[str]:  # fmt: skip
     """Labels for a series; when a change of year end makes two periods share a label, each of
     them also names the month it ended ("FY2015 (Sep)", "FY2015 (Dec)")."""
-    base = [label(e, period_class, fiscal_year_end) for e in ends]
+    base = [label(e, period_class, fiscal_year_end, offset) for e in ends]
     seen: dict[str, int] = {}
     for b in base:
         seen[b] = seen.get(b, 0) + 1
@@ -81,3 +109,8 @@ def parse_calendar_period(text: str) -> tuple[int, int | None, bool] | None:
     if not m or (m.group(3) and not m.group(2)):
         return None
     return int(m.group(1)), int(m.group(2)) if m.group(2) else None, bool(m.group(3))
+
+
+def label_basis(conv: Convention) -> str:
+    """How a company's labels were set (S-05): its own 10-K wording, or the end-year rule."""
+    return "end-year rule" if conv[1] is None else "company's 10-K wording"

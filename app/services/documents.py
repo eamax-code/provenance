@@ -179,7 +179,7 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
             if not v:
                 continue
             end = date.fromisoformat(v["period_end"])
-            fy = periods.label(end, "annual", company.fiscal_year_end)
+            fy = periods.label(end, "annual", periods.convention(company))
             source = f"{v['form_type']} filed {v['filed_date']}"
             lines.append(
                 f"| {label} | {_money(v['value'], v.get('unit'))} | {fy}, ended {end} | "
@@ -216,7 +216,7 @@ def build_profile(db: Session, cik: str, today: date | None = None) -> Profile |
     if len(history) > 1:
         lines += ["", "## Revenue by fiscal year", ""]
         ends = [date.fromisoformat(h["period_end"]) for h in history]
-        names = periods.labels(ends, "annual", company.fiscal_year_end)
+        names = periods.labels(ends, "annual", periods.convention(company))
         for label, h in zip(names, history, strict=True):
             lines.append(
                 f"- {label}: {_money(h['value'], h.get('unit'))} "
