@@ -16,12 +16,8 @@ import sys
 from datetime import date
 
 from _bootstrap import bootstrap
-from sqlalchemy import func, select
 
-from app.db.models import Filing13F
-from app.services import fund_managers, thirteenf
-
-FULL = 5000  # a quarter with fewer managers than this is not fully loaded
+from app.services import fund_managers
 
 
 def main() -> int:
@@ -31,15 +27,9 @@ def main() -> int:
     args = ap.parse_args()
     _, Session = bootstrap()
     db = Session()
-    managers = func.count(Filing13F.filer_cik.distinct())
-    counts = dict(db.execute(select(Filing13F.report_period, managers)
-                             .group_by(Filing13F.report_period)).all())  # fmt: skip
-    quarters = [args.quarter] if args.quarter else sorted(q for q, n in counts.items() if n >= FULL)
-    for q in quarters:
-        print(json.dumps(fund_managers.build_stats(db, q, write=not args.dry_run)), flush=True)
-        if counts.get(thirteenf.previous_quarter(q), 0) >= FULL:
-            print(json.dumps(fund_managers.build_activity(db, q, write=not args.dry_run)),
-                  flush=True)  # fmt: skip
+    quarters = [args.quarter] if args.quarter else None
+    for row in fund_managers.rebuild(db, quarters, write=not args.dry_run):
+        print(json.dumps(row), flush=True)
     db.close()
     return 0
 

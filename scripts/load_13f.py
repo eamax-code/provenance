@@ -32,6 +32,7 @@ from sqlalchemy import func, select
 from app.db.models import Filing
 from app.services import cusips, thirteenf
 from app.services.beneficial_owners import XML_FORMS, _doc_url
+from app.services.fund_managers import after_load
 from app.services.sec_client import SecClient, SecClientError
 
 
@@ -145,21 +146,26 @@ def main() -> int:
     args = ap.parse_args()
     settings, Session = bootstrap()
     db = Session()
+    # every writing mode ends with the managers' statistics batch (Q-02): links and holdings
+    # decide them, so a load never leaves them behind
     if args.remove_reviewed:
         print(json.dumps(remove_reviewed(db, Path(args.remove_reviewed), args.apply)))
+        code = after_load(db) if args.apply else 0
         db.close()
-        return 0
+        return code
     if args.deep:
         print(json.dumps(deep_schedules(db, SecClient(settings), args.deep)))
+        code = after_load(db)
         db.close()
-        return 0
+        return code
     if args.name_rule:
         stored = cusips.map_by_13f_names(db, thirteenf.issuer_names(args.name_rule))
         db.commit()
         print(json.dumps({"name_rule_mapped": len(stored),
                           "companies": len({c for c, _, _ in stored})}))  # fmt: skip
+        code = after_load(db)
         db.close()
-        return 0
+        return code
     sec = SecClient(settings)
     # plain values: reading ORM rows after the transaction ends would reload them and leave a
     # transaction open for the whole fetch
@@ -193,8 +199,9 @@ def main() -> int:
                           key=lambda p: thirteenf.window_end(p) or p.stem)  # fmt: skip
             out["datasets"] = [{"file": p.name, **thirteenf.load_dataset(db, p)} for p in zips]
     print(json.dumps(out, default=str))
+    code = 0 if args.fetch_only else after_load(db)
     db.close()
-    return 0
+    return code
 
 
 if __name__ == "__main__":

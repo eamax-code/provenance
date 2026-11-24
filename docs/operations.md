@@ -69,6 +69,34 @@ company. Create-table-only migrations are safe to apply while jobs run; a migrat
 facts or companies waits until no pass holds their locks. When code that reads a new table is
 merged locally, apply its migration in the same step.
 
+## Ships with the next deploy
+
+Applied locally, not yet on any deployed database. Apply in this order with `alembic upgrade
+head`, before the new code starts:
+
+| Revision | What | Notes |
+|---|---|---|
+| `d2e4f6a8b0c1` | Q-03: partial index on the transaction date of open-market insider lines (codes P and S) | `CREATE INDEX CONCURRENTLY` (PostgreSQL): does not block insider loads, takes a few minutes |
+| `e3f5a7b9c1d2` | Q-02: `thirteenf_issuer_names` (issuer name as filed, per security and quarter) | create table |
+| `f4a6b8c0d2e3` | Q-02: `thirteenf_security_stats`, `thirteenf_filing_scale`, `thirteenf_activity` | create tables |
+| `a5b7c9d1e3f4` | Q-02: the majority class title on `thirteenf_security_stats` | adds a column to a table filled only by the batch |
+| `b6c8d0e2f4a5` | Q-02: `thirteenf_reported_by` (the managers a 13F notice names) | create table |
+
+Then the Q-02 data, each from the repo root: `scripts/load_13f_names.py`,
+`scripts/load_13f_reported_by.py`, then the managers' statistics batch
+`scripts/build_13f_stats.py`. Until the batch has run, the managers' portfolio and activity
+responses carry a note that the statistics lag the holdings.
+
+**The 13F batch is part of every 13F load (2026-11-25).** `scripts/load_13f.py` (every mode that
+writes holdings or CUSIP links: data sets, schedules, `--deep`, `--name-rule`,
+`--remove-reviewed --apply`) and `scripts/load_13f_edgar.py` end with
+`fund_managers.after_load`, which rebuilds the statistics for every fully loaded quarter and
+records what they were built from (the holdings version and the CUSIP map). If the batch fails
+the load exits 1 with "13F loaded, but the managers' statistics batch failed: run
+scripts/build_13f_stats.py"; rerun that script. Any change of holdings or links not followed by
+the batch makes the portfolio and activity responses say so (checked once a minute per process).
+A test fails when a script that writes 13F holdings or links does not call the batch.
+
 ## Backups and recovery
 
 Backups live outside the database host's disk. On 2026-11-20 Docker Desktop's disk image was

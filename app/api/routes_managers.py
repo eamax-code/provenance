@@ -78,6 +78,8 @@ def fund_activity(
         limit = DEMO_ROWS
         notes.append(f"The demo key shows at most {DEMO_ROWS} rows, from the showcase companies.")
     rows, left_out = fm.activity(db, q, direction, min_holders, limit, allowed)
+    if fm.stale(db):
+        notes.append(fm.STALE_NOTE)
     notes += [
         "Counts managers that filed holdings for both quarters as added, reduced or exited; new "
         "counts managers holding it now and not before. Shares are compared, never values, so "
@@ -127,7 +129,7 @@ def manager_portfolio(
                 "notes": ["This manager filed a 13F notice for the quarter: its holdings are "
                           "reported by the managers in reported_by."]}  # fmt: skip
     p = {k: v for k, v in cached.items() if k not in ("notes", "positions")}
-    notes = list(cached["notes"])
+    notes = list(cached["notes"]) + ([fm.STALE_NOTE] if fm.stale(db) else [])
     positions = list(cached["positions"])  # sorted here, never in the cache
     if sort == "value":
         positions.sort(key=lambda x: (p["filing"]["value_scale_suspect"], -x["value_usd"]))

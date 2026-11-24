@@ -17,6 +17,7 @@ from datetime import date
 from _bootstrap import bootstrap
 
 from app.services import thirteenf, thirteenf_edgar
+from app.services.fund_managers import after_load
 from app.services.sec_client import SecClient
 
 
@@ -45,8 +46,9 @@ def main() -> int:
         db.commit()
         out["loaded_through"] = through.isoformat()
     print(json.dumps(out, default=str))
+    code = after_load(db)
     db.close()
-    return 0
+    return code
 
 
 if __name__ == "__main__":

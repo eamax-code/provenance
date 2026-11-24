@@ -28,6 +28,11 @@ ranking that uses value, with a note. Shares are unaffected.
 as of the quarter end, not today. Every response carries `reporting_lag` (that sentence, for the
 page to show). A quarter is shown once its 45-day filing deadline has passed and the loaded data
 reaches it.
+When 13F holdings or the CUSIP-to-company links changed after the statistics (changes, the
+thousands check, the activity list) were last built, the portfolio and activity responses add a
+note: "13F holdings were loaded after the managers' statistics were last built, so changes, flags
+and the activity list may lag the newest filings." Every 13F load script runs the batch, so this
+shows only when a load failed partway (2026-11-25).
 Amendments per manager and quarter, in filing order: an original 13F-HR or a 13F-HR/A
 RESTATEMENT replaces what was there; a 13F-HR/A NEW HOLDINGS adds positions. With `as_of`, only
 filings made by that date count.

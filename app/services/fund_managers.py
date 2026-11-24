@@ -161,6 +161,94 @@ def _bump_stats_version(db: Session) -> None:
         row.value, row.updated_at = now.isoformat(), now
 
 
+BUILT_FOR_KEY = "thirteenf:stats_built_for"
+FULL_LOAD = 5000  # a quarter with fewer managers than this is not fully loaded
+
+
+def _built_for(db: Session) -> str:
+    """What the statistics are built from: the 13F holdings version (every holdings writer
+    bumps it) and the CUSIP-to-company map (a new or removed link moves positions between
+    companies)."""
+    from sqlalchemy import func
+
+    links = db.execute(select(func.count(), func.max(IssuerCusip.updated_at))).one()
+    return repr((thirteenf._holdings_version(db), tuple(links)))
+
+
+def rebuild(db: Session, quarters: list[date] | None = None, write: bool = True) -> list[dict]:
+    """The batch after a 13F load: stats for every fully loaded quarter (or those given), then
+    activity where the quarter before is loaded too. A full written run records what it was
+    built from, so a load without it is visible (stale())."""
+    from sqlalchemy import func
+
+    managers = func.count(Filing13F.filer_cik.distinct())
+    counts = dict(db.execute(select(Filing13F.report_period, managers)
+                             .group_by(Filing13F.report_period)).all())  # fmt: skip
+    todo = quarters or sorted(q for q, n in counts.items() if n >= FULL_LOAD)
+    out = []
+    for q in todo:
+        out.append(build_stats(db, q, write=write))
+        if counts.get(thirteenf.previous_quarter(q), 0) >= FULL_LOAD:
+            out.append(build_activity(db, q, write=write))
+    if write and quarters is None:
+        mark_built(db)
+    return out
+
+
+def mark_built(db: Session) -> None:
+    """Record that the statistics match the holdings and links as they are now."""
+    from app.db.models import JobState, utcnow
+
+    version = _built_for(db)
+    row = db.get(JobState, BUILT_FOR_KEY)
+    if row is None:
+        db.add(JobState(name=BUILT_FOR_KEY, value=version, updated_at=utcnow()))
+    else:
+        row.value, row.updated_at = version, utcnow()
+    db.commit()
+    _stale.clear()
+
+
+def after_load(db: Session, emit=print) -> int:
+    """Chained into the 13F load scripts after every write, so holdings, links and statistics
+    never diverge: 0 when the batch ran, 1 (and a message) when it failed."""
+    import json
+
+    try:
+        for row in rebuild(db):
+            emit(json.dumps(row, default=str))
+    except Exception as exc:  # noqa: BLE001 - reported, and the load exits non-zero
+        db.rollback()
+        emit(json.dumps({"error": "13F loaded, but the managers' statistics batch failed: "
+                         "run scripts/build_13f_stats.py", "detail": str(exc)[:300]}))  # fmt: skip
+        return 1
+    return 0
+
+
+_stale: dict[str, tuple[float, bool]] = {}
+STALE_TTL = 60
+
+
+def stale(db: Session) -> bool:
+    """True when 13F holdings or links changed after the last full batch (checked at most once
+    a minute per process)."""
+    import time
+
+    from app.db.models import JobState
+
+    hit = _stale.get("v")
+    if hit and time.monotonic() - hit[0] < STALE_TTL:
+        return hit[1]
+    built = db.scalar(select(JobState.value).where(JobState.name == BUILT_FOR_KEY))
+    value = built != _built_for(db)
+    _stale["v"] = (time.monotonic(), value)
+    return value
+
+
+STALE_NOTE = ("13F holdings were loaded after the managers' statistics were last built, so "
+              "changes, flags and the activity list may lag the newest filings.")  # fmt: skip
+
+
 def keymap(db: Session, period: date) -> dict[str, tuple[str, str]]:
     """CUSIP -> (company CIK, class label) for securities matched to a company here, labelled
     from the class title most managers gave it that quarter (else the quarter before)."""
@@ -396,6 +484,7 @@ def reset_cache() -> None:
     _cik_map = None
     _views.clear()
     _title_cache.clear()
+    _stale.clear()
 
 
 _views: dict[tuple, tuple[float, dict, list]] = {}

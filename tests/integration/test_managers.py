@@ -102,6 +102,7 @@ def funds(db):
     for q in (Q1, Q2):
         fm.build_stats(db, q)
     fm.build_activity(db, Q2)
+    fm.mark_built(db)  # what the load scripts' batch records (after_load)
 
 
 def _get(client, auth, path, **params):
@@ -295,3 +296,56 @@ def test_mcp_tools_and_chat_answers(client, auth, db, funds):
     assert r["citations"][0]["url"].startswith("https://www.sec.gov/Archives/")
     who = client.post("/v1/chat", json={"message": "Who sold NVIDIA?"}, headers=auth).json()
     assert who["intent"] == "funds" and "split-adjusted 10:1" in who["answer"]
+
+
+def test_a_load_without_the_batch_is_flagged(client, auth, db, funds):
+    """Q-02: holdings or links changed after the statistics were built read as stale on the
+    portfolio and the activity list, until the batch runs again."""
+    from app.services import thirteenf
+
+    def notes():
+        a = _get(client, auth, f"/v1/managers/{M1}", quarter="2024-06-30").json()["notes"]
+        b = _get(client, auth, "/v1/managers/activity", quarter="2024-06-30",
+                 min_holders=1).json()["notes"]  # fmt: skip
+        return fm.STALE_NOTE in a, fm.STALE_NOTE in b
+
+    assert notes() == (False, False)
+    thirteenf.bump_holdings_version(db)  # a load that skipped the batch
+    db.commit()
+    fm.reset_cache()
+    assert notes() == (True, True)
+    fm.rebuild(db)  # the batch
+    assert notes() == (False, False)
+    db.add(IssuerCusip(cusip="123456789", cik="0000320193", class_title="COM", method="test"))
+    db.commit()  # a new link moves positions between companies too
+    fm.reset_cache()
+    assert notes() == (True, True)
+
+
+def test_a_failed_batch_fails_the_load(db, monkeypatch):
+    def broken(db_, *a, **k):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(fm, "rebuild", broken)
+    said: list[str] = []
+    assert fm.after_load(db, said.append) == 1
+    assert "statistics batch failed" in said[-1] and "disk full" in said[-1]
+    monkeypatch.setattr(fm, "rebuild", lambda db_: [{"quarter": "2024-06-30"}])
+    assert fm.after_load(db, said.append) == 0
+
+
+def test_every_13f_load_script_runs_the_batch():
+    """A script that writes 13F holdings or CUSIP links ends with fund_managers.after_load, so
+    the managers' statistics cannot be left behind by a load."""
+    from pathlib import Path
+
+    writers = ("thirteenf.load_dataset(", "thirteenf_edgar.load(", "cusips.record_schedule(",
+               "cusips.map_by_13f_names(", "cusips.map_isins(", "remove_reviewed(")  # fmt: skip
+    scripts = Path(__file__).resolve().parents[2] / "scripts"
+    found = {}
+    for path in scripts.glob("*.py"):
+        text = path.read_text()
+        if any(w in text for w in writers):
+            found[path.name] = "after_load(db" in text
+    assert found.get("load_13f.py") and found.get("load_13f_edgar.py")
+    assert all(found.values()), found
