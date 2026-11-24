@@ -351,8 +351,26 @@ def lei(db: Session, b: Brief, as_of: date | None) -> str:
     return f"{_name(b)}'s LEI is {block['lei']}{holder}, {how} [{n}]."
 
 
-def pay(db: Session, b: Brief, as_of: date | None) -> str:
-    """C-13: the proxy's pay-versus-performance table (D-10), as disclosed."""
+_FISCAL_YEAR = re.compile(r"\b(?:fiscal(?:\s+year)?(?:\s+ended)?|fy)\s*'?((?:19|20)\d{2})\b", re.I)
+_FILED_DATE = re.compile(
+    r"\b(?:filed|proxy|dated)\s+(?:on\s+)?\d{4}-\d{2}-\d{2}\b|\d{10}-\d{2}-\d{6}", re.I
+)
+_BARE_YEAR = re.compile(r"(?<![\d-])((?:19|20)\d{2})(?![\d-])")
+
+
+def asked_fiscal_year(text: str) -> int | None:
+    """The fiscal year a pay question names ("fiscal 2024", "FY2024", "in 2023", "fiscal year
+    ended 2024-09-28"); never a filing date ("proxy filed 2026-01-08") or an accession number."""
+    m = _FISCAL_YEAR.search(text)
+    if m:
+        return int(m.group(1))
+    m = _BARE_YEAR.search(_FILED_DATE.sub(" ", text))
+    return int(m.group(1)) if m else None
+
+
+def pay(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
+    """C-13: the proxy's pay-versus-performance table (D-10), as disclosed; the fiscal year asked
+    about, or says it is not in the table (never another year in its place)."""
     from app.services import executive_pay
 
     block = executive_pay.for_company(db, b.company.cik, as_of)
@@ -364,7 +382,17 @@ def pay(db: Session, b: Brief, as_of: date | None) -> str:
     def amt(v) -> str:
         return money(v, cur) if v is not None else "not given"
 
-    y = block["years"][0]
+    asked = asked_fiscal_year(text)
+    at = 0
+    if asked is not None:
+        at = next((k for k, x in enumerate(block["years"])
+                   if (x["fiscal_year_end"] or "")[:4] == str(asked)), -1)  # fmt: skip
+        if at < 0:
+            have = ", ".join(x["fiscal_year_end"] for x in block["years"] if x["fiscal_year_end"])
+            return (f"Fiscal {asked} is not in the pay-versus-performance tables tagged in "
+                    f"{_name(b)}'s proxies loaded here; they cover the fiscal years ended "
+                    f"{have}. {NOT_SIGNALS}")  # fmt: skip
+    y = block["years"][at]
     src = y["source"]
     n = _cite(b, f"{src['form']} filed {src['filed_date']}", src["source_url"])
     peo = "; ".join(f"{p['name'] or 'the PEO'}: {amt(p['total_comp'])} total (Summary "
@@ -383,7 +411,7 @@ def pay(db: Session, b: Brief, as_of: date | None) -> str:
         if y["peer_tsr"] is not None:
             peer = f", against {y['peer_tsr']:g} for the peer group"
         text += f" Total shareholder return: $100 invested became {y['tsr']:g}{peer} [{n}]."
-    earlier = [x for x in block["years"][1:4]
+    earlier = [x for x in block["years"][at + 1 : at + 4]
                if x["peo"] and x["peo"][0]["comp_actually_paid"] is not None
                and x["tsr"] is not None]  # fmt: skip
     if earlier:
@@ -612,6 +640,8 @@ def answer(db: Session, b: Brief, intent: str, as_of: date | None, text: str = "
         return calendar(db, b, as_of, text)
     if intent == "private_raises":
         return private_raises(db, b, as_of, text)
+    if intent == "pay":
+        return pay(db, b, as_of, text)
     return ANSWERS[intent](db, b, as_of)
 
 

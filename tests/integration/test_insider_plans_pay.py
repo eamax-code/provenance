@@ -180,6 +180,23 @@ def test_pay_table_assembles_peo_and_neo_average(tmp_path, db, client, auth, ing
     assert early["years"] == [] and early["proxy"] is None
     assert db.query(ProxyPayFact).count() > 0
 
+    # 2026-11-24 (provenance-ui): chat answers the fiscal year asked about, or says it is not in
+    # the table; never another year in its place
+    def ask(q):
+        r = client.post("/v1/chat", json={"message": q, "cik": "320193"}, headers=auth).json()
+        assert r["intent"] == "pay", r
+        return r["answer"]
+
+    fy24 = ask("How did Apple Inc's CEO pay compare with total shareholder return in fiscal "
+               f"2024? (proxy {a})")  # fmt: skip
+    assert fy24.startswith("For the fiscal year ended 2024-09-30") and "$169.0 million" in fy24
+    assert "2025-09-30" not in fy24
+    latest = ask("What was Apple's CEO pay versus TSR? Proxy filed 2026-01-08.")
+    assert latest.startswith("For the fiscal year ended 2025-09-30")  # a filing date is no year
+    missing = ask("What was Apple's CEO pay versus TSR in FY2021?")
+    assert missing.startswith("Fiscal 2021 is not in the pay-versus-performance tables")
+    assert "$" not in missing  # no other year's figures in its place
+
 
 NOTICE = """<?xml version="1.0"?><edgarSubmission xmlns="http://www.sec.gov/edgar/ownership"
  xmlns:com="http://www.sec.gov/edgar/common"><headerData><submissionType>144</submissionType>
