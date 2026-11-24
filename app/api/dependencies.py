@@ -136,6 +136,9 @@ demo_minute_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-minut
 demo_day_limiter = FixedWindowRateLimiter(window_seconds=86400, name="demo-day")
 demo_all_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-all")
 DEMO_UPGRADE = "Create a free account at /account/ for your own key and full access."
+# Endpoints whose contract trims a demo request's limit instead of refusing it (Q-01: the
+# search page sends limit=20 and gets 10 hits with a note).
+DEMO_TRIMS_LIMIT = {"/v1/search/filings"}
 
 
 class DemoPrincipal:
@@ -187,7 +190,8 @@ def require_reader(
         f"Demo key daily limit reached. Request a free key for full access: {DEMO_UPGRADE}",
     )
     raw_limit = request.query_params.get("limit")
-    if raw_limit and raw_limit.isdigit() and int(raw_limit) > settings.demo_max_limit:
+    if (raw_limit and raw_limit.isdigit() and int(raw_limit) > settings.demo_max_limit
+            and request.url.path not in DEMO_TRIMS_LIMIT):  # fmt: skip
         raise APIError(
             403,
             "demo_limit",

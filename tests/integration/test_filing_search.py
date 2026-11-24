@@ -134,6 +134,14 @@ def test_demo_key_showcase_only(client, db, stored, settings, monkeypatch):
     assert {h["cik"] for h in body["hits"]} == {"0002999002"}
     r = client.get("/v1/search/filings", params={"q": "tariffs", "cik": "2999001"}, headers=DEMO)
     assert r.status_code == 403 and r.json()["error"]["code"] == "demo_scope"
+    # limit over 10 is trimmed, not refused (contract; the search page sends limit=20)
+    monkeypatch.setattr(settings, "public_showcase_ciks", "2999001,2999002,2999003")
+    wide = client.get("/v1/search/filings", params={"q": "tariffs", "limit": 20}, headers=DEMO)
+    assert wide.status_code == 200 and wide.json()["meta"]["limit"] == 10
+    assert len(wide.json()["hits"]) == 3
+    # other endpoints keep the API-wide rule
+    other = client.get("/v1/search", params={"q": "tariffs", "limit": 20}, headers=DEMO)
+    assert other.status_code == 403 and other.json()["error"]["code"] == "demo_limit"
 
 
 def test_parse_reads_websearch_syntax():
