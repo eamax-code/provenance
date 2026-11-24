@@ -17,6 +17,8 @@
 // yellow (it may only sit behind a figure as the highlight), chart series too alike to tell apart (normal or
 // colour-blind vision) or under 3:1 against the chart, and, for an entry with sweepAt, light text under
 // the marker while the provenance highlight sweeps (pixels read from a PNG of the figure at that moment).
+// A page's documented API errors (a 403 demo scope, a 404 not read) are excused only by allowHttp [{status, url, code}]:
+// the failed request's status, URL and JSON error.code must all match; every other failed request fails.
 // WARN: skipped heading levels, touch targets under 24px, text under 12px.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -311,12 +313,13 @@ async function view(page, theme, width) {
     const want = page.status || 200;
     if (status !== want) res.fail.unshift(`HTTP ${status} (want ${want})`);
     const allowed = (page.allowConsole || []).map((p) => new RegExp(p));
-    // allow404: [{url, code}] excuses Chrome's resource-load line for one documented 404 only: the request's URL must
-    // match and its JSON body's error.code must equal code (e.g. /changes answering changes_not_available); any other
-    // 404 on the page still fails. allowConsole stays for lines that are not a documented API answer.
+    // allowHttp: [{status, url, code}] excuses Chrome's resource-load line for one documented API answer only: the
+    // line's status, the request's URL and its JSON body's error.code must all match (e.g. 404 on /changes with
+    // changes_not_available); any other failed request on the page still fails. allowConsole is not for status lines.
     const excused = new Set();
     for (const [line, req] of netErr) {
-      const rules = (page.allow404 || []).filter((a) => /status of 404/.test(line) && new RegExp(a.url).test(req.url));
+      const st = +((/status of (\d{3})/.exec(line) || [])[1]);
+      const rules = (page.allowHttp || []).filter((a) => a.status === st && new RegExp(a.url).test(req.url));
       if (!rules.length || !req.id) continue;
       const got = await send('Network.getResponseBody', { requestId: req.id }, sessionId).catch(() => null);
       let code = null; try { code = JSON.parse(got.base64Encoded ? Buffer.from(got.body, 'base64').toString() : got.body).error.code; } catch {}
