@@ -170,3 +170,15 @@ Ex-dividend, record and payment dates are not in the SEC's company facts; they w
   Toyota in JPY, derived quarters, cash-paid-only filers): 29 of 29 checkable right, 1 filing too
   large to fetch. A first sample found the negative derived quarter and a payout ratio of 836;
   both fixed by the rules above and re-checked on a fresh sample. In-process p95 28 ms.
+- **Q-04c (2026-11-25): more tags, and `basis` on every row.** Besides "declared" and "cash
+  paid", IFRS filers' `DividendsRecognisedAsDistributionsToOwnersPerShare` (basis "recognised in
+  the period (IFRS)": what was recognised in the year, typically last year's final plus this
+  year's interim) and partnerships' distributions declared or paid per unit (basis "distributions
+  per unit") fill gaps: 4,257 companies now. `basis` (also in `basis_tag`) says which measure a
+  row is: "declared", "cash paid", "recognised in the period (IFRS)" or "distributions per unit";
+  a derived quarter never mixes two (its inputs share one tag). **`payout_ratio` is given only on
+  "declared" or "recognised" rows**: cash-paid rows and distributions per unit have none (cash
+  paid in a year is not the year's declared dividend). Held back after a check: IFRS "paid" and
+  LLC distributions (filers' scale slips and figures that were not dividends). Check of 30
+  filled cells: 29 right, 1 wrong (CrossAmerica 2015: $2.28 in its 2017 10-K's prior-year
+  column, where its 2016 10-K gives four quarters summing to $2.23).

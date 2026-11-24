@@ -342,9 +342,26 @@ IFRS_MAP: dict[str, tuple[list[str], list[str]]] = {
 DIVIDEND_CONCEPTS = {
     "dividends_per_share": _m(
         "Dividends declared per share", "dividends", "duration", "per_share",
-        ["CommonStockDividendsPerShareDeclared"], ["CommonStockDividendsPerShareCashPaid"],
+        ["CommonStockDividendsPerShareDeclared"],
+        # Q-04c (PM): cash paid, then partnerships' distributions per unit (declared, paid)
+        ["CommonStockDividendsPerShareCashPaid",
+         "DistributionMadeToLimitedPartnerDistributionsDeclaredPerUnit",
+         "DistributionMadeToLimitedPartnerDistributionsPaidPerUnit"],
     ),
 }  # fmt: skip
+# Q-04c: IFRS filers' dividends recognised as distributions per share (the "paid" tag is held: in
+# a check it carried filers' scale slips and other figures)
+IFRS_MAP["dividends_per_share"] = (["DividendsRecognisedAsDistributionsToOwnersPerShare"], [])
+# Q-04c: what each tag measures, shown per row; payout only on the first two
+DIVIDEND_BASIS = {
+    "CommonStockDividendsPerShareDeclared": "declared",
+    "DividendsRecognisedAsDistributionsToOwnersPerShare": "recognised in the period (IFRS)",
+    "CommonStockDividendsPerShareCashPaid": "cash paid",
+    "DistributionMadeToLimitedPartnerDistributionsDeclaredPerUnit": "distributions per unit",
+    "DistributionMadeToLimitedPartnerDistributionsPaidPerUnit": "distributions per unit",
+}
+PAYOUT_BASES = ("declared", "recognised in the period (IFRS)")
+
 # Q-04 (PM, 2026-11-25): per-share values that add up within a fiscal year on one share basis,
 # so a quarter may be derived from them; EPS and weighted shares never are
 ADDITIVE_PER_SHARE = frozenset({"dividends_per_share"})

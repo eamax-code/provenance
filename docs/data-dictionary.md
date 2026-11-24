@@ -309,8 +309,10 @@ and the company page overview (`ipo_terms`).
 
 ## dividend_facts (Q-04): a known exception to the mapping
 
-Dividends declared per share (`CommonStockDividendsPerShareDeclared`, else
-`CommonStockDividendsPerShareCashPaid`), every filing's observation, with the same columns,
+Dividends declared per share (`CommonStockDividendsPerShareDeclared`, else IFRS
+`DividendsRecognisedAsDistributionsToOwnersPerShare`, else `CommonStockDividendsPerShareCashPaid`,
+else partnerships' distributions declared or paid per unit; Q-04c, each row's basis named in the
+API), every filing's observation, with the same columns,
 period classes, fiscal labels and quality flags as `financial_facts`, because the same normalizer
 (`normalize_company_facts(..., concepts=DIVIDEND_CONCEPTS)`) and upsert write it. **Why a table of
 its own:** adding the metric to the mapping meant a version bump (1.5.0 to 1.6.0) and a re-map of

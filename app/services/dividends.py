@@ -17,7 +17,13 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Company, DividendFact, FinancialFact
 from app.services import periods, statements, successions
-from app.services.fact_normalizer import NormalizedFact, currency_from_unit, derive_quarters
+from app.services.fact_normalizer import (
+    DIVIDEND_BASIS,
+    PAYOUT_BASES,
+    NormalizedFact,
+    currency_from_unit,
+    derive_quarters,
+)
 from app.services.point_in_time import known_by
 
 METRIC = "dividends_per_share"
@@ -176,7 +182,8 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
             "declared_per_share": value,
             "unit": f.unit,
             "currency": currency_from_unit(f.unit),
-            "basis_tag": "cash paid" if f.source_tag.endswith("CashPaid") else "declared",
+            "basis": DIVIDEND_BASIS.get(f.source_tag, "declared"),
+            "basis_tag": DIVIDEND_BASIS.get(f.source_tag, "declared"),
             "quality_status": f.quality_status,
             "derived": bool(inputs),
             "filing": _cite(f),
@@ -248,8 +255,11 @@ def _same_filing_eps(db, ciks, cells: list) -> dict:
 
 
 def _payout(dps, eps) -> dict | None:
-    """Declared per share over diluted EPS for the same fiscal year, in one currency."""
+    """Declared per share over diluted EPS for the same fiscal year, in one currency; only on a
+    declared or recognised basis (never on cash paid or distributions per unit)."""
     if eps is None or eps.value is None or dps.value is None:
+        return None
+    if DIVIDEND_BASIS.get(dps.source_tag, "declared") not in PAYOUT_BASES:
         return None
     if currency_from_unit(eps.unit) != currency_from_unit(dps.unit) or float(eps.value) <= 0:
         return None

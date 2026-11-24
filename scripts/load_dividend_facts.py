@@ -27,7 +27,11 @@ from app.db.models import Company, DividendFact, utcnow
 from app.services.fact_normalizer import DIVIDEND_CONCEPTS, normalize_company_facts
 from app.services.ingestion import upsert_facts
 
-TAGS = (b"CommonStockDividendsPerShareDeclared", b"CommonStockDividendsPerShareCashPaid")
+# every tag DIVIDEND_CONCEPTS reads (Q-04c added IFRS "recognised" and partnerships' per unit)
+TAGS = (b"CommonStockDividendsPerShareDeclared", b"CommonStockDividendsPerShareCashPaid",
+        b"DividendsRecognisedAsDistributionsToOwnersPerShare",
+        b"DistributionMadeToLimitedPartnerDistributionsDeclaredPerUnit",
+        b"DistributionMadeToLimitedPartnerDistributionsPaidPerUnit")  # fmt: skip
 
 
 def catch_up(db, settings, path: Path, dry_run: bool) -> int:

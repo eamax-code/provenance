@@ -224,3 +224,36 @@ def test_chat_answers_dividends_with_a_table_never_a_yield(client, auth, db, sec
     y = client.post("/v1/chat", json={"message": "What is Apple's dividend yield?",
                                       "cik": "0000320193"}, headers=auth).json()  # fmt: skip
     assert y["intent"] != "dividends"
+
+
+def test_each_row_says_its_basis_and_payout_needs_declared_or_recognised(client, auth, db):
+    """Q-04c: cash paid, IFRS "recognised in the period" and partnerships' distributions per
+    unit are not the same measure as declared per share: every row says which, and the payout
+    ratio is given on declared or recognised values only."""
+    from datetime import UTC, date, datetime
+
+    from app.db.models import Company, FinancialFact
+
+    cik, now = "0000000903", datetime.now(UTC)
+    db.add(Company(cik=cik, legal_name="CASHPAID INC", ticker="CSHP", fiscal_year_end="1231",
+                   source_url="https://www.sec.gov/", first_detected_at=now,
+                   last_processed_at=now, quality_status="ok"))  # fmt: skip
+    y = (date(2024, 1, 1), date(2024, 12, 31))
+    paid = _fact(DividendFact, cik, "dividends_per_share", 1.0, "USD/shares", *y, "annual",
+                 "c-25-1", date(2025, 2, 1))  # fmt: skip
+    paid.source_tag = "CommonStockDividendsPerShareCashPaid"
+    ifrs = _fact(DividendFact, cik, "dividends_per_share", 1.2, "USD/shares", date(2023, 1, 1),
+                 date(2023, 12, 31), "annual", "c-24-1", date(2024, 2, 1))  # fmt: skip
+    ifrs.source_tag, ifrs.source_taxonomy = ("DividendsRecognisedAsDistributionsToOwnersPerShare",
+                                             "ifrs-full")  # fmt: skip
+    db.add_all([paid, ifrs,
+                _fact(FinancialFact, cik, "eps_diluted", 4.0, "USD/shares", *y, "annual",
+                      "c-25-1", date(2025, 2, 1)),
+                _fact(FinancialFact, cik, "eps_diluted", 3.0, "USD/shares", date(2023, 1, 1),
+                      date(2023, 12, 31), "annual", "c-24-1", date(2024, 2, 1))])  # fmt: skip
+    db.commit()
+    rows = {r["period_label"]: r for r in
+            client.get(f"/v1/companies/{cik}/dividends", headers=auth).json()["data"]}  # fmt: skip
+    assert rows["FY2024"]["basis"] == "cash paid" and rows["FY2024"]["payout_ratio"] is None
+    assert rows["FY2023"]["basis"] == "recognised in the period (IFRS)"
+    assert rows["FY2023"]["payout_ratio"]["value"] == 0.4
