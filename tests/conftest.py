@@ -13,6 +13,9 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 TEST_ENV = {
     "APP_ENV": "test",
+    # T-01: no background statistics refresher, even in a test that sets app_env to production;
+    # a refresh landing on a dropped test database logged "stats refresh failed"
+    "STATS_REFRESH_SECONDS": "0",
     "SEC_USER_AGENT": "Provenance-tests/0.1 contact=tests@provenance.test",
     "API_KEY_PEPPER": "test-pepper-0123456789abcdef",
     "WEBHOOK_SIGNING_SECRET": "test-webhook-master-0123456789abcdef",

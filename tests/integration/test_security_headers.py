@@ -57,12 +57,16 @@ def test_prototypes_skip_the_policy_in_development(client):
 
 
 def test_production_hides_the_prototypes_and_sends_hsts(settings, monkeypatch):
+    import threading
+
     from fastapi.testclient import TestClient
 
     from app.main import create_app
 
     monkeypatch.setattr(settings, "app_env", "production")
     with TestClient(create_app(settings)) as c:
+        # T-01: the stats refresher never starts under pytest (STATS_REFRESH_SECONDS=0)
+        assert "stats-refresher" not in [t.name for t in threading.enumerate()]
         assert c.get("/poc/themes/").status_code == 404
         assert c.get("/poc/gamification/game.js").status_code == 404
         r = c.get("/healthz")
