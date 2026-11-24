@@ -71,14 +71,28 @@ Field rules:
   (at most 20; `acquired_count` gives the full number).
 - `plan_adoption_date` is the 10b5-1 plan date the notice gives, when it gives one.
 
-**Join rule (`followed_by`).** A Form 144 notice is joined to the **first** Form 4 that meets all
-three conditions:
+**Join rule (`followed_by`).** A Form 144 notice is joined to one Form 4 that meets all three
+conditions:
 1. It has the same issuer.
 2. It has the same reporting person. The match is by CIK (`same_person_cik`), or, when the notice's
    person has no Form 4 under that CIK at this issuer, by normalized name (`same_person_name`:
    last name plus first initial, case and punctuation ignored).
 3. It reports an open-market or private sale (transaction code `S`) of the same class, dated from
-   the notice date minus 7 days to the notice date plus 90 days.
+   the notice date minus 7 days to the notice date plus 90 days, and it was filed on or after the
+   notice.
+
+When several qualify, the first in this order wins (D-12b hand-check, 24 Nov), with ties going to
+the earliest sale:
+1. a sale within 3 days after the notice's sale date (`approx_sale_date`, or the notice date when
+   earlier) of exactly the notice's shares, in all or on one line (daily sellers file a notice and a
+   Form 4 of the same size every day);
+2. only earlier sales of exactly the notice's shares, filed after the notice (a notice filed late);
+3. the same, filed on the notice's day, the last sale at most a day before the sale date;
+4. any other Form 4 with a sale on or after the sale date;
+5. a Form 4 filed after the notice whose last sale is at most a day before the sale date.
+
+A Form 4 whose sales all predate the sale date otherwise reports an earlier notice's sale and is
+never joined.
 
 The notice is valid for three months under Rule 144(h). `days_after_notice` is the Form 4
 transaction date minus the notice date. The field is `null` when no Form 4 matches, which is

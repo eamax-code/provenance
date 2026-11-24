@@ -4,11 +4,12 @@ Since April 2023 a Form 144 is filed electronically with a structured XML docume
 is read once through the SEC client (the Archives copy, cached) and stored as given. The Form 4
 that reported the sale is joined at read time, so later Form 4s join without a reload.
 
-Join rule: the first Form 4 by the same issuer and the same person (the notice filer's CIK,
-else the normalized name: last name and first initial), filed on or after the notice, that
-reports a sale (code S) dated from 7 days before to 90 days after the notice date (a notice
-covers sales within three months, Rule 144(h)). No match is normal: a notice does not oblige a
-sale. Information, not signals.
+Join rule: a Form 4 by the same issuer and the same person (the notice filer's CIK, else the
+normalized name: last name and first initial), filed on or after the notice, that reports a sale
+(code S) dated from 7 days before to 90 days after the notice date (a notice covers sales within
+three months, Rule 144(h)). Among those, _tier picks the one that sold on the notice's sale date
+(exact shares first) over one that reports an earlier notice's sale (D-12b hand-check). No match
+is normal: a notice does not oblige a sale. Information, not signals.
 """
 
 from __future__ import annotations
@@ -35,14 +36,20 @@ from app.services.sec_client import normalize_cik
 PROPOSED_SALE = dated_events.PROPOSED_SALE
 BEFORE_DAYS = 7
 AFTER_DAYS = 90
+# A late notice's exact-share Form 4 filed the same day may sell this many days before (_tier).
+LAST_SALE_SLACK_DAYS = 1
+# An exact-share Form 4 ranks first only with a sale this close after the notice's sale date.
+EXACT_NEAR_DAYS = 3
 MAX_ACQUIRED = 20
 FRESH_DAYS = 1
 NOTES = [
     "Proposed sales are Form 144 notices as filed (values as given in the notice; the market "
-    "value is the filer's own estimate). The Form 4 shown with a notice is the first sale "
-    "(code S) by the same person at the same issuer, filed on or after the notice and dated "
-    f"from {BEFORE_DAYS} days before to {AFTER_DAYS} days after the notice date, matched by "
-    "CIK, else by name; a notice does not oblige a sale.",
+    "value is the filer's own estimate). The Form 4 shown with a notice is a sale (code S) by "
+    "the same person at the same issuer (matched by CIK, else by name), filed on or after the "
+    f"notice and dated from {BEFORE_DAYS} days before to {AFTER_DAYS} days after it. One of "
+    f"exactly the notice's shares within {EXACT_NEAR_DAYS} days after its sale date comes "
+    "first, then one of exactly its shares sold just before (a notice filed late), then the "
+    "first sale on or after the sale date; a notice does not oblige a sale.",
     "followed_by_status is pending while the Form 4 data for the notice's 90 days is not "
     "complete yet (the SEC's quarterly insider data sets, plus the Form 4s read as filed).",
 ]
@@ -183,7 +190,8 @@ def _sales(db: Session, issuer_cik: str, start: date, end: date) -> list[dict]:
     for s in by_acc.values():
         lines = sorted(set(s["lines"]))
         total = sum(x[1] for x in lines)
-        out.append({**s, "transaction_date": lines[0][0], "shares": total,
+        out.append({**s, "transaction_date": lines[0][0], "last_date": lines[-1][0],
+                    "shares": total,
                     "average_price": round(sum(x[1] * x[2] for x in lines) / total, 4)
                     if total else None})  # fmt: skip
     out.sort(key=lambda s: (s["transaction_date"], s["filing_date"] or date.max,
@@ -194,26 +202,64 @@ def _sales(db: Session, issuer_cik: str, start: date, end: date) -> list[dict]:
 def match(notice: Form144Notice, sales: list[dict], as_of: date | None = None) -> dict | None:
     start = notice.notice_date or notice.filing_date
     lo, hi = start - timedelta(days=BEFORE_DAYS), start + timedelta(days=AFTER_DAYS)
+    # The notice's own sale date, or its date when that is earlier (a notice filed late).
+    ref = min(d for d in (start, getattr(notice, "approx_sale_date", None)) if d)
     keys = _name_keys(notice.person_name)
     by_cik = [s for s in sales if notice.person_cik and notice.person_cik in s["owner_ciks"]]
     rule, pool = "same_person_cik", by_cik
     if not by_cik:
         rule = "same_person_name"
         pool = [s for s in sales if keys & s["owner_keys"]]
-    for s in pool:
+    best = None
+    for i, s in enumerate(pool):
         if not (lo <= s["transaction_date"] <= hi):
             continue
         if s["filing_date"] and s["filing_date"] < notice.filing_date:
             continue  # filed before the notice: it reports an earlier sale (hand-check 11-24)
         if as_of and s["filing_date"] and s["filing_date"] > as_of:
             continue
-        return {"accession_number": s["accession_number"], "form": s["form"] or "4",
-                "filed_date": s["filing_date"].isoformat() if s["filing_date"] else None,
-                "transaction_date": s["transaction_date"].isoformat(), "shares": s["shares"],
-                "average_price": s["average_price"],
-                "match": {"rule": rule,
-                          "days_after_notice": (s["transaction_date"] - start).days}}  # fmt: skip
-    return None
+        tier = _tier(s, notice, ref)
+        if tier is not None and (best is None or (tier, i) < best[:2]):
+            best = (tier, i, s)
+    if best is None:
+        return None
+    s = best[2]
+    return {"accession_number": s["accession_number"], "form": s["form"] or "4",
+            "filed_date": s["filing_date"].isoformat() if s["filing_date"] else None,
+            "transaction_date": s["transaction_date"].isoformat(), "shares": s["shares"],
+            "average_price": s["average_price"],
+            "match": {"rule": rule,
+                      "days_after_notice": (s["transaction_date"] - start).days}}  # fmt: skip
+
+
+def _tier(sale: dict, notice, ref: date) -> int | None:
+    """D-12b hand-check: which Form 4 followed the notice, best first (None: not this notice's).
+    0  a sale within EXACT_NEAR_DAYS of the notice's sale date, of exactly the notice's shares (in
+       all or on one line): a daily seller files a notice and a Form 4 of the same size every day
+       (a same-size sale a month later is another notice's);
+    1  only earlier sales, exactly the notice's shares, filed after the notice: a notice filed late;
+    2  the same, filed the day of the notice, its last sale at most a day before the sale date;
+    3  any other Form 4 with a sale on or after the notice's sale date;
+    4  a Form 4 filed after the notice whose last sale is at most a day before the sale date (a
+       late notice of a different size).
+    A Form 4 whose every sale predates the sale date otherwise reports an earlier notice's sale
+    (one filed the day of a notice, for sales four days before it)."""
+    last = sale.get("last_date") or sale["transaction_date"]
+    shares = getattr(notice, "shares", None)
+    exact = shares is not None and float(shares) in {float(sale["shares"])} | {
+        float(x[1]) for x in sale.get("lines", [])
+    }
+    if last >= ref:
+        dates = [x[0] for x in sale.get("lines", [])] or [sale["transaction_date"], last]
+        near = any(ref <= d <= ref + timedelta(days=EXACT_NEAR_DAYS) for d in dates)
+        return 0 if exact and near else 3
+    if not sale["filing_date"]:
+        return None
+    after = sale["filing_date"] > notice.filing_date
+    close = last >= ref - timedelta(days=LAST_SALE_SLACK_DAYS)
+    if exact:
+        return 1 if after else (2 if close else None)
+    return 4 if after and close else None
 
 
 def _num(v):

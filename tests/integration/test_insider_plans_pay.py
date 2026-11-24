@@ -305,7 +305,7 @@ def test_insider_plans_endpoint_joins_the_form4(db, client, auth, ingested_aapl)
     assert sales["Nobody Sells"]["followed_by"] is None  # 101 days later: outside the window
     assert sales["Nobody Sells"]["followed_by_status"] == "pending"  # no data set covers it yet
     assert sales["WERNER ROBERT F."]["followed_by_status"] == "matched"
-    assert "first sale (code S)" in " ".join(body["notes"])
+    assert "a sale (code S) by the same person" in " ".join(body["notes"])
     events = insider_plans.emit_plan_events(db) + form144.emit_events(db)
     assert {e.event_type for e in events} == {"sec.trading_plan_adopted", "sec.proposed_sale"}
     db.commit()
@@ -379,3 +379,72 @@ def test_no_sale_reported_needs_every_quarter_of_the_window_loaded(db, client, a
                           last_filing_date=date(2024, 3, 28)))  # fmt: skip
     db.commit()
     assert status()["Nobody Sells"] == "no_sale_reported"
+
+
+def test_form4_of_an_earlier_notice_is_not_this_notices_follow_up():
+    """D-12b hand-check (2026-11-24): a notice for a sale on 20 Feb was joined to a Form 4 filed
+    that day for sales on 16 Feb, which belonged to the 16 Feb notice. A Form 4 whose last sale
+    is more than a day before the notice's sale date is skipped; one with a sale on that date, or
+    a late notice for a sale already made, still joins."""
+    from types import SimpleNamespace
+
+    def sale(acc, first, last, filed, shares):
+        return {"accession_number": acc, "owner_ciks": {"0001543492"}, "owner_keys": set(),
+                "filing_date": filed, "form": "4", "transaction_date": first,
+                "last_date": last, "shares": shares, "average_price": 71.0}  # fmt: skip
+
+    notice = SimpleNamespace(notice_date=date(2024, 2, 20), filing_date=date(2024, 2, 20),
+                             approx_sale_date=date(2024, 2, 20), person_name="Graziosi David S.",
+                             person_cik="0001543492")  # fmt: skip
+    earlier = sale("A-16", date(2024, 2, 16), date(2024, 2, 16), date(2024, 2, 20), 68066)
+    own = sale("A-20", date(2024, 2, 20), date(2024, 2, 20), date(2024, 2, 27), 76318)
+    assert form144.match(notice, [earlier, own])["accession_number"] == "A-20"
+    # a Form 4 that starts before the notice but has a sale on its date still joins
+    spans = sale("A-30", date(2024, 2, 19), date(2024, 2, 20), date(2024, 2, 21), 5)
+    assert form144.match(notice, [spans, own])["accession_number"] == "A-30"
+    # a late notice: filed 26 Dec for a sale already made on 24 Dec
+    late = SimpleNamespace(notice_date=date(2024, 12, 26), filing_date=date(2024, 12, 26),
+                           approx_sale_date=date(2024, 12, 24), person_name="X",
+                           person_cik="0001543492")  # fmt: skip
+    made = sale("A-24", date(2024, 12, 24), date(2024, 12, 24), date(2024, 12, 26), 40000)
+    assert form144.match(late, [made])["accession_number"] == "A-24"
+    # a notice dated 6 Jan for a sale made 3 Jan: the Form 4 filed after it with exactly its
+    # shares joins, not a later sale in March
+    jan = SimpleNamespace(notice_date=date(2025, 1, 6), filing_date=date(2025, 1, 6),
+                          approx_sale_date=date(2025, 1, 6), person_name="X", shares=8761,
+                          person_cik="0001543492")  # fmt: skip
+    sold = sale("B-03", date(2025, 1, 3), date(2025, 1, 3), date(2025, 1, 7), 8761)
+    march = sale("B-33", date(2025, 3, 3), date(2025, 3, 3), date(2025, 3, 5), 4150)
+    assert form144.match(jan, [sold, march])["accession_number"] == "B-03"
+    # the same exact-share Form 4 filed on the notice's own day is an earlier notice's
+    same_day = sale("B-04", date(2025, 1, 3), date(2025, 1, 3), date(2025, 1, 6), 8761)
+    assert form144.match(jan, [same_day, march])["accession_number"] == "B-33"
+    # a daily seller: 5,000 shares every day; the 16 May notice is the 16 May sale, not the
+    # 15 May one reported on the notice's day
+    may = SimpleNamespace(notice_date=date(2024, 5, 16), filing_date=date(2024, 5, 16),
+                          approx_sale_date=date(2024, 5, 16), person_name="X", shares=5000,
+                          person_cik="0001543492")  # fmt: skip
+    d15 = sale("G-15", date(2024, 5, 15), date(2024, 5, 15), date(2024, 5, 16), 5000)
+    d16 = sale("G-16", date(2024, 5, 16), date(2024, 5, 16), date(2024, 5, 17), 5000)
+    assert form144.match(may, [d15, d16])["accession_number"] == "G-16"
+    # a same-size sale a month later is another notice's: the sale on the date comes first
+    d17 = sale("G-17", date(2024, 5, 16), date(2024, 5, 16), date(2024, 5, 17), 12457)
+    june = sale("G-28", date(2024, 6, 28), date(2024, 6, 28), date(2024, 7, 1), 5000)
+    assert form144.match(may, [d17, june])["accession_number"] == "G-17"
+    # a late notice filed with its Form 4 on the same day (sale the day before, same shares)
+    # beats a different, later sale
+    nov = SimpleNamespace(notice_date=date(2024, 11, 7), filing_date=date(2024, 11, 7),
+                          approx_sale_date=date(2024, 11, 7), person_name="X", shares=3000,
+                          person_cik="0001543492")  # fmt: skip
+    h06 = sale("H-06", date(2024, 11, 6), date(2024, 11, 6), date(2024, 11, 7), 3000)
+    h12 = sale("H-12", date(2024, 11, 12), date(2024, 11, 12), date(2024, 11, 13), 8000)
+    assert form144.match(nov, [h06, h12])["accession_number"] == "H-06"
+    # a late notice of a different size, its Form 4 filed the next day for the day before
+    fox = SimpleNamespace(notice_date=date(2023, 5, 4), filing_date=date(2023, 5, 4),
+                          approx_sale_date=date(2023, 5, 4), person_name="X", shares=17050,
+                          person_cik="0001543492")  # fmt: skip
+    f03 = sale("F-03", date(2023, 5, 3), date(2023, 5, 3), date(2023, 5, 5), 15485)
+    assert form144.match(fox, [f03])["accession_number"] == "F-03"
+    # filed the notice's day instead, it is an earlier notice's
+    f03b = sale("F-3B", date(2023, 5, 3), date(2023, 5, 3), date(2023, 5, 4), 15485)
+    assert form144.match(fox, [f03b]) is None
