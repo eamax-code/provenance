@@ -501,7 +501,10 @@
   function tableWidget(w) {
     var box = el('section', 'cx-widget');
     var head = el('div', 'cx-widget-head'); head.appendChild(el('h3', null, w.title)); box.appendChild(head);
-    head.appendChild(csvButton(w.title, function () {
+    // the demo key gets 10 rows of a longer table: say how many there are (total), so 10 never reads as all
+    var cut = w.total > w.rows.length;
+    if (cut) head.appendChild(el('span', 'cx-widget-sub', w.rows.length + ' of ' + w.total.toLocaleString('en-US') + ' rows'));
+    head.appendChild(csvButton(cut ? w.title + ' (first ' + w.rows.length + ' rows)' : w.title, function () {
       // each column that links a filing gets the link beside it
       var linked = w.columns.map(function (c, j) { return w.rows.some(function (r) { return r[j] && r[j].url; }); });
       var hd = []; w.columns.forEach(function (c, j) { hd.push(c); if (linked[j]) hd.push(c + ' link'); });
@@ -528,7 +531,7 @@
     });
     table.appendChild(tbody); wrap.appendChild(table); box.appendChild(wrap);
     if (w.rows.length > FIRST) {
-      var more = el('button', 'cx-chip cx-more', 'Show all ' + w.rows.length + ' rows'); more.type = 'button';
+      var more = el('button', 'cx-chip cx-more', cut ? 'Show the other ' + (w.rows.length - FIRST) + ' of these ' + w.rows.length : 'Show all ' + w.rows.length + ' rows'); more.type = 'button';
       more.onclick = function () { tbody.querySelectorAll('tr[hidden]').forEach(function (tr) { tr.hidden = false; }); more.remove(); };
       box.appendChild(more);
     }
