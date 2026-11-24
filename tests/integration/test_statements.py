@@ -281,7 +281,8 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
                                "split_date": "2018-03-01"}]  # fmt: skip
     assert brk["split_date"] == "2020-03-02"
     assert brk["text"].startswith("3:1 split, March 2020: shares and per-share figures before "
-                                  "FY2018 are as originally filed")  # fmt: skip
+                                  "FY2018 are on the pre-split share basis, as reported in the "
+                                  "filing each cites")  # fmt: skip
     assert "An earlier split (2:1, March 2018) also separates FY2016 and FY2017." in brk["text"]
     adj = rows["eps_basic"]["split_adjusted"]
     assert adj["ratio"] == "3:1" and adj["values"] == [1.0, 1.0, 1.0, 1.0]

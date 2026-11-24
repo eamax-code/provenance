@@ -207,7 +207,7 @@ def date_label(d: str) -> str:
 def split_breaks(values: dict[str, list[float | None]], keys: list[str], confirm=None,
                  forced: list[tuple[int, str]] | None = None) -> dict[str, dict]:  # fmt: skip
     """Where adjacent columns mix share bases: a later filing restated some years for a stock
-    split and the earlier years stay as originally filed (Apple FY2017 5.2B shares, FY2018
+    split and the earlier years stay on the pre-split basis (Apple FY2017 5.2B shares, FY2018
     19.8B). Flag only, nothing is adjusted: a share row jumps by a near-whole factor and an EPS
     row moves inversely across the same pair. Returns {metric: {"between": [a, b],
     "ratio_hint": "4:1"}} for each share and EPS row with values on both sides of the latest

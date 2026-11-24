@@ -854,8 +854,9 @@ def statement(
                     else "Shares")  # fmt: skip
             where = "" if split_date else f", {filed_where}"
             text = (
-                f"{lead} and per-share figures before {b['between'][1]} are as originally "
-                f"filed; later filings restated some years for a stock split "
+                f"{lead} and per-share figures before {b['between'][1]} are on the pre-split "
+                f"share basis, as reported in the filing each cites; later filings restated "
+                f"some years for a stock split "
                 f"({b['ratio_hint']}{where}), so {b['between'][0]} and {b['between'][1]} are "
                 "on different share bases."
                 + "".join(f" An earlier split ({e['ratio_hint']}"
@@ -866,7 +867,8 @@ def statement(
             )  # fmt: skip
         else:
             text = (f"The share basis changes here ({filed_where}): shares and per-share "
-                    f"figures before {b['between'][1]} are as originally filed, so "
+                    f"figures before {b['between'][1]} are on the earlier share basis, as "
+                    f"reported in the filing each cites, so "
                     f"{b['between'][0]} and {b['between'][1]} are on different share bases. "
                     "They are not adjusted.")  # fmt: skip
         notes.append(text)

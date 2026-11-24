@@ -144,7 +144,7 @@ Rules:
 - `split_break` (2026-11-23, additive): on share and EPS rows when two adjacent columns are on
   different share bases, because a later filing restated some years for a split and earlier years
   stay as filed (Apple FY2017 5.2B shares, FY2018 19.8B): `{"between": ["FY2017", "FY2018"],
-  "ratio_hint": "4:1", "text": "Shares and per-share figures before FY2018 are as originally filed; …"}`
+  "ratio_hint": "4:1", "text": "Shares and per-share figures before FY2018 are on the pre-split share basis, as reported in the filing each cites; …"}`
   (`"1:10"` for a reverse split); `text` is also in `notes`. Shown when shares jump by a
   near-whole factor (at least 1.9x) and EPS moves inversely. Values are never adjusted.
   S-02b (2026-11-24, additive): `split_date` (the split's effective date, from the reviewed split
@@ -152,7 +152,7 @@ Rules:
   filed_date, source_url}`: the filing behind the first column on the newer basis) and `earlier`
   (older splits, newest first, each with its own `split_date`; listed only when the reviewed list
   has them). The text then names the split: "10:1 split, June 2024: shares and per-share figures
-  before FY2023 are as originally filed; …", or, without a reviewed date, "(4:1, restated in the
+  before FY2023 are on the pre-split share basis, as reported in the filing each cites; …", or, without a reviewed date, "(4:1, restated in the
   10-K filed 2020-10-30)". A pair whose income swing is over 2x counts only from the reviewed list.
   S-02c (2026-11-24): `reviewed` (bool); a reviewed row confirms a pair only when its effective date
   falls after the older column's filing and by the restating filing (`split_date` is that row's
@@ -161,7 +161,8 @@ Rules:
   date, even where the share-row guard cannot see it (no share row, or EPS turning from a loss
   to a profit). Only a reviewed split names its ratio in `text` and gets
   `split_adjusted`; any other break reads "The share basis changes here (restated in the 10-K filed
-  <date>): …" with no adjusted values and `ratio_hint: null` (a hand-check of 30 found IPO and
+  <date>): shares and per-share figures before FYx are on the earlier share basis, as reported in
+  the filing each cites, …" with no adjusted values and `ratio_hint: null` (a hand-check of 30 found IPO and
   merger share changes read as splits and reverse-split ratios off: about 80% wrong, so an
   unreviewed ratio is never shown, in the API, MCP or chat). As filed stays the
   default.
