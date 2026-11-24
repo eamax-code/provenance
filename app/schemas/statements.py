@@ -48,7 +48,9 @@ class StatementRow(BaseModel):
         None,
         description="Adjacent years on different share bases (a split restated in later "
         'filings for some years only): {"between": [label, label], "ratio_hint": "4:1"}, the '
-        'latest such pair; older splits under "earlier" (newest first). Values are not adjusted.',
+        'latest such pair; older reviewed splits under "earlier" (newest first); "split_date" '
+        'from the reviewed split list or null; "restated_in" the filing behind the first '
+        "newer-basis column. Values are not adjusted.",
     )
     split_adjusted: dict | None = Field(
         None,

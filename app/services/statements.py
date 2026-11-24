@@ -174,10 +174,11 @@ REVIEWED_SPLITS = Path(__file__).resolve().parents[1] / "data" / "splits_reviewe
 
 
 @lru_cache(maxsize=1)
-def reviewed_splits() -> set[tuple[str, str]]:
-    """(cik, ratio) of splits read in the filing's own disclosure (app/data/splits_reviewed.csv)."""
+def reviewed_splits() -> dict[tuple[str, str], str]:
+    """{(cik, ratio): effective date} of splits read in the filing's own disclosure
+    (app/data/splits_reviewed.csv)."""
     with REVIEWED_SPLITS.open(newline="") as f:
-        return {(r["cik"], r["ratio"]) for r in csv.DictReader(f)}
+        return {(r["cik"], r["ratio"]): r["effective"] for r in csv.DictReader(f)}
 
 
 def split_breaks(values: dict[str, list[float | None]], keys: list[str],

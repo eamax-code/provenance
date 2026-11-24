@@ -244,17 +244,26 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     # not in the reviewed list: only the latest pair, adjusted by its own ratio (as before)
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
-    assert "earlier" not in rows["eps_basic"]["split_break"]
+    plain = rows["eps_basic"]["split_break"]
+    assert "earlier" not in plain and plain["split_date"] is None
+    assert plain["restated_in"]["filed_date"] == "2020-11-01"  # the filing behind FY2018
+    assert "restated some years for a stock split (3:1, restated in the 10-K filed 2020-11-01)" \
+        in plain["text"] and plain["text"].startswith("Shares and per-share")  # fmt: skip
     assert rows["eps_basic"]["split_adjusted"]["values"] == [2.0, 1.0, 1.0, 1.0]  # 6.00 / 3
     assert "earlier" not in rows["eps_basic"]["split_adjusted"]
-    # the earlier split reviewed: named and compounded
-    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "2:1"), (cik, "3:1")})
+    # both splits reviewed: named with their dates, and compounded
+    dates = {(cik, "2:1"): "2018-03-01", (cik, "3:1"): "2020-03-02"}
+    monkeypatch.setattr(st, "reviewed_splits", lambda: dates)
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     brk = rows["eps_basic"]["split_break"]
     assert brk["between"] == ["FY2017", "FY2018"] and brk["ratio_hint"] == "3:1"
-    assert brk["earlier"] == [{"between": ["FY2016", "FY2017"], "ratio_hint": "2:1"}]
-    assert "An earlier split (2:1) also separates FY2016 and FY2017." in brk["text"]
+    assert brk["earlier"] == [{"between": ["FY2016", "FY2017"], "ratio_hint": "2:1",
+                               "split_date": "2018-03-01"}]  # fmt: skip
+    assert brk["split_date"] == "2020-03-02"
+    assert brk["text"].startswith("3:1 split, March 2020: shares and per-share figures before "
+                                  "FY2018 are as originally filed")  # fmt: skip
+    assert "An earlier split (2:1, March 2018) also separates FY2016 and FY2017." in brk["text"]
     adj = rows["eps_basic"]["split_adjusted"]
     assert adj["ratio"] == "3:1" and adj["values"] == [1.0, 1.0, 1.0, 1.0]
     assert [(e["ratio"], e["before"]) for e in adj["earlier"]] == [("2:1", "FY2017")]

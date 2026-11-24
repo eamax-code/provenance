@@ -765,8 +765,10 @@ def statement(
              "nothing is converted. Derived rows and quarters say derived and list their "
              "inputs."]  # fmt: skip
 
+    reviewed = statements_service.reviewed_splits()
+
     def restated(between: list[str], hint: str) -> bool:  # S-02b: a reviewed split
-        return (cik, hint) in statements_service.reviewed_splits()
+        return (cik, hint) in reviewed
 
     breaks = statements_service.split_breaks(
         {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
@@ -775,17 +777,46 @@ def statement(
     )
     if breaks:
         b = next(iter(breaks.values()))
+        labels = [c.key for c in columns]
+
+        def filing_at(label: str) -> dict | None:
+            """The filing behind the first column on the newer basis: it restated that year."""
+            k = labels.index(label)
+            for r in rows:
+                c = r.cells[k] if not r.derived and r.metric in breaks else None
+                if c is not None and c.accession_number:
+                    filed = c.filed_date.isoformat() if c.filed_date else None
+                    return {"accession_number": c.accession_number, "form": c.form_type,
+                            "filed_date": filed, "source_url": c.source_url}  # fmt: skip
+            return None
+
+        def when(hint: str) -> str | None:  # S-02b: the split's date, from the reviewed list
+            d = reviewed.get((cik, hint)) if isinstance(reviewed, dict) else None
+            return d or None
+
+        def month(d: str) -> str:
+            return date.fromisoformat(d).strftime("%B %Y")
+
+        split_date, restated_in = when(b["ratio_hint"]), filing_at(b["between"][1])
+        lead = f"{b['ratio_hint']} split, {month(split_date)}: shares" if split_date else "Shares"
+        where = (f", restated in the {restated_in['form']} filed {restated_in['filed_date']}"
+                 if restated_in and not split_date else "")  # fmt: skip
+        earlier = b.get("earlier", [])
+        for e in earlier:
+            e["split_date"] = when(e["ratio_hint"])
         text = (
-            f"Shares and per-share figures before {b['between'][1]} are as originally filed; "
-            f"later filings restated some years for a stock split ({b['ratio_hint']}), so "
+            f"{lead} and per-share figures before {b['between'][1]} are as originally filed; "
+            f"later filings restated some years for a stock split ({b['ratio_hint']}{where}), so "
             f"{b['between'][0]} and {b['between'][1]} are on different share bases."
-            + "".join(f" An earlier split ({e['ratio_hint']}) also separates "
-                      f"{e['between'][0]} and {e['between'][1]}." for e in b.get("earlier", []))
+            + "".join(f" An earlier split ({e['ratio_hint']}"
+                      + (f", {month(e['split_date'])}" if e["split_date"] else "")
+                      + f") also separates {e['between'][0]} and {e['between'][1]}."
+                      for e in earlier)
             + " They are not adjusted."
         )  # fmt: skip
         notes.append(text)
         for v in breaks.values():
-            v["text"] = text
+            v["text"], v["split_date"], v["restated_in"] = text, split_date, restated_in
     for r in rows:
         r.split_break = breaks.get(r.metric)
     adjusted = statements_service.split_adjusted(db, cik, rows, breaks, as_of)
