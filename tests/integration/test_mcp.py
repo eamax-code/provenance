@@ -94,8 +94,8 @@ def test_the_callers_key_is_used_and_metered(client, auth, ingested_aapl):
     for headers in ({"X-API-Key": key}, {"Authorization": f"Bearer {key}"}):
         res = call(client, "list_filings", {"cik": "320193", "limit": 20}, headers=headers)
         assert res["isError"] is False and len(json.loads(res["content"][0]["text"])["data"]) == 6
-    demo = call(client, "list_filings", {"cik": "320193", "limit": 20})
-    assert demo["isError"] is True and "demo_limit" in demo["content"][0]["text"]
+    demo = call(client, "list_filings", {"cik": "320193", "limit": 20})  # D-L1: trimmed
+    assert demo["isError"] is False and len(json.loads(demo["content"][0]["text"])["data"]) == 6
     usage = client.get("/v1/developer/usage", headers=auth).json()
     assert usage["requests_by_route"].get("/v1/companies/{cik}/filings (mcp)", 0) >= 2
     nope = {"X-API-Key": "pk_live_nope"}

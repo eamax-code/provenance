@@ -136,14 +136,6 @@ demo_minute_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-minut
 demo_day_limiter = FixedWindowRateLimiter(window_seconds=86400, name="demo-day")
 demo_all_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-all")
 DEMO_UPGRADE = "Create a free account at /account/ for your own key and full access."
-# Endpoints whose contract trims a demo request's limit instead of refusing it (Q-01: the
-# search page sends limit=20 and gets 10 hits with a note).
-DEMO_TRIMS_LIMIT = {
-    "/v1/search/filings",
-    "/v1/insider-transactions",
-    "/v1/managers",
-    "/v1/managers/activity",
-}
 
 
 class DemoPrincipal:
@@ -194,15 +186,8 @@ def require_reader(
         settings.demo_requests_per_day,
         f"Demo key daily limit reached. Request a free key for full access: {DEMO_UPGRADE}",
     )
-    raw_limit = request.query_params.get("limit")
-    if (raw_limit and raw_limit.isdigit() and int(raw_limit) > settings.demo_max_limit
-            and request.url.path not in DEMO_TRIMS_LIMIT
-            and not request.url.path.startswith("/v1/managers/")):  # fmt: skip
-        raise APIError(
-            403,
-            "demo_limit",
-            f"The demo key returns at most limit={settings.demo_max_limit} rows. {DEMO_UPGRADE}",
-        )
+    # D-L1: a larger limit is trimmed to demo_max_limit on every list (main._cap_rows), never
+    # refused: a keyless page asking for 20 rows gets 10 with a note
     cik = request.path_params.get("cik")
     if cik is not None:
         from app.services.public import showcase_ciks

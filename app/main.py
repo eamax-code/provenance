@@ -120,11 +120,19 @@ def _cap_rows(data: dict, cap: int) -> bool:
             v["data"], cut = v["data"][:cap], True  # {"total": n, "data": [...]}: total stays
         elif isinstance(v, list) and len(v) > cap:
             data[k], cut = v[:cap], True
-    if cut:
-        if isinstance(data.get("meta"), dict):
-            data["meta"]["has_more"] = True
+    if cut:  # D-L1: the first page only, as the demo's filing search (no paging past it)
+        meta = data.get("meta")
+        if isinstance(meta, dict):
+            meta["has_more"] = False
+            if "next_offset" in meta:
+                meta["next_offset"] = None
+            if isinstance(meta.get("limit"), int) and meta["limit"] > cap:
+                meta["limit"] = cap
+        note = f"The demo key returns at most {cap} rows per list; this list was trimmed."
         if isinstance(data.get("notes"), list):
-            data["notes"] = [*data["notes"], f"The demo key returns at most {cap} rows per list."]
+            data["notes"] = [*data["notes"], note]
+        elif "notes" not in data:
+            data["notes"] = [note]
     return cut
 
 

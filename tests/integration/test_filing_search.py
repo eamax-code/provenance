@@ -139,9 +139,9 @@ def test_demo_key_showcase_only(client, db, stored, settings, monkeypatch):
     wide = client.get("/v1/search/filings", params={"q": "tariffs", "limit": 20}, headers=DEMO)
     assert wide.status_code == 200 and wide.json()["meta"]["limit"] == 10
     assert len(wide.json()["hits"]) == 3
-    # other endpoints keep the API-wide rule
+    # D-L1: every endpoint trims the same way, none refuses
     other = client.get("/v1/search", params={"q": "tariffs", "limit": 20}, headers=DEMO)
-    assert other.status_code == 403 and other.json()["error"]["code"] == "demo_limit"
+    assert other.status_code == 200
 
 
 def test_parse_reads_websearch_syntax():

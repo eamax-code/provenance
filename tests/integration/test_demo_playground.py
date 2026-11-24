@@ -86,12 +86,8 @@ def test_demo_key_cannot_touch_accounts_or_exports(client, ingested_aapl):
 
 
 def test_demo_limits_page_size_and_showcase_scope(client, ingested_aapl, settings):
-    r = client.get("/v1/companies/320193/filings?limit=50", headers=DEMO)
-    assert (
-        r.status_code == 403
-        and r.json()["error"]["code"] == "demo_limit"
-        and "limit" in r.json()["error"]["message"]
-    )
+    r = client.get("/v1/companies/320193/filings?limit=50", headers=DEMO)  # D-L1: trimmed
+    assert r.status_code == 200 and len(r.json()["data"]) <= settings.demo_max_limit
     r = client.get("/v1/companies/789019/filings", headers=DEMO)  # not ingested, not in showcase
     assert r.status_code == 403 and r.json()["error"]["code"] == "demo_scope"
 

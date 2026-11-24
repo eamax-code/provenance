@@ -22,7 +22,9 @@ Common to all, as for the Explorer endpoints (`docs/api-contracts-explorer.md`):
 - `X-API-Key` is required. One request is one metered unit. The demo key works on the showcase
   companies only (`403 demo_scope` elsewhere) and gets at most 10 rows on any list (`data`, and the named lists `plans`, `proposed_sales`,
   `threads`, `parents`, `children`, `subsidiaries`; a `total` beside a list still counts every
-  row, and `notes` says the list was trimmed). Every chat table for the demo key shows at most 10 rows, with `total` counting every row and
+  row, and `notes` says the list was trimmed). D-L1 (2026-11-25): a larger `limit` is trimmed on
+  every endpoint, never refused (no `403 demo_limit` any more): the first page only, `has_more`
+  false, `next_offset` null, `meta.limit` the cap. Every chat table for the demo key shows at most 10 rows, with `total` counting every row and
   a note ("Showing 10 of N. … The demo key shows at most 10 rows.").
 - Errors use the standard envelope: `404 company_not_found`, `422 invalid_parameter`, and `429`
   with `Retry-After`.
