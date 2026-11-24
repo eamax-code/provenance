@@ -94,3 +94,24 @@ def test_calendar_chat_answer(client, auth, db, ingested_aapl):
     assert "derived: Large accelerated filer" in a
     assert "Filed after the derived due date in the last two years: 2026-03-28" in a
     assert "NT 10-Q on 2026-05-08" in a and "[" in a
+
+
+def test_calendar_chat_answers_the_deadline_asked_about(client, auth, db, ingested_aapl):
+    """2026-11-24 (provenance-ui): "When is Apple Inc.'s 10-K due (period ending 2026-09-26)
+    (2026-11-25)?" was answered with the next 10-K, a year later. A deadline named by its due date
+    or period end is answered itself, met or not."""
+    _seed(db)
+
+    def ask(q):
+        body = client.post("/v1/chat", json={"message": q, "cik": CIK}, headers=auth).json()
+        assert body["intent"] == "calendar", body
+        return body["answer"]
+
+    a = ask("When is Apple Inc.'s 10-Q due (period ending 2025-12-27) (2026-02-05), and how is "
+            "that date worked out?")  # fmt: skip
+    assert a.startswith("Apple Inc.'s 10-Q for the period ending 2025-12-27 was due 2026-02-05 "
+                        "(derived: Large accelerated filer: 40 days")  # fmt: skip
+    assert "It was filed " in a and "by the due date" in a and "next" not in a
+    b = ask("When is Apple Inc.'s 10-K due (period ending 2026-09-28)?")
+    assert b.startswith("Apple Inc.'s 10-K for the period ending 2026-09-28 is due ")
+    assert "has not been filed yet" in b

@@ -537,8 +537,29 @@ def calendar(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
     nxt = next((i for i in open_ if not form or i["title"].startswith(form)), None) or (
         open_[0] if open_ else None
     )
-    past = [i for i in deadlines if i.get("met_by")]
+    past = [i for i in deadlines if i.get("met_by") and (not form or i["title"].startswith(form))]
     parts = []
+    # a deadline the question names by its due date or period end ("10-K due (period ending
+    # 2026-09-26) (2026-11-25)"): that one, met or not, never the next one in its place
+    days = set(re.findall(r"\b\d{4}-\d{2}-\d{2}\b", text))
+    hit = next((i for i in deadlines if (i["date"] in days or i.get("period_end") in days)
+                and (not form or i["title"].startswith(form))), None)  # fmt: skip
+    if hit:
+        kind = hit["title"].split(" due")[0]
+        n = _cite(b, f"{hit['source']['form']} filed {hit['source']['filed_date']}",
+                  hit["source"]["source_url"])  # fmt: skip
+        rule = f"derived: {hit['basis']}; from the filer category and the report periods"
+        if hit.get("met_by"):
+            m = _cite(b, f"{hit['met_by']['form']} filed {hit['met_by']['filed_date']}",
+                      hit["met_by"]["source_url"])  # fmt: skip
+            how = "after" if hit.get("filed_late") else "by"
+            parts.append(f"{name}'s {kind} for the period ending {hit['period_end']} was due "
+                         f"{hit['date']} ({rule}) [{n}]. It was filed "
+                         f"{hit['met_by']['filed_date']}, {how} the due date [{m}].")  # fmt: skip
+        else:
+            parts.append(f"{name}'s {kind} for the period ending {hit['period_end']} is due "
+                         f"{hit['date']} ({rule}) [{n}]; it has not been filed yet.")  # fmt: skip
+        nxt, past = None, []
     if nxt:
         n = _cite(b, f"{nxt['source']['form']} filed {nxt['source']['filed_date']}",
                   nxt["source"]["source_url"])  # fmt: skip
