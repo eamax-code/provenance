@@ -149,6 +149,9 @@ class Parsed:
     filings: dict[str, dict] = field(default_factory=dict)
     owners: list[dict] = field(default_factory=list)
     rows: list[dict] = field(default_factory=list)
+    # F-03e: signatures, remarks and footnotes, as filed (XML only; the data sets load theirs
+    # through scripts/load_insider_filing_text.py)
+    texts: dict[str, dict] = field(default_factory=dict)
 
 
 def _tsv(zf: zipfile.ZipFile, name: str) -> Iterator[dict]:
@@ -312,6 +315,16 @@ def parse_ownership_xml(text: str, accession: str, filing_date: date) -> Parsed:
                 "CONV_EXERCISE_PRICE": _find(n, "conversionOrExercisePrice"),
             }
             out.rows.append(_tx_row(accession, kind, deriv, f"x{i}", r))
+
+    def flat(node) -> str:
+        return " ".join(" ".join(node.itertext()).split())
+
+    sigs = [flat(n) for n in root.iter() if _local(n.tag) == "signatureName"]
+    notes = [flat(n) for n in root.iter() if _local(n.tag) == "footnote"]
+    remarks = next((flat(n) for n in root if _local(n.tag) == "remarks"), None)
+    out.texts[accession] = {"signatures": [x for x in sigs if x],
+                            "remarks": remarks or None,
+                            "footnotes": [x for x in notes if x]}  # fmt: skip
     return out
 
 
@@ -337,7 +350,25 @@ def store(db: Session, parsed: Parsed, source: str) -> tuple[int, int]:
         db.execute(insert(InsiderFiling), chunk)
     for chunk in _chunks(rows, _BATCH):
         db.execute(insert(InsiderTransaction), chunk)
+    store_texts(db, parsed, source)
     return len(owners), len(rows)
+
+
+def store_texts(db: Session, parsed: Parsed, source: str) -> int:
+    """F-03e: the signatures, remarks and footnotes of the parsed filings that have an entity
+    reporting owner (cluster buying links a fund to whoever controls it from these)."""
+    import json
+
+    from app.db.models import InsiderFilingText
+
+    entity = {o["accession_number"] for o in parsed.owners if is_entity(o.get("owner_name") or "")}
+    keep = [a for a in parsed.texts if a in entity]
+    for a in keep:
+        t = parsed.texts[a]
+        db.merge(InsiderFilingText(accession_number=a, signatures=json.dumps(t["signatures"]),
+                                   remarks=t["remarks"], footnotes=json.dumps(t["footnotes"]),
+                                   source=source))  # fmt: skip
+    return len(keep)
 
 
 def discover_datasets(client: SecClient) -> dict[str, str]:

@@ -348,8 +348,11 @@ Management LLC") or that it files a separate Form 4. Never by attorney-in-fact, 
 attorney (also "P.O.A.") or proxy signatures, never by a bare "By:" without a capacity, never
 by surname alone. The signatures, remarks and footnotes are `insider_filing_text`, loaded from
 the SEC insider data sets for filings with an entity owner (`scripts/load_insider_filing_text.py`;
-40,965 filings, 30 checked against the XML, 30 right); Forms 4 read as filed after the data sets
-have no text yet, so only the name rule links them. Affiliates that state no link in any of
+40,965 filings, 30 checked against the XML, 30 right). Forms read as filed after the data sets
+store theirs at ingest (F-03e: `insiders.store` writes the text of any form with an entity owner,
+so linking keeps up with new filings); the ones read before that were filled from the document
+cache (`scripts/fill_insider_filing_text.py`: 462 of 532, 70 not cached and left without text;
+30 checked against the XML, 30 right). Affiliates that state no link in any of
 these (Manufacturers Life and Manulife entities) still count apart. Stored clusters were
 corrected through the same retract-and-update path ("affiliates counted as separate buyers…").
 

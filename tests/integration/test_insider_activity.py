@@ -338,3 +338,28 @@ def test_affiliates_filing_apart_are_one_buyer(db):
     assert g[c(41)] == g[c(42)]  # signs as managing member
     assert g[c(51)] == g[c(52)]  # named as sole member in a footnote
     assert g[c(61)] != g[c(62)]  # attorney-in-fact and a namesake: not linked
+
+
+def test_a_new_entity_form4_stores_its_text(db):
+    """F-03e: a Form 4 read as filed (the tracker's ingest) stores its signatures, remarks and
+    footnotes when a reporting owner is an entity, so affiliate linking keeps working after the
+    data sets; an individual's Form 4 stores none."""
+    import json
+    from pathlib import Path
+
+    from app.db.models import InsiderFilingText
+    from app.services import insiders
+
+    xml = (Path(__file__).parents[1] / "fixtures" / "connections" / "form4_aapl.xml").read_text()
+    person = insiders.parse_ownership_xml(xml, "0001140361-26-000001", date(2026, 11, 12))
+    insiders.store(db, person, "filing")
+    fund = xml.replace("Newstead Jennifer", "Newstead Capital LLC")
+    parsed = insiders.parse_ownership_xml(fund, "0001140361-26-000002", date(2026, 11, 12))
+    insiders.store(db, parsed, "filing")
+    db.commit()
+    assert db.get(InsiderFilingText, "0001140361-26-000001") is None
+    t = db.get(InsiderFilingText, "0001140361-26-000002")
+    assert t is not None and t.source == "filing"
+    assert json.loads(t.signatures) == [
+        "/s/ Sam Whittington, Attorney-in-Fact for Jennifer Newstead"]  # fmt: skip
+    assert json.loads(t.footnotes)[0].startswith("This transaction was made pursuant to a Rule")
