@@ -50,6 +50,7 @@ BUDGETS = {
     "explorer, connections graph (loaded when the tab opens)": (["app/graph.js"], 16_500),
     # Search inside filings (Q-01, 24 Nov): 9.2 KB when added
     "search": (["search/index.html", "search/search.css", "search/search.js"], 10_500),
+    "insiders": (["insiders/index.html", "insiders/insiders.css", "insiders/insiders.js"], 12_500),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
 }
 
