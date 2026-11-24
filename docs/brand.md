@@ -68,10 +68,19 @@ Rules, each checked by a test or the UI audit:
 
 - `site/img/og.png` (1200×630) is rendered from `scripts/brand/og.html` by `scripts/brand/render_og.sh`. It has one highlight, on a real figure (Apple's fiscal 2026 revenue), with its leader to the 10-K that reports it. Update the figure and its accession together.
 
-## Motion (B-4, next)
+## Motion: the provenance moment (B-4)
 
-- The brand interaction: when a figure opens its provenance card, the highlight sweeps across the figure and the leader draws to the filing.
-- CSS first. Under `prefers-reduced-motion` the highlight appears without the sweep.
+The one brand interaction lives in `site/prov-card.js` and `site/app/app.css`, which the Explorer and chat share. It happens when a figure (a `.door`) opens its provenance card:
+
+1. **Sweep (0–220 ms).** The highlight sweeps left to right across the figure. The figure keeps its own text colour until the highlight is mostly under it.
+2. **In the card (80 ms on).** The card's copy of the figure gets the same sweep.
+3. **Leader (240–540 ms).** The leader draws from the card's figure, down the card's left gutter, to a dot at the Filing row: the logo's gesture. It is drawn in `--accent-hi`, which is olive on light grounds.
+
+Rules:
+- **Hover and keyboard focus** give the same hint, a 2 px accent underline, never yellow text. Enter or Space opens the card exactly as a click does.
+- **Reduced motion** (`prefers-reduced-motion`): the highlight and the leader appear at once. There is no sweep and no draw.
+- **No layout shift.** Only background-size, stroke-dashoffset and an absolutely placed SVG change, so CLS is 0 at 1440 and 390.
+- **After the sweep** the figure sits on the marker colour itself (`background-color`), so contrast checks read it correctly.
 
 ## Pre-launch gates (before the site is public)
 

@@ -70,7 +70,7 @@ def test_the_marker_is_only_the_highlight():
             uses.append((p.relative_to(SITE).as_posix(), m.group(0).strip()))
     assert uses, "the highlight rule is missing"
     for where, rule in uses:
-        assert "background: var(--marker)" in rule and "color: var(--marker-ink)" in rule, f"{where}: {rule[:120]}"
+        assert re.search(r"background: var\(--marker\)", rule) and "color: var(--marker-ink)" in rule, f"{where}: {rule[:120]}"
         assert re.search(r"color: var\(--marker\)", rule) is None, f"{where}: the marker is never a text colour"
 
 
@@ -87,6 +87,17 @@ def test_data_marks_are_never_the_accent():
                 if re.search(r"(fill|stroke|background)(-color)?: ?var\(--(accent|accent-hi|marker)\)", body):
                     found.append(f"{p.relative_to(SITE)}: {sel.strip()[:60]}")
     assert not found, "data marks use --data-hi, not the accent: " + "; ".join(found)
+
+
+def test_the_provenance_moment_respects_reduced_motion():
+    css = (SITE / "app" / "app.css").read_text()
+    assert "@keyframes prov-sweep" in css and "@keyframes prov-draw" in css
+    rm = css[css.index("@media (prefers-reduced-motion: reduce) {\n  .door"):]
+    rm = rm[: rm.index("\n}") + 2]
+    for sel in (".door[aria-expanded=\"true\"]", ".prov-v b", ".prov-lead path", ".prov-lead circle"):
+        assert sel in rm, f"reduced motion must stop {sel}"
+    assert "animation: none" in rm and "stroke-dashoffset: 0" in rm
+    assert ".door:focus-visible" in css, "keyboard focus gets the same hint as hover"
 
 
 def test_every_page_carries_the_brand_icons_and_the_logo():

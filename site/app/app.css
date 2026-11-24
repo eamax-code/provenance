@@ -248,8 +248,25 @@ tr:last-child td { border-bottom: 0; } td.wrap { white-space: normal; }
 
 /* every number is a door */
 .door { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline dotted color-mix(in srgb, var(--muted) 70%, transparent); text-underline-offset: 3px; }
-.door:hover, .door[aria-expanded="true"] { color: var(--accent-text); text-decoration-color: currentColor; }
-.prov-card { position: absolute; z-index: 40; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: 0 12px 32px rgba(0,0,0,.35); font-size: .86rem; }
+/* B-4, the brand's one moment (docs/brand.md): hover or keyboard focus hints with an underline; opening the
+   card sweeps the highlight across the figure, and in the card a leader draws from the figure to its filing.
+   Background-size, stroke-dashoffset and an absolute SVG only, so nothing moves (CLS 0). The sweep's frames
+   keep the background colour clear, so once it ends the figure sits on the marker colour itself; the text
+   keeps its own colour until the highlight is mostly under it. */
+.door:hover, .door:focus-visible { text-decoration: underline solid var(--accent-hi); text-decoration-thickness: 2px; }
+.door[aria-expanded="true"], .prov-v b { color: var(--marker-ink); background: var(--marker) linear-gradient(var(--marker), var(--marker)) no-repeat 0 0 / 100% 100%; border-radius: 3px; text-decoration: none; animation: prov-sweep .22s var(--ease-out) backwards; }
+.prov-v b { padding: 0 4px; animation-delay: .08s; }
+@keyframes prov-sweep { from { background-size: 0 100%; background-color: transparent; color: var(--fg); } 55% { color: var(--fg); } to { background-size: 100% 100%; background-color: transparent; } }
+.prov-lead { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.prov-lead path { fill: none; stroke: var(--accent-hi); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; animation: prov-draw .3s .24s var(--ease-out) forwards; }
+.prov-lead circle { fill: var(--accent-hi); opacity: 0; animation: prov-dot .14s .5s ease-out forwards; }
+@keyframes prov-draw { to { stroke-dashoffset: 0; } }
+@keyframes prov-dot { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .door[aria-expanded="true"], .prov-v b, .prov-lead path, .prov-lead circle { animation: none; }
+  .prov-lead path { stroke-dashoffset: 0; } .prov-lead circle { opacity: 1; }
+}
+.prov-card { position: absolute; z-index: 40; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: 0 12px 32px rgba(0,0,0,.35); font-size: .86rem; padding-left: 28px; }
 .prov-card:focus { outline: none; }
 .prov-v { margin: 0 0 8px; } .prov-v b { font-size: 1.05rem; }
 .prov-card dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; }

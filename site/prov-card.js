@@ -41,7 +41,7 @@
     document.body.appendChild(card);
     var r = b.getBoundingClientRect(), w = Math.min(340, window.innerWidth - 24), left = Math.max(12, Math.min(r.left + window.scrollX, window.scrollX + window.innerWidth - w - 12));
     card.style.width = w + 'px'; card.style.left = left + 'px'; card.style.top = (r.bottom + window.scrollY + 6) + 'px';
-    b.setAttribute('aria-expanded', 'true'); card.focus({ preventScroll: true });
+    b.setAttribute('aria-expanded', 'true'); lead(card); card.focus({ preventScroll: true });
     // the card reads as if it sat right after its figure: Tab past its last link closes it and moves on
     // to whatever follows the figure, Shift+Tab before its first goes back to the figure
     card.addEventListener('keydown', function (e) {
@@ -50,6 +50,18 @@
       if (e.shiftKey && (a === card || a === first)) { e.preventDefault(); var d = close(); if (d) d.focus(); }
       else if (!e.shiftKey && (a === last || !f.length)) { e.preventDefault(); var from = close(); if (from) after(from); }
     });
+  }
+  // the leader (brand, B-4): from the figure in the card, down its left gutter, to a dot at the filing row
+  function lead(c) {
+    var a = c.querySelector('dd a[href^="https://www.sec.gov/Archives/"]'), v = c.querySelector('.prov-v b');
+    if (!a || !v) return;
+    var cr = c.getBoundingClientRect(), ox = cr.left + c.clientLeft, oy = cr.top + c.clientTop, vr = v.getBoundingClientRect(), dr = a.parentNode.previousElementSibling.getBoundingClientRect();
+    var y1 = Math.round(vr.top + vr.height / 2 - oy), y2 = Math.round(dr.top + dr.height / 2 - oy), x2 = Math.round(dr.left - ox);
+    var NS = 'http://www.w3.org/2000/svg', s = document.createElementNS(NS, 'svg'), p = document.createElementNS(NS, 'path'), d = document.createElementNS(NS, 'circle');
+    s.setAttribute('class', 'prov-lead'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('width', c.clientWidth); s.setAttribute('height', c.clientHeight);
+    p.setAttribute('d', 'M' + Math.round(vr.left - ox) + ',' + y1 + 'H12V' + y2 + 'H' + (x2 - 9)); p.setAttribute('pathLength', '1');
+    d.setAttribute('cx', x2 - 7); d.setAttribute('cy', y2); d.setAttribute('r', '3.5');
+    s.appendChild(p); s.appendChild(d); c.appendChild(s);
   }
   function close() { if (card) { card.remove(); card = null; } if (cardFor) { cardFor.setAttribute('aria-expanded', 'false'); var f = cardFor; cardFor = null; return f; } }
   function after(node) {
