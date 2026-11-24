@@ -223,6 +223,27 @@ def _num(v):
     return int(f) if f.is_integer() else f
 
 
+def _loaded_quarters(db: Session) -> set[str]:
+    from app.db.models import InsiderDataset
+
+    return set(db.scalars(select(InsiderDataset.quarter)))
+
+
+def _window_covered(start: date, covered: date | None, loaded: set[str]) -> bool:
+    """D-12b: "no sale reported" only when every quarterly Form 4 data set from the notice to 90
+    days after it is loaded; a gap or a window past the newest data set is "pending", never "no
+    sale"."""
+    end = start + timedelta(days=AFTER_DAYS)
+    if covered is None or end > covered:
+        return False
+    y, q = start.year, (start.month - 1) // 3 + 1
+    while (y, q) <= (end.year, (end.month - 1) // 3 + 1):
+        if f"{y}q{q}" not in loaded:
+            return False
+        y, q = (y + 1, 1) if q == 4 else (y, q + 1)
+    return True
+
+
 def for_company(db: Session, cik: str, since: date, as_of: date | None, limit: int) -> list[dict]:
     q = select(Form144Notice).where(Form144Notice.issuer_cik == cik,
                                     Form144Notice.filing_date >= since)  # fmt: skip
@@ -243,6 +264,7 @@ def for_company(db: Session, cik: str, since: date, as_of: date | None, limit: i
     from app.services.insiders import dataset_coverage
 
     covered = dataset_coverage(db)  # the quarterly Form 4 data sets reach this filing date
+    loaded = _loaded_quarters(db)
     f4_urls = dict(
         db.execute(
             select(Filing.accession_number, Filing.source_url).where(
@@ -272,8 +294,8 @@ def for_company(db: Session, cik: str, since: date, as_of: date | None, limit: i
                        "filed_date": n.filing_date.isoformat(), "source_url": n.source_url},
             "followed_by": m,
             "followed_by_status": "matched" if m else (
-                "no_sale_reported" if covered
-                and (n.notice_date or n.filing_date) + timedelta(days=AFTER_DAYS) <= covered
+                "no_sale_reported" if _window_covered(n.notice_date or n.filing_date, covered,
+                                                      loaded)
                 else "pending"),
         })  # fmt: skip
     return out

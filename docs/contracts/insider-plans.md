@@ -84,6 +84,8 @@ The notice is valid for three months under Rule 144(h). `days_after_notice` is t
 transaction date minus the notice date. The field is `null` when no Form 4 matches, which is
 normal: a notice does not oblige a sale.
 
+`followed_by_status`: `matched`; `no_sale_reported` only when every quarterly Form 4 data set from the notice date to 90 days after it is loaded (D-12b: a gap in the loaded quarters or a window past the newest data set is `pending`, never "no sale"); otherwise `pending`.
+
 The sale is a fact; the join is our inference. The ui says so ("Matched by CIK" or "Matched by
 name").
 

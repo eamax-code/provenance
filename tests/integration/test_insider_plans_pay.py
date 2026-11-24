@@ -356,3 +356,26 @@ def test_form144_load_skips_a_failed_fetch_and_goes_on(db, ingested_aapl):
                         until=date(2026, 11, 19))["filings"] == 0  # fmt: skip
     stats = form144.load(db, Client(), date(2026, 11, 1), until=date(2026, 11, 20))
     assert (stats["stored"], stats["failed"]) == (1, 1)  # the next run picks up the failed one
+
+
+def test_no_sale_reported_needs_every_quarter_of_the_window_loaded(db, client, auth, ingested_aapl):
+    """D-12b (2026-11-24): a back-history notice says "no sale reported" only when every
+    quarterly Form 4 data set from the notice to 90 days after it is loaded; a missing quarter
+    leaves it "pending", never "no sale"."""
+    from app.db.models import InsiderDataset
+
+    _notice(db, "0001959173-24-000001", "Nobody Sells", "0008888888", date(2024, 1, 10))
+    for q, last in (("2023q4", date(2023, 12, 29)), ("2024q2", date(2024, 6, 28))):
+        db.add(InsiderDataset(quarter=q, sha256="x", filings=1, rows=1, last_filing_date=last))
+    db.commit()
+
+    def status():
+        body = client.get(f"/v1/companies/{CIK}/insider-plans?since=2023-01-01",
+                          headers=auth).json()  # fmt: skip
+        return {s["person_name"]: s["followed_by_status"] for s in body["proposed_sales"]}
+
+    assert status()["Nobody Sells"] == "pending"  # 2024q1 is not loaded
+    db.add(InsiderDataset(quarter="2024q1", sha256="x", filings=1, rows=1,
+                          last_filing_date=date(2024, 3, 28)))  # fmt: skip
+    db.commit()
+    assert status()["Nobody Sells"] == "no_sale_reported"
