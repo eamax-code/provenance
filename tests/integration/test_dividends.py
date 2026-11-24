@@ -170,3 +170,57 @@ def test_a_derived_quarter_uses_values_as_first_filed(client, auth, db):
     (q4,) = [r for r in body["data"] if r["period_label"] == "Q4 FY2020"]
     assert q4["derived"] and q4["declared_per_share"] == 0.29
     assert [i["value"] for i in q4["inputs"]] == [1.16, 0.87]
+
+
+def _walk(x):
+    if isinstance(x, dict):
+        for k, v in x.items():
+            yield k, v
+            yield from _walk(v)
+    elif isinstance(x, list):
+        for v in x:
+            yield from _walk(v)
+
+
+def test_dividends_response_carries_no_internal_field_or_api_url(client, auth, db, sec_client,
+                                                                fake_sec, facts_aapl):  # fmt: skip
+    """The rule every new endpoint has: no first_detected_at, source_updated_at or CUSIP, and every
+    link a sec.gov/Archives page, in the API and the MCP tool."""
+    import json
+
+    fake_sec.add(URL, _with_dps(facts_aapl))
+    _ingest(db, sec_client)
+    for q in ("period=annual", "period=quarterly&as_of=2024-06-30"):
+        body = client.get(f"/v1/companies/320193/dividends?{q}", headers=auth).json()
+        assert body["data"]
+        raw = json.dumps(body).lower()
+        for banned in ("first_detected_at", "source_updated_at", "cusip", "data.sec.gov"):
+            assert banned not in raw, (q, banned)
+        urls = [v for k, v in _walk(body) if k.endswith("url") and v]
+        assert urls and all(u.startswith("https://www.sec.gov/Archives/") for u in urls), urls
+    rpc = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+           "params": {"name": "company_dividends", "arguments": {"cik": "320193"}}}  # fmt: skip
+    res = client.post("/mcp", json=rpc).json()["result"]
+    assert res["isError"] is False, res
+    mcp = json.loads(res["content"][0]["text"])
+    assert mcp["data"] and "first_detected" not in json.dumps(mcp)
+
+
+def test_chat_answers_dividends_with_a_table_never_a_yield(client, auth, db, sec_client,
+                                                           fake_sec, facts_aapl):  # fmt: skip
+    from app.services.chat_intents import detect
+
+    assert detect("What dividend does Apple pay?") == "dividends"
+    assert detect("What is Apple's payout ratio?") == "dividends"
+    assert detect("Who are Apple's largest holders?") == "holders"  # unchanged
+    fake_sec.add(URL, _with_dps(facts_aapl))
+    _ingest(db, sec_client)
+    r = client.post("/v1/chat", json={"message": "What dividend does Apple pay?",
+                                      "cik": "0000320193"}, headers=auth).json()  # fmt: skip
+    assert r["intent"] == "dividends" and r["answered_by"] == "data", r
+    assert "per share" in r["answer"] and "No dividend yield" in r["answer"]
+    (table,) = [b for b in r["blocks"] if b.get("type") == "table"]
+    assert table["columns"][0] == "Fiscal year" and table["rows"]
+    y = client.post("/v1/chat", json={"message": "What is Apple's dividend yield?",
+                                      "cik": "0000320193"}, headers=auth).json()  # fmt: skip
+    assert y["intent"] != "dividends"

@@ -173,6 +173,28 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik", "statement"],
         },
     },
+    "company_dividends": {
+        "title": "Company dividends",
+        "description": "Dividends declared per share by fiscal year or quarter, each with its "
+        "filing (10-K or 10-Q, source_url): as reported in that filing's share basis, with a "
+        "split_adjusted value on today's basis from reviewed splits only. payout_ratio is "
+        "derived: declared per share over diluted EPS from the same filing. Derived quarters "
+        "say derived and list their inputs. No dividend yield (no prices). data is empty when "
+        "no dividend per share is reported. Information, not signals.",
+        "path": "/v1/companies/{cik}/dividends",
+        "params": {"period": "period", "periods": "periods", "as_of": "as_of"},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "period": {"type": "string", "enum": ["annual", "quarterly"], "default": "annual"},
+                "periods": {"type": "integer", "minimum": 1, "maximum": 80,
+                            "description": "Up to 20 annual, 80 quarterly"},
+                "as_of": _DATE,
+            },  # fmt: skip
+            "required": ["cik"],
+        },
+    },
     "company_timeline": {
         "title": "Company timeline",
         "description": "One company's history on one list, newest first: filings, 8-K events, "

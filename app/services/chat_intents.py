@@ -17,6 +17,8 @@ from app.db.models import InsiderActivity
 from app.services.intel import Brief, display_name, money
 
 INTENTS = (  # first match wins
+    # Q-04 (2026-11-25): dividends declared per share; "dividend yield" is out of scope earlier
+    ("dividends", re.compile(r"\b(dividends?(?!\s+yield)|payout ratio)\b", re.I)),
     # C-13 (2026-11-24): pay versus performance, trading plans, Form 144 notices, 10-K changes
     (
         "pay",
@@ -809,6 +811,7 @@ HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
     "pay": "executive-pay", "trading_plans": "insider-plans", "proposed_sales": "insider-plans",
     "changes": "changes", "calendar": "calendar", "private_raises": "private-raises",
     "comment_letters": "comment-letters", "corporate_tree": "corporate-tree",
+    "dividends": "dividends",
 }  # fmt: skip
 
 ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
@@ -818,7 +821,40 @@ ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
            "private_raises": private_raises}  # fmt: skip
 
 
-TABLED = {"comment_letters": comment_letters, "corporate_tree": corporate_tree}
+def dividends(db: Session, b: Brief, as_of: date | None) -> tuple[str, list[dict]]:
+    """Q-04: dividends declared per share, the last five fiscal years, each cell linked to the
+    filing it comes from (as reported, with today's split basis beside it); never a yield."""
+    from app.services import dividends as dividends_service
+
+    out = dividends_service.build(db, b.company, "annual", 5, as_of)
+    rows = out["data"]
+    if not rows:
+        return (f"No dividends per share are reported in the 10-K and 10-Q XBRL filings stored "
+                f"here for {_name(b)}.", [])  # fmt: skip
+    last = rows[-1]
+    n = _cite(b, f"{last['filing']['form']} filed {last['filing']['filed_date']}",
+              last["filing"]["source_url"])  # fmt: skip
+    cur = last["currency"] or ""
+    text = (f"{_name(b)} declared {cur} {last['declared_per_share']:g} per share for "
+            f"{last['period_label']} [{n}], as reported in that filing.")  # fmt: skip
+    if last["payout_ratio"]:
+        text += (f" That is {last['payout_ratio']['value']:.0%} of diluted EPS in the same "
+                 "filing (derived).")  # fmt: skip
+    text += " No dividend yield: share prices are not loaded here."
+    table = _table(
+        "Dividends declared per share",
+        ["Fiscal year", "Declared per share (as reported)", "Split-adjusted", "Payout ratio"],
+        [[_cell(r["period_label"]),
+          _cell(f"{r['declared_per_share']:g} {r['unit']}", r["filing"]["source_url"]),
+          _cell(f"{r['split_adjusted']['value']:g}" if r["split_adjusted"] else "—"),
+          _cell(f"{r['payout_ratio']['value']:.0%}" if r["payout_ratio"] else "—")]
+         for r in reversed(rows)],
+    )  # fmt: skip
+    return text, [table]
+
+
+TABLED = {"comment_letters": comment_letters, "corporate_tree": corporate_tree,
+          "dividends": dividends}  # fmt: skip
 
 
 def reply(db: Session, b: Brief, intent: str, as_of: date | None,
