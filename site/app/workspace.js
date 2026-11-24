@@ -779,7 +779,7 @@
       el('div', { class: 'ov-h' }, [el('h3', { id: 'own-h', text: 'Institutional holders (13F)' })]), el('p', { class: 'muted small', id: 'own-when' }),
       el('div', { class: 'own-nums', id: 'own-nums' }), el('p', { class: 'own-flag', id: 'own-flag', hidden: 'hidden' }),
       el('div', { class: 'tw' }, [el('table', { class: 'own-table', id: 'own-table' })]), el('p', { class: 'muted small', id: 'own-more', hidden: 'hidden' }), el('p', { class: 'notes small muted', id: 'own-notes' })]);
-    var ins = el('section', { class: 'ws-sec', 'aria-labelledby': 'ins-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ins-h', text: 'Insider transactions (Forms 3, 4, 5)' })]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice.' }), el('p', { class: 'muted', text: 'Loading…' })]);
+    var ins = el('section', { class: 'ws-sec', 'aria-labelledby': 'ins-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ins-h', text: 'Insider transactions (Forms 3, 4, 5)' }), el('a', { class: 'linkish', href: '/insiders/', text: 'Screen all companies' })]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice.' }), el('p', { class: 'muted', text: 'Loading…' })]);
     var big = el('section', { class: 'ws-sec', 'aria-labelledby': 'big-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'big-h', text: 'Holders above 5% (Schedules 13D and 13G)' })]), el('p', { class: 'muted', text: 'Loading…' })]);
     pane.replaceChildren(own, ins, big);
     if (d.ownership) companyLower().then(function (L) {

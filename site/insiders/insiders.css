@@ -1,0 +1,69 @@
+/* Insider trades. A dense screener table (36 px rows, tabular figures, right-aligned numbers) with presets as tabs and
+   the filters above; one card per trade on phones. Buy and sale are words (a filled and an outlined label), never
+   green and red; flags are neutral tags with a tooltip each. No colour of its own: shell tokens only. */
+.it { max-width: 1320px; margin: 0 auto; padding: 24px var(--m) 56px; font: 400 1rem/1.5 var(--face); color: var(--ink); }
+.it h1 { font: var(--display-weight) clamp(1.8rem, 1.2rem + 1.8vw, 2.6rem)/1.05 var(--display); letter-spacing: -0.03em; margin: 8px 0 6px; }
+.it-lede { margin: 0 0 6px; max-width: 80ch; color: var(--soft); }
+.it-disc { margin: 0 0 18px; font-weight: 600; }
+.it-presets { display: flex; flex-wrap: wrap; gap: 4px 18px; border-bottom: 1px solid var(--line); margin: 0 0 14px; }
+.it-presets a { display: inline-flex; align-items: center; min-height: 40px; color: var(--soft); text-decoration-line: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 600; font-size: .95rem; }
+.it-presets a:hover { color: var(--ink); }
+.it-presets a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent-hi); }
+.it-sheet > summary { min-height: 40px; line-height: 40px; font-weight: 600; cursor: pointer; width: max-content; }
+.it-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 16px; align-items: end; }
+.it-fields label { display: flex; flex-direction: column; gap: 3px; font-size: .82rem; color: var(--soft); }
+.it-fields input[type=date], .it-fields input[type=number], .it-fields input[type=text], .it-fields select { min-height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; font-size: .9rem; }
+.it-fields fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 12px; grid-column: span 2; }
+.it-fields legend { font-size: .82rem; color: var(--soft); padding: 0; margin-bottom: 3px; }
+.it-fields fieldset label { flex-direction: row; align-items: center; gap: 6px; font-size: .9rem; color: var(--ink); min-height: 30px; }
+.it-fields input[type=radio], .it-fields input[type=checkbox] { accent-color: var(--ink); width: 16px; height: 16px; margin: 0; }
+.it-form-row { display: flex; align-items: center; gap: 14px; margin: 12px 0 6px; }
+.it-form-row .site-button { min-height: 40px; }
+.it-clear { color: var(--ink); font-size: .9rem; }
+.it-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 8px; }
+.it-sum { margin: 0; color: var(--soft); max-width: 110ch; }
+.it .btn { min-height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: 600 .9rem var(--face); cursor: pointer; white-space: nowrap; }
+.it .tw { overflow-x: auto; }
+.it-table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.it-table th { position: sticky; top: 0; background: var(--bg); text-align: left; font-size: .78rem; font-weight: 600; color: var(--soft); padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.it-table th span[title] { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.it-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.it-table .n { text-align: right; white-space: nowrap; }
+.it-filed, .it-date { white-space: nowrap; color: var(--soft); }
+.it-co a, .it-f a { color: var(--ink); text-decoration-line: underline; text-decoration-color: var(--link-line); }
+.it .tag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; font: 500 11.5px var(--mono); color: var(--soft); vertical-align: 1px; }
+.it-who { display: block; font-weight: 600; }
+.it-role { display: block; font-size: .8rem; color: var(--soft); }
+.it-act { display: inline-block; min-width: 3.4em; padding: 1px 8px; border-radius: 999px; border: 1.5px solid var(--ink); font-size: .8rem; font-weight: 700; text-align: center; }
+.it-buy { background: var(--ink); color: var(--bg); }
+.it-sell { background: transparent; color: var(--ink); border-style: dashed; }
+.it-flags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.it-flag { display: inline-block; padding: 0 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); color: var(--ink); font-size: .75rem; font-weight: 600; line-height: 1.6; cursor: help; text-decoration-line: none; }
+a.it-flag { cursor: pointer; text-decoration-line: underline; text-decoration-color: var(--link-line); }
+.it-plan, .it-f { white-space: nowrap; }
+.it-off { color: var(--soft); text-decoration-color: var(--soft); }
+.it-more { margin: 16px 0 0; }
+.it-notes { margin: 14px 0 0; font-size: .82rem; color: var(--soft); max-width: 110ch; }
+.it-api { margin: 12px 0 0; font-size: .82rem; color: var(--soft); overflow-wrap: anywhere; }
+.it-api code { font: 12px var(--mono); color: var(--ink); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 760px) {
+  .it-presets { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--m)) 14px; padding: 0 var(--m); }
+  .it-presets a { flex: none; }
+  .it-sheet { border: 1px solid var(--line); border-radius: 8px; padding: 0 12px 4px; background: var(--surface); }
+  .it-sheet > summary { width: auto; min-height: 44px; line-height: 44px; }
+  .it-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .it-head { flex-wrap: wrap; }
+  /* one card per trade: the trade, the company and its Form 4; who; then the figures and dates, each with its label */
+  .it-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .it-table, .it-table tbody { display: block; }
+  .it-table tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+  .it-table td { display: block; padding: 0; border: 0; white-space: normal; }
+  .it-table td.it-tr { order: 1; }
+  .it-table td.it-co { order: 2; flex: 1 1 0; min-width: 0; font-weight: 600; }
+  .it-table td.it-f { order: 3; }
+  .it-table td.it-ins { order: 4; flex-basis: 100%; }
+  .it-table td.n, .it-table td.it-plan { order: 5; text-align: left; font-size: .88rem; }
+  .it-table td.it-date, .it-table td.it-filed { order: 6; font-size: .85rem; }
+  .it-table td.n::before, .it-table td.it-plan::before, .it-table td.it-date::before, .it-table td.it-filed::before { content: attr(data-l) " "; color: var(--soft); font-size: .8rem; }
+}
