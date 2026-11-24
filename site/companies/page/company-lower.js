@@ -41,14 +41,18 @@
       var st = M.status && M.status[p];
       return el('th', { scope: 'col', class: 'n' }, ['Year to ' + P.date(p), st === 'unreconciled' ? el('span', { class: 'tag', title: 'The segments do not add up to the consolidated figure within 1%, and the filing tags no reconciling item.', text: 'unreconciled' }) : null]);
     })).concat(share ? [el('th', { scope: 'col', class: 'n', text: 'Share of revenue' })] : []));
+    // each row wears its segment's chart colour (same slot as the Explorer's stack: size in the latest year of the main figure)
+    var base = (K.metrics || {}).revenue ? 'revenue' : metrics[0], rank = {};
+    (K.segments || []).slice().sort(function (a, b) { return (((b.values || {})[base] || {})[periods[0]] || 0) - (((a.values || {})[base] || {})[periods[0]] || 0); }).forEach(function (g, i) { rank[g.label] = 'var(--cat-' + (i < 8 ? i + 1 : 'other') + ')'; });
     var tb = el('tbody');
     (K.segments || []).forEach(function (sg) {
+      var sw = el('i', { class: 'seg-sw', 'aria-hidden': 'true', style: 'background:' + rank[sg.label] });
       var vals = (sg.values || {})[segMetric] || {};
-      var nameCell = sg.label_source === 'member_name' ? el('th', { scope: 'row', class: 'fin-name member-name', title: 'Name from the XBRL member, not the company\'s own label', text: sg.label }) : el('th', { scope: 'row', class: 'fin-name', text: sg.label });
+      var nameCell = sg.label_source === 'member_name' ? el('th', { scope: 'row', class: 'fin-name member-name', title: 'Name from the XBRL member, not the company\'s own label' }, [sw, sg.label]) : el('th', { scope: 'row', class: 'fin-name' }, [sw, sg.label]);
       var row = el('tr', {}, [nameCell].concat(periods.map(function (p) { return cell(vals[p]); })));
       if (share) {
         var pct = sg.share_of_revenue_pct;
-        row.appendChild(el('td', { class: 'n share' }, pct == null ? ['—'] : [el('span', { class: 'seg-bar', style: 'width:' + Math.max(2, Math.min(100, pct)) * 0.6 + 'px', 'aria-hidden': 'true' }), P.pct(pct)]));
+        row.appendChild(el('td', { class: 'n share' }, pct == null ? ['—'] : [el('span', { class: 'seg-bar', style: 'width:' + Math.max(2, Math.min(100, pct)) * 0.6 + 'px;background:' + rank[sg.label], 'aria-hidden': 'true' }), P.pct(pct)]));
       }
       tb.appendChild(row);
     });

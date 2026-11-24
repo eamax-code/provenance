@@ -12,7 +12,8 @@
 // it, no or several h1, missing html lang, images without alt, controls or links without an accessible
 // name, duplicate ids, a stray "null", "undefined" or "NaN" printed as text, text under WCAG AA contrast, horizontal page overflow, forbidden source URLs or
 // fields in the page (data.sec.gov, efts, GLEIF API, FIRDS files, first_detected_at, source_updated_at),
-// a figure or data mark (chart label, SVG shape, HTML bar, Chart.js dataset) drawn in the brand's marker
+// a figure link without a visible underline (every number is a door, on every theme), a figure or data mark
+// (chart label, SVG shape, HTML bar, Chart.js dataset) drawn in the brand's marker
 // yellow (it may only sit behind a figure as the highlight), chart series too alike to tell apart (normal or
 // colour-blind vision) or under 3:1 against the chart, and, for an entry with sweepAt, light text under
 // the marker while the provenance highlight sweeps (pixels read from a PNG of the figure at that moment).
@@ -218,6 +219,14 @@ function audit() {
   }
   if (low) fail.push(`${low} text element(s) under AA contrast, e.g. ${lowSamples.join('; ')}`);
   if (stray.length) fail.push(`stray text: ${stray.join('; ')}`);
+  // every number is a door, on every theme: a figure that links (an <a> or a provenance door) shows its underline
+  const bare = [];
+  for (const a of document.querySelectorAll('a[href], button.door')) {
+    const t = a.textContent.trim(); if (!FIGURE.test(t) || !vis(a) || a.closest('svg')) continue;
+    const cs = getComputedStyle(a), dc = anyc(cs.textDecorationColor);
+    if (!/underline/.test(cs.textDecorationLine) || (dc && dc.a === 0)) { if (bare.length < 4) bare.push(`"${t}" (${desc(a)})`); }
+  }
+  if (bare.length) fail.push(`figure link without a visible underline: ${bare.join('; ')}`);
   if (yellow.length) fail.push(`figure in the marker yellow (only the highlight may be yellow): ${yellow.join('; ')}`);
   if (series.length) fail.push(`chart series hard to tell apart: ${series.join('; ')}`);
 

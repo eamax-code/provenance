@@ -40,7 +40,7 @@
   --ink: #2b2f33; --soft: #565e66; --stone: #989397;
   --slate: #627b8c; --slate-deep: #4f6575; --mist: #b8c7d2; --mist-soft: #e3e9ee;
   --accent: #f3e04c; --accent-hover: #e6d235; --accent-hi: #6b5d00; --accent-ink: #16181b; --accent-text: #6b5d00; --accent-soft: #fbf4c8;
-  --marker: #f3e04c; --marker-ink: #16181b; --mark: #16181b; --link-line: currentColor; --link-deco: none;
+  --marker: #f3e04c; --marker-ink: #16181b; --mark: #16181b; --link-line: #6b5d00; --link-deco: none;
   --cat-1: #15989e; --cat-2: #b67705; --cat-3: #8470e5; --cat-4: #cc5398; --cat-5: #3d84ea; --cat-6: #af5fc7; --cat-7: #ca6800; --cat-8: #1792c0;
   --good: #0e7049; --good-soft: #dff3ea; --warn: #a34a07; --warn-soft: #fff4e0; --bad: #b3261e; --bad-soft: #fde6ea; --neutral-soft: #e3eaef;
   --field: #4f6575; --field-ink: #ffffff; --field-soft: #e4ebf0;
@@ -55,7 +55,7 @@
   --ink: #1f1c17; --soft: #625b4f; --stone: #8a8170;
   --slate: #8a7a62; --slate-deep: #5e5140; --mist: #cdbfa8; --mist-soft: #e9e1d2;
   --accent: #eed43a; --accent-hover: #e0c52c; --accent-hi: #5f5200; --accent-ink: #16181b; --accent-text: #5f5200; --accent-soft: #f4eac0;
-  --marker: #eed43a; --marker-ink: #16181b; --mark: #1f1c17; --link-line: currentColor; --link-deco: none;
+  --marker: #eed43a; --marker-ink: #16181b; --mark: #1f1c17; --link-line: #5f5200; --link-deco: none;
   --cat-1: #15989e; --cat-2: #b67705; --cat-3: #8470e5; --cat-4: #cc5398; --cat-5: #3d84ea; --cat-6: #af5fc7; --cat-7: #ca6800; --cat-8: #1792c0;
   --good: #1f6b4f; --good-soft: #e2efe8; --warn: #9a4a12; --warn-soft: #f6e3d3; --bad: #a3322a; --bad-soft: #f6e1dc; --neutral-soft: #ebe4d7;
   --field: #2d3a33; --field-ink: #fffcf6; --field-soft: #d9e3dc;
@@ -241,5 +241,8 @@ main:focus { outline: none; }
 
 /* ---------- brand: the company seal (seal.js), decorative, in the logo's colour ---------- */
 h1 > .seal { width: 1em; height: 1em; color: var(--mark); vertical-align: -0.14em; margin-right: 0.24em; }
-.ws-seal { display: inline-flex; color: var(--mark); } .ws-seal .seal { width: 40px; height: 40px; }
+.ws-seal { display: inline-flex; color: var(--mark); }
+/* a segment's swatch in its table row (company-lower.js sets the colour); figure links show their door on every theme */
+.seg-sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+table td a { text-decoration-line: underline; text-decoration-color: var(--link-line); } .ws-seal .seal { width: 40px; height: 40px; }
 @media (max-width: 640px) { .ws-seal .seal { width: 30px; height: 30px; } }
