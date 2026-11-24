@@ -548,6 +548,8 @@ def portfolio(db: Session, cik: str, quarter: date, as_of: date | None = None) -
             "form": fs[0].form_type,
             "filed_date": fs[0].filing_date,
             "source_url": _url(cik, fs[0].accession_number),
+            "amendment_type": fs[0].amendment_type,
+            "replaces": _replaced(db, cik, quarter, fs[0], as_of),
             "amendments": [
                 {
                     "accession_number": f.accession_number,
@@ -573,6 +575,57 @@ def portfolio(db: Session, cik: str, quarter: date, as_of: date | None = None) -
         "exited": exited,
         "notes": sorted(set(notes)),
     }
+
+
+def _replaced(db: Session, cik: str, quarter: date, first, as_of: date | None) -> dict | None:
+    """For a RESTATEMENT in force: the 13F-HR or 13F-HR/A filed just before it, which it
+    replaced."""
+    if first.amendment_type != "RESTATEMENT":
+        return None
+    q = (select(Filing13F.accession_number, Filing13F.form_type, Filing13F.filing_date)
+         .where(Filing13F.filer_cik == cik, Filing13F.report_period == quarter,
+                Filing13F.form_type.in_(thirteenf.HOLDINGS_FORMS),
+                Filing13F.accession_number != first.accession_number,
+                Filing13F.filing_date <= first.filing_date)
+         .order_by(Filing13F.filing_date.desc(), Filing13F.accession_number.desc())
+         .limit(1))  # fmt: skip
+    if as_of:
+        q = q.where(Filing13F.filing_date <= as_of)
+    r = db.execute(q).first()
+    if r is None:
+        return None
+    return {"accession_number": r.accession_number, "form": r.form_type,
+            "filed_date": r.filing_date, "source_url": _url(cik, r.accession_number)}  # fmt: skip
+
+
+def notice(db: Session, cik: str, quarter: date, as_of: date | None = None) -> dict | None:
+    """A manager that filed only a 13F notice for the quarter: the notice and the managers it
+    names as reporting its holdings (with whether each files holdings here that quarter)."""
+    from app.db.models import ThirteenFReportedBy
+
+    q = (select(Filing13F).where(Filing13F.filer_cik == cik, Filing13F.report_period == quarter,
+                                 Filing13F.form_type.in_(("13F-NT", "13F-NT/A")))
+         .order_by(Filing13F.filing_date.desc(), Filing13F.accession_number.desc()))  # fmt: skip
+    if as_of:
+        q = q.where(Filing13F.filing_date <= as_of)
+    nt = db.scalars(q.limit(1)).first()
+    if nt is None:
+        return None
+    names = list(db.scalars(select(ThirteenFReportedBy).where(
+        ThirteenFReportedBy.accession_number == nt.accession_number)
+        .order_by(ThirteenFReportedBy.seq)))  # fmt: skip
+    ciks = [r.cik for r in names if r.cik]
+    files = set(db.scalars(select(Filing13F.filer_cik).where(
+        Filing13F.filer_cik.in_(ciks), Filing13F.report_period == quarter,
+        Filing13F.form_type.in_(thirteenf.HOLDINGS_FORMS)))) if ciks else set()  # fmt: skip
+    return {
+        "manager": {"cik": cik, "name": nt.filer_name, "company_cik": None},
+        "quarter": quarter, "notice_only": True,
+        "filing": {"accession_number": nt.accession_number, "form": nt.form_type,
+                   "filed_date": nt.filing_date, "source_url": _url(cik, nt.accession_number)},
+        "reported_by": [{"cik": r.cik, "name": r.name,
+                         "files_holdings_here": r.cik in files} for r in names],
+    }  # fmt: skip
 
 
 def _url(cik: str, acc: str) -> str:

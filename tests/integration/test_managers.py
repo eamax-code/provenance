@@ -12,6 +12,7 @@ from app.db.models import (
     Holding13F,
     IssuerCusip,
     ThirteenFIssuerName,
+    ThirteenFReportedBy,
     utcnow,
 )
 from app.services import fund_managers as fm
@@ -89,8 +90,12 @@ def funds(db):
     # ...and NVIDIA across the split: 100 before, 1,000.4 after (fractional shares, not a buy)
     _hold(db, "0000900004-24-000001", M4, NVDA, Q1, f1, 100, 90_000)
     _hold(db, "0000900004-24-000002", M4, NVDA, Q2, f2, 1000.4, 123_400)
-    # a 13F notice only
+    # a 13F notice only, naming Alpha (files holdings) and an adviser that files none here
     _filing(db, "0000900005-24-000001", NT, "Notice Holdings", Q2, f2, "13F-NT")
+    db.add(ThirteenFReportedBy(accession_number="0000900005-24-000001", seq=1, cik=M1,
+                               file_number="028-00001", name="ALPHA CAPITAL LLC"))  # fmt: skip
+    db.add(ThirteenFReportedBy(accession_number="0000900005-24-000001", seq=2, cik=None,
+                               file_number="028-00002", name="Elsewhere Advisers Ltd"))  # fmt: skip
     db.commit()
     thirteenf.mark_loaded_through(db, date(2024, 11, 30))
     db.commit()
@@ -137,6 +142,9 @@ def test_restatement_replaces_and_exits_need_a_filing(client, auth, db, funds):
     nv = next(p for p in body["positions"] if p["issuer"]["cik"] == "0001045810")
     assert nv["shares"] == 9000  # the restatement, not the broken first filing
     assert body["filing"]["accession_number"] == "0000900002-24-000003"
+    assert body["filing"]["amendment_type"] == "RESTATEMENT"
+    assert body["filing"]["replaces"]["accession_number"] == "0000900002-24-000002"
+    assert body["notice_only"] is False
 
 
 def test_a_filing_still_in_thousands_is_flagged_not_scaled(client, auth, db, funds):
@@ -173,7 +181,13 @@ def test_search_errors_and_notices(client, auth, db, funds):
     assert _get(client, auth, "/v1/managers/0000999999").json()["error"]["code"] == (
         "manager_not_found")  # fmt: skip
     r = _get(client, auth, f"/v1/managers/{NT}", quarter="2024-06-30")
-    assert r.status_code == 404 and "13F notice" in r.json()["error"]["message"]
+    nt = r.json()
+    assert r.status_code == 200 and nt["notice_only"] is True and nt["positions"] == []
+    assert nt["filing"]["form"] == "13F-NT"
+    assert nt["filing"]["source_url"].startswith("https://www.sec.gov/Archives/")
+    assert nt["reported_by"] == [
+        {"cik": M1, "name": "ALPHA CAPITAL LLC", "files_holdings_here": True},
+        {"cik": None, "name": "Elsewhere Advisers Ltd", "files_holdings_here": False}]  # fmt: skip
     bad = _get(client, auth, f"/v1/managers/{M1}", quarter="2024-05-31")
     assert bad.status_code == 422
     assert client.get("/managers/abc/").status_code == 404

@@ -761,3 +761,52 @@ def name_rows(out: dict) -> list[dict]:
         rows.append({"cusip": cusip, "report_period": period, "name": name,
                      "managers": len(filings), "share": round(k / len(filings), 4)})  # fmt: skip
     return rows
+
+
+# -- Q-02: who reports for a manager that files a 13F notice --------------------------------------
+
+
+def _cik_or_none(v: str | None) -> str | None:
+    v = (v or "").strip()
+    return normalize_cik(v) if v.isdigit() and int(v) > 0 else None
+
+
+def reported_by_from_dataset(path: str | Path) -> list[dict]:
+    """The other managers reporting for each filing (OTHERMANAGER.tsv) in one data set."""
+    out: list[dict] = []
+    seen: dict[str, int] = {}
+    with zipfile.ZipFile(path) as z:
+        for r in _rows(z, "OTHERMANAGER.TSV"):
+            acc = (r.get("ACCESSION_NUMBER") or "").strip()
+            name = " ".join((r.get("NAME") or "").split())[:300]
+            if not (acc and name):
+                continue
+            seen[acc] = seen.get(acc, 0) + 1
+            out.append({"accession_number": acc, "seq": seen[acc],
+                        "cik": _cik_or_none(r.get("CIK")),
+                        "file_number": (r.get("FORM13FFILENUMBER") or "").strip() or None,
+                        "name": name})  # fmt: skip
+    return out
+
+
+def reported_by_from_submission(text: str, accession: str) -> list[dict]:
+    """The other managers reporting for one EDGAR 13F submission (its cover page)."""
+    from app.services import thirteenf_edgar as te
+
+    out: list[dict] = []
+    for doc in te._DOC.findall(text):
+        kind = te._TYPE.search(doc).group(1).strip().upper() if te._TYPE.search(doc) else ""
+        xml = te._XML.search(doc)
+        if not kind.startswith("13F") or not xml:
+            continue
+        cover = te.safe_xml(xml.group(1))
+        for om in (el for el in cover.iter() if te._local(el.tag) == "otherManager"):
+            name = " ".join((te._first(om, "name") or "").split())[:300]
+            if not name:
+                continue
+            out.append({"accession_number": accession, "seq": len(out) + 1,
+                        "cik": _cik_or_none(te._first(om, "cik")),
+                        "file_number": te._first(om, "form13FFileNumber"),
+                        "name": name})  # fmt: skip
+        break
+    return out

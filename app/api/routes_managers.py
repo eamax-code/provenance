@@ -115,13 +115,17 @@ def manager_portfolio(
     q = _quarter(db, quarter, as_of)
     cached, hist = fm.cached_view(db, cik, q, as_of)
     if cached is None:
-        notice = db.scalar(select(Filing13F.accession_number).where(
-            Filing13F.filer_cik == cik, Filing13F.report_period == q,
-            Filing13F.form_type.in_(("13F-NT", "13F-NT/A"))))  # fmt: skip
-        why = (" It filed a 13F notice for the quarter: its holdings are reported by another "
-               "manager." if notice else "")  # fmt: skip
-        raise APIError(404, "not_found", f"No Form 13F holdings of this manager for "
-                       f"{q.isoformat()}.{why}")  # fmt: skip
+        nt = fm.notice(db, cik, q, as_of)
+        if nt is None:
+            raise APIError(404, "not_found", f"No Form 13F holdings of this manager for "
+                           f"{q.isoformat()}.")  # fmt: skip
+        return {**nt, "previous_quarter": thirteenf.previous_quarter(q), "value_basis": "usd",
+                "reporting_lag": fm.LAG, "positions": [], "exited": [],
+                "history": fm.history(db, cik, as_of), "coverage": fm.coverage(db),
+                "meta": {"limit": limit, "offset": 0, "has_more": False, "next_offset": None},
+                "labels": {"disclaimer": fm.DISCLAIMER},
+                "notes": ["This manager filed a 13F notice for the quarter: its holdings are "
+                          "reported by the managers in reported_by."]}  # fmt: skip
     p = {k: v for k, v in cached.items() if k not in ("notes", "positions")}
     notes = list(cached["notes"])
     positions = list(cached["positions"])  # sorted here, never in the cache
@@ -137,7 +141,8 @@ def manager_portfolio(
         notes.append(f"The demo key shows at most {DEMO_ROWS} positions.")
     page = [{k: v for k, v in x.items() if k != "key"} for x in positions[offset : offset + limit]]
     more = len(positions) > offset + limit
-    return {**p, "value_basis": "usd", "reporting_lag": fm.LAG, "positions": page,
+    return {**p, "notice_only": False, "reported_by": [], "value_basis": "usd",
+            "reporting_lag": fm.LAG, "positions": page,
             "history": hist, "coverage": fm.coverage(db),
             "meta": {"limit": limit, "offset": offset, "has_more": more,
                      "next_offset": offset + limit if more else None},

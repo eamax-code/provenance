@@ -138,7 +138,9 @@ quarter before.
 - `totals.value_usd` is the sum of the manager's positions as stored (shares only); a 13F's own
   cover-page total can differ (it includes options and principal-amount rows).
 - `filing` is the 13F-HR the quarter's positions come from, with any amendments applied listed
-  in `amendments`; `confidential_omitted` is `true` when the manager asked for confidential
+  in `amendments`. When that filing is itself a 13F-HR/A RESTATEMENT, `amendment_type` is
+  `"RESTATEMENT"` and `replaces` names the filing it replaced (`accession_number`, `form`,
+  `filed_date`, `source_url`), else `replaces` is `null`; `confidential_omitted` is `true` when the manager asked for confidential
   treatment of some positions (they are then missing here as on EDGAR).
 - `history` is every loaded quarter for this manager, newest first, as stored (after
   amendments), with its filing.
@@ -188,11 +190,15 @@ manager's change against the quarter before.
 
 - `404 manager_not_found` for a CIK with no 13F stored. `422 invalid_parameter` for a date that
   is not a quarter end, a quarter not loaded, or a bad sort or limit.
+- **A manager that filed only a 13F notice for the quarter** (13F-NT: its holdings are reported by
+  other managers, as Vanguard Group's are since 2026) gets `200` with `notice_only: true`, empty
+  `positions` and `exited`, `filing` the notice, and `reported_by`: the managers the notice names,
+  `[{"cik", "name", "files_holdings_here"}]` (`cik` when the notice gives one; `files_holdings_here`
+  when that manager's own 13F holdings for the quarter are stored, so its page can be linked).
+  Every other portfolio response has `notice_only: false` and `reported_by: []`.
 - The demo key: managers search and the activity list work, at most 10 rows (activity from the
   showcase companies), a larger `limit` trimmed with a note; a manager's portfolio only for
-  showcase CIKs (Berkshire Hathaway is one), at most 10 positions. A manager that filed only a
-  13F notice for the quarter (its holdings reported by another manager, as Vanguard Group since
-  2026) is `404 not_found` with that reason.
+  showcase CIKs (Berkshire Hathaway is one), at most 10 positions.
 - Usual rate limits and plan limits apply.
 
 ## MCP and chat

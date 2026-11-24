@@ -493,6 +493,20 @@ class ThirteenFIssuerName(Base):
     share: Mapped[float] = mapped_column(Float, nullable=False)  # of those giving this name
 
 
+class ThirteenFReportedBy(Base):
+    """Q-02: the managers a 13F names as reporting for it (its cover page's other managers), so
+    a manager that files only a 13F notice (Vanguard Group since 2026) points to who reports
+    its holdings. A CIK is kept when the filing gives one."""
+
+    __tablename__ = "thirteenf_reported_by"
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    seq: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cik: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    file_number: Mapped[str | None] = mapped_column(Text, nullable=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class ThirteenFSecurityStat(Base):
     """Q-02: one security's quarter across every manager's Form 13F after amendments: holders,
     total shares and value, and the median implied price (value over shares) that the
