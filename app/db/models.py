@@ -480,6 +480,19 @@ class Holding13F(Base):
     value_usd: Mapped[Decimal] = mapped_column(Numeric(24, 2), nullable=False)
 
 
+class ThirteenFIssuerName(Base):
+    """Q-02: the issuer name most managers gave a security on their Forms 13F for a quarter, so
+    a position not matched to a company here can be shown by name. The CUSIP stays internal."""
+
+    __tablename__ = "thirteenf_issuer_names"
+
+    cusip: Mapped[str] = mapped_column(String(9), primary_key=True)
+    report_period: Mapped[date] = mapped_column(Date, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    managers: Mapped[int] = mapped_column(Integer, nullable=False)  # filings that list it
+    share: Mapped[float] = mapped_column(Float, nullable=False)  # of those giving this name
+
+
 class CompanyLei(Base):
     """An SEC filer's LEI (launch plan K-01), with how it was matched and how sure we are."""
 

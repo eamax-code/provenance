@@ -673,3 +673,77 @@ def issuer_names(path: str | Path) -> dict[str, dict]:
         out[cusip] = {"name": name, "share": n / sum(counts.values()),
                       "filers": len(filers[cusip]), "title": title}  # fmt: skip
     return out
+
+
+# -- Q-02: issuer names as filed, per security and quarter ---------------------------------------
+
+
+def _name_counts(acc_rows, out: dict) -> None:
+    """out[(cusip, period)] = [Counter(name), filings set]."""
+    from collections import Counter
+
+    for cusip, period, name, acc in acc_rows:
+        if not (cusip_map.valid(cusip) and period and name):
+            continue
+        slot = out.setdefault((cusip, period), [Counter(), set()])
+        if acc not in slot[1]:  # one vote per filing
+            slot[0][name] += 1
+            slot[1].add(acc)
+
+
+def names_from_dataset(path: str | Path, out: dict) -> int:
+    """Count the names managers give each (CUSIP, quarter) in one Form 13F data set."""
+    n = 0
+    with zipfile.ZipFile(path) as z:
+        periods = {a: f["report_period"] for a, f in _filings(z, "names").items()}
+
+        def rows():
+            nonlocal n
+            for r in _rows(z, "INFOTABLE.TSV"):
+                if (r.get("SSHPRNAMTTYPE") or "").strip().upper() != "SH":
+                    continue
+                if (r.get("PUTCALL") or "").strip():
+                    continue
+                acc = r["ACCESSION_NUMBER"].strip()
+                n += 1
+                name = " ".join((r.get("NAMEOFISSUER") or "").upper().split())[:200]
+                yield (r.get("CUSIP") or "").strip().upper(), periods.get(acc), name, acc
+
+        _name_counts(rows(), out)
+    return n
+
+
+def names_from_submission(text: str, accession: str, period: date, out: dict) -> int:
+    """Count the names in one EDGAR 13F submission's information table."""
+    from app.services import thirteenf_edgar as te
+
+    n = 0
+    rows = []
+    for doc in te._DOC.findall(text):
+        kind = te._TYPE.search(doc).group(1).strip().upper() if te._TYPE.search(doc) else ""
+        xml = te._XML.search(doc)
+        if kind != "INFORMATION TABLE" or not xml:
+            continue
+        table = te.safe_xml(xml.group(1))
+        for info in (el for el in table.iter() if te._local(el.tag) == "infoTable"):
+            if (te._first(info, "sshPrnamtType") or "").upper() != "SH" or te._first(
+                info, "putCall"
+            ):
+                continue
+            n += 1
+            rows.append(((te._first(info, "cusip") or "").upper(), period,
+                         " ".join((te._first(info, "nameOfIssuer") or "").upper().split())[:200],
+                         accession))  # fmt: skip
+        break
+    _name_counts(rows, out)
+    return n
+
+
+def name_rows(out: dict) -> list[dict]:
+    """The most common name per (CUSIP, quarter), the filings listing it and that name's share."""
+    rows = []
+    for (cusip, period), (counts, filings) in out.items():
+        name, k = counts.most_common(1)[0]
+        rows.append({"cusip": cusip, "report_period": period, "name": name,
+                     "managers": len(filings), "share": round(k / len(filings), 4)})  # fmt: skip
+    return rows
