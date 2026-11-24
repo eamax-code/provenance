@@ -234,9 +234,11 @@ def test_joint_filers_are_one_buyer(db):
     assert len(cl) == 1 and cl[0]["detail"]["insiders"] == 3  # the group, 21 and 22
 
 
-def test_old_clusters_newly_found_wait_for_f03d(db):
-    """F-03b hold: for a company already stored, a cluster the joint-filer rule newly finds in old
-    filings is not added by the tracker's store(); one formed by a new filing is."""
+def test_old_clusters_newly_found_wait_for_f03d(db, monkeypatch):
+    """F-03b hold (lifted with F-03d): while it is on, for a company already stored, a cluster the
+    joint-filer rule newly finds in old filings is not added by the tracker's store(); one formed
+    by a new filing is. With it off, the old one is stored as backfill."""
+    monkeypatch.setattr(insider_activity, "HOLD_OLD_CLUSTERS", True)
     _company(db)
     start = D0 - timedelta(days=900)
     _trade(db, 1, 1, start, "P", 100, 10)
@@ -261,3 +263,78 @@ def test_old_clusters_newly_found_wait_for_f03d(db):
     assert insider_activity.CLUSTER not in kinds  # an old cluster: held
     kinds = {r.activity_type for r in insider_activity.store(db, CIK, {third}, start)}
     assert insider_activity.CLUSTER in kinds  # formed by a new filing: stored
+    assert insider_activity.HOLD_OLD_CLUSTERS is True  # the module's own value is now False
+
+
+def test_signers_and_name_keys():
+    """F-03d: a signature links only in a control capacity, never by attorney-in-fact or power of
+    attorney; entity names link by their first two significant words."""
+    s = insider_activity._signers
+    assert s("Grafiti Group LLC By: Nadir Ali, as General Manager") == ["Nadir Ali"]
+    assert s("Privet Fund Management LLC; By: /s/ Ryan Levenson, Managing Member") == [
+        "Ryan Levenson"]  # fmt: skip
+    for no in ("/s/ Robert Anderson by P.O.A. for Howard P. Feinglass, the managing member",
+               "/s/ Victor Semah, as Attorney-in-Fact", "Saba Capital Management, L.P. By: Zachary",
+               "/s/ Diane M. Stenson, Vice President, on behalf of Lilly Endowment Inc.",
+               "UY Scuti Investments Limited, By: /s/ Guojian Zhang, Director"):  # fmt: skip
+        assert s(no) == [], no
+    k = insider_activity._name_key
+    assert k("GENERAL ATLANTIC, L.P.") == k("GENERAL ATLANTIC GENPAR (BERMUDA), L.P.")
+    assert k("ABRAMS CAPITAL MANAGEMENT, L.P.") is None  # one significant word
+    assert k("General Atlantic") != k("General Catalyst Group")
+
+
+def test_affiliates_filing_apart_are_one_buyer(db):
+    """F-03d: a fund's two entity sets that never share a Form 4 (same name key), the individual
+    who signs for the fund as managing member, and an entity a footnote names as the fund's sole
+    member are one buyer; an attorney-in-fact and a namesake are not."""
+    import json
+
+    from app.db.models import InsiderFilingText
+
+    _company(db)
+    start = D0 - timedelta(days=900)
+    _trade(db, 1, 1, start, "P", 100, 10)
+
+    def entity(n, owner, name, day, sig="", notes=()):
+        acc = _trade(db, n, owner, day, "P", 100, 10)
+        db.execute(text_update(owner, name))
+        db.add(InsiderFilingText(accession_number=acc, signatures=json.dumps([sig]),
+                                 remarks=None, footnotes=json.dumps(list(notes)),
+                                 source="test"))  # fmt: skip
+        return acc
+
+    def text_update(owner, name):
+        from sqlalchemy import update
+
+        db.flush()  # the owner's row first
+        return update(InsiderFiling).where(InsiderFiling.owner_cik == f"{owner:010d}").values(
+            owner_name=name, is_officer=False)  # fmt: skip
+
+    entity(2, 31, "GENERAL ATLANTIC, L.P.", D0)
+    entity(3, 32, "GENERAL ATLANTIC GENPAR (BERMUDA), L.P.", D0 + timedelta(days=1))
+    entity(4, 41, "Privet Fund Management LLC", D0 + timedelta(days=2),
+           sig="Privet Fund Management LLC By: /s/ Ryan Levenson, Managing Member")  # fmt: skip
+    _trade(db, 5, 42, D0 + timedelta(days=3), "P", 100, 10)  # Ryan Levenson, himself
+    entity(
+        6,
+        51,
+        "ASOF Investment Management LLC",
+        D0 + timedelta(days=4),
+        notes=["The sole member of ASOF Investment Management is Ares Management LLC."],
+    )
+    entity(7, 52, "Ares Management LLC", D0 + timedelta(days=5))
+    entity(8, 61, "Smith Capital LLC", D0 + timedelta(days=6),
+           sig="Smith Capital LLC By: /s/ Jane Roe by P.O.A. for John Smith, the managing "
+               "member of Smith Capital LLC")  # fmt: skip
+    _trade(db, 9, 62, D0 + timedelta(days=7), "P", 100, 10)  # John Smith
+    db.execute(text_update(42, "Levenson Ryan"))
+    db.execute(text_update(62, "Smith John"))
+    db.commit()
+    g = insider_activity.buyers(insider_activity._trades(db, CIK),
+                                insider_activity.affiliates(db, CIK))  # fmt: skip
+    c = "{:010d}".format
+    assert g[c(31)] == g[c(32)]  # name key
+    assert g[c(41)] == g[c(42)]  # signs as managing member
+    assert g[c(51)] == g[c(52)]  # named as sole member in a footnote
+    assert g[c(61)] != g[c(62)]  # attorney-in-fact and a namesake: not linked

@@ -15,6 +15,7 @@ published to the feed and webhooks.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -24,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from app.core.timeutil import iso_z
 from app.db.models import InsiderActivity, InsiderFiling, InsiderTransaction, utcnow
+from app.services import insiders
 from app.services.sec_client import filing_index_url
 
 CLUSTER = "sec.insider_cluster_buy"
@@ -38,9 +40,9 @@ TYPES = {
                  "Large insider sale"),
 }  # fmt: skip
 CLUSTER_DAYS = 30
-# F-03b (PM, 2026-11-25): clusters the joint-filer rule finds in old filings of a company already
-# stored are held until affiliate linking (F-03d) is checked; new filings still form clusters
-HOLD_OLD_CLUSTERS = True
+# F-03b (PM, 2026-11-25) held clusters the joint-filer rule found in old filings until affiliate
+# linking (F-03d) was checked; F-03d is in, so they are stored like any backfill again
+HOLD_OLD_CLUSTERS = False
 CLUSTER_MIN = 3
 FIRST_BUY_GAP_DAYS = 730
 LARGE_SALE_USD = Decimal(1_000_000)
@@ -152,7 +154,157 @@ def _amended(trades: list[Trade]) -> list[Trade]:
     return out
 
 
-def buyers(trades: list[Trade]) -> dict[str, str]:
+# F-03d: affiliates that file apart. Entity names: the first two significant words; generic
+# words and Roman numerals do not count ("GENERAL ATLANTIC, L.P." and "GENERAL ATLANTIC GENPAR
+# (BERMUDA), L.P." are one group; "ABRAMS CAPITAL" has one significant word and links only by
+# filing together). An individual: only when he signs an entity's form in a control capacity, or
+# a remark or footnote names him in one; never by attorney-in-fact or power of attorney (an
+# issuer's secretary signs that way for every insider), never by surname alone.
+_GENERIC = set("""
+lp llc inc ltd co corp corporation company l p fund funds partners partner management capital
+holdings holding the and of gp group trust plc sa ag nv bv sarl scsp limited lllp llp pte
+""".split())  # fmt: skip
+_ROMAN = re.compile(r"^(?=[ivxlc]+$)c{0,3}(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$")
+_ATTORNEY = re.compile(r"attorney|\bp\.?\s?o\.?\s?a\b|by proxy|pursuant to (a )?power", re.I)
+# entity forms the insider data's entity test misses ("General Atlantic GenPar (Lux) SCSp")
+_MORE_ENTITY = re.compile(r"\b(?:scsp|s\.?\s?[aà]\.?\s?r\.?\s?l|sarl|fundaci[oó]n|stiftung|spa|kg"
+                          r"|lllp|pte|bhd|l\.?\s?p)\b", re.I)  # fmt: skip
+_CONTROL = re.compile(
+    r"\b(?:managing member|general partner|sole member|managing partner|chief executive officer"
+    r"|ceo|(?<!vice )(?<!vp )president|(?<!portfolio )(?<!investment )(?<!asset )manager"
+    r"|principal(?! (?:financial|accounting|executive))"
+    r"|controlling (?:member|shareholder|person))\b",
+    re.I,
+)  # fmt: skip
+_NOTE_CONTROL = re.compile(r"\b(?:managing member|general partner|sole member|managing partner"
+                           r"|controlling (?:member|shareholder|person)|controls)\b",
+                           re.I)  # fmt: skip
+
+
+_SEPARATE = re.compile(r"filing a separate form 4|file a separate form 4|separate form 4", re.I)
+_SUFFIX = {"lp", "llc", "inc", "ltd", "co", "corp", "corporation", "l", "p", "plc", "limited"}
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", (text or "").lower())
+
+
+def _entity_words(name: str) -> list[str]:
+    """An entity's name as words, without its legal-form suffix ("Ares Management LLC" is
+    ["ares", "management"])."""
+    w = _words(name)
+    while w and w[-1] in _SUFFIX:
+        w.pop()
+    return w
+
+
+def _contains(words: list[str], part: list[str]) -> bool:
+    n = len(part)
+    return any(words[i : i + n] == part for i in range(len(words) - n + 1))
+
+
+def _name_key(name: str) -> tuple[str, ...] | None:
+    words = [w for w in re.findall(r"[a-z0-9]+", (name or "").lower())
+             if w not in _GENERIC and not _ROMAN.match(w) and not w.isdigit()
+             and len(w) > 1]  # fmt: skip
+    return tuple(words[:2]) if len(words) >= 2 else None
+
+
+def _person_tokens(name: str) -> frozenset[str]:
+    return frozenset(w for w in re.findall(r"[a-z]+", (name or "").lower()) if len(w) > 1)
+
+
+def _signers(signature: str) -> list[str]:
+    """Names that sign in a control capacity: "X LLC By: Nadir Ali, as General Manager" gives
+    "Nadir Ali"; a signature with no capacity, or by attorney-in-fact, gives none."""
+    if _ATTORNEY.search(signature):
+        return []
+    out = []
+    for chunk in re.split(r"\bby\b:?|on behalf of", signature, flags=re.I):
+        chunk = chunk.replace("/s/", " ").strip(" ,;:")
+        name, _, capacity = chunk.partition(",")
+        if capacity and _CONTROL.search(capacity):
+            out.append(name.strip())
+    return out
+
+
+def affiliates(db: Session, cik: str, why: list | None = None) -> list[tuple[str, str]]:
+    """F-03d: pairs of owner CIKs at this issuer to count as one buyer though they never share a
+    Form 4: entities with the same name key, and an individual (himself a reporting owner here)
+    with the entities of a form he signs, or that names him, in a control role."""
+    from app.db.models import InsiderFilingText
+
+    owners: dict[str, str] = {}
+    by_acc: dict[str, list[str]] = {}
+    for acc, owner, name in db.execute(select(InsiderFiling.accession_number,
+                                              InsiderFiling.owner_cik, InsiderFiling.owner_name)
+                                       .where(InsiderFiling.issuer_cik == cik)):  # fmt: skip
+        owners[owner] = name
+        by_acc.setdefault(acc, []).append(owner)
+    entities = {c for c, n in owners.items()
+                if insiders.is_entity(n) or _MORE_ENTITY.search(n or "")}  # fmt: skip
+    people = {c: _person_tokens(n) for c, n in owners.items() if c not in entities}
+    pairs: list[tuple[str, str]] = []
+    keys: dict[tuple, str] = {}
+    for c in sorted(entities):
+        k = _name_key(owners[c])
+        if k is not None:
+            if k in keys:
+                pairs.append((keys[k], c))
+                if why is not None:
+                    why.append({"rule": "name", "a": owners[keys[k]], "b": owners[c],
+                                "evidence": " ".join(k)})  # fmt: skip
+            else:
+                keys[k] = c
+    accs = [a for a, os_ in by_acc.items() if set(os_) & entities]
+    for part in range(0, len(accs), 1000):
+        for t in db.scalars(select(InsiderFilingText).where(
+                InsiderFilingText.accession_number.in_(accs[part:part + 1000]))):  # fmt: skip
+            ents = [o for o in by_acc[t.accession_number] if o in entities]
+            named = [_person_tokens(n) for sig in json.loads(t.signatures) for n in _signers(sig)]
+            texts = [x for x in [t.remarks or "", *json.loads(t.footnotes)] if x]
+            sentences = [s_ for x in texts for s_ in re.split(r"(?<=[.;])\s+", x)
+                         if _NOTE_CONTROL.search(s_) and not _ATTORNEY.search(s_)]  # fmt: skip
+            # entity to entity: an entity owner here named in full in a control sentence, or in a
+            # remark that it files a separate Form 4 for the same holding (Ares: "The sole member
+            # of ASOF Investment Management is Ares Management LLC")
+            linked_texts = sentences + [s_ for x in texts for s_ in re.split(r"(?<=[.;])\s+", x)
+                                        if _SEPARATE.search(s_)]  # fmt: skip
+            for c in entities - set(ents):
+                full = _entity_words(owners[c])
+                distinct = any(w not in _GENERIC and not _ROMAN.match(w) for w in full)
+                if (
+                    len(full) >= 2
+                    and distinct
+                    and any(_contains(_words(s_), full) for s_ in linked_texts)
+                ):
+                    pairs += [(c, e) for e in ents]
+                    if why is not None:
+                        why += [{"rule": "entity_note", "a": owners[c], "b": owners[e],
+                                 "accession_number": t.accession_number,
+                                 "evidence": next(s_ for s_ in linked_texts
+                                                  if _contains(_words(s_), full))[:300]}
+                                for e in ents]  # fmt: skip
+            for c, toks in people.items():
+                if len(toks) < 2:
+                    continue
+                sig = next((n for n in named if toks <= n), None)
+                note = (
+                    None
+                    if sig
+                    else next((s_ for s_ in sentences if toks <= _person_tokens(s_)), None)
+                )
+                if sig or note:
+                    pairs += [(c, e) for e in ents]
+                    if why is not None:
+                        why += [{"rule": "signature" if sig else "note", "a": owners[c],
+                                 "b": owners[e], "accession_number": t.accession_number,
+                                 "evidence": json.loads(t.signatures) if sig else note[:300]}
+                                for e in ents]  # fmt: skip
+    return pairs
+
+
+def buyers(trades: list[Trade], extra: list[tuple[str, str]] | None = None) -> dict[str, str]:
     """F-03b: owner CIK -> buyer. The reporting owners of one Form 4 are one buyer (a fund, its
     general partner and its managers), and so is every entity that ever files together with
     them at this issuer (one group): a cluster needs three buyers who file apart."""
@@ -164,26 +316,33 @@ def buyers(trades: list[Trade]) -> dict[str, str]:
             x = parent[x]
         return x
 
+    def union(x: str, y: str) -> None:
+        a, b = find(x), find(y)
+        if a != b:
+            parent[max(a, b)] = min(a, b)
+
     for t in trades:
         ciks = [o["owner_cik"] for o in t.owners]
         for c in ciks[1:]:
-            a, b = find(ciks[0]), find(c)
-            if a != b:
-                parent[max(a, b)] = min(a, b)
+            union(ciks[0], c)
         for c in ciks:
             find(c)
+    for x, y in extra or []:  # F-03d: affiliates that file apart
+        union(x, y)
     return {c: find(c) for c in parent}
 
 
 def detect(db: Session, cik: str, coverage_start: date | None = None,
-           amended: bool = True, joint_as_one: bool = True) -> list[dict]:  # fmt: skip
+           amended: bool = True, joint_as_one: bool = True,
+           affiliated: bool = True) -> list[dict]:  # fmt: skip
     """Every activity the rules find for one issuer, oldest first (not stored). amended=False
     reads trades as before Q-03d (each filing on its own) and joint_as_one=False counts every
     reporting owner as a buyer (before F-03b), for the corrections of stored events."""
     trades = _trades(db, cik, amended)
     buys = [t for t in trades if t.code == "P"]
     out: list[dict] = []
-    group = buyers(trades) if joint_as_one else {}
+    extra = affiliates(db, cik) if joint_as_one and affiliated else None
+    group = buyers(trades, extra) if joint_as_one else {}
 
     # cluster buying: a new cluster only after 30 days without one
     last_cluster: date | None = None

@@ -324,6 +324,19 @@ class InsiderActivity(Base):
     previous_values: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
 
 
+class InsiderFilingText(Base):
+    """F-03d: the signatures, remarks and footnotes of a Form 3/4/5 that has an entity reporting
+    owner (SEC insider data sets), read to link a fund to the individual who controls it."""
+
+    __tablename__ = "insider_filing_text"
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    signatures: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list, as signed
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    footnotes: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list of texts
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class FirstReported(Base):
     """A figure an 8-K item 2.02 earnings release stated before the 10-Q or 10-K that reported
     it (launch plan E-2): the same value, at the release's stated precision, on a line labelled

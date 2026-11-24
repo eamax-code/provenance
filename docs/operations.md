@@ -81,6 +81,7 @@ head`, before the new code starts:
 | `f4a6b8c0d2e3` | Q-02: `thirteenf_security_stats`, `thirteenf_filing_scale`, `thirteenf_activity` | create tables |
 | `a5b7c9d1e3f4` | Q-02: the majority class title on `thirteenf_security_stats` | adds a column to a table filled only by the batch |
 | `b6c8d0e2f4a5` | Q-02: `thirteenf_reported_by` (the managers a 13F notice names) | create table |
+| `d8e0f2a4b6c7` | F-03d: `insider_filing_text` (signatures, remarks and footnotes of forms with an entity owner) | create table; then `scripts/load_insider_filing_text.py` (dry run, then write), then `scripts/correct_insider_activity.py --change f03d` and `--change f03b` (dry run, then `--write`) |
 | `c7d9e1f3a5b6` | F-03c: `status`, `retracted_at`, `retraction_reason`, `corrected_at`, `previous_values` on `insider_activity` | adds columns (status defaults to active); then `scripts/correct_insider_activity.py` (dry run, then `--write`) |
 
 Then the Q-02 data, each from the repo root: `scripts/load_13f_names.py`,

@@ -334,11 +334,24 @@ filed.
 one Form 4 (a fund, its general partner, its manager) are one buyer, and so is every entity that
 ever files together with them at the issuer (one group); `detail.insiders` counts buyers, and a
 cluster needs three buyers filing apart. Stored clusters that counted joint filers separately
-were retracted ("joint filers counted as separate buyers…") or updated in place. **Interim limit
-until F-03d:** affiliates that never share a Form 4 (David Abrams and Abrams Capital's funds; two
-General Atlantic entity sets) still count as separate buyers, and clusters this rule newly finds
-in old filings are held, not stored (the tracker stores a cluster only when a new filing forms
-it, for a company already stored).
+were retracted ("joint filers counted as separate buyers…") or updated in place.
+
+**Affiliates filing apart are one buyer (F-03d, 2026-11-25).** Owners at the issuer also join one
+buyer when: two entities' names share their first two significant words (generic words such as
+LP, LLC, Fund, Partners, Management, Capital, Holdings and Roman numerals do not count: "GENERAL
+ATLANTIC, L.P." and "GENERAL ATLANTIC GENPAR (BERMUDA), L.P."); an individual, himself a
+reporting owner at the issuer, signs an entity's form in a control capacity (managing member,
+general partner, manager, sole member, managing partner, president, CEO, a principal), or a
+remark or footnote names him in one; or an entity is named in full in another entity's footnote
+or remark that states control ("The sole member of ASOF Investment Management is Ares
+Management LLC") or that it files a separate Form 4. Never by attorney-in-fact, power of
+attorney (also "P.O.A.") or proxy signatures, never by a bare "By:" without a capacity, never
+by surname alone. The signatures, remarks and footnotes are `insider_filing_text`, loaded from
+the SEC insider data sets for filings with an entity owner (`scripts/load_insider_filing_text.py`;
+40,965 filings, 30 checked against the XML, 30 right); Forms 4 read as filed after the data sets
+have no text yet, so only the name rule links them. Affiliates that state no link in any of
+these (Manufacturers Life and Manulife entities) still count apart. Stored clusters were
+corrected through the same retract-and-update path ("affiliates counted as separate buyers…").
 
 **Corrections, never deletions (F-03c).** `status` is `active` or `retracted`. When a rule
 change means an event is no longer found, it is retracted, with `retracted_at` and a

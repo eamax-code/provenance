@@ -5,7 +5,8 @@
   python scripts/correct_insider_activity.py --write                 # retract, update, add
   python scripts/correct_insider_activity.py --change f03b           # joint filers as one buyer
 
---change f03c (default): the 4/A-aware rules (049fef3); only issuers with a Form 4/A carrying
+--change f03d: affiliates that file apart (F-03d) are one buyer. --change f03c (default): the
+4/A-aware rules (049fef3); only issuers with a Form 4/A carrying
 open-market lines can change. --change f03b: joint filers count as one buyer for cluster buying;
 only issuers with a stored cluster event can change. Events are never deleted:
 retracted ones keep a reason, corrected ones what they said before (previous_values), new ones
@@ -31,16 +32,23 @@ JOINT = (
 )
 
 
+AFFILIATES = (
+    "affiliates counted as separate buyers: a fund group whose entities file apart, or "
+    "the individual who controls it, is one buyer"
+)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", default=None, help="the actions as JSONL")
-    ap.add_argument("--change", choices=("f03c", "f03b"), default="f03c")
+    ap.add_argument("--change", choices=("f03c", "f03b", "f03d"), default="f03c")
     ap.add_argument("--no-add", action="store_true", help="retract and update only (F-03b)")
     args = ap.parse_args()
     _, Session = bootstrap()
     db = Session()
-    rules = None if args.change == "f03c" else {"joint_as_one": False}
+    rules = {"f03c": None, "f03b": {"joint_as_one": False},
+             "f03d": {"affiliated": False}}[args.change]  # fmt: skip
     ciks = sorted(set(db.scalars(select(InsiderActivity.cik).where(
         InsiderActivity.activity_type == insider_activity.CLUSTER)))) if rules else \
         sorted(set(db.scalars(
@@ -59,7 +67,7 @@ def main() -> int:
             start,
             write=args.write,
             before_rules=rules,
-            reason=JOINT if rules else None,
+            reason={"f03b": JOINT, "f03d": AFFILIATES}.get(args.change),
             adds=not args.no_add,
         ):
             counts[(a["action"], a["key"][0].split(".")[-1], a.get("reason", ""))] += 1
