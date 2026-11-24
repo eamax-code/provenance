@@ -101,6 +101,20 @@ def test_the_provenance_moment_respects_reduced_motion():
     assert ".door:focus-visible" in css, "keyboard focus gets the same hint as hover"
 
 
+def test_chart_series_use_the_categorical_palette():
+    # a chart with 2+ series colours each from --cat-1…8 (validated in docs/brand.md); never --good or --bad (they
+    # would read as up or down), never --warn (status), never the marker or accent (the provenance moment)
+    css = "\n".join((SITE / f).read_text() for f in ("app/app.css", "companies/page/page.css"))
+    rule = re.compile(r"([^{}]*)\{([^}]*)\}")
+    series = re.compile(r"\.stk\.k\d|\.line\.c\d|\.line\.s\d|\.bar\.s[12]|\.pt\.s\d|\.pp-(bar|tsr|peer)|\.e-(officer|director|owner|holder|sub)|\.c-(insiders|holders|subsidiaries)|\.chip\.s\d|\.tip-s")
+    bad = [sel.strip()[:60] for sel, body in rule.findall(css) if series.search(sel) and re.search(r"var\(--(good|bad|warn|accent|accent-hi|marker)\)", body)]
+    assert not bad, "series take --cat-N: " + "; ".join(bad)
+    shell = (SHELL / "shell.css").read_text()
+    for theme in THEMES:
+        block = re.search(r":root" + re.escape(theme) + r" \{(.*?)\n\}", shell, re.S).group(1)
+        assert all(f"--cat-{i}:" in block for i in range(1, 9)), f"{theme or 'dark'} lacks the eight --cat tokens"
+
+
 def test_every_page_carries_the_brand_icons_and_the_logo():
     for name in ("favicon.svg", "favicon-32.png", "apple-touch-icon.png", "mark.svg", "seal.js"):
         assert (SHELL / name).is_file(), name

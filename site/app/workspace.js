@@ -395,7 +395,7 @@
     var xs = []; ser.forEach(function (s) { s.pts.forEach(function (p) { if (xs.indexOf(p.x) < 0) xs.push(p.x); }); }); xs.sort();
     var W = Math.max(320, host.clientWidth || 800), H = cfg.height || 360, narrow = W < 560;
     var padL = 56, padR = ser.some(function (s) { return s.unit === '%'; }) ? 48 : 12, padT = 14, padB = cfg.compact ? 24 : 46;
-    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, class: 'ws-chart', role: 'img' });
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, class: 'ws-chart' + (ser.length > 1 ? ' multi' : ''), role: 'img' }); // 2+ series take the categorical palette
     var left = ser.filter(function (s) { return s.unit !== '%'; }), right = ser.filter(function (s) { return s.unit === '%'; });
     var log = S.scale === 'log' && !cfg.compact;
     function scale(list) {
@@ -455,7 +455,7 @@
       if (i < 0 || i >= xs.length) return; var x = xs[i];
       hl.setAttribute('x', padL + i * step); hl.setAttribute('visibility', 'visible');
       var kids = [el('b', { text: x + (ends[x] ? ' · ended ' + day(ends[x]) : '') })];
-      ser.forEach(function (s, k) { var p = s.pts.filter(function (q) { return q.x === x; })[0]; kids.push(el('p', { class: 'tip-s s' + k }, [el('i'), s.label + ' ', p ? door(fmtv(p.v, s.unit, cur), p.info) : el('span', { class: 'muted', text: '—' })])); });
+      ser.forEach(function (s, k) { var p = s.pts.filter(function (q) { return q.x === x; })[0]; kids.push(el('p', { class: 'tip-s s' + k + (ser.length > 1 ? ' m' : '') }, [el('i'), s.label + ' ', p ? door(fmtv(p.v, s.unit, cur), p.info) : el('span', { class: 'muted', text: '—' })])); });
       (byYear[x] || []).slice(0, 5).forEach(function (m) { kids.push(el('p', { class: 'tip-e' }, [shapeIcon(m.kind), day(m.date) + ' ' + m.label + ' ', ARCHIVE.test(m.url || '') ? el('a', { href: m.url, target: '_blank', rel: 'noopener', text: (m.form || '') + ' ↗' }) : null])); });
       tip.replaceChildren.apply(tip, kids); tip.hidden = false;
       var tx = padL + i * step + step + 8; tip.style.left = Math.min(tx, W - 250) + 'px';
@@ -479,7 +479,7 @@
     var pane = $('pane-chart'), rows = statementRows(), have = Object.keys(YEARLY).concat(Object.keys(rows).filter(function (m) { return !YEARLY[m]; }));
     S.m = S.m.filter(function (m) { return have.indexOf(m) > -1; }); if (!S.m.length) S.m = ['revenue'];
     var labelOf = function (m) { return YEARLY[m] || (rows[m] && rows[m].label) || m.replace(/_/g, ' '); };
-    var chips = el('div', { class: 'ch-series' }, S.m.map(function (m, i) {
+    var chips = el('div', { class: 'ch-series' + (S.m.length > 1 ? ' multi' : '') }, S.m.map(function (m, i) {
       return el('span', { class: 'chip s' + i }, [el('i'), labelOf(m), S.m.length > 1 ? el('button', { type: 'button', class: 'x', 'aria-label': 'Remove ' + labelOf(m), text: '×', on: { click: function () { S.m.splice(i, 1); go('chart'); } } }) : null]);
     }));
     var add = el('select', { 'aria-label': 'Add a metric (up to three)', on: { change: function (e) { if (e.target.value && S.m.length < 3) { S.m.push(e.target.value); go('chart'); } } } }, [el('option', { value: '', text: S.m.length < 3 ? '+ Add a metric' : 'Three series at most' })].concat(have.filter(function (m) { return S.m.indexOf(m) < 0; }).map(function (m) { return el('option', { value: m, text: labelOf(m) }); })));
@@ -835,21 +835,47 @@
       draw(); new MutationObserver(draw).observe($('seg-table'), { childList: true });
     });
   }
+  // a segment keeps its colour wherever it appears: its slot comes from its size in the latest year of the kind's main
+  // figure (revenue where reported), so changing the figure or the year never repaints it; past eight, the rest fold into Other
+  function segSlots(K) {
+    var ms = Object.keys(K.metrics || {}), base = ms.indexOf('revenue') > -1 ? 'revenue' : ms[0], last = (K.periods || [])[0], slot = {};
+    var v = function (g) { return ((g.values || {})[base] || {})[last] || 0; };
+    (K.segments || []).slice().sort(function (a, b) { return v(b) - v(a); }).forEach(function (g, i) { slot[g.label] = i < 8 ? i : 8; });
+    return slot;
+  }
   function stackChart(host, K, m, cur) {
-    var per = (K.periods || []).slice().reverse(), segs = (K.segments || []).filter(function (g) { return per.some(function (p) { return (((g.values || {})[m] || {})[p] || 0) > 0; }); });
-    host.textContent = ''; if (!per.length || !segs.length) return;
-    var W = Math.max(320, host.clientWidth || 700), H = 220, padL = 56, padB = 26, padT = 10, legendW = W < 600 ? 0 : 200;
-    var tot = per.map(function (p) { return segs.reduce(function (a, g) { var v = ((g.values || {})[m] || {})[p]; return a + (v > 0 ? v : 0); }, 0); }), hi = Math.max.apply(null, tot) || 1;
+    var per = (K.periods || []).slice().reverse(), slot = segSlots(K), val = function (g, p) { var x = ((g.values || {})[m] || {})[p]; return x > 0 ? x : 0; };
+    var items = [], other = null;
+    (K.segments || []).forEach(function (g) {
+      if (!per.some(function (p) { return val(g, p) > 0; })) return;
+      if (slot[g.label] < 8) { items.push({ label: g.label, k: slot[g.label], v: function (p) { return val(g, p); } }); return; }
+      if (!other) { other = { label: 'Other', k: 8, n: 0, gs: [] }; other.v = function (p) { return other.gs.reduce(function (a, x) { return a + val(x, p); }, 0); }; items.push(other); }
+      other.gs.push(g); other.n++; other.label = 'Other (' + other.n + ')';
+    });
+    host.textContent = ''; if (!per.length || !items.length) return;
+    items.sort(function (a, b) { return a.k - b.k; }); // the largest at the bottom of each bar
+    var cls = function (it) { return 'stk ' + (it.k < 8 ? 'k' + it.k : 'other'); };
+    var W = Math.max(320, host.clientWidth || 700), H = 220, padL = 56, padB = 26, padT = 10, legendW = W < 600 ? 0 : 190, labW = legendW ? 96 : 0;
+    var tot = per.map(function (p) { return items.reduce(function (a, it) { return a + it.v(p); }, 0); }), hi = Math.max.apply(null, tot) || 1;
     var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, class: 'ws-chart', role: 'img', 'aria-label': 'Segment ' + m.replace(/_/g, ' ') + ' stacked by year' });
-    var plotW = W - padL - legendW - 10, step = plotW / per.length, bw = Math.min(64, step * 0.6), y = function (v) { return padT + (H - padT - padB) * (1 - v / hi); };
+    var plotW = W - padL - legendW - labW - 10, step = plotW / per.length, bw = Math.min(64, step * 0.6), y = function (v) { return padT + (H - padT - padB) * (1 - v / hi); };
     [0, .5, 1].forEach(function (f) { svg.appendChild(sv('line', { x1: padL, x2: padL + plotW, y1: y(hi * f), y2: y(hi * f), class: 'grid' })); svg.appendChild(sv('text', { x: padL - 6, y: y(hi * f) + 4, 'text-anchor': 'end', class: 'axis' }, f ? money(hi * f, cur, 0) : '0')); });
     per.forEach(function (p, i) {
-      var x = padL + i * step + (step - bw) / 2, acc = 0;
-      segs.forEach(function (g, j) { var v = ((g.values || {})[m] || {})[p]; if (!(v > 0)) return; var r = sv('rect', { x: x, y: y(acc + v), width: bw, height: Math.max(1, y(acc) - y(acc + v)), class: 'stk k' + (j % 6) }); r.appendChild(sv('title', {}, g.label + ', year to ' + day(p) + ': ' + money(v, cur))); svg.appendChild(r); acc += v; });
+      var x = padL + i * step + (step - bw) / 2, acc = 0, lastBar = i === per.length - 1, prevLab = -99;
+      items.forEach(function (it) {
+        var v = it.v(p); if (!(v > 0)) return;
+        var y1 = y(acc + v), h = Math.max(1, y(acc) - y1), r = sv('rect', { x: x, y: y1, width: bw, height: h, class: cls(it), 'data-s': it.label, 'data-p': lastBar ? 'last' : String(i) });
+        r.appendChild(sv('title', {}, it.label + ', year to ' + day(p) + ': ' + money(v, cur))); svg.appendChild(r);
+        // direct label on the latest bar where the segment is tall enough and clear of the one above
+        if (lastBar && labW && h >= 13) { var ty = y1 + h / 2 + 4; if (Math.abs(ty - prevLab) >= 13) { prevLab = ty; svg.appendChild(sv('text', { x: x + bw + 6, y: ty, class: 'axis seglab' }, it.label.length > 13 ? it.label.slice(0, 12) + '…' : it.label)); } }
+        acc += v;
+      });
       svg.appendChild(sv('text', { x: x + bw / 2, y: H - 8, 'text-anchor': 'middle', class: 'axis' }, day(p).replace(/^\d+ /, '')));
     });
-    if (legendW) segs.slice(0, 8).forEach(function (g, j) { var ly = padT + 4 + j * 22; svg.appendChild(sv('rect', { x: W - legendW, y: ly, width: 10, height: 10, class: 'stk k' + (j % 6) })); svg.appendChild(sv('text', { x: W - legendW + 16, y: ly + 9, class: 'axis lg' }, g.label.length > 28 ? g.label.slice(0, 27) + '…' : g.label)); });
+    var top = items.slice().reverse(); // the legend reads the stack from the top down
+    if (legendW) top.forEach(function (it, j) { var ly = padT + 4 + j * 22; svg.appendChild(sv('rect', { x: W - legendW, y: ly, width: 10, height: 10, class: cls(it) })); svg.appendChild(sv('text', { x: W - legendW + 16, y: ly + 9, class: 'axis lg', 'data-lg': it.label }, it.label.length > 26 ? it.label.slice(0, 25) + '…' : it.label)); });
     host.appendChild(svg);
+    if (!legendW) host.appendChild(el('ul', { class: 'seg-legend', 'aria-label': 'Segments, top of each bar first' }, top.map(function (it) { return el('li', { 'data-lg': it.label }, [el('i', { class: 'sw ' + (it.k < 8 ? 'k' + it.k : 'other') }), it.label]); })));
   }
 
   /* ---- X-06 compare: up to five companies, each in its own currency; growth indexed, never summed ---- */

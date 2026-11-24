@@ -23,6 +23,7 @@
   --slate: #7d93a3; --slate-deep: #9fb4c3; --mist: #3e4b55; --mist-soft: #2b343b;
   --accent: #f3e04c; --accent-hover: #e2cf3a; --accent-hi: #f3e04c; --accent-ink: #16181b; --accent-text: #e7ebee; --accent-soft: #2f2c16;
   --marker: #f3e04c; --marker-ink: #16181b; --mark: #f3e04c; --link-line: #f3e04c; --link-deco: underline;
+  --cat-1: #019298; --cat-2: #ad720d; --cat-3: #7e6ade; --cat-4: #c54d92; --cat-5: #377ee3; --cat-6: #a959c1; --cat-7: #c06409; --cat-8: #048cb9;
   --good: #4cc38a; --good-soft: #17322a; --warn: #f0883e; --warn-soft: #3a2414; --bad: #ff7b72; --bad-soft: #3a2020; --neutral-soft: #262d33;
   --field: #24323c; --field-ink: #ffffff; --field-soft: #c4d1da;
   --code-bg: #0e1113; --code-ink: #e3e8ec;
@@ -40,6 +41,7 @@
   --slate: #627b8c; --slate-deep: #4f6575; --mist: #b8c7d2; --mist-soft: #e3e9ee;
   --accent: #f3e04c; --accent-hover: #e6d235; --accent-hi: #6b5d00; --accent-ink: #16181b; --accent-text: #6b5d00; --accent-soft: #fbf4c8;
   --marker: #f3e04c; --marker-ink: #16181b; --mark: #16181b; --link-line: currentColor; --link-deco: none;
+  --cat-1: #15989e; --cat-2: #b67705; --cat-3: #8470e5; --cat-4: #cc5398; --cat-5: #3d84ea; --cat-6: #af5fc7; --cat-7: #ca6800; --cat-8: #1792c0;
   --good: #0e7049; --good-soft: #dff3ea; --warn: #a34a07; --warn-soft: #fff4e0; --bad: #b3261e; --bad-soft: #fde6ea; --neutral-soft: #e3eaef;
   --field: #4f6575; --field-ink: #ffffff; --field-soft: #e4ebf0;
   --code-bg: #2b2f33; --code-ink: #e9eef2;
@@ -54,6 +56,7 @@
   --slate: #8a7a62; --slate-deep: #5e5140; --mist: #cdbfa8; --mist-soft: #e9e1d2;
   --accent: #eed43a; --accent-hover: #e0c52c; --accent-hi: #5f5200; --accent-ink: #16181b; --accent-text: #5f5200; --accent-soft: #f4eac0;
   --marker: #eed43a; --marker-ink: #16181b; --mark: #1f1c17; --link-line: currentColor; --link-deco: none;
+  --cat-1: #15989e; --cat-2: #b67705; --cat-3: #8470e5; --cat-4: #cc5398; --cat-5: #3d84ea; --cat-6: #af5fc7; --cat-7: #ca6800; --cat-8: #1792c0;
   --good: #1f6b4f; --good-soft: #e2efe8; --warn: #9a4a12; --warn-soft: #f6e3d3; --bad: #a3322a; --bad-soft: #f6e1dc; --neutral-soft: #ebe4d7;
   --field: #2d3a33; --field-ink: #fffcf6; --field-soft: #d9e3dc;
   --code-bg: #1f1c17; --code-ink: #f4efe6;
@@ -69,6 +72,7 @@
   --slate: #5b7590; --slate-deep: #8fb3d9; --mist: #34465a; --mist-soft: #1a2430;
   --accent: #f3e04c; --accent-hover: #e2cf3a; --accent-hi: #f3e04c; --accent-ink: #0d1117; --accent-text: #d6dde6; --accent-soft: #2a2915;
   --marker: #f3e04c; --marker-ink: #0d1117; --mark: #f3e04c; --link-line: #f3e04c; --link-deco: underline;
+  --cat-1: #019298; --cat-2: #ad720d; --cat-3: #7e6ade; --cat-4: #c54d92; --cat-5: #377ee3; --cat-6: #a959c1; --cat-7: #c06409; --cat-8: #048cb9;
   --good: #3fb950; --good-soft: #14281a; --warn: #f0883e; --warn-soft: #2d1d12; --bad: #f85149; --bad-soft: #2d1716; --neutral-soft: #1a212b;
   --field: #16202c; --field-ink: #d6dde6; --field-soft: #a7b4c3;
   --code-bg: #090c10; --code-ink: #d6dde6;
@@ -82,6 +86,10 @@
 :root, :root[data-theme] {
   --panel: var(--paper); --fg: var(--ink); --muted: var(--soft);
   --data-hi: var(--ink); /* the marked data point (latest bar, end dot, own row): a neutral, never the marker */
+  /* --cat-1…8: the categorical palette for charts with 2+ series (validated with the dataviz method: adjacent slots and
+     all pairs of the first three apart under normal, protan, deutan and tritan vision, 3:1 on every chart ground; no
+     marker yellow, no --good or --bad). Slots follow the entity, in a fixed order; a ninth series folds into Other. */
+  --cat-other: color-mix(in srgb, var(--soft) 70%, var(--panel));
   --brand: var(--slate); --brand-deep: var(--slate-deep); --accent-2: var(--slate-deep);
   --font-display: var(--display); --font-body: var(--face); --font-mono: var(--mono); --code: var(--mono);
   --step-small: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);

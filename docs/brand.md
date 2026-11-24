@@ -52,6 +52,30 @@ Rules, each checked by a test or the UI audit:
 4. `--warn` is orange, so a warning never meets the marker.
 5. Brand hexes appear only in `site/shell/`. Pages read tokens (`test_brand_colours_are_defined_only_in_the_shell`).
 
+## Chart palette (categorical)
+
+Single-series marks stay neutral, with the latest or own value in `--data-hi`. A chart with two or more series takes `--cat-1`…`--cat-8`, in a fixed order. Slots follow the entity (a segment keeps its colour across years, figures and tabs), and a ninth series folds into "Other" (`--cat-other`).
+
+| Slot | Hue | Dark, Terminal | Light, Ledger |
+|---|---|---|---|
+| 1 | teal | #019298 | #15989e |
+| 2 | ochre | #ad720d | #b67705 |
+| 3 | violet | #7e6ade | #8470e5 |
+| 4 | magenta | #c54d92 | #cc5398 |
+| 5 | blue | #377ee3 | #3d84ea |
+| 6 | purple | #a959c1 | #af5fc7 |
+| 7 | orange | #c06409 | #ca6800 |
+| 8 | azure | #048cb9 | #1792c0 |
+
+- **Validated with the dataviz method** (OKLab ΔE×100, Machado 2009 colour-vision simulation) on all four chart grounds:
+  - adjacent slots are at least 15 apart for normal vision;
+  - the first five slots are at least 8 apart under protan, deutan and tritan simulation, and all eight at least 6;
+  - all pairs among the first three pass, so three lines can cross.
+- Every slot is at least 3:1 against every chart and page ground.
+- None is within ΔE 15 of the marker or within 12 of `--good` or `--bad`, so no series reads as the provenance moment or as up or down.
+- Four or more crossing lines (Compare) carry direct labels at the line ends.
+- `scripts/ui_checks/check.mjs` fails any chart whose series fall below these floors.
+
 ## Type
 
 - Schibsted Grotesk (display and the wordmark), IBM Plex Sans (reading, in Ledger and Terminal), IBM Plex Mono (figures in Terminal, code, accession numbers), and Newsreader 600 (Ledger headings).

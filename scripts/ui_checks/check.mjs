@@ -13,7 +13,8 @@
 // name, duplicate ids, a stray "null", "undefined" or "NaN" printed as text, text under WCAG AA contrast, horizontal page overflow, forbidden source URLs or
 // fields in the page (data.sec.gov, efts, GLEIF API, FIRDS files, first_detected_at, source_updated_at),
 // a figure or data mark (chart label, SVG shape, HTML bar, Chart.js dataset) drawn in the brand's marker
-// yellow (it may only sit behind a figure as the highlight), and, for an entry with sweepAt, light text under
+// yellow (it may only sit behind a figure as the highlight), chart series too alike to tell apart (normal or
+// colour-blind vision) or under 3:1 against the chart, and, for an entry with sweepAt, light text under
 // the marker while the provenance highlight sweeps (pixels read from a PNG of the figure at that moment).
 // WARN: skipped heading levels, touch targets under 24px, text under 12px.
 import { spawn } from 'node:child_process';
@@ -149,6 +150,50 @@ function audit() {
     const cs = getComputedStyle(el); if (cs.maskImage && cs.maskImage !== 'none') continue; // the logo, drawn as a mask
     if (mark(cs.backgroundColor) && yellow.length < 6) yellow.push(`data mark ${desc(el)}`);
   }
+  // categorical series (a chart with 2+ series): neighbours must be told apart with normal vision (OKLab ΔE×100 >= 15)
+  // and under protan, deutan and tritan simulation (>= 6, Machado 2009 at full severity), and each series must hold
+  // 3:1 against the chart's background. Pairs: adjacent slots, plus all pairs among the first three (the palette's design).
+  const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const CVDM = { protan: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+    deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+    tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]] };
+  const okl = (c, kind) => {
+    let v = [lin(c.r), lin(c.g), lin(c.b)];
+    if (kind) { const M = CVDM[kind]; v = M.map((row) => Math.min(1, Math.max(0, row[0] * v[0] + row[1] * v[1] + row[2] * v[2]))); }
+    const l = Math.cbrt(0.4122214708 * v[0] + 0.5363325363 * v[1] + 0.0514459929 * v[2]), m = Math.cbrt(0.2119034982 * v[0] + 0.6806995451 * v[1] + 0.1073969566 * v[2]), q = Math.cbrt(0.0883024619 * v[0] + 0.2817188376 * v[1] + 0.6299787005 * v[2]);
+    return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * q, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * q, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * q];
+  };
+  const dE = (x, y, kind) => { const a = okl(x, kind), b = okl(y, kind); return 100 * Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); };
+  const series = [];
+  // computed colours can come back as color(srgb r g b / a) from color-mix()
+  const anyc = (v) => { const m = /color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)/.exec(v || ''); return m ? { r: m[1] * 255, g: m[2] * 255, b: m[3] * 255, a: m[4] == null ? 1 : +m[4] } : (parse(v || '') || hex(v)); };
+  const judge = (name, cols, bg) => {
+    const slots = Object.keys(cols).map(Number).sort((x, y) => x - y); if (slots.length < 2) return;
+    const pairs = [];
+    slots.forEach((k, i) => { if (i) pairs.push([slots[i - 1], k]); });
+    slots.filter((k) => k < 3).forEach((k, i, f) => f.slice(i + 1).forEach((j) => { if (!pairs.some((p) => p[0] === k && p[1] === j)) pairs.push([k, j]); }));
+    for (const [i, j] of pairs) {
+      const n = dE(cols[i], cols[j]), cvd = Math.min(...['protan', 'deutan', 'tritan'].map((k) => dE(cols[i], cols[j], k)));
+      if ((n < 15 || cvd < 6) && series.length < 6) series.push(`${name}: series ${i + 1} and ${j + 1} too alike (ΔE ${n.toFixed(1)} normal, ${cvd.toFixed(1)} colour-blind)`);
+    }
+    if (bg) for (const k of slots) { const c = blend(cols[k], bg), L1 = lum(c), L2 = lum(bg), r = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05); if (r < 3 && series.length < 6) series.push(`${name}: series ${k + 1} is ${r.toFixed(2)}:1 against its background`); }
+  };
+  for (const g of document.querySelectorAll('svg[role=img], svg[class*=chart]')) {
+    if (!vis(g)) continue;
+    const bg = bgOf(g), cols = {};
+    for (const sh of g.querySelectorAll('[class]')) {
+      const cl = typeof sh.className === 'string' ? sh.className : sh.className.baseVal, m = /\b(?:k|c)([0-7])\b/.exec(cl) || (g.classList.contains('multi') && /\bs([0-7])\b/.exec(cl));
+      if (!m || cols[+m[1]]) continue;
+      const cs = getComputedStyle(sh), paint = cs.fill && cs.fill !== 'none' && !/url/.test(cs.fill) ? cs.fill : cs.stroke;
+      const c = anyc(paint); if (c && c.a > 0) cols[+m[1]] = bg ? blend(c, bg) : c;
+    }
+    judge('chart ' + (g.getAttribute('aria-label') || g.getAttribute('class') || '').slice(0, 40), cols, bg);
+  }
+  if (window.Chart && window.Chart.instances) for (const c of Object.values(window.Chart.instances)) {
+    // datasets drawn in one exact colour (a low-to-high range as two lines) are one series
+    const cols = {}, seenc = []; c.data.datasets.forEach((d, i) => { const v = [].concat(d.borderColor || [], d.backgroundColor || []).find((x) => typeof x === 'string'); const p = v && anyc(v); if (p && seenc.indexOf(v) < 0) { seenc.push(v); cols[i] = p; } });
+    judge('chat chart', cols, bgOf(c.canvas));
+  }
   if (window.Chart && window.Chart.instances) for (const c of Object.values(window.Chart.instances)) for (const d of c.data.datasets) {
     for (const k of ['backgroundColor', 'borderColor', 'pointBackgroundColor', 'pointBorderColor']) for (const v of [].concat(d[k] || [])) if (typeof v === 'string' && mark(v) && yellow.length < 6) yellow.push(`chart dataset "${d.label}" ${k}`);
   }
@@ -174,6 +219,7 @@ function audit() {
   if (low) fail.push(`${low} text element(s) under AA contrast, e.g. ${lowSamples.join('; ')}`);
   if (stray.length) fail.push(`stray text: ${stray.join('; ')}`);
   if (yellow.length) fail.push(`figure in the marker yellow (only the highlight may be yellow): ${yellow.join('; ')}`);
+  if (series.length) fail.push(`chart series hard to tell apart: ${series.join('; ')}`);
 
   if (document.documentElement.scrollWidth > innerWidth + 1) {
     const wide = [...document.querySelectorAll('body *')].filter((e) => { const r = e.getBoundingClientRect(); return r.right > innerWidth + 1 && vis(e) && !e.closest('[data-scroll-x], pre, table, .table-scroll'); }).slice(0, 3).map(desc);
@@ -235,6 +281,8 @@ async function view(page, theme, width) {
       await sleep(250);
     }
     await sleep(900);
+    // waitFor: content drawn late (a chart behind a lazy script) is audited once it is there, up to 8 s more
+    if (page.waitFor) for (let t = 0; t < 32; t++) { const w = await send('Runtime.evaluate', { expression: page.waitFor, returnByValue: true }, sessionId).catch(() => null); if (w && w.result && w.result.value) break; await sleep(250); }
     const r = await send('Runtime.evaluate', { expression: `(${audit})()`, returnByValue: true }, sessionId);
     const res = r.result?.value || { fail: ['audit crashed: ' + (r.exceptionDetails?.exception?.description || '?')], warn: [] };
     const want = page.status || 200;

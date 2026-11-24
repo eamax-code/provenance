@@ -280,8 +280,8 @@
     canvas.setAttribute('aria-label', w.title + ': ' + pts.map(function (p) { return p.label + ' ' + p.display; }).join(', '));
     wrap.appendChild(canvas); box.appendChild(wrap);
     var legend = el('div', 'cx-legend'), l1 = el('span'), l2 = el('span');
-    var i1 = el('i'); i1.style.background = css('--slate'); l1.appendChild(i1); l1.appendChild(document.createTextNode('Reported ' + w.title.split(' by ')[0].toLowerCase()));
-    var i2 = el('i'); i2.style.background = css('--red'); i2.style.borderRadius = '50%'; l2.appendChild(i2); l2.appendChild(document.createTextNode('Change from prior year'));
+    var i1 = el('i'); i1.style.background = css('--cat-1'); l1.appendChild(i1); l1.appendChild(document.createTextNode('Reported ' + w.title.split(' by ')[0].toLowerCase()));
+    var i2 = el('i'); i2.style.background = css('--cat-2'); i2.style.borderRadius = '50%'; l2.appendChild(i2); l2.appendChild(document.createTextNode('Change from prior year'));
     legend.appendChild(l1); legend.appendChild(l2); box.appendChild(legend);
     // The figures as a table, with each year's source: also the fallback if the chart cannot load.
     var d = el('details'); d.appendChild(el('summary', null, 'Figures and sources'));
@@ -303,11 +303,11 @@
     return box;
   }
   function drawChart(Chart, canvas, w) {
-    var pts = w.points, slate = css('--slate'), red = css('--red'), muted = css('--muted'), line = css('--line');
+    var pts = w.points, slate = css('--cat-1'), red = css('--cat-2'), muted = css('--muted'), line = css('--line');
     var font = { family: css('--font-body') || 'sans-serif', size: 12 };
     var ctx = canvas.getContext('2d');
     var grad = ctx.createLinearGradient(0, 0, 0, canvas.parentNode.clientHeight || 280);
-    grad.addColorStop(0, slate); grad.addColorStop(1, css('--slate-2'));
+    grad.addColorStop(0, slate); grad.addColorStop(1, slate);
     var chart = new Chart(canvas, {
       data: {
         labels: pts.map(function (p) { return p.label; }),
@@ -369,11 +369,11 @@
       .concat(fc.map(function (r) { return r.label + ' ' + r.base_display + ' forecast'; })).join(', '));
     wrap.appendChild(canvas); box.appendChild(wrap);
     var legend = el('div', 'cx-legend');
-    [['Reported', css('--slate'), ''], ['Forecast, base case', 'transparent', 'dashed'], ['Low to high range', css('--red'), 'band']]
+    [['Reported', css('--cat-1'), ''], ['Forecast, base case', 'transparent', 'dashed'], ['Low to high range', css('--cat-2'), 'band']]
       .forEach(function (x) {
         var s = el('span'), i = el('i');
         i.style.background = x[1];
-        if (x[2] === 'dashed') i.style.border = '2px dashed ' + css('--slate');
+        if (x[2] === 'dashed') i.style.border = '2px dashed ' + css('--cat-1');
         if (x[2] === 'band') i.style.opacity = '0.35';
         s.appendChild(i); s.appendChild(document.createTextNode(x[0])); legend.appendChild(s);
       });
@@ -403,7 +403,7 @@
   }
   function drawForecast(Chart, canvas, w) {
     var hist = w.history, fc = w.forecast, nh = hist.length;
-    var slate = css('--slate'), red = css('--red'), muted = css('--muted'), line = css('--line');
+    var slate = css('--cat-1'), red = css('--cat-2'), muted = css('--muted'), line = css('--line');
     var font = { family: css('--font-body') || 'sans-serif', size: 12 };
     var labels = hist.map(function (p) { return p.label; }).concat(fc.map(function (f) { return f.label; }));
     function pad(arr, before) { var a = []; for (var i = 0; i < before; i++) a.push(null); return a.concat(arr); }
@@ -413,7 +413,7 @@
     var high = pad([last].concat(fc.map(function (f) { return f.high; })), nh - 1);
     var ctx = canvas.getContext('2d');
     var grad = ctx.createLinearGradient(0, 0, 0, canvas.parentNode.clientHeight || 280);
-    grad.addColorStop(0, slate); grad.addColorStop(1, css('--slate-2'));
+    grad.addColorStop(0, slate); grad.addColorStop(1, slate);
     var chart = new Chart(canvas, {
       data: {
         labels: labels,

@@ -30,13 +30,12 @@ th.n, td.n { text-align: right; white-space: nowrap; }
 tr:last-child td { border-bottom: 0; }
 /* charts */
 .rev-chart { display: block; width: 100%; height: auto; }
-.rev-chart .col { fill: var(--mist); }
+.rev-chart .col { fill: var(--cat-1); }
 .rev-chart a:hover .col { fill: var(--slate); }
-.rev-chart .col.latest { fill: var(--data-hi); }
 .rev-chart .axis { font: 11px var(--face); fill: var(--muted); }
 .rev-chart .val { font: 600 11px var(--face); fill: var(--ink); }
-.rev-chart .margin-line { fill: none; stroke: var(--slate-deep); stroke-width: 2; }
-.rev-chart .margin-label { font: 600 11px var(--face); fill: var(--slate-deep); }
+.rev-chart .margin-line { fill: none; stroke: var(--cat-2); stroke-width: 2; }
+.rev-chart .margin-label { font: 600 11px var(--face); fill: var(--ink); }
 .spark { width: 88px; height: 24px; }
 .spark polyline { fill: none; stroke: var(--slate); stroke-width: 1.6; }
 .spark circle { fill: var(--data-hi); }
