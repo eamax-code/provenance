@@ -19,10 +19,21 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.logging import log_event
-from app.db.models import Company, CompanyAlias, FinancialFact, IngestionRun, utcnow
+from app.db.models import (
+    Company,
+    CompanyAlias,
+    DividendFact,
+    FinancialFact,
+    IngestionRun,
+    utcnow,
+)
 from app.db.models import Filing as FilingRow
 from app.services import events, ipo_pipeline, notifications
-from app.services.fact_normalizer import NormalizedFact, normalize_company_facts
+from app.services.fact_normalizer import (
+    DIVIDEND_CONCEPTS,
+    NormalizedFact,
+    normalize_company_facts,
+)
 from app.services.form8k import normalize_items
 from app.services.sec_client import (
     SecClient,
@@ -551,15 +562,13 @@ def upsert_filings(
 
 
 def upsert_facts(
-    db: Session, cik: str, facts: list[NormalizedFact], now: datetime
+    db: Session, cik: str, facts: list[NormalizedFact], now: datetime, model=FinancialFact
 ) -> tuple[int, int]:
-    """Insert new fact observations; never delete older ones. Returns (inserted, updated)."""
+    """Insert new fact observations; never delete older ones. Returns (inserted, updated).
+    model: FinancialFact, or DividendFact for Q-04's dividends (the same columns)."""
     if not facts:
         return 0, 0
-    existing = {
-        f.observation_key: f
-        for f in db.scalars(select(FinancialFact).where(FinancialFact.cik == cik))
-    }
+    existing = {f.observation_key: f for f in db.scalars(select(model).where(model.cik == cik))}
     inserted = updated = 0
     seen_keys: set[str] = set()
     for nf in facts:
@@ -571,7 +580,7 @@ def upsert_facts(
         row = existing.get(key)
         if row is None:
             db.add(
-                FinancialFact(
+                model(
                     cik=cik,
                     metric=nf.metric,
                     value=nf.value,
@@ -803,6 +812,10 @@ def _ingest_company(
             facts = normalize_company_facts(facts_resp.data, cik, www_base,
                                             _statement_context(db, cik))  # fmt: skip
             fi, fu = upsert_facts(db, cik, facts, now)
+            # Q-04: dividends per share from the same payload, in the same transaction
+            dps = normalize_company_facts(facts_resp.data, cik, www_base,
+                                          concepts=DIVIDEND_CONCEPTS)  # fmt: skip
+            upsert_facts(db, cik, dps, now, model=DividendFact)
             result.facts_seen = len(facts)
             result.facts_inserted, result.facts_updated = fi, fu
             run.facts_seen += len(facts)

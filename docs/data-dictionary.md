@@ -307,6 +307,20 @@ tracker when a 424B4, S-1/A or F-1/A arrives, and by `scripts/read_ipo_terms.py`
 `/v1/ipos` (`terms`), the MCP tool `companies_going_public`, `/v1/public/ipos` (price fields)
 and the company page overview (`ipo_terms`).
 
+## dividend_facts (Q-04): a known exception to the mapping
+
+Dividends declared per share (`CommonStockDividendsPerShareDeclared`, else
+`CommonStockDividendsPerShareCashPaid`), every filing's observation, with the same columns,
+period classes, fiscal labels and quality flags as `financial_facts`, because the same normalizer
+(`normalize_company_facts(..., concepts=DIVIDEND_CONCEPTS)`) and upsert write it. **Why a table of
+its own:** adding the metric to the mapping meant a version bump (1.5.0 to 1.6.0) and a re-map of
+every fact, so it was kept apart; a later mapping 1.6.0 can fold it into `financial_facts`
+(metric `dividends_per_share`). Loaded from the bulk company facts
+(`scripts/load_dividend_facts.py`, with `--since-bulk` for companies ingested after the bulk file
+was published, from the cache), then kept current by the company ingest in the same transaction
+as the facts. Read by `/v1/companies/{cik}/dividends` (docs/contracts/dividends.md). Dividends per
+share are the one per-share value a quarter may be derived from (`ADDITIVE_PER_SHARE`).
+
 ## insider_activity (launch plan F-03)
 
 Insider activity found by rules in the loaded Forms 4 (`app/services/insider_activity.py`);

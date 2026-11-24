@@ -972,3 +972,40 @@ def keyed_overview(
         raise APIError(404, "company_not_found", "No company with this CIK is loaded.")
     response.headers["Cache-Control"] = "private, no-store"
     return body
+
+
+@router.get(
+    "/{cik}/dividends",
+    responses=_ERRORS,
+    summary="Dividends declared per share by period, each with its filing; payout ratio, "
+    "possibly special dividends, split-adjusted history",
+    dependencies=[Depends(strict_query)],
+)
+def dividends(
+    request: Request,
+    cik: str = Path(max_length=13),
+    period: str = Query("annual", pattern="^(annual|quarterly)$"),
+    periods_: int | None = Query(None, alias="periods", ge=1, le=80,
+                                 description="Up to 20 annual, 80 quarterly"),  # fmt: skip
+    as_of: date | None = Query(None, description="Only figures filed by this date"),
+    db: Session = Depends(db_session),
+    _key=Depends(require_reader),
+):
+    """Q-04 (docs/contracts/dividends.md): the statements' own columns, selection and split
+    rule; no yield until prices exist. Information, not signals."""
+    from app.services import dividends as dividends_service
+
+    cik = _parse_cik_param(cik)
+    company = _require_company(db, cik)
+    most = 20 if period == "annual" else 80
+    if periods_ is not None and periods_ > most:
+        raise APIError(422, "invalid_parameter", f"periods is at most {most} for {period}.")
+    out = dividends_service.build(db, company, period, periods_, as_of)
+    if getattr(request.state, "demo", False) and len(out["data"]) > 10:
+        out["data"] = out["data"][-10:]
+        out["notes"].append("The demo key shows at most 10 periods; this list was trimmed.")
+    if as_of:
+        out["notes"].append(as_of_note(as_of))
+    return {"cik": cik, "period": period, "as_of": as_of.isoformat() if as_of else None,
+            **out, "labels": {"basis_note": "As reported: each value in the share basis of "
+                              "the filing it cites."}}  # fmt: skip

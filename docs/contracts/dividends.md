@@ -1,7 +1,6 @@
 # Q-04 Dividends: declared per share by period, payout ratio, special dividends, splits
 
-Status: **contract** (2026-11-25, for provenance-ui). Nothing is built yet; fields marked
-*provisional* may still be renamed before they are, and ui is told when they are.
+Status: **built** (2026-11-25; see "Build notes" at the end for what the gates settled).
 
 `GET /v1/companies/{cik}/dividends?period=&periods=&as_of=&basis=`
 
@@ -81,7 +80,8 @@ not signals. **No yield** until end-of-day prices exist (P-01).
 - **Quarterly** values are as reported. A Q4 is **derived** (FY minus the first three quarters)
   only when all four values sit on one share basis (no reviewed split between the filings they
   cite); otherwise the Q4 is `null` with a note. A derived Q4 says `derived: true` and lists
-  `inputs`: `[{period_label, value, accession_number, source_url}]` for the FY and Q1 to Q3.
+  `inputs`: `[{period_label, value, accession_number, source_url}]`: the fiscal year and the
+  nine months to date (FY first, as the statements derive it), each as first filed.
   Per-share dividends declared add up within a fiscal year on one share basis, unlike EPS or
   weighted shares: the code names this metric on an allow-list of its own (PM, 2026-11-25), so
   the "currency flows only" rule of d94eed8 stays closed to EPS and shares, with a test.
@@ -144,3 +144,29 @@ Ex-dividend, record and payment dates are not in the SEC's company facts; they w
   only. The special flag is checked separately on every flag in a random 30 companies (how many
   are real specials, how many specials it misses), and the result decides whether it ships.
 - R-2: p95 under 500 ms for annual and quarterly, both bases.
+
+## Build notes (2026-11-25)
+
+- **Storage.** `dividend_facts` holds every filing's observation of
+  `CommonStockDividendsPerShareDeclared` (else `...CashPaid`), normalized by the same code as
+  `financial_facts` and picked by the statements' own selection, so a column here is the
+  statements' column for the period (tested on Apple, annual and quarterly, with a split). Loaded
+  from the SEC's bulk company facts (4,005 companies, 435,401 observations); the company ingest
+  stores new ones with the facts, in the same transaction.
+- **Rows** also carry `period_fiscal_year`, `calendar_period`, `quality_status` and `currency`.
+  A fact dated only by its declaration (no period start) is not a fiscal period and is left out.
+- **Derived quarters** use each period as first filed, so the year and the nine months come from
+  one reporting cycle (a later 10-K restating the year after an unreviewed split gave a negative
+  quarter); a negative result is never shown.
+- **Payout ratio**: diluted EPS as the dividend's own filing reports it (one share basis; a later
+  filing's EPS after a split would not be), and `null` above 10 (per-share figures of two share
+  classes).
+- **`special` is `null` on every row for now**, with a note. Read from the amounts alone, it was
+  right on 1 of 7 flags across two random samples of 30 companies (dividend cuts, first years and
+  reverse splits look like spikes), and company facts can leave a special out of every quarter
+  (Costco's $15.00 is only in FY2024's total, so Q2 FY2024 shows $1.02 as its filing reports
+  it). The field stays in the shape; it is given when a source marks specials.
+- **Gate**: 30 periods against the filings (Apple with its 4:1 split, Costco FY2024 and Q2 FY2024,
+  Toyota in JPY, derived quarters, cash-paid-only filers): 29 of 29 checkable right, 1 filing too
+  large to fetch. A first sample found the negative derived quarter and a payout ratio of 836;
+  both fixed by the rules above and re-checked on a fresh sample. In-process p95 28 ms.

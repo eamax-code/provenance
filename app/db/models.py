@@ -166,6 +166,47 @@ class FinancialFact(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class DividendFact(Base):
+    """Q-04: dividends declared per share (CommonStockDividendsPerShareDeclared, else ...CashPaid),
+    every filing's observation, normalized by the same code as financial_facts (same columns,
+    period classes, fiscal labels and quality flags). A known exception to the mapping: kept
+    apart so that adding it needed no mapping version bump; mapping 1.6.0 can fold it in."""
+
+    __tablename__ = "dividend_facts"
+    __table_args__ = (
+        UniqueConstraint("cik", "observation_key", name="uq_dividend_facts_cik_observation_key"),
+        Index("ix_dividend_facts_cik_period_end", "cik", "period_end"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    metric: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[Decimal | None] = mapped_column(Numeric(38, 6), nullable=True)
+    unit: Mapped[str] = mapped_column(Text, nullable=False)
+    currency: Mapped[str | None] = mapped_column(Text, nullable=True)
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    period_type: Mapped[str] = mapped_column(Text, nullable=False)  # instant | duration
+    period_class: Mapped[str] = mapped_column(Text, nullable=False)  # annual|quarterly|ytd|other
+    fiscal_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fiscal_period: Mapped[str | None] = mapped_column(Text, nullable=True)
+    form_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    filed_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    accession_number: Mapped[str | None] = mapped_column(String(25), nullable=True)
+    source_tag: Mapped[str] = mapped_column(Text, nullable=False)
+    source_taxonomy: Mapped[str] = mapped_column(Text, nullable=False, default="us-gaap")
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    mapping_version: Mapped[str] = mapped_column(Text, nullable=False)
+    quality_status: Mapped[str] = mapped_column(Text, nullable=False)
+    derived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    derivation: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON text
+    observation_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_payload_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    first_detected_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    processed_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class IngestionRun(Base):
     __tablename__ = "ingestion_runs"
 

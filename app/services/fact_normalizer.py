@@ -337,6 +337,18 @@ IFRS_MAP: dict[str, tuple[list[str], list[str]]] = {
     "sbc": (["AdjustmentsForSharebasedPayments"], []),
 }
 
+# Q-04: dividends declared per share, normalized by this same code into dividend_facts (a known
+# exception kept out of CONCEPT_MAP so it needed no mapping bump; mapping 1.6.0 can fold it in).
+DIVIDEND_CONCEPTS = {
+    "dividends_per_share": _m(
+        "Dividends declared per share", "dividends", "duration", "per_share",
+        ["CommonStockDividendsPerShareDeclared"], ["CommonStockDividendsPerShareCashPaid"],
+    ),
+}  # fmt: skip
+# Q-04 (PM, 2026-11-25): per-share values that add up within a fiscal year on one share basis,
+# so a quarter may be derived from them; EPS and weighted shares never are
+ADDITIVE_PER_SHARE = frozenset({"dividends_per_share"})
+
 SUPPORTED_METRICS = tuple(CONCEPT_MAP.keys())
 METRIC_LABELS = {m: spec["label"] for m, spec in CONCEPT_MAP.items()}
 METRIC_UNIT_KIND = {m: spec["unit"] for m, spec in CONCEPT_MAP.items()}
@@ -564,6 +576,7 @@ def normalize_company_facts(
     cik: str,
     www_base: str = "https://www.sec.gov",
     statement: dict | None = None,
+    concepts: dict | None = None,
 ) -> list[NormalizedFact]:
     """Normalize the SEC companyfacts payload for one company into canonical facts.
 
@@ -577,7 +590,7 @@ def normalize_company_facts(
     shown = (statement or {}).get("tags") or {}
 
     results: list[NormalizedFact] = []
-    for metric, spec in CONCEPT_MAP.items():
+    for metric, spec in (CONCEPT_MAP if concepts is None else concepts).items():
         expected_ptype = spec["period_type"]
         tags = _ordered_tags(metric, spec)
         if v150 and metric == "revenue" and (statement or {}).get("bank"):
@@ -845,7 +858,7 @@ def derive_quarters(facts: list[NormalizedFact]) -> list[NormalizedFact]:
             or f.period_start is None
             or f.quality_status != "ok"
             or f.value is None
-            or not additive_unit(f.unit)
+            or not (additive_unit(f.unit) or f.metric in ADDITIVE_PER_SHARE)
         ):
             continue
         groups.setdefault((f.metric, f.source_tag, f.unit, f.period_start), []).append(f)

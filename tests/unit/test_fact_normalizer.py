@@ -551,3 +551,26 @@ def test_1_5_0_ifrs_bank_total_income_only_under_its_label(monkeypatch):
     # a non-bank's "Total operating income" (argenx) is never revenue, either tag
     ab = {"tags": {acc: {"RevenueAndOperatingIncome": "Total operating income"}}, "bank": False}
     assert not _by(normalize_company_facts(payload, "1089113", statement=ab), "revenue")
+
+
+def test_dividends_per_share_derive_a_quarter_eps_never_does():
+    """Q-04 (PM): declared dividends per share add up within a fiscal year, so a Q4 may be FY
+    minus nine months; the allow-list names that metric only, never EPS or weighted shares."""
+    from app.services.fact_normalizer import ADDITIVE_PER_SHARE
+
+    def fact(metric, start, end, cls, value):
+        return NormalizedFact(
+            metric=metric, value=Decimal(value), unit="USD/shares", currency=None,
+            period_start=start, period_end=end, period_type="duration", period_class=cls,
+            fiscal_year=2025, fiscal_period="FY", form_type="10-K", filed_date=date(2026, 2, 1),
+            accession_number="a", source_tag="T", source_taxonomy="us-gaap", source_url=None,
+            mapping_version="x", quality_status="ok",
+        )  # fmt: skip
+
+    facts = []
+    for m in ("dividends_per_share", "eps_diluted"):
+        facts += [fact(m, date(2025, 1, 1), date(2025, 12, 31), "annual", "1.04"),
+                  fact(m, date(2025, 1, 1), date(2025, 9, 30), "ytd", "0.78")]  # fmt: skip
+    assert [(d.metric, d.value) for d in derive_quarters(facts)] == [
+        ("dividends_per_share", Decimal("0.26"))]  # fmt: skip
+    assert ADDITIVE_PER_SHARE == frozenset({"dividends_per_share"})

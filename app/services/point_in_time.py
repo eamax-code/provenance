@@ -17,26 +17,27 @@ AS_OF_NOTE = (
 )
 
 
-def known_by(stmt, as_of: date):
+def known_by(stmt, as_of: date, model=FinancialFact):
     """Restrict a FinancialFact query to observations filed with the SEC on or before as_of.
 
     Observations without a filing date are excluded: when they became known cannot be shown.
     A figure an 8-K 2.02 earnings release stated with the same value (E-2) counts from the
-    release's filing date.
+    release's filing date. model: FinancialFact, or DividendFact (Q-04; the same columns).
     """
+    F = model
     stated_earlier = exists().where(
         and_(
-            FirstReported.fact_accession == FinancialFact.accession_number,
-            FirstReported.metric == FinancialFact.metric,
-            FirstReported.unit == FinancialFact.unit,
-            FirstReported.period_end == FinancialFact.period_end,
-            FirstReported.period_start.is_not_distinct_from(FinancialFact.period_start),
+            FirstReported.fact_accession == F.accession_number,
+            FirstReported.metric == F.metric,
+            FirstReported.unit == F.unit,
+            FirstReported.period_end == F.period_end,
+            FirstReported.period_start.is_not_distinct_from(F.period_start),
             FirstReported.release_filing_date <= as_of,
         )
     )
     return stmt.where(
-        FinancialFact.filed_date.is_not(None),
-        or_(FinancialFact.filed_date <= as_of, stated_earlier),
+        F.filed_date.is_not(None),
+        or_(F.filed_date <= as_of, stated_earlier),
     )
 
 
