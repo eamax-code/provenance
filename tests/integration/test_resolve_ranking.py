@@ -100,3 +100,28 @@ def test_short_tickers_resolve_only_as_the_subject(db):
     assert r(db, "Werner Robert F. Form 4", follow_up=True) is None
     assert r(db, "F revenue", follow_up=True) is None  # never switches from a given company
     assert r(db, "Form D offerings", follow_up=True) is None
+
+
+def test_a_person_named_with_an_initial_is_never_a_company(db):
+    """C-14 (2026-11-24): with no company given, "Werner Robert F." resolved to Robert Half, a
+    first name that starts a company's name. A word in a person's name around an initial (as
+    Forms 3, 4 and 144 give it) is never a company alone, nor a near spelling of one; a longer
+    phrase still is (Robert W. Baird), and two initials make a company's name (J. B. Hunt)."""
+    _co(db, "0000900140", "ROBERT HALF INC.", "RHI", 5_800_000_000)
+    _co(db, "0000900141", "ROBERT W. BAIRD & CO. INCORPORATED", None, 4_000_000_000)
+    _co(db, "0000900142", "WERNER ENTERPRISES INC", "WERN", 3_000_000_000)
+    _co(db, "0000900143", "TIMOTHY PLAN", None, 1_000_000)
+    _co(db, "0000900144", "HUNT J B TRANSPORT SERVICES INC", "JBHT", 12_000_000_000)
+    _co(db, "0000900145", "BERKSHIRE HATHAWAY INC", "BRK-B", 370_000_000_000)
+    db.commit()
+    r = intel.resolve_company
+    for q in ("Werner Robert F. Form 4", "What did Werner Robert F. sell?",
+              "Form 144 filed by WERNER ROBERT F.", "Robert F. Werner Form 4",
+              "Cook Timothy D sold shares", "J. Robert bought shares"):  # fmt: skip
+        assert r(db, q) is None, q
+    assert r(db, "Werner Robert F. sold Robert Half shares").cik == "0000900140"
+    assert r(db, "Tell me about Robert Half").cik == "0000900140"
+    assert r(db, "Robert W. Baird").cik == "0000900141"
+    assert r(db, "Werner revenue").cik == "0000900142"
+    assert r(db, "J. B. Hunt revenue").cik == "0000900144"
+    assert r(db, "Berkshire Hathaway B shares").cik == "0000900145"

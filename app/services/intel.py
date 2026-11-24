@@ -137,6 +137,36 @@ def _short_ticker_is_subject(text: str, raw: list[str], i: int, follow_up: bool)
     return i == 0 or nxt in _TICKER_AFTER or last
 
 
+_INITIAL = re.compile(r"^[A-Z]\.?$")
+
+
+def _person_words(raw: list[str]) -> set[int]:
+    """C-14: words that sit in a person's name around an initial, as Forms 3, 4 and 144 give
+    them ("Werner Robert F.", "Cook Timothy D", "Robert F. Werner", "J. Example"). Each is never
+    a company on its own ("Robert" is not Robert Half); a longer phrase still is ("Robert W.
+    Baird"). An initial after Form, Class or Item is not a name's ("Form D", "Class A")."""
+
+    def cap(k: int) -> bool:
+        w = raw[k].rstrip(".") if 0 <= k < len(raw) else ""
+        return len(w) >= 2 and w[0].isupper() and w.lower() not in _TICKER_BEFORE
+
+    out: set[int] = set()
+    for i, tok in enumerate(raw):
+        if not _INITIAL.match(tok) or (i > 0 and raw[i - 1].rstrip(".").lower() in _TICKER_BEFORE):
+            continue
+        if i + 1 < len(raw) and raw[i + 1].rstrip(".").lower() in _TICKER_AFTER:
+            continue  # "Berkshire B shares": a share class
+        if cap(i - 1) and cap(i - 2):  # Werner Robert F.
+            out |= {i - 1, i - 2}
+        if cap(i - 1) and cap(i + 1):  # Robert F. Werner
+            out |= {i - 1, i + 1}
+        # J. Example; two initials make a company's name ("J. B. Hunt", "H. B. Fuller")
+        if tok.endswith(".") and cap(i + 1) and not cap(i - 1) \
+                and not (i > 0 and _INITIAL.match(raw[i - 1])):  # fmt: skip
+            out.add(i + 1)
+    return out
+
+
 def _variants(phrase: str) -> list[str]:
     """The phrase as typed, then without punctuation ("Coca-Cola" is COCA COLA CO, "Procter &
     Gamble" is PROCTER & GAMBLE CO or "and")."""
@@ -251,13 +281,27 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
             hits, _ = search_companies(db, w, limit=1)
             if hits and hits[0].match_type in ("cik", "ticker"):
                 return hits[0].company
-    useful = [w for w in words if w.lower() not in _STOP]
+    kept = [i for i, w in enumerate(words) if w.lower() not in _STOP]
+    useful = [words[i] for i in kept]
+    named = _person_words(raw)
+    person = {k for k, i in enumerate(kept) if i in named}  # C-14: never a company alone
+    initial = {k for k, i in enumerate(kept) if _INITIAL.match(raw[i])}
+
+    def names_a_person(i: int, size: int) -> bool:
+        """A one- or two-word phrase made only of a person's name and initials ("Robert",
+        "Robert F"): never a word start or a near spelling of a company (Robert W. Baird)."""
+        span = range(i, i + size)
+        return size <= 2 and any(k in person for k in span) \
+            and all(k in person or k in initial for k in span)  # fmt: skip
+
     # Words as typed first; only then without a trailing "s" ("apples growth" means Apple), so
     # "changes at Netflix" finds Netflix before "Change" finds another company.
     for singular in (False, True):
         for size in (3, 2, 1):
             found = []
             for i in range(len(useful) - size + 1):
+                if size == 1 and i in person:  # a longer phrase may name one: Robert W. Baird
+                    continue
                 phrase = " ".join(useful[i : i + size])
                 if singular:
                     if len(phrase) <= 4 or phrase[-1] not in "sS" or phrase[-2] in "sS":
@@ -314,6 +358,8 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
     # starts with what was typed
     for size in (2, 1):
         for i in range(len(useful) - size + 1):
+            if names_a_person(i, size):
+                continue
             phrase = " ".join(useful[i : i + size])
             if (len(phrase) >= 4 and phrase[:1].isupper()
                     and not set(phrase.lower().split()) & _GENERIC_WORDS):  # fmt: skip
@@ -327,6 +373,8 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
     best = None
     for size in (2, 1):
         for i in range(len(useful) - size + 1):
+            if names_a_person(i, size):
+                continue
             phrase = " ".join(useful[i : i + size])
             lower_word = size == 1 and phrase.islower()
             if follow_up and not phrase[:1].isupper():
