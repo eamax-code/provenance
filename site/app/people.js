@@ -61,9 +61,14 @@
 
   /* pay versus performance (Item 402(v)): PEO and NEO-average pay, CAP against company and peer TSR */
   var TAG = { total: 'ecd:PeoTotalCompAmt', cap: 'ecd:PeoActuallyPaidCompAmt', neo_total: 'ecd:NonPeoNeoAvgTotalCompAmt', neo_cap: 'ecd:NonPeoNeoAvgCompActuallyPaidAmt', tsr: 'ecd:TotalShareholderRtnAmt', peer_tsr: 'ecd:PeerGroupTotalShareholderRtnAmt', ni: 'us-gaap:NetIncomeLoss', csm: 'ecd:CoSelectedMeasureAmt' };
+  // D-10b: when no single 10-K gives the exact year end, the API sends the month end and fiscal_year_end_rounded
+  function lateIn(iso) { return 'late ' + MON[+iso.slice(5, 7) - 1] + ' ' + iso.slice(0, 4); }
+  function fyEnd(y) {
+    return y.fiscal_year_end_rounded ? el('span', { title: 'The proxy gives only the month end (' + day(y.fiscal_year_end) + '); the exact last day of this fiscal year is not tagged' }, [lateIn(y.fiscal_year_end), el('span', { class: 'muted small', text: ' (month end shown)' })]) : day(y.fiscal_year_end);
+  }
   function payInfo(b, y, label, tag, value) {
-    var s = y.source || b.proxy || {};
-    return { label: label, value: value, currency: b.currency, fiscal_label: 'Fiscal year', period_end: y.fiscal_year_end, form_type: s.form || 'DEF 14A', filed_date: s.filed_date, accession_number: s.accession_number, source_url: s.source_url, source_tag: tag };
+    var s = y.source || b.proxy || {}, r = !!y.fiscal_year_end_rounded;
+    return { label: label, value: value, currency: b.currency, fiscal_label: r ? 'Fiscal year ending ' + lateIn(y.fiscal_year_end) + '; the proxy gives only the month end' : 'Fiscal year', period_end: r ? null : y.fiscal_year_end, form_type: s.form || 'DEF 14A', filed_date: s.filed_date, accession_number: s.accession_number, source_url: s.source_url, source_tag: tag };
   }
   function pvpChart(b, years, w) {
     var ys = years.slice().reverse(), W = Math.max(300, Math.min(1200, w || 720)), H = 240, pl = 58, pr = 52, pt = 14, pb = 30;
@@ -113,7 +118,7 @@
       var ps = y.peo && y.peo.length ? y.peo : [{}], n = y.neo_average || {}, csm = y.company_selected_measure;
       ps.forEach(function (p, k) {
         var who = p.name ? name(p.name) : 'PEO';
-        var cells = [k ? el('td', { class: 'muted', text: '' }) : el('th', { scope: 'row', rowspan: String(ps.length) }, [day(y.fiscal_year_end), ' ', ask('How did ' + CO + '’s CEO pay compare with total shareholder return in fiscal ' + y.fiscal_year_end.slice(0, 4) + '? (proxy ' + ((y.source || b.proxy || {}).accession_number || '') + ')', 'pay versus performance in fiscal ' + y.fiscal_year_end.slice(0, 4))]), el('td', { text: p.name ? name(p.name) : '—' }),
+        var cells = [k ? el('td', { class: 'muted', text: '' }) : el('th', { scope: 'row', rowspan: String(ps.length) }, [fyEnd(y), ' ', ask('How did ' + CO + '’s CEO pay compare with total shareholder return in fiscal ' + y.fiscal_year_end.slice(0, 4) + '? (proxy ' + ((y.source || b.proxy || {}).accession_number || '') + ')', 'pay versus performance in fiscal ' + y.fiscal_year_end.slice(0, 4))]), el('td', { text: p.name ? name(p.name) : '—' }),
           el('td', { class: 'n' }, [p.total_comp == null ? '—' : door(money(p.total_comp, cur), payInfo(b, y, who + ', total pay (Summary Compensation Table)', TAG.total, p.total_comp))]),
           el('td', { class: 'n strong' }, [p.comp_actually_paid == null ? '—' : door(money(p.comp_actually_paid, cur), payInfo(b, y, who + ', compensation actually paid', TAG.cap, p.comp_actually_paid))])];
         if (k) cells.shift();
