@@ -14,7 +14,10 @@ filers reported, not signals. **Not investment advice.**
   stored for the holders view), and **Item 4, Purpose of Transaction, as filed** (new: read from
   the same XML; a new table, its load gated as below).
 - Older free-text schedules (`SC 13D`, before December 2024) are not read: a chain starts at the
-  first structured filing, and `coverage` says so on every response.
+  first structured filing, and `coverage` says so on every response. For example, the Schedule
+  13D on Match Group filed on 15 July 2024 (free text, accession 0000902664-24-004719) is not
+  shown; its later structured amendments, if any, start that chain. 5,943 free-text 13Ds filed
+  since January 2024 are in the index and unread.
 - Today: about 1,900 original 13Ds and 7,500 amendments about 2,100 companies are stored.
 
 ## 1. `GET /v1/companies/{cik}/activists?status=&as_of=`

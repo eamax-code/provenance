@@ -1504,6 +1504,19 @@ class BeneficialOwner(Base):
     source_url: Mapped[str] = mapped_column(Text, nullable=False)  # the filing
 
 
+class Schedule13DPurpose(Base):
+    """Q-07: Item 4 (Purpose of Transaction) of a structured Schedule 13D or 13D/A, as filed
+    (whitespace collapsed); null when the amendment leaves Item 4 out."""
+
+    __tablename__ = "schedule_13d_purposes"
+    __table_args__ = (Index("ix_schedule_13d_purposes_subject", "subject_cik"),)
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    subject_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    purpose: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class GraphSourceState(Base):
     """When a company's exhibit 21, 13D/G filings or recent insider filings were last read."""
 
