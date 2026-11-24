@@ -14,7 +14,7 @@ from app.db.models import (
     ProxyPayFact,
     TradingPlan,
 )
-from app.services import ecd, form144, insider_plans
+from app.services import ecd, executive_pay, form144, insider_plans
 
 CIK = "0000320193"
 
@@ -166,7 +166,15 @@ def test_pay_table_assembles_peo_and_neo_average(tmp_path, db, client, auth, ing
     assert body["currency"] == "USD" and body["proxy"]["accession_number"] == a
     assert body["proxy"]["source_url"].startswith("https://www.sec.gov/Archives/")
     y = body["years"][0]
-    assert y["fiscal_year_end"] == "2025-09-30"
+    # D-10b: the data sets round year ends to the month end; the 10-K's period of report gives
+    # the exact one (the fixture has the FY2024 10-K, period 2024-09-28, and no FY2025 10-K)
+    assert y["fiscal_year_end"] == "2025-09-30" and y["fiscal_year_end_rounded"] is True
+    fy24_row = body["years"][1]
+    assert fy24_row["fiscal_year_end"] == "2024-09-28"
+    assert fy24_row["fiscal_year_end_rounded"] is False
+    assert executive_pay.month_end(date(2024, 9, 28)) == date(2024, 9, 30)
+    assert executive_pay.month_end(date(2025, 1, 3)) == date(2024, 12, 31)
+    assert executive_pay.month_end(date(2025, 2, 1)) == date(2025, 1, 31)
     assert y["peo"] == [{"name": "Mr. Cook", "total_comp": 74294811,
                          "comp_actually_paid": 108421987}]  # fmt: skip
     assert y["neo_average"] == {"total_comp": 27000000, "comp_actually_paid": 30000000,
@@ -189,10 +197,11 @@ def test_pay_table_assembles_peo_and_neo_average(tmp_path, db, client, auth, ing
 
     fy24 = ask("How did Apple Inc's CEO pay compare with total shareholder return in fiscal "
                f"2024? (proxy {a})")  # fmt: skip
-    assert fy24.startswith("For the fiscal year ended 2024-09-30") and "$169.0 million" in fy24
+    assert fy24.startswith("For the fiscal year ended 2024-09-28,") and "$169.0 million" in fy24
     assert "2025-09-30" not in fy24
     latest = ask("What was Apple's CEO pay versus TSR? Proxy filed 2026-01-08.")
-    assert latest.startswith("For the fiscal year ended 2025-09-30")  # a filing date is no year
+    assert latest.startswith("For the fiscal year ended 2025-09-30 (month end; the exact date "
+                             "is not in the annual reports loaded here),")  # fmt: skip
     missing = ask("What was Apple's CEO pay versus TSR in FY2021?")
     assert missing.startswith("Fiscal 2021 is not in the pay-versus-performance tables")
     assert "$" not in missing  # no other year's figures in its place

@@ -6,7 +6,7 @@ recomputed. Information, not signals."""
 from __future__ import annotations
 
 from collections import Counter
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -26,6 +26,29 @@ NOTES = [
     "average of the other named executives, not for each executive.",
 ]
 YEAR_FIELDS = ("peo_total_comp", "peo_cap")
+ANNUAL = ("10-K", "10-K/A", "10-KT", "10-KT/A")
+
+
+def month_end(d: date) -> date:
+    """The month end nearest to d: the SEC's data sets round each fact's date this way."""
+    nxt = date(d.year + (d.month == 12), d.month % 12 + 1, 1)
+    end, prev = nxt - timedelta(days=1), date(d.year, d.month, 1) - timedelta(days=1)
+    return end if (end - d) <= (d - prev) else prev
+
+
+def exact_year_ends(db: Session, cik: str, ends, as_of: date | None = None) -> dict[date, date]:
+    """D-10b: the data sets round each fiscal year end to the month end (Apple's FY2024 ended
+    2024-09-28, tagged 2024-09-30). The company's own annual report gives the exact date: its
+    period of report, which EDGAR takes from dei:DocumentPeriodEndDate. A year end with no annual
+    report loaded here that rounds to it is left out (shown as the rounded month end)."""
+    q = select(Filing.report_date).where(Filing.cik == cik, Filing.form_type.in_(ANNUAL),
+                                         Filing.report_date.is_not(None))  # fmt: skip
+    if as_of:
+        q = q.where(Filing.filing_date <= as_of)
+    by_end: dict[date, set[date]] = {}
+    for r in set(db.scalars(q)):
+        by_end.setdefault(month_end(r), set()).add(r)
+    return {e: next(iter(by_end[e])) for e in ends if len(by_end.get(e, ())) == 1}
 
 
 def _num(v):
@@ -75,10 +98,11 @@ def for_company(db: Session, cik: str, as_of: date | None = None) -> dict:
                     if f.field in YEAR_FIELDS and f.unit)  # fmt: skip
     out["currency"] = units.most_common(1)[0][0] if units else None
     out["proxy"] = source(latest)
+    exact = exact_year_ends(db, cik, year_src, as_of)
     for fy in sorted(year_src, reverse=True):
         acc = year_src[fy]
         yf = [f for f in by_filing[acc] if f.fiscal_year_end == fy]
-        out["years"].append(_year(fy, yf, by_filing[acc], source(acc)))
+        out["years"].append(_year(fy, yf, by_filing[acc], source(acc), exact.get(fy)))
     measures = [f for f in by_filing[latest] if f.field == "measure" and f.value_text]
     measures.sort(key=lambda f: (f.fiscal_year_end or date.min, _measure_rank(f.dims)))
     seen: list[str] = []
@@ -98,7 +122,7 @@ def _measure_rank(dims: str | None) -> tuple:
 
 
 def _year(fy: date, facts: list[ProxyPayFact], filing_facts: list[ProxyPayFact],
-          src: dict) -> dict:  # fmt: skip
+          src: dict, exact: date | None = None) -> dict:  # fmt: skip
     def one(field, plain_only=True):
         for f in facts:
             if f.field == field and (not plain_only or not f.dims):
@@ -139,7 +163,8 @@ def _year(fy: date, facts: list[ProxyPayFact], filing_facts: list[ProxyPayFact],
         return _num(f.value_num) if f else None
 
     return {
-        "fiscal_year_end": fy.isoformat(),
+        "fiscal_year_end": (exact or fy).isoformat(),
+        "fiscal_year_end_rounded": exact is None,
         "peo": sorted(people.values(), key=lambda p: (p["name"] or "")),
         "neo_average": {"total_comp": val("neo_avg_total_comp"),
                         "comp_actually_paid": val("neo_avg_cap"), "names": neo_names},

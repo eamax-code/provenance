@@ -385,8 +385,11 @@ def pay(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
     asked = asked_fiscal_year(text)
     at = 0
     if asked is not None:
-        at = next((k for k, x in enumerate(block["years"])
-                   if (x["fiscal_year_end"] or "")[:4] == str(asked)), -1)  # fmt: skip
+        # the year as tagged: a 52-53 week year ending 2025-01-03 is tagged 2024-12-31, the
+        # fiscal 2024 the company names
+        tagged = [executive_pay.month_end(date.fromisoformat(x["fiscal_year_end"])).year
+                  if x["fiscal_year_end"] else None for x in block["years"]]  # fmt: skip
+        at = tagged.index(asked) if asked in tagged else -1
         if at < 0:
             have = ", ".join(x["fiscal_year_end"] for x in block["years"] if x["fiscal_year_end"])
             return (f"Fiscal {asked} is not in the pay-versus-performance tables tagged in "
@@ -398,7 +401,12 @@ def pay(db: Session, b: Brief, as_of: date | None, text: str = "") -> str:
     peo = "; ".join(f"{p['name'] or 'the PEO'}: {amt(p['total_comp'])} total (Summary "
                     f"Compensation Table), {amt(p['comp_actually_paid'])} compensation actually "
                     "paid" for p in y["peo"])  # fmt: skip
-    text = (f"For the fiscal year ended {y['fiscal_year_end']}, {_name(b)}'s proxy filed "
+    ended = y["fiscal_year_end"] + (
+        " (month end; the exact date is not in the annual reports loaded here)"
+        if y.get("fiscal_year_end_rounded")
+        else ""
+    )
+    text = (f"For the fiscal year ended {ended}, {_name(b)}'s proxy filed "
             f"{src['filed_date']} reports {peo} [{n}].")  # fmt: skip
     neo = y["neo_average"]
     if neo["total_comp"] is not None:

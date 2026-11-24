@@ -12,6 +12,15 @@ with no per-filing fetch. Each proxy covers up to five fiscal years. Each year i
 the CEO) and the **average** of the other named executive officers (NEOs). The Summary
 Compensation Table, with each NEO's own figures, is **not XBRL-tagged**, so it is not part of
 this endpoint. The ui pay table shows the PEO and the NEO average, not one row per NEO.
+
+**Fiscal year ends (D-10b).** The data sets round every date to the nearest month end, so a
+52-53 week year shows the wrong day (Apple's FY2024 ended 2024-09-28; the data sets say
+2024-09-30). `fiscal_year_end` is the exact date from the company's own 10-K: its period of
+report, which EDGAR takes from `dei:DocumentPeriodEndDate`, when exactly one annual report
+loaded here (filed by `as_of`) rounds to that month end. Otherwise it is the month end as
+tagged and `fiscal_year_end_rounded` is `true`; chat says so after the date. A question about
+"fiscal 2024" matches the year as tagged, so a year ending 2025-01-03 (tagged 2024-12-31) is
+fiscal 2024. Read time, no stored change: reloading a data set keeps the rule.
 Smaller reporting companies give three years and no peer TSR or company-selected measure, so
 those fields are `null`.
 
@@ -24,7 +33,8 @@ those fields are `null`.
             "filed_date": "2026-01-08", "source_url": "https://www.sec.gov/Archives/..."},
   "years": [
     {
-      "fiscal_year_end": "2025-09-30",
+      "fiscal_year_end": "2025-09-27",
+      "fiscal_year_end_rounded": false,
       "peo": [{"name": "Mr. Cook", "total_comp": 74294811, "comp_actually_paid": 108421987}],
       "neo_average": {"total_comp": 27000000, "comp_actually_paid": 30000000,
                       "names": ["Deirdre OBrien", "Sabih Khan", "Kevan Parekh", "Luca Maestri",
