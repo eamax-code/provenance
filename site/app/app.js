@@ -220,7 +220,18 @@
   function loadTab() {
     if (!state.company || state.company.ingestion_status !== 'complete') return;
     if (state.tab === 'facts') loadFacts(); else if (state.tab === 'filings') { state.filingsOffset = 0; loadFilings(false); }
-    else if (state.tab === 'connections') { if (window.ProvenanceGraph) window.ProvenanceGraph.load(state.company); } else loadFreshness();
+    else if (state.tab === 'connections') { var co = state.company; graphLib().then(function (G) { if (state.tab === 'connections' && state.company === co) G.load(co); }).catch(function () {}); } else loadFreshness();
+  }
+  // X-22: the connections graph (graph.js) loads only when Connections first opens; one request, then cached
+  var graphP = null;
+  function graphLib() {
+    if (window.ProvenanceGraph) return Promise.resolve(window.ProvenanceGraph);
+    return graphP || (graphP = new Promise(function (ok, no) {
+      var s = document.createElement('script'); s.src = '/app/graph.js';
+      s.onload = function () { window.ProvenanceGraph ? ok(window.ProvenanceGraph) : no(); };
+      s.onerror = function () { graphP = null; var p = $('g-stage'); if (p) p.textContent = 'The graph could not load. Check the connection and open Connections again.'; no(); };
+      document.head.appendChild(s);
+    }));
   }
 
   /* ---- facts ---- */

@@ -38,12 +38,14 @@ BUDGETS = {
     "ipos": (["ipos/index.html", "ipos/ipos.css", "ipos/ipos.js"], 12_000),
     # the Explorer (/app/): its page, CSS and every script it loads except the shared shell. 133.4 KB on
     # 24 Nov after the window's new views (People, Calendar, What changed, letters and tree, What's new,
-    # private raises); the budget is that plus about 10% so it stops growing unnoticed. The connections
-    # graph (graph.js, 14.9 KB) is the first candidate to load only when its tab opens.
+    # private raises); the budget is that plus about 10% so it stops growing unnoticed. X-22 (24 Nov): the
+    # connections graph (graph.js) loads only when Connections opens, so it left this first-load list
+    # (135.9 KB before, 121.2 KB after) for its own budget below.
     "explorer": (["app/index.html", "app/app.css", "app/console.js", "app/listings.js", "app/app.js",
-                  "app/graph.js", "prov-card.js", "app/calendar.js", "app/people.js", "app/changes.js",
+                  "prov-card.js", "app/calendar.js", "app/people.js", "app/changes.js",
                   "app/records.js", "app/whatsnew.js", "app/workspace.js", "app/raises.js",
                   "app/screener.js", "app/watchlists.js", "shell/seal.js"], 147_000),
+    "explorer, connections graph (loaded when the tab opens)": (["app/graph.js"], 16_500),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
 }
 
