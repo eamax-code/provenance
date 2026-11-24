@@ -227,3 +227,50 @@ def test_reviewed_implausible_amounts_sold_are_pinned(tmp_path, db, client, auth
     assert db.get(FormDFiling, "0002065365-26-000004").quality_status == "suspect_amount"
     ranked = client.get("/v1/private-raises?order=sold", headers=auth).json()["data"]
     assert name not in [x["issuer"]["name"] for x in ranked]
+
+
+def test_related_persons_link_to_the_issuers_insiders_by_exact_name(tmp_path, db, client, auth):
+    """D-15d (2026-11-24): a related person gets an insider_cik only by the exact same name
+    (case, punctuation and suffixes aside; "First Middle Last" read as "LAST FIRST MIDDLE")
+    among the Forms 3, 4 and 5 owners of the same registrant issuer, and only when exactly one
+    owner has it. No near spelling: "David Snyder" is not "SNYDER DAVID M". Others stay as
+    filed, with insider_cik null."""
+    import json
+    from decimal import Decimal
+
+    from app.db.models import FormDFiling, InsiderFiling, MartCompany, utcnow
+
+    reg, other = "0000900200", "0000900201"
+    db.add(MartCompany(cik=reg, legal_name="Registrant Co", ticker="RGCO",
+                       latest_revenue=Decimal(1e9), reporting_currency="USD",
+                       latest_annual_report_date=date(2026, 3, 1), built_at=utcnow()))  # fmt: skip
+    for i, (issuer, owner_cik, name) in enumerate((
+        (reg, "0001000001", "PRYGOCKI MARK B"), (reg, "0001000002", "SNYDER DAVID M"),
+        (reg, "0001000003", "LEE ANN"), (reg, "0001000004", "LEE ANN"),  # two owners, one name
+        (other, "0001000005", "ROSS WILBUR"),  # another issuer
+    )):  # fmt: skip
+        db.add(InsiderFiling(accession_number=f"0001000000-26-00000{i}", issuer_cik=issuer,
+                             owner_cik=owner_cik, owner_name=name, is_director=True,
+                             is_officer=False, form_type="4", filing_date=date(2026, 1, 5),
+                             source="test"))  # fmt: skip
+    form_d.load(db, [_zip(tmp_path)])
+    row = db.get(FormDFiling, "0002-26-000001")
+    db.delete(row)
+    db.flush()
+    row = FormDFiling(**{c.name: getattr(row, c.name) for c in FormDFiling.__table__.columns})
+    row.cik = reg
+    people = [{"name": n, "relationships": ["Director"]} for n in (
+        "Mark B. Prygocki", "Dr. Mark B Prygocki Jr.", "David Snyder", "Ann Lee", "Wilbur Ross",
+        "Mark Prygocki")]  # fmt: skip
+    row.related_persons, row.related_persons_count = json.dumps(people), len(people)
+    db.add(row)
+    db.commit()
+    linked = {p["name"]: p["insider_cik"] for p in form_d._items(db, [row])[0]["related_persons"]}
+    assert linked == {"Mark B. Prygocki": "0001000001", "Dr. Mark B Prygocki Jr.": "0001000001",
+                      "David Snyder": None, "Ann Lee": None, "Wilbur Ross": None,
+                      "Mark Prygocki": None}  # fmt: skip
+    # not a registrant: nothing links, whatever the names
+    row.cik = other
+    db.commit()
+    assert all(p["insider_cik"] is None
+               for p in form_d._items(db, [row])[0]["related_persons"])  # fmt: skip

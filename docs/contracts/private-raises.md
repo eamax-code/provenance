@@ -45,7 +45,7 @@ number; the item shows the latest filed values, with every filing in `filings`.
 Rules:
 - `exemptions` are the codes as filed, explained in `notes`.
 - `industry_group` is the Form D industry group as filed, such as "Biotechnology", "Pooled Investment Fund" or "Other Technology".
-- `related_persons` are as filed, at most 10 per offering with `related_persons_count` for the rest. They are **not** linked to our officer graph: exact-name links across issuers are not safe (TODO).
+- `related_persons` are as filed, at most 10 per offering with `related_persons_count` for the rest. D-15d: each also has `insider_cik`, the CIK under which that person files Forms 3, 4 and 5 for the same issuer, set only when the issuer is a registrant and exactly one of its insiders has the exact same name (case, punctuation and suffixes aside; "First Middle Last" read as "LAST FIRST MIDDLE"); otherwise `null`. Never across issuers, never by near spelling: "David Snyder" is not "SNYDER DAVID M". Linked when read, nothing stored.
 - `is_registrant` is true when the issuer's CIK also files periodic reports (10-K, 10-Q, 20-F) with us.
 - Amounts are US dollars as filed. `indefinite` is true when the offering amount is "Indefinite", in which case `total_offering_amount` is null.
 - **List filters:**

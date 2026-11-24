@@ -226,8 +226,58 @@ def _filing(r: FormDFiling) -> dict:
             "source_url": filing_index_url(r.cik, r.accession_number)}  # fmt: skip
 
 
-def item(r: FormDFiling, chain: list[FormDFiling], registrants: set[str]) -> dict:
-    persons = json.loads(r.related_persons)
+# D-15d: a related person links to the officer graph only by the exact same name (case,
+# punctuation and suffixes aside) among the Forms 3, 4 and 5 owners of the same registrant
+# issuer, and only when exactly one owner has it. No near spelling, no initial-only match.
+_SUFFIXES = {"JR", "SR", "II", "III", "IV", "MR", "MS", "MRS", "DR", "ESQ", "PHD", "MD", "CPA"}
+
+
+def _tokens(name: str | None) -> list[str]:
+    return [w for w in re.sub(r"[^A-Za-z ]", " ", name or "").upper().split()
+            if w not in _SUFFIXES]  # fmt: skip
+
+
+def owner_key(name: str | None) -> str | None:
+    """A Form 4 owner as filed, "LAST FIRST MIDDLE"."""
+    t = _tokens(name)
+    return " ".join(t) if len(t) >= 2 else None
+
+
+def person_keys(name: str | None) -> set[str]:
+    """A Form D related person, filed "First Middle Last" (or, now and then, "Last First")."""
+    t = _tokens(name)
+    if len(t) < 2:
+        return set()
+    return {" ".join([t[-1], *t[:-1]]), " ".join(t)}
+
+
+def _insider_ciks(db: Session, issuers: set[str]) -> dict[str, dict[str, set[str]]]:
+    from app.db.models import InsiderFiling
+
+    out: dict[str, dict[str, set[str]]] = {}
+    if not issuers:
+        return out
+    rows = db.execute(select(InsiderFiling.issuer_cik, InsiderFiling.owner_cik,
+                             InsiderFiling.owner_name)
+                      .where(InsiderFiling.issuer_cik.in_(issuers)).distinct())  # fmt: skip
+    for ic, oc, on in rows:
+        k = owner_key(on)
+        if k:
+            out.setdefault(ic, {}).setdefault(k, set()).add(oc)
+    return out
+
+
+def _linked(persons: list[dict], owners: dict[str, set[str]]) -> list[dict]:
+    out = []
+    for p in persons:
+        ciks = set().union(*(owners.get(k, set()) for k in person_keys(p.get("name"))))
+        out.append({**p, "insider_cik": next(iter(ciks)) if len(ciks) == 1 else None})
+    return out
+
+
+def item(r: FormDFiling, chain: list[FormDFiling], registrants: set[str],
+         insiders: dict[str, dict[str, set[str]]] | None = None) -> dict:  # fmt: skip
+    persons = _linked(json.loads(r.related_persons), (insiders or {}).get(r.cik, {}))
     return {
         "issuer": {"cik": r.cik, "name": r.issuer_name, "state": r.state,
                    "jurisdiction": r.jurisdiction, "entity_type": r.entity_type,
@@ -270,7 +320,9 @@ def _items(db: Session, rows: list[FormDFiling]) -> list[dict]:
         for x in db.scalars(select(FormDFiling).where(FormDFiling.file_number.in_(fnos))):
             chains.setdefault(x.file_number, []).append(x)
     regs = _registrants(db, {r.cik for r in rows})
-    return [item(r, chains.get(r.file_number, [r]) if r.file_number else [r], regs) for r in rows]
+    insiders = _insider_ciks(db, regs)
+    return [item(r, chains.get(r.file_number, [r]) if r.file_number else [r], regs, insiders)
+            for r in rows]  # fmt: skip
 
 
 def encode_cursor(offset: int) -> str:
