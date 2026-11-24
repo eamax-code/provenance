@@ -395,7 +395,7 @@
     if (!ser.length || !ser[0].pts.length) { host.appendChild(el('p', { class: 'muted', text: 'No reported values to chart.' })); return; }
     var xs = []; ser.forEach(function (s) { s.pts.forEach(function (p) { if (xs.indexOf(p.x) < 0) xs.push(p.x); }); }); xs.sort();
     var W = Math.max(320, host.clientWidth || 800), H = cfg.height || 360, narrow = W < 560;
-    var padL = 56, padR = ser.some(function (s) { return s.unit === '%'; }) ? 48 : 12, padT = 14, padB = cfg.compact ? 24 : 46;
+    var padL = 56, padR = ser.some(function (s) { return s.unit === '%'; }) ? 48 : 12, padT = ser.some(function (s) { return s.unit === '%'; }) && ser.some(function (s) { return s.unit !== '%'; }) ? 30 : 14, padB = cfg.compact ? 24 : 46;
     var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, class: 'ws-chart' + (ser.length > 1 ? ' multi' : ''), role: 'img' }); // 2+ series take the categorical palette
     var left = ser.filter(function (s) { return s.unit !== '%'; }), right = ser.filter(function (s) { return s.unit === '%'; });
     var log = S.scale === 'log' && !cfg.compact;
@@ -419,6 +419,12 @@
         if (!side) svg.appendChild(sv('line', { x1: padL, x2: W - padR, y1: y, y2: y, class: v === 0 ? 'zero' : 'grid' }));
         svg.appendChild(sv('text', { x: side ? W - padR + 6 : padL - 6, y: y + 4, 'text-anchor': side ? 'start' : 'end', class: 'axis' }, side ? pct(v) : (v ? money(v, cur, 0) : '0')));
       });
+    });
+    // two value axes (PM 24 Nov: kept, as investors expect): a key beside each axis says which series it measures
+    if (L && R) ser.forEach(function (s, i) {
+      var k = (cfg.kinds ? cfg.kinds[i] : s.unit === '%' ? 'line' : 'bar'), j = (s.unit === '%' ? right : left).indexOf(s);
+      if (s.unit === '%') svg.appendChild(sv('path', { d: 'M' + (W - padR + 6 + j * 16) + ' ' + (padT - 16) + 'h12', class: 'line s' + i + ' axkey' }));
+      else svg.appendChild(sv('rect', { x: padL - 16 - j * 14, y: padT - 20, width: 10, height: 8, rx: 1, class: (k === 'bar' ? 'bar s' : 'pt s') + i + ' axkey' }));
     });
     var nb = ser.filter(function (s, i) { return (cfg.kinds ? cfg.kinds[i] : s.unit === '%' ? 'line' : 'bar') === 'bar'; }).length, bi = 0;
     ser.forEach(function (s, i) {

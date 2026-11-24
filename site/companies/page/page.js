@@ -22,6 +22,10 @@
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
   };
   P.$ = function (id) { return document.getElementById(id); };
+  // the layout line: each link keeps the page's other parameters (as_of) and sets layout, which the server remembers
+  [].forEach.call(document.querySelectorAll('.co-layout a[data-layout]'), function (a) {
+    var u = new URLSearchParams(location.search); u.set('layout', a.getAttribute('data-layout')); a.href = location.pathname + '?' + u.toString();
+  });
   P.el = function (tag, attrs, kids) {
     var n = document.createElement(tag);
     Object.keys(attrs || {}).forEach(function (k) { if (k === 'text') n.textContent = attrs[k]; else if (attrs[k] != null) n.setAttribute(k, attrs[k]); });

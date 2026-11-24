@@ -161,6 +161,32 @@ def test_figure_view_is_wired_into_every_layout(client):
     client.cookies.clear()
 
 
+def test_every_layout_links_the_others_and_marks_predecessor_years(client):
+    # PM 24 Nov: a remembered layout always has a way back; Report and Dossier mark predecessor years as Snapshot does
+    caption = "Paler bars were reported by the predecessor registrant."
+    for layout in ("snapshot", "report", "dossier"):
+        html = client.get(f"/companies/0000320193?layout={layout}").text
+        nav = html.split('<nav class="co-layout"', 1)[1].split("</nav>", 1)[0]
+        assert "Layout: " in nav, layout
+        for other in ("snapshot", "report", "dossier"):
+            assert f'data-layout="{other}" href="?layout={other}"' in nav, (layout, other)
+        assert nav.count('aria-current="page"') == 1 and f'data-layout="{layout}" href="?layout={layout}" aria-current="page"' in nav
+        if layout != "snapshot":
+            assert caption in html, layout
+    assert caption.rstrip(".") in client.get("/companies/page/company.js").text
+    css = client.get("/companies/page/page.css").text
+    assert ".rev-chart .col.pred { fill-opacity: .4; }" in css
+    client.cookies.clear()
+
+
+def test_status_page_leads_with_health_from_existing_fields(client):
+    html = client.get("/status/").text
+    assert html.index('id="lead-health"') < html.index('id="lead-latency"')
+    js = client.get("/public.js").text
+    assert "'US filings: ' + (d.service.health" in js and "d.freshness.last_successful_fetch_at" in js
+    assert "first_detected_at" not in js and "source_updated_at" not in js
+
+
 def test_company_page_head_is_rendered_from_stored_data(client, db, ingested_aapl):
     import json as _json
     import re

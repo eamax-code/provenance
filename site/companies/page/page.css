@@ -31,6 +31,8 @@ tr:last-child td { border-bottom: 0; }
 /* charts */
 .rev-chart { display: block; width: 100%; height: auto; }
 .rev-chart .col { fill: var(--cat-1); }
+.rev-chart .col.pred { fill-opacity: .4; } /* reported by the predecessor registrant: paler, on every layout */
+.chart-pred { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
 .rev-chart a:hover .col { fill: var(--slate); }
 .rev-chart .axis { font: 11px var(--face); fill: var(--muted); }
 .rev-chart .val { font: 600 11px var(--face); fill: var(--ink); }
@@ -106,3 +108,8 @@ dialog.fv[open] { animation: fv-in .18s ease-out; }
 }
 .co-sec { scroll-margin-top: 84px; } /* a deep link's section clears the sticky header */
 #main { min-height: 100vh; } /* the footer starts below the fold, so drawing the page never moves it (CLS 0) */
+/* Layout: Snapshot · Report · Dossier, under the company header on all three; the current one in ink, unlinked look */
+.co-layout { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.co-layout a { display: inline-block; padding: 4px 2px; color: var(--ink); }
+.co-layout a[aria-current="page"] { font-weight: 700; text-decoration: none; }
+.rail .co-layout { margin-bottom: 16px; }

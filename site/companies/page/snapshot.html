@@ -142,7 +142,6 @@ table.fin td.na { color: var(--muted); font-size: 13px; }
 table.fin td.pred { background: color-mix(in srgb, var(--slate, #627b8c) 22%, transparent); }
 .pred-note { color: var(--muted); font-size: 13.5px; margin: 8px 2px 0; display: flex; gap: 8px; align-items: center; }
 .pred-swatch { width: 14px; height: 14px; border-radius: 3px; background: color-mix(in srgb, var(--slate, #627b8c) 22%, transparent); flex: none; }
-.rev-chart .col.pred { fill-opacity: .4; }
 table.seg td.share { min-width: 9rem; }
 table.seg th.member-name { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
 .seg-bar { display: inline-block; height: 8px; border-radius: 2px; background: var(--slate, #627b8c); vertical-align: middle; margin-right: 8px; }
@@ -220,6 +219,7 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 800; border-top: 2px
       <h1 id="name"></h1>
       <p class="co-chips" id="chips"></p>
       <p class="co-meta" id="meta"></p>
+      <nav class="co-layout" aria-label="Page layout">Layout: <a data-layout="snapshot" href="?layout=snapshot" aria-current="page">Snapshot</a> · <a data-layout="report" href="?layout=report">Report</a> · <a data-layout="dossier" href="?layout=dossier">Dossier</a></nav>
       <p class="succession" id="succession" hidden></p>
     </div>
     <div class="co-actions">

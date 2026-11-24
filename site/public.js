@@ -67,6 +67,12 @@
       var setLead = function (id, v) { var n = $(id); if (n) { n.textContent = v; n.classList.toggle('is-na', !/\d/.test(v)); } }; // words, not a figure: not at figure size
       var ql = d.quality_snapshot && d.quality_snapshot.latency, p50 = ql && ql.accept_to_detect_p50_seconds;
       setLead('lead-latency', p50 == null ? 'Not measured yet' : p50 < 90 ? p50 + ' s' : p50 < 5400 ? Math.round(p50 / 60) + ' min' : p50 < 172800 ? (p50 / 3600).toFixed(1) + ' hours' : Math.round(p50 / 86400) + ' days');
+      // health leads (Jakob: a status page opens with the state), from fields /v1/stats already returns
+      var hb = $('lead-health'), hn = $('lead-health-note');
+      if (hb) { hb.lastChild.textContent = 'US filings: ' + (d.service.health || 'unknown'); hb.className = d.service.health === 'ok' ? 'is-ok' : 'is-warn'; }
+      // read as a time: "last fetch 05:30 UTC" today, with the day before it otherwise
+      var lf = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(d.freshness.last_successful_fetch_at || '');
+      if (hn) hn.textContent = lf ? 'last fetch ' + (lf[1] === new Date().toISOString().slice(0, 10) ? '' : humanDay(lf[1]) + ', ') + lf[2] + ' UTC' : 'no successful fetch yet';
       setLead('lead-latest', d.filings.latest_filing_date ? humanDay(d.filings.latest_filing_date) : 'None yet');
       setLead('lead-companies', fmtInt(d.companies.ingested));
       var kv = function (k, v) { grid.appendChild(el('div', { class: 'kv' }, [el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v })])); };

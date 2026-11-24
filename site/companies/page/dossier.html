@@ -121,6 +121,7 @@ section.card h2 { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
   <aside class="rail" aria-label="Company identity">
     <h1 id="name"></h1>
     <div class="tick" id="tick"></div>
+    <nav class="co-layout" aria-label="Page layout">Layout: <a data-layout="snapshot" href="?layout=snapshot">Snapshot</a> · <a data-layout="report" href="?layout=report">Report</a> · <a data-layout="dossier" href="?layout=dossier" aria-current="page">Dossier</a></nav>
     <dl id="ident"></dl>
     <p class="group">Filing history</p>
     <dl id="hist"></dl>
@@ -245,6 +246,7 @@ section.card h2 { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
       ]));
     });
     $('chart').appendChild(P.revenueChart(d.years, { values: true }));
+    if (d.years.some(function (y) { return y.predecessor; })) $('chart').appendChild(el('p', { class: 'chart-pred', text: 'Paler bars were reported by the predecessor registrant.' })); // Snapshot's caption, word for word
     var yt = $('years'), head = el('tr', {}, [el('th', { text: 'Fiscal year' })]);
     var shown = d.years.slice(-6);
     shown.forEach(function (y) { head.appendChild(el('th', { class: 'n', text: y.fiscal_label })); });

@@ -121,6 +121,7 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
   <header class="mast">
     <p class="eyebrow" id="eyebrow"></p>
     <h1 id="name"></h1>
+    <nav class="co-layout" aria-label="Page layout">Layout: <a data-layout="snapshot" href="?layout=snapshot">Snapshot</a> · <a data-layout="report" href="?layout=report" aria-current="page">Report</a> · <a data-layout="dossier" href="?layout=dossier">Dossier</a></nav>
     <p class="deck" id="deck"></p>
     <div class="row"><a class="btn primary" id="ask" href="/chat/">Ask about this company</a><a class="btn" id="edgar" target="_blank" rel="noopener">All filings on EDGAR</a><span class="small muted" id="asof"></span></div>
     <div class="big" id="big"></div>
@@ -199,6 +200,7 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
     var first = d.years.filter(function (y) { return y.revenue; })[0];
     $('grow-line').textContent = (first && last && last.revenue ? 'Revenue went from ' + P.money(first.revenue) + ' in ' + first.fiscal_label + ' to ' + P.money(last.revenue) + ' in ' + last.fiscal_label + '. ' : '') + (P.finding(d) || '');
     $('chart').appendChild(P.revenueChart(d.years, { width: 820, height: 260, values: true }));
+    if (d.years.some(function (y) { return y.predecessor; })) $('chart').appendChild(el('p', { class: 'chart-pred', text: 'Paler bars were reported by the predecessor registrant.' })); // Snapshot's caption, word for word
     var yt = $('years'), head = el('tr', {}, [el('th', { text: '' })]), shown = d.years.slice(-5);
     shown.forEach(function (y) { head.appendChild(el('th', { class: 'n', text: y.fiscal_label })); });
     yt.appendChild(el('thead', {}, [head]));

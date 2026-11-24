@@ -23,6 +23,13 @@
 .lead3 > div { background: var(--surface); border-radius: 4px; padding: 18px 20px; display: grid; gap: 6px; }
 .lead3 b { font-size: clamp(1.75rem, 3vw, 2.75rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
 .lead3 span { color: var(--soft); font-size: 15px; }
+/* status: health leads, across the row; the dot is a status colour beside its word, never alone */
+.lead3 .lead-health { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+.lead3 .lead-health b { display: inline-flex; align-items: center; gap: 12px; }
+.lead3 .lead-health b i { width: .5em; height: .5em; border-radius: 50%; background: var(--soft); flex: none; }
+.lead3 .lead-health b.is-ok i { background: var(--good); }
+.lead3 .lead-health b.is-warn i { background: var(--warn); }
+.lead3 .lead-health b span { color: inherit; font-size: inherit; }
 /* a headline tile whose value is words ("Not measured yet") stays quiet: display size is for figures */
 .lead3 b.is-na, .cov-nums b.is-na { font-size: clamp(1.1rem, 1.6vw, 1.35rem); font-weight: 600; letter-spacing: -0.01em; color: var(--soft); line-height: 1.25; }
 @media (max-width: 700px) { .lead3 { grid-template-columns: minmax(0, 1fr); } }
