@@ -29,7 +29,7 @@ from app.schemas.companies import (
     LegalNameAsFiled,
 )
 from app.schemas.statements import StatementCell, StatementColumn, StatementOut, StatementRow
-from app.services import first_reported, periods, ratios
+from app.services import eps_reconcile, first_reported, periods, ratios
 from app.services import freshness as freshness_service
 from app.services.company_lookup import search_companies
 from app.services.fact_normalizer import (
@@ -720,6 +720,14 @@ def statement(
             calendar_period=periods.calendar_period(starts.get(end), end, period),
         ))  # fmt: skip
     keys = {c.period_end: c.key for c in columns}
+    # S-06: EPS that does not reconcile with the same filing's net income over weighted shares:
+    # shown as filed, with a note on it and on the shares cell it was checked against
+    recon: dict = {}
+    if any(f.quality_status in eps_reconcile.STATUSES for f in by_key.values()):
+        for x in eps_reconcile.find(db, sorted({f.cik for f in by_key.values()})):
+            n = eps_reconcile.NOTE
+            recon[(x["accession_number"], x["metric"], x["period_end"])] = n
+            recon[(x["accession_number"], eps_reconcile.PAIRS[x["metric"]], x["period_end"])] = n
 
     def cell(f: FactOut, end) -> StatementCell:
         own = statements_service.registrant(f, cik)
@@ -732,6 +740,7 @@ def statement(
             quality_status=f.quality_status, derived=f.derived, derivation=f.derivation,
             registrant_cik=own["registrant_cik"], predecessor=own["predecessor"],
             registrant_label=own.get("registrant_label"),
+            quality_note=recon.get((f.accession_number, f.metric, f.period_end)),
         )  # fmt: skip
 
     rows = []
@@ -747,7 +756,8 @@ def statement(
             for end in ends:
                 num, den = by_key.get((r.numerator, end)), by_key.get((r.denominator, end))
                 value = None
-                both = num is not None and den is not None
+                both = num is not None and den is not None and not any(
+                    x.quality_status in eps_reconcile.STATUSES for x in (num, den))  # S-06
                 if both and ratios.compatible(r, num.unit, den.unit):
                     value = ratios.compute(r, float(num.value), float(den.value))
                 if value is None:

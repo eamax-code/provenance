@@ -16,6 +16,7 @@ company's EDGAR filing list as `filings_url`.
 | `ok` | Required fields present and mapping unambiguous |
 | `partial` | One or more optional fields/timestamps unavailable in the SEC source |
 | `ambiguous_mapping` | Several candidate XBRL tags cover the period, or they disagree, or the source period type did not match the metric |
+| `unit_doubtful` | S-06, EPS only: as filed, it is within 5% of 100 times the same filing's net income over weighted shares (probably cents or pence tagged as the main unit: Rio Tinto 2016-19, Pearson, Vodafone). Value kept as filed, never rescaled; left out of every derived use (payout, ratios, screens, marts, chat) like any status other than `ok`/`partial`; statement cells carry `quality_note`, on the EPS and on the shares cell it was checked against. Set by `scripts/flag_eps_reconcile.py` and after each company ingest; a re-ingest keeps it. Ratios near 1,000 or 1/100 are not flagged: there the share count or net income is usually the figure off |
 | `invalid_source_value` | The SEC value could not be parsed as a number; `value` is `null` |
 | `suspicious_period` | The period cannot be right: it ends before EDGAR began (1993) or more than two years after the filing that reported it (a typo in a date context, a founding year). Stored from mapping 1.4.1; never the latest figure |
 | `stale` | Last successful SEC fetch is older than `FRESHNESS_STALE_AFTER_SECONDS` (freshness endpoint only) |

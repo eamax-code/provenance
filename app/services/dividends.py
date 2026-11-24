@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Company, DividendFact, FinancialFact
-from app.services import periods, statements, successions
+from app.services import eps_reconcile, periods, statements, successions
 from app.services.fact_normalizer import (
     DIVIDEND_BASIS,
     PAYOUT_BASES,
@@ -259,6 +259,8 @@ def _same_filing_eps(db, ciks, cells: list) -> dict:
                                     FinancialFact.accession_number.in_(accs))  # fmt: skip
     out: dict = {}
     for f in db.scalars(q):
+        if f.quality_status in eps_reconcile.STATUSES:
+            continue  # S-06: EPS that does not reconcile as filed never makes a payout
         k = (f.accession_number, f.period_end)
         if k not in out or (out[k].quality_status not in ("ok", "partial")
                             and f.quality_status in ("ok", "partial")):  # fmt: skip

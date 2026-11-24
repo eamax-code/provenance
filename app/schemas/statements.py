@@ -36,6 +36,11 @@ class StatementCell(BaseModel):
     registrant_cik: str | None = Field(None, description="Who filed it (K-05)")
     predecessor: bool = Field(False, description="Filed by a predecessor registrant")
     registrant_label: str | None = None
+    quality_note: str | None = Field(
+        None, description="S-06: why this cell's figure does not add up as filed (EPS that does "
+        "not reconcile with net income over weighted shares in the same filing; the shares cell "
+        "it was checked against carries the same note)",
+    )
 
 
 class StatementRow(BaseModel):

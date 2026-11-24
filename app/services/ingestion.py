@@ -28,7 +28,7 @@ from app.db.models import (
     utcnow,
 )
 from app.db.models import Filing as FilingRow
-from app.services import events, ipo_pipeline, notifications
+from app.services import eps_reconcile, events, ipo_pipeline, notifications
 from app.services.fact_normalizer import (
     DIVIDEND_CONCEPTS,
     NormalizedFact,
@@ -561,6 +561,10 @@ def upsert_filings(
     return inserted, updated, new_rows
 
 
+# statuses set after ingest from the filing's own figures (S-06); a re-ingest keeps them
+KEPT = eps_reconcile.STATUSES
+
+
 def upsert_facts(
     db: Session, cik: str, facts: list[NormalizedFact], now: datetime, model=FinancialFact
 ) -> tuple[int, int]:
@@ -612,7 +616,7 @@ def upsert_facts(
             inserted += 1
         elif (
             row.source_payload_hash != h
-            or row.quality_status != nf.quality_status
+            or (row.quality_status != nf.quality_status and row.quality_status not in KEPT)
             or row.mapping_version != nf.mapping_version
         ):
             row.value = nf.value
@@ -620,7 +624,8 @@ def upsert_facts(
             row.fiscal_period = nf.fiscal_period
             row.form_type = nf.form_type
             row.filed_date = nf.filed_date
-            row.quality_status = nf.quality_status
+            if row.quality_status not in KEPT:  # S-06: set after ingest, from the filing itself
+                row.quality_status = nf.quality_status
             row.mapping_version = nf.mapping_version
             row.period_class = nf.period_class
             row.source_payload_hash = h
@@ -812,6 +817,7 @@ def _ingest_company(
             facts = normalize_company_facts(facts_resp.data, cik, www_base,
                                             _statement_context(db, cik))  # fmt: skip
             fi, fu = upsert_facts(db, cik, facts, now)
+            eps_reconcile.apply(db, [cik])  # S-06: EPS that does not add up, flagged as filed
             # Q-04: dividends per share from the same payload, in the same transaction
             dps = normalize_company_facts(facts_resp.data, cik, www_base,
                                           concepts=DIVIDEND_CONCEPTS)  # fmt: skip
