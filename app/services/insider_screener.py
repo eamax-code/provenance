@@ -199,19 +199,54 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
         q = q.where(t.issuer_cik == s.cik)
     if s.allowed is not None:
         q = q.where(t.issuer_cik.in_(sorted(s.allowed)))
+    base = q  # before the value filters
     if s.min_value is not None:
         q = q.having(value >= s.min_value)
     if s.max_value is not None:
         q = q.having(value <= s.max_value)
     groups = list(db.execute(q))
+    reread: set[tuple] = set()  # groups read past the value filters (Q-03d)
+    if s.min_value is not None or s.max_value is not None:
+        # Q-03d: a 4/A's corrected figures and its original's can fall on either side of a
+        # value filter (a price of $400 corrected to $94). Every 4/A is read unfiltered, and the
+        # original of each 4/A that passes the filters (an original that passes is read
+        # already); the filters then apply to the figures shown, below
+        def key(g) -> tuple:
+            return g.accession_number, g.trans_code, g.title
+
+        seen = {key(g) for g in groups}
+
+        def add(found) -> list:
+            new = [g for g in found if key(g) not in seen]
+            seen.update(key(g) for g in new)
+            reread.update(key(g) for g in new)
+            groups.extend(new)
+            return new
+
+        amend = sorted(a for (a,) in db.execute(select(InsiderFiling.accession_number).where(
+            InsiderFiling.form_type == "4/A", InsiderFiling.filing_date >= s.since)))  # fmt: skip
+        add(g for part in _chunks(amend)
+            for g in db.execute(base.where(t.accession_number.in_(part))))  # fmt: skip
+        is_4a = set(amend)
+        passing = sorted({g.accession_number for g in groups
+                          if g.accession_number in is_4a and _in_values(g.value, s)})  # fmt: skip
+        keys = {(f.issuer_cik, f.owner_cik, f.period_of_report) for part in _chunks(passing)
+                for f in db.execute(select(*_OWNER_COLS)
+                                    .where(InsiderFiling.accession_number.in_(part)))}  # fmt: skip
+        originals = sorted({f.accession_number for f in _filings_for(db, "4", keys)})
+        add(g for part in _chunks(originals)
+            for g in db.execute(base.where(t.accession_number.in_(part))))  # fmt: skip
     owners: dict[str, list] = defaultdict(list)
     for part in _chunks(sorted({g.accession_number for g in groups})):
         for f in db.execute(select(*_OWNER_COLS).where(InsiderFiling.accession_number.in_(part))):
             owners[f.accession_number].append(f)
-    counts = {"filed_errors": 0, "amendments": 0, "unpaired_amendments": 0, "duplicates": 0}
+    counts = {"filed_errors": 0, "amendments": 0, "unpaired_amendments": 0, "duplicates": 0,
+              "restated": 0}  # fmt: skip
     amended: dict[str, list] = {}
+    restating: list[tuple] = []  # (4/A group, its owners): Q-03d
     rows = []
     for g in groups:
+        key4 = (g.accession_number, g.trans_code, g.title)
         fs = sorted(owners.get(g.accession_number, []), key=lambda f: (not _matches(f, s),
                                                                        f.owner_cik))  # fmt: skip
         if not fs:
@@ -221,7 +256,9 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
             continue
         if f0.form_type != "4":
             if f0.form_type == "4/A":
-                amended[g.accession_number] = fs
+                restating.append((g, fs))
+                if key4 not in reread or _in_values(g.value, s):  # counted as before Q-03d
+                    amended.setdefault(g.accession_number, fs)
             continue
         if s.owner_cik and s.owner_cik not in {f.owner_cik for f in fs}:
             continue
@@ -239,7 +276,11 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
             if agg is None:
                 continue
         rows.append(_row(agg, fs))
+        rows[-1]["_reread"] = key4 in reread
     rows = _collapse_duplicates(rows, counts)
+    _apply_restatements(db, rows, restating, counts, s)
+    # read past the value filters only for a 4/A: unless restated, the filters had left it out
+    rows = [r for r in rows if r["amended"] or not r.pop("_reread")]
     counts["amendments"] = len(amended)
     counts["unpaired_amendments"] = _unpaired(db, amended)
     _flag_price_outliers(db, rows, s)
@@ -252,6 +293,15 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
     if s.max_value is not None:
         rows = [r for r in rows if _ranked_value(r) is not None and r["value"] <= s.max_value]
     return rows, counts
+
+
+def _in_values(value, s: Screen) -> bool:
+    """A group's value within the screen's value filters, as the SQL filters read it (no value:
+    outside them)."""
+    v = float(value) if value is not None else None
+    if s.min_value is not None and (v is None or v < s.min_value):
+        return False
+    return not (s.max_value is not None and (v is None or v > s.max_value))
 
 
 def _lines(db: Session, acc: str, issuer: str, code: str, title: str, s: Screen | None = None):
@@ -384,6 +434,8 @@ def _row(g: dict, fs: list) -> dict:
         "plan_10b5_1": f0.plan_10b5_1,
         "cluster": None,
         "amended_by": [],
+        "amended": False,
+        "first_filed": None,
         "duplicate_filings": [],
         "period": f0.period_of_report,
         "filing": {
@@ -393,6 +445,62 @@ def _row(g: dict, fs: list) -> dict:
             "source_url": filing_index_url(issuer, acc),
         },  # fmt: skip
     }
+
+
+FIRST_FILED = ("lines", "shares", "average_price", "value", "value_partial", "first_date",
+               "last_date")  # fmt: skip
+
+
+def _apply_restatements(db: Session, rows: list[dict], restating: list[tuple], counts: dict,
+                        s: Screen) -> None:  # fmt: skip
+    """Q-03d: a Form 4/A for the same issuer and period, a reporting owner of the row, filed on
+    or after the original, that reports the same code and class again restates those lines (RB
+    Global: a price of $400 corrected to $94). The row then shows the latest such 4/A's figures,
+    with amended: true, the 4/A as its filing and first_filed holding the original figures and
+    filing. Not when the 4/A reports fewer lines than the original (it corrects some of them: a
+    one-line 4/A replaced 29 lines), nor when one 4/A pairs with two rows: the row stays as
+    first filed, the 4/A listed in amended_by. A 4/A with the same figures leaves the row as is."""
+    by_key: dict[tuple, list] = defaultdict(list)
+    for g, fs in restating:
+        f0 = fs[0]
+        by_key[(g.issuer_cik, g.trans_code, g.title, f0.period_of_report)].append((g, fs))
+    chosen: list[tuple[dict, object, list]] = []
+    for r in rows:
+        cands = []
+        mine = {o["cik"] for o in r["owners"]}
+        for g, fs in by_key.get((r["issuer_cik"], r["trans_code"], r["_title"], r["period"]), []):
+            f0 = fs[0]
+            if f0.filing_date >= r["filing"]["filed_date"] and mine & {f.owner_cik for f in fs}:
+                cands.append((f0.filing_date, g.accession_number, g, fs))
+        if cands:
+            _, _, g, fs = max(cands, key=lambda c: (c[0], c[1]))
+            chosen.append((r, g, fs))
+    uses: dict[tuple, int] = defaultdict(int)
+    for _, g, _ in chosen:
+        uses[(g.accession_number, g.trans_code, g.title)] += 1
+    for r, g, fs in chosen:
+        if uses[(g.accession_number, g.trans_code, g.title)] > 1:
+            counts["restatement_ambiguous"] = counts.get("restatement_ambiguous", 0) + 1
+            continue
+        filed = fs[0].filing_date
+        agg = dict(g._mapping)
+        stale = filed - timedelta(STALE_DAYS)
+        if g.last > filed or g.first < stale:
+            agg, _ = _regroup(db, g, filed, stale, s)
+            if agg is None:
+                continue
+        new = _row(agg, fs)
+        if all(new[k] == r[k] for k in FIRST_FILED):
+            continue  # the same lines again: as first filed
+        if new["lines"] < r["lines"]:
+            counts["restatement_partial"] = counts.get("restatement_partial", 0) + 1
+            continue
+        r["first_filed"] = {**{k: r[k] for k in FIRST_FILED}, "filing": r["filing"]}
+        for k in FIRST_FILED:
+            r[k] = new[k]
+        r["filing"] = new["filing"]
+        r["amended"] = True
+        counts["restated"] += 1
 
 
 def _add_clusters(db: Session, rows: list[dict], s: Screen) -> None:
@@ -440,9 +548,10 @@ def _add_amendments(db: Session, rows: list[dict]) -> None:
         found[(f.issuer_cik, f.owner_cik, f.period_of_report)].append(f)
     for r in rows:
         seen = set()
+        original = (r["first_filed"] or r)["filing"]  # Q-03d: 4/As amend the original
         for o in r["owners"]:
             for f in found.get((r["issuer_cik"], o["cik"], r["period"]), []):
-                if f.accession_number in seen or f.filing_date < r["filing"]["filed_date"]:
+                if f.accession_number in seen or f.filing_date < original["filed_date"]:
                     continue
                 seen.add(f.accession_number)
                 r["amended_by"].append({

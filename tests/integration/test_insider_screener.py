@@ -366,3 +366,51 @@ def test_role_ceo_cfo_is_the_companys_own_principal_officers(client, auth, db, t
     ceo = {r["issuer"]["cik"] for r in _get(client, auth, role="ceo").json()["data"]}
     cfo = {r["issuer"]["cik"] for r in _get(client, auth, role="cfo").json()["data"]}
     assert ceo == {A} and cfo == {C}  # Jane Smith, CEO of A; the CFOs of C
+
+
+def test_a_4a_that_restates_the_row_shows_its_figures(client, auth, db, trades):
+    """Q-03d: RB Global filed a price of $400 and corrected it to $94 on a 4/A. The row shows the
+    4/A's figures (amended, the 4/A as its filing, the original in first_filed), the value
+    filters use them; a partial 4/A (fewer lines) or one pairing with two rows changes nothing."""
+    d, D, E = date, "0002999104", "0002999105"
+    now = utcnow()
+    for cik, name in ((D, "Dogwood Example Inc."), (E, "Elm Example Inc.")):
+        db.add(Company(cik=cik, legal_name=name, ticker=None, source_url="https://www.sec.gov/",
+                       first_detected_at=now, last_processed_at=now))  # fmt: skip
+    _filing(db, "0000000004-26-000001", D, "0000000401", "PARK LEE", d(2026, 11, 10),
+            period=d(2026, 11, 9), director=True)  # fmt: skip
+    _line(db, "0000000004-26-000001", D, 1, "S", d(2026, 11, 9), 100, 400, 900)
+    _filing(db, "0000000004-26-000002", D, "0000000401", "PARK LEE", d(2026, 11, 12),
+            form="4/A", period=d(2026, 11, 9), director=True)  # fmt: skip
+    _line(db, "0000000004-26-000002", D, 1, "S", d(2026, 11, 9), 100, 94, 900)
+    # E: one 4/A, two originals of the same owner and period: which it restates is unknown
+    for n, shares in ((1, 300), (2, 700)):
+        _filing(db, f"0000000005-26-00000{n}", E, "0000000501", "ROSS KAI", d(2026, 11, 10),
+                period=d(2026, 11, 9), director=True)  # fmt: skip
+        _line(db, f"0000000005-26-00000{n}", E, 1, "S", d(2026, 11, 9), shares, 10, 0)
+    _filing(db, "0000000005-26-000009", E, "0000000501", "ROSS KAI", d(2026, 11, 12),
+            form="4/A", period=d(2026, 11, 9), director=True)  # fmt: skip
+    _line(db, "0000000005-26-000009", E, 1, "S", d(2026, 11, 9), 350, 10, 0)
+    db.commit()
+    body = _get(client, auth, cik=D).json()
+    (r,) = body["data"]
+    assert r["amended"] is True and (r["average_price"], r["value"]) == (94, 9400)
+    assert r["filing"]["form"] == "4/A" and r["filing"]["accession_number"].endswith("000002")
+    ff = r["first_filed"]
+    assert (ff["average_price"], ff["value"], ff["shares"], ff["lines"]) == (400, 40000, 100, 1)
+    assert ff["filing"]["accession_number"] == "0000000004-26-000001"
+    assert ff["filing"]["form"] == "4"
+    assert [a["accession_number"] for a in r["amended_by"]] == ["0000000004-26-000002"]
+    assert any("show a 4/A's figures" in n for n in body["notes"])
+    # the value filters use the figures shown, on either side of the correction
+    assert [x["value"] for x in _get(client, auth, cik=D, max_value=10000).json()["data"]] == [9400]
+    assert _get(client, auth, cik=D, min_value=30000).json()["data"] == []
+    # A's 4/A has one of the original's two Class A lines: a partial correction, as first filed
+    a = next(x for x in _get(client, auth, cik=A).json()["data"]
+             if x["security_title"] == "Class A Common Stock")  # fmt: skip
+    assert a["amended"] is False and a["first_filed"] is None and a["shares"] == 4000
+    assert a["amended_by"]
+    # E: the 4/A pairs with two rows: neither changes
+    rows = _get(client, auth, cik=E).json()["data"]
+    assert sorted(x["shares"] for x in rows) == [300, 700]
+    assert not any(x["amended"] for x in rows)

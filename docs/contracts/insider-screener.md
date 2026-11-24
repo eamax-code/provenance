@@ -66,6 +66,8 @@ listed first in `owners`.
       "plan_10b5_1": true,
       "cluster": null,
       "amended_by": [],
+      "amended": false,
+      "first_filed": null,
       "duplicate_filings": [],
       "filing": {"accession_number": "0001214156-26-000012", "form": "4",
                  "filed_date": "2026-10-03",
@@ -113,10 +115,23 @@ listed first in `owners`.
   quadrillion "sale" from the 30-day rule). Known edges: a reverse split on the trade day with no
   later lines can be flagged, and penny stocks whose prices swing widely can be.
 - **Amendments (Form 4/A) never make a row of their own,** so a trade is never counted twice.
-  Rows come from original Forms 4, with the figures as first filed. `amended_by` lists each Form
-  4/A for the same issuer, a reporting owner of the row, and the same reporting period, filed on
-  or after the original: `[{"accession_number", "filed_date", "source_url"}]`. When it is not
-  empty, the page says the figures may have been corrected and links the amendment. A 4/A whose
+  Rows come from original Forms 4. `amended_by` lists each Form 4/A for the same issuer, a
+  reporting owner of the row, and the same reporting period, filed on or after the original:
+  `[{"accession_number", "filed_date", "source_url"}]`. When it is not empty, the page says the
+  figures may have been corrected and links the amendment.
+  **Q-03d (2026-11-25): a 4/A that restates the row.** When the latest such 4/A reports the
+  row's code and class again with different figures, the row shows the 4/A's figures (`lines`,
+  `shares`, `average_price`, `value`, `value_partial`, `first_date`, `last_date`) with
+  `amended: true`, `filing` is the 4/A, and `first_filed` holds the original's figures and its
+  `filing` (RB Global: a price of $400 corrected to $94; a 4/A saying "No such sale has occurred"
+  shows 0 shares). The value filters, `sort=value` and `price_outlier` use the figures shown.
+  Not applied, and the row stays as first filed with the 4/A in `amended_by`: a 4/A with fewer
+  lines for the class than the original (it corrects some of them: a one-line 4/A against 29
+  lines), a 4/A that pairs with two rows, a 4/A with the same figures or none for the class.
+  Otherwise `amended` is `false` and `first_filed` `null`. A year of buys and sales to
+  2026-11-24: 532 rows paired with a 4/A, 137 show the 4/A's figures, 17 partial and 7 ambiguous
+  4/As left as first filed. Gate: 30 paired rows (15 of each) against both filings' XML, 30
+  right. A 4/A whose
   original Form 4 is not stored is not shown (since January 2025: 156 of 1,137 open-market 4/As);
   `notes` says so.
 - **Derivative rows (table II), grants, exercises, gifts and tax withholding are not included.**

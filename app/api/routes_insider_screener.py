@@ -27,7 +27,8 @@ DEMO_ROWS = 10
     responses=_ERRORS,
     summary="Open-market insider buys and sales across companies (Form 4 codes P and S)",
     description="One row per Form 4, code and security class, lines added up (weighted "
-    "average price). Amendments (4/A) never make a row; originals list them in amended_by. "
+    "average price). Amendments (4/A) never make a row; originals list them in amended_by, "
+    "and show a 4/A's figures when it restates the row's lines (amended, first_filed). "
     "Filters on dates (at most 366 days), value, role, title, issuer, owner, the 10b5-1 box "
     "and F-03 cluster buying. Information, not signals. Not investment advice.",
 )
@@ -115,7 +116,12 @@ def insider_screener(
         "code and security class; grants, exercises, gifts, tax withholding and derivative "
         "rows are on each company's insider-transactions.",
         "Amendments (Form 4/A) never make a row: an original lists the 4/As for the same "
-        "issuer, owner and period in amended_by, and its figures are as first filed."
+        "issuer, owner and period in amended_by. When a 4/A reports the row's code and class "
+        "again with different figures (and at least as many lines), the row shows the 4/A's "
+        "figures with amended: true, the 4/A as its filing, and the original's in first_filed; "
+        "otherwise the figures are as first filed."
+        + (f" {counts['restated']} row{'s' if counts['restated'] != 1 else ''} in this screen "
+           "show a 4/A's figures." if counts["restated"] else "")
         + (f" {counts['unpaired_amendments']} amended filing"
            f"{'s' if counts['unpaired_amendments'] != 1 else ''} in this screen "
            "with no stored original Form 4 are not shown."
