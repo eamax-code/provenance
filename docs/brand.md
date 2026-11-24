@@ -1,0 +1,74 @@
+# Brand: Trace
+
+Chosen by the owner on 24 Nov 2026, from three directions (Hallmark, Accession, Trace). The direction cards and the working are in `provenance-review/brand/`; the guidelines kit (logo files, tokens, seal sheet) is in `provenance-review/brand/kit/`.
+
+**The idea.** An analyst marks a figure in a 10-K and draws a leader to where it came from. The logo is that gesture: a chisel-tip highlight with the P knocked out, whose stem leaves the highlight and turns, as a leader does, to land on a dot (the source). The highlight is the brand's one moment: when a figure is marked, it is because you can follow it to its filing.
+
+## Logo
+
+- **Symbol:** the highlight, the P, the leader and the dot, on a 100-unit grid, in one colour (`site/shell/mark.svg`). There is no outline version and no gradient.
+- **Wordmark:** `provenance`, lower case, Schibsted Grotesk 800, tracking −0.03em. The header draws the symbol at 1.45 times the wordmark's size, with a 0.42em gap.
+- **Colour:** `--mark`: marker yellow on dark grounds (Dark, Terminal), and ink on light ones (Light, Ledger). It is never yellow on a light ground.
+- **Clear space:** the dot's diameter on every side. **Minimum size:** 20 px for the symbol with the wordmark, and 16 px for the favicon mark.
+- **Accessible name:** the header link is "Provenance home". The symbol is `aria-hidden`.
+- **Don't:**
+  - recolour the P or the dot separately;
+  - add a tick, star, ring or "verified" mark;
+  - put the symbol in a circle;
+  - set the wordmark in capitals.
+
+## Favicon and icons (all in `site/shell/`, linked by `scripts/sync_site_shell.py`)
+
+- `favicon.svg`: only the highlight and the source dot, aligned to the 16 px pixel grid (the highlight is rows 1–8, the dot rows 11–15). It is ink in a light browser scheme and marker yellow in a dark one.
+- `favicon-32.png` and `site/favicon.ico` (16 and 32): the marker mark on an ink tile, which reads on either tab colour.
+- `apple-touch-icon.png` (180): the same tile, square, for iOS to mask.
+- Check 16 px survival in a real browser tab on light and dark after any change. `logo_audit` is **hand-checked (tools blocked)** for now: the brand-identity scripts' Python dependencies could not be installed on this Mac. Nothing in the favicon is thinner than 1 px at 16 px.
+
+## Colour (tokens in `site/shell/shell.css`, one place)
+
+| Token | Dark | Light | Ledger | Terminal | Use |
+|---|---|---|---|---|---|
+| `--accent` | #f3e04c | #f3e04c | #eed43a | #f3e04c | fill behind ink: buttons, the one action |
+| `--accent-ink` | #16181b | #16181b | #16181b | #0d1117 | text on `--accent` |
+| `--accent-hi` | #f3e04c | #6b5d00 | #5f5200 | #f3e04c | the accent as a line: focus, selected tab, latest bar |
+| `--accent-text` | #f3e04c | #6b5d00 | #5f5200 | #f3e04c | links and current-page text |
+| `--marker` / `--marker-ink` | #f3e04c / #16181b | #f3e04c / #16181b | #eed43a / #16181b | #f3e04c / #0d1117 | the highlight only |
+| `--mark` | #f3e04c | #16181b | #1f1c17 | #f3e04c | the logo and the seal |
+| `--warn` | #f0883e | #a34a07 | #9a4a12 | #f0883e | warnings: orange, never amber |
+
+Rules, each checked by a test or the UI audit:
+
+1. Yellow is a fill behind ink, or the marker on a dark ground. On light grounds the accent becomes marker deep (olive) as a line or as text (`tests/integration/test_brand.py`).
+2. **The marker is never a figure's own colour.** It may only sit behind a figure as the highlight, with `--marker-ink` on it. In practice that is the hover on a figure link that opens its filing, and selection. `scripts/ui_checks/check.mjs` fails any figure, in text or as a chart label, drawn in the marker yellow.
+3. Yellow never means up or down. Changes stay `--good` and `--bad`, and only on flows.
+4. `--warn` is orange, so a warning never meets the marker.
+5. Brand hexes appear only in `site/shell/`. Pages read tokens (`test_brand_colours_are_defined_only_in_the_shell`).
+
+## Type
+
+- Schibsted Grotesk (display and the wordmark), IBM Plex Sans (reading, in Ledger and Terminal), IBM Plex Mono (figures in Terminal, code, accession numbers), and Newsreader 600 (Ledger headings).
+- All are self-hosted under the SIL Open Font License. The licence files are in `site/fonts/`. The brand adds no font.
+
+## The company seal
+
+- Each company page and the Explorer's company header carry a small seal, drawn by `site/shell/seal.js` from the CIK. It is an open trace: a highlight chip, a leader with one to three square turns, and a dot. It is the logo's gesture at the size of a mark.
+- It is **decorative**: `aria-hidden`, with no letters, no figures, and nothing that reads as a grade, rating or certification. Only the path's shape varies.
+- It is drawn in `--mark`, at about 1em beside the company name (40 px in the Explorer, 30 px on phones).
+- Two companies may get similar seals. That is fine, because the seal identifies nothing.
+
+## Link previews
+
+- `site/img/og.png` (1200×630) is rendered from `scripts/brand/og.html` by `scripts/brand/render_og.sh`. It has one highlight, on a real figure (Apple's fiscal 2026 revenue), with its leader to the 10-K that reports it. Update the figure and its accession together.
+
+## Motion (B-4, next)
+
+- The brand interaction: when a figure opens its provenance card, the highlight sweeps across the figure and the leader draws to the filing.
+- CSS first. Under `prefers-reduced-motion` the highlight appears without the sweep.
+
+## Pre-launch gates (before the site is public)
+
+- [ ] **dembrandt competitor check:** extract Koyfin, Fiscal.ai, TIKR, Finviz and AlphaSense with dembrandt 0.41.0 (commands in `provenance-review/brand/dembrandt/RUN.md`, for the owner to run), and confirm that no competitor uses a near-identical yellow-and-black mark or palette. If one does, revise before launch.
+- [ ] **Trademark clearance** for the name and the mark (owner).
+- [ ] **Real tab check** of the favicon on light and dark after any icon change.
+- [x] Contrast (WCAG AA) on all four themes at 1440 and 390 (`scripts/ui_checks/check.mjs`).
+- [x] Logo and favicon small-size survival: hand-checked (tools blocked).

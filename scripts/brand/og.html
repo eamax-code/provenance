@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- The link-preview image (site/img/og.png, 1200×630), brand: Trace. One highlight only, on the figure, with its leader to the filing. Render with scripts/brand/render_og.sh.
+     The figure is real: Apple's fiscal 2026 revenue as the API returns it, cited to its 10-K. -->
+<html lang="en"><head><meta charset="utf-8"><title>og</title>
+<style>
+  @font-face { font-family: 'Schibsted Grotesk'; font-weight: 400 800; src: url('../../site/fonts/schibsted-grotesk-latin-var.woff2') format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-weight: 500; src: url('../../site/fonts/ibm-plex-mono-latin-500.woff2') format('woff2'); }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; background: #141719; color: #e7ebee; font-family: 'Schibsted Grotesk', Arial, sans-serif; overflow: hidden; }
+  .wrap { position: relative; height: 100%; padding: 64px 72px; }
+  .logo { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 40px; letter-spacing: -0.03em; }
+  .logo svg { width: 56px; height: 56px; color: #f3e04c; }
+  h1 { margin-top: 70px; font-weight: 800; font-size: 92px; line-height: 0.98; letter-spacing: -0.045em; }
+  .fig { position: absolute; left: 72px; bottom: 64px; display: flex; align-items: flex-start; gap: 0; }
+  .val { font-weight: 800; font-size: 54px; letter-spacing: -0.03em; background: #f3e04c; color: #16181b; padding: 2px 14px; border-radius: 4px; line-height: 1.1; }
+  .lead { width: 120px; height: 70px; margin-top: 30px; }
+  .src { margin: 66px 0 0 14px; font: 500 22px/1.45 'IBM Plex Mono', monospace; color: #c4ccd3; }
+  .src b { color: #e7ebee; font-weight: 500; }
+</style></head>
+<body><div class="wrap">
+  <div class="logo"><svg viewBox="0 0 100 100" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M14,10H94L84,58H4ZM30,18H55A16,16 0 0 1 55,50H42V58H30ZM42,27H54A7,7 0 0 1 54,41H42Z"/><path fill="currentColor" d="M30,57H42V78H64V90H30ZM65,84a11,11 0 1 0 22,0a11,11 0 1 0 -22,0Z"/></svg>provenance</div>
+  <h1>Every figure cites<br>its SEC filing.</h1>
+  <div class="fig">
+    <span class="val">$478.8B</span>
+    <svg class="lead" viewBox="0 0 120 70" aria-hidden="true"><path d="M0,4H40V62H108" fill="none" stroke="#f3e04c" stroke-width="5"/><circle cx="110" cy="62" r="8" fill="#f3e04c"/></svg>
+    <p class="src"><b>Apple Inc. · revenue, fiscal 2026</b><br>10-K filed 3 Nov 2026 · 0000320193-26-000026</p>
+  </div>
+</div></body></html>

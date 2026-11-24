@@ -11,7 +11,8 @@
 // FAIL: page errors or CSP violations, wrong HTTP status, no <main> or more than one, no skip link to
 // it, no or several h1, missing html lang, images without alt, controls or links without an accessible
 // name, duplicate ids, a stray "null", "undefined" or "NaN" printed as text, text under WCAG AA contrast, horizontal page overflow, forbidden source URLs or
-// fields in the page (data.sec.gov, efts, GLEIF API, FIRDS files, first_detected_at, source_updated_at).
+// fields in the page (data.sec.gov, efts, GLEIF API, FIRDS files, first_detected_at, source_updated_at),
+// a figure drawn in the brand's marker yellow (it may only sit behind a figure as the highlight).
 // WARN: skipped heading levels, touch targets under 24px, text under 12px.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -124,6 +125,14 @@ function audit() {
     return bg;
   };
   const seen = new Set(); let low = 0; const lowSamples = [];
+  // brand (Trace): the marker yellow is never a figure's own colour, as text or as a chart label; it
+  // may only sit behind a figure as the highlight, with --marker-ink on it. Up and down stay green and red.
+  const hex = (v) => { const m = /^#([0-9a-f]{6})$/i.exec((v || '').trim()); return m ? { r: parseInt(m[1].slice(0, 2), 16), g: parseInt(m[1].slice(2, 4), 16), b: parseInt(m[1].slice(4), 16), a: 1 } : null; };
+  const marker = hex(getComputedStyle(document.documentElement).getPropertyValue('--marker'));
+  const near = (c, m) => c && m && Math.abs(c.r - m.r) + Math.abs(c.g - m.g) + Math.abs(c.b - m.b) < 24;
+  const FIGURE = /^[(−+\-]?\s?[$€£¥]?\s?\d[\d,.]*\s?(%|[KMBT]|bn|pp)?\)?$/;
+  const yellow = [];
+  for (const t of document.querySelectorAll('svg text')) if (FIGURE.test(t.textContent.trim()) && near(parse(getComputedStyle(t).fill), marker)) yellow.push(`chart label "${t.textContent.trim()}"`);
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: (n) => n.textContent.trim() ? 1 : 2 });
   const stray = [];
   while (walker.nextNode()) {
@@ -131,6 +140,7 @@ function audit() {
     const raw = walker.currentNode.textContent.trim(), pe = walker.currentNode.parentElement;
     if (/^(null|undefined|NaN)$/.test(raw) && pe && !pe.closest('pre, code') && stray.length < 4) stray.push(`"${raw}" in ${desc(pe)}`);
     const el = walker.currentNode.parentElement; if (!el || seen.has(el) || !vis(el)) continue; seen.add(el);
+    if (FIGURE.test(raw) && near(parse(getComputedStyle(el).color), marker) && yellow.length < 6) yellow.push(`"${raw}" in ${desc(el)}`);
     if (el.closest('[aria-hidden=true], .sr-only, .visually-hidden, svg')) continue;
     const s = getComputedStyle(el); if (+s.opacity === 0) continue;
     const fg = parse(s.color); const bg = bgOf(el); if (!fg || !bg) continue;
@@ -144,6 +154,7 @@ function audit() {
   }
   if (low) fail.push(`${low} text element(s) under AA contrast, e.g. ${lowSamples.join('; ')}`);
   if (stray.length) fail.push(`stray text: ${stray.join('; ')}`);
+  if (yellow.length) fail.push(`figure in the marker yellow (only the highlight may be yellow): ${yellow.join('; ')}`);
 
   if (document.documentElement.scrollWidth > innerWidth + 1) {
     const wide = [...document.querySelectorAll('body *')].filter((e) => { const r = e.getBoundingClientRect(); return r.right > innerWidth + 1 && vis(e) && !e.closest('[data-scroll-x], pre, table, .table-scroll'); }).slice(0, 3).map(desc);
