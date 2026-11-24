@@ -13,6 +13,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from starlette.convertors import Convertor, register_url_convertor
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
@@ -223,6 +224,21 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class _CikDigits(Convertor):
+    """A path segment of 1 to 10 digits, kept as written (zero padding included)."""
+
+    regex = "[0-9]{1,10}"
+
+    def convert(self, value: str) -> str:
+        return value
+
+    def to_string(self, value: str) -> str:
+        return value
+
+
+register_url_convertor("cikdigits", _CikDigits())
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level, settings.log_json)
@@ -359,7 +375,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if site_dir.is_dir():
         layout_dir = site_dir / "companies" / "page"
 
-        @app.get("/companies/{cik}", include_in_schema=False, response_class=HTMLResponse)
+        @app.get("/companies/{cik:cikdigits}", include_in_schema=False,
+                 response_class=HTMLResponse)  # fmt: skip  # digits: files fall through
         def public_company_page(request: Request, cik: str, layout: str | None = None):
             # Shareable URL; the page script reads the CIK from the path and calls the API.
             # Snapshot is the page; ?layout= picks Report or Dossier and is remembered.
@@ -395,12 +412,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
             return response
 
-        @app.get("/managers/{cik}", include_in_schema=False, response_class=HTMLResponse)
-        @app.get("/managers/{cik}/", include_in_schema=False, response_class=HTMLResponse)
+        # 1-10 digits only, zero padding kept: /managers/manager.js and the page's other files
+        # fall through to the static mount (a str parameter answered them with a JSON 404)
+        @app.get("/managers/{cik:cikdigits}", include_in_schema=False, response_class=HTMLResponse)
+        @app.get("/managers/{cik:cikdigits}/", include_in_schema=False,
+                 response_class=HTMLResponse)  # fmt: skip
         def manager_page(cik: str):
             # Q-02: one page for every 13F manager; the page script reads the CIK from the path
             page = site_dir / "managers" / "manager.html"
-            if not (cik.isdigit() and len(cik) <= 10) or not page.is_file():
+            if not page.is_file():
                 raise StarletteHTTPException(status_code=404)  # browsers get the 404 page
             return HTMLResponse(page.read_text(encoding="utf-8"))
 

@@ -179,3 +179,36 @@ def test_demo_trims_and_showcase_scope(client, db, funds, settings, monkeypatch)
     assert body["meta"]["limit"] == 10
     other = client.get(f"/v1/managers/{M2}", params={"quarter": "2024-06-30"}, headers=DEMO)
     assert other.status_code == 403
+
+
+def test_the_manager_page_route_takes_digits_only(client, tmp_path, monkeypatch):
+    """ui, 25 Nov: /managers/{cik} also matched /managers/manager.js and answered a JSON 404;
+    the page's own files must reach the static mount; zero-padded CIKs still match."""
+    from starlette.routing import Mount
+
+    routes = client.app.routes
+    pages = [r for r in routes if getattr(r, "path", "").startswith("/managers/{cik")]
+    assert len(pages) == 2
+    # the company page route takes digits only too: a file under /companies/ is never its CIK
+    company = next(r for r in routes if getattr(r, "path", "").startswith("/companies/{cik"))
+    assert company.path_regex.match("/companies/companies.js") is None
+    for r in pages:
+        for path in ("/managers/manager.js", "/managers/managers.css", "/managers/12345678901"):
+            assert r.path_regex.match(path) is None, (r.path, path)
+    m = [
+        r.path_regex.match(p)
+        for r in pages
+        for p in ("/managers/0001067983", "/managers/0001067983/")
+    ]
+    assert [x.group("cik") for x in m if x] == ["0001067983", "0001067983"]
+    # the static mount serves a .js and a .css under /managers/
+    (tmp_path / "managers").mkdir()
+    (tmp_path / "managers" / "manager.js").write_text("// page script")
+    (tmp_path / "managers" / "managers.css").write_text("body{}")
+    static = next(r for r in routes if isinstance(r, Mount) and r.path == "")
+    monkeypatch.setattr(static.app, "directory", str(tmp_path))
+    monkeypatch.setattr(static.app, "all_directories", [str(tmp_path)])
+    js = client.get("/managers/manager.js")
+    assert js.status_code == 200 and js.text == "// page script"
+    css = client.get("/managers/managers.css")
+    assert css.status_code == 200 and "text/css" in css.headers["content-type"]
