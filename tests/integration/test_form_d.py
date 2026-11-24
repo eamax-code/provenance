@@ -180,5 +180,11 @@ def test_ask_links_quote_an_accession_and_get_that_offering(tmp_path, db, client
     ]
     other = ask("Tell me about the Form D offering (accession 0000000002-26-000001)", "320193")
     assert other["company"] is None and "Big Fund LP" in other["answer"]  # not Apple's
+    # the issuer files with us (Example Bio is under Apple's CIK here): answered under it even
+    # when the Ask link carries no cik (2026-11-24, provenance-ui: WeShop came back under none)
+    own = ask("Tell me about Example Bio, Inc.’s Form D offering filed 2026-09-20 "
+              "(accession 0000000001-26-000002).")  # fmt: skip
+    assert own["company"]["cik"] == CIK and own["intent"] == "private_raises"
+    assert "$55.0 million sold" in own["answer"]
     missing = ask("Tell me about Nobody's Form D offering (accession 0009999999-26-000009).")
     assert missing["answer"].startswith("No Form D with accession number 0009999999-26-000009")

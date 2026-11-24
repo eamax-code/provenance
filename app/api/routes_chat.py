@@ -696,12 +696,16 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
         market = None  # "Tesla CEO pay vs TSR" is one company's pay, not Tesla against TSR Inc
     if market and market.kind == "private_raises":
         # a screener Ask link quotes the offering's accession number: that one offering, under
-        # no company unless it is the given company's own (most Form D issuers file nothing else)
+        # its issuer when the issuer is a company loaded here, else under no company (most Form
+        # D issuers file nothing else)
         _, one = form_d.offering_for(db, body.message)
         if one is not None and not _is_given(body.cik, one["issuer"]["cik"]):
-            return _data_reply(
-                conversation.answer(db, market, body.context, body.as_of or date.today())
-            )
+            issuer = normalize_cik(one["issuer"]["cik"])
+            if db.scalar(select(Company.cik).where(Company.cik == issuer)) is None:
+                return _data_reply(
+                    conversation.answer(db, market, body.context, body.as_of or date.today())
+                )
+            body.cik = issuer  # answered under the issuer; a different cik given is said so
         if body.cik:
             market = None  # an Ask link about one company's Form D: that company's offerings
     if market and (
