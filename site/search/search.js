@@ -8,6 +8,7 @@
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var ARCHIVE = /^https:\/\/www\.sec\.gov\/Archives\//;
   var SECTION = { annual_report: '10-K risk factors and MD&A', prospectus: 'Prospectuses', earnings_release: 'Earnings releases (8-K exhibit 99.1)', '8k_officers': 'Officer changes (8-K item 5.02)' };
+  var ITEM = { '10k:1A': '10-K risk factors (Item 1A)', '10k:7': '10-K MD&A (Item 7)', '5.02': 'Officer changes (8-K item 5.02)', 'ex:99.1': 'Earnings releases (8-K exhibit 99.1)' };
   var FORMS = ['10-K', 'S-1', 'F-1', '424B4', '8-K'];
   var LIMIT = 20, MAXOFF = 500;
   function day(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? +m[3] + ' ' + MON[+m[2] - 1] + ' ' + m[1] : ''; }
@@ -38,12 +39,13 @@
   var q = $('fs-q'); q.value = st.q;
   function facets(cov) {
     var secs = cov && cov.length ? cov.map(function (c) { return c.section; }) : Object.keys(SECTION);
+    if (st.section && secs.indexOf(st.section) < 0) secs = secs.concat(st.section); // an item code from a link (10k:1A) shows as its own choice
     var sbox = $('fs-sections'); sbox.replaceChildren(el('legend', { text: 'Section' }));
     [''].concat(secs).forEach(function (s) {
       var c = (cov || []).filter(function (x) { return x.section === s; })[0];
       var r = el('input', { type: 'radio', name: 'fs-section', value: s }); r.checked = st.section === s;
       r.addEventListener('change', function () { st.section = s; run(); });
-      sbox.appendChild(el('label', {}, [r, ' ' + (s ? SECTION[s] || s : 'Any section'), c ? el('span', { class: 'fs-n', title: 'companies', text: Number(c.companies).toLocaleString('en-US') }) : null]));
+      sbox.appendChild(el('label', {}, [r, ' ' + (s ? SECTION[s] || ITEM[s] || s : 'Any section'), c ? el('span', { class: 'fs-n', title: 'companies', text: Number(c.companies).toLocaleString('en-US') }) : null]));
     });
     var fbox = $('fs-forms'); fbox.replaceChildren(el('legend', { text: 'Form' }));
     FORMS.forEach(function (f) {
@@ -99,6 +101,8 @@
   function run(append) {
     syncUrl();
     if (!st.q) { hitsBox.textContent = ''; more.hidden = true; return; }
+    if (hitsBox.id !== 'fs-hits') { var ol = el('ol', { class: 'fs-hits', id: 'fs-hits' }); hitsBox.replaceWith(ol); hitsBox = ol; }
+    document.body.classList.remove('fs-empty');
     var my = ++seq, off = append ? next : 0;
     if (!append) { hitsBox.textContent = ''; shown = 0; lastAcc = null; $('fs-h').textContent = /"/.test(st.q) ? 'Filings that say: ' + st.q : 'Filings that say “' + st.q + '”'; document.title = st.q + ' · Search inside filings · Provenance'; say('Searching…'); }
     more.hidden = true;
@@ -109,7 +113,8 @@
         if (!r.ok) {
           var e = (r.b && r.b.error) || {};
           say(r.status === 422 ? (e.message || 'That search has no word to look for. Try a word or a quoted phrase.')
-            : r.status === 403 ? 'The demo key searches the showcase companies only. Connect a free key in the Explorer to search every company we hold.'
+            : r.status === 403 && e.code === 'demo_scope' ? 'The demo key searches the showcase companies only. Connect a free key in the Explorer to search every company we hold.'
+            : r.status === 403 ? (e.message || 'This key cannot run that search.')
             : r.status === 429 ? 'Too many searches this minute. Try again in a moment.' : 'The search could not run. Check the connection and try again.');
           return;
         }
@@ -128,6 +133,17 @@
       .catch(function () { if (my === seq) say('The search could not run. Check the connection and try again.'); });
   }
   more.addEventListener('click', function () { run(true); });
+  // before the first search: no filters to set yet, three searches to start from (PM, 24 Nov). Each returned real hits on
+  // the live endpoint; "going concern" finds none among the showcase companies, so it shows only with a key.
+  function examples() {
+    var keyed = key() !== 'demo', ex = [
+      keyed ? ['“going concern”', { q: '"going concern"' }] : null,
+      ['“tariff” in 10-K risk factors', { q: 'tariff', section: '10k:1A' }],
+      ['“chief financial officer” in 8-K item 5.02', { q: 'chief financial officer', section: '8k_officers' }]].filter(Boolean);
+    var ul = el('ul', { class: 'fs-ex', 'aria-label': 'Example searches' }, ex.map(function (e) { return el('li', {}, [el('a', { href: '/search/?' + new URLSearchParams(e[1]).toString(), text: e[0] })]); }));
+    hitsBox.replaceWith(ul); hitsBox = ul;
+  }
+  document.body.classList.toggle('fs-empty', !st.q);
   if (st.q) run();
-  else q.focus();
+  else { examples(); q.focus(); }
 })();

@@ -43,3 +43,10 @@
   .fs-sheet > summary { display: list-item; min-height: 44px; line-height: 44px; font-weight: 600; cursor: pointer; }
   .fs-hit.fs-fold { margin-left: 8px; }
 }
+/* before the first search: no facet column, the example searches in its place */
+.fs-empty .fs-grid { grid-template-columns: minmax(0, 1fr); }
+.fs-empty .fs-facets { display: none; }
+.fs-ex { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.fs-ex a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: .95rem; text-decoration-line: none; }
+.fs-ex a:hover { border-color: var(--soft); }
+.fs-ex a:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
