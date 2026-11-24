@@ -290,6 +290,31 @@
    "q": "Tell me about Asia Alpha Advantage Fund Ltd.'s Form D offering filed 2026-07-23 (accession 0001390479-26-000002).",
    "kind": "cited",
    "checked": "a non-registrant's Form D Ask link: that one offering, cited to its Form D/A ($239.7 million sold, 11 investors)"
+  },
+  {
+   "id": "L41",
+   "q": "Has the SEC sent Apple any comment letters?",
+   "kind": "cited",
+   "checked": "C-16: the 2024 review of the FY2023 10-K (file 001-36743, opened 2024-03-06, closed 2024-05-16), cited to the SEC's first letter, with the reviews table"
+  },
+  {
+   "id": "L42",
+   "q": "Any SEC comment letters for Nvidia?",
+   "kind": "cited",
+   "checked": "C-16: 5 reviews since 2021; the latest opened 2025-07-22, closed 2025-09-10, cited to its first letter"
+  },
+  {
+   "id": "L43",
+   "q": "What is JPMorgan's parent company?",
+   "kind": "cited",
+   "checked": "C-16: GLEIF non-consolidating exception for both parents (named, not linked); 172 GLEIF children; exhibit 21 of the 10-K filed 2026-02-13 cited (18 subsidiaries)"
+  },
+  {
+   "id": "L44",
+   "q": "Who is Toyota's ultimate parent?",
+   "kind": "company",
+   "company_cik": "0001094517",
+   "checked": "C-16: a 20-F filer: GLEIF 'no known person' for both parents, 41 GLEIF children in the table, no exhibit 21 (nothing to cite)"
   }
  ]
 }

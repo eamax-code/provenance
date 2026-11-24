@@ -67,3 +67,11 @@ Rules:
 | 404 `company_not_found` | unknown CIK |
 
 MCP: the `corporate_tree` tool, `{cik}`, with the lists capped at 50.
+
+Chat (C-16): intent `corporate_tree` ("What is JPMorgan's parent company?", "List Apple's
+subsidiaries", "corporate structure", "exhibit 21"). The answer gives the GLEIF parents or the
+reason reported for none (one sentence when direct and ultimate share it), the number of GLEIF
+children, and the latest exhibit 21 cited to its filing. GLEIF is named, never linked, and is
+current (as_of does not apply to it). The table block is the exhibit 21 list (each row links
+the filing); a filer with no exhibit 21 (a 20-F filer) gets the GLEIF children instead,
+unlinked. No new reply fields.

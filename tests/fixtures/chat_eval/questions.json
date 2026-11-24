@@ -465,6 +465,28 @@
    "absent_text": [
     "Example Jane"
    ]
+  },
+  {
+   "id": "c16-01",
+   "q": "Has the SEC sent Apple any comment letters?",
+   "kind": "c06",
+   "contains": [
+    "SEC comment-letter review",
+    "Segment reporting",
+    "file 001-36743"
+   ]
+  },
+  {
+   "id": "c16-02",
+   "q": "List Apple's subsidiaries",
+   "kind": "c06",
+   "contains": [
+    "lists 2 subsidiaries",
+    "10-K filed 2025-10-31"
+   ],
+   "absent_text": [
+    "gleif.org"
+   ]
   }
  ]
 }

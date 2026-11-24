@@ -187,6 +187,24 @@ def _c06_data(db, tmp_path) -> None:
         filed_date=date(2025, 7, 30), auditor_name="DELOITTE & TOUCHE LLP",
         pcaob_firm_id="34", auditor_location="Seattle, Washington", source="test",
     ))  # fmt: skip
+    # C-16: one SEC comment letter to Apple (D-13) and Apple's exhibit 21 (D-14)
+    from app.db.models import CommentLetter, Subsidiary
+
+    db.add(CommentLetter(
+        accession_number="0000000000-24-003120", cik="0000320193", form_type="UPLOAD",
+        filing_date=date(2024, 3, 6), file_number="001-36743", subject="Apple Inc. Form 10-K",
+        kind="comment", readable=True, closes_review=False, topics=json.dumps(["segments"]),
+        text="test", reader_version="letters-1",
+        source_url="https://www.sec.gov/Archives/edgar/data/320193/000000000024003120/x.pdf",
+    ))  # fmt: skip
+    for i, (name, jur) in enumerate((("Apple Operations Limited", "Ireland"),
+                                     ("Braeburn Capital, Inc.", "Nevada"))):  # fmt: skip
+        db.add(Subsidiary(
+            cik="0000320193", accession_number="0000320193-25-000079", form_type="10-K",
+            filing_date=date(2025, 10, 31), exhibit="EX-21.1", position=i, name=name,
+            jurisdiction=jur,
+            source_url="https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/ex21.htm",
+        ))  # fmt: skip
     _company(db, "0000018230", "CATERPILLAR INC", "CAT", "3531")
     db.flush()
     for member, label, role, v in (

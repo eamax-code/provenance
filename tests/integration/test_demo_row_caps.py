@@ -141,3 +141,19 @@ def test_demo_chat_screens_and_lists_are_capped(client, monkeypatch, settings, n
     assert tables and all(len(t["rows"]) == cap and t["total"] == total for t in tables)
     assert tables[0]["note"].startswith(f"Showing {cap} of {total}.")
     assert tables[0]["note"].endswith(f"The demo key shows at most {cap} rows.")
+
+
+@pytest.mark.parametrize("q,intent", [("Has the SEC sent Apple any comment letters?",
+                                       "comment_letters"),
+                                      ("List Apple's subsidiaries", "corporate_tree")])  # fmt: skip
+def test_demo_chat_letters_and_tree_tables_are_capped(client, db, ingested_aapl, settings, q,
+                                                      intent):  # fmt: skip
+    """C-16: the comment letter and corporate tree tables follow the demo cap, with a total."""
+    _seed(db)
+    cap = settings.demo_max_limit
+    r = client.post("/v1/chat", json={"message": q, "cik": CIK, "as_of": "2026-11-24"},
+                    headers=DEMO).json()  # fmt: skip
+    assert r["intent"] == intent, r
+    tables = [b for b in r["blocks"] if b["type"] == "table"]
+    assert len(tables) == 1 and len(tables[0]["rows"]) == cap
+    assert tables[0]["total"] == N and tables[0]["note"].startswith(f"Showing {cap} of {N}.")

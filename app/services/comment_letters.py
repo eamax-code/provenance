@@ -185,9 +185,14 @@ def _threads(rows: list[CommentLetter]) -> list[list[CommentLetter]]:
 
 
 def for_company(db: Session, cik: str, since: date | None = None, topic: str | None = None,
-                limit: int = 20, read_set: bool = True) -> dict:  # fmt: skip
-    since = since or date.today().replace(year=date.today().year - 5)
-    rows = list(db.scalars(select(CommentLetter).where(CommentLetter.cik == cik)))
+                limit: int = 20, read_set: bool = True,
+                as_of: date | None = None) -> dict:  # fmt: skip
+    """as_of (chat): only letters filed by then, so a review closed later shows as open."""
+    since = since or (as_of or date.today()).replace(year=(as_of or date.today()).year - 5)
+    q = select(CommentLetter).where(CommentLetter.cik == cik)
+    if as_of:
+        q = q.where(CommentLetter.filing_date <= as_of)
+    rows = list(db.scalars(q))
     out_threads = []
     for t in _threads(rows):
         if t[-1].filing_date < since:
@@ -198,7 +203,8 @@ def for_company(db: Session, cik: str, since: date | None = None, topic: str | N
         if any(r.kind == "no_review" for r in t):
             basis = []  # the staff did not review: a response's wording is not a topic
         tags = sorted({x for r in basis for x in json.loads(r.topics)} - {"other"}) or (
-            ["other"] if any(json.loads(r.topics) for r in basis) else [])
+            ["other"] if any(json.loads(r.topics) for r in basis) else []
+        )
         if topic and topic not in tags:
             continue
         first_sec = next((r for r in t if r.form_type == "UPLOAD"), t[0])
@@ -222,10 +228,14 @@ def for_company(db: Session, cik: str, since: date | None = None, topic: str | N
             "notes": ["Topics are tagged from a reviewed keyword list; a letter can have several. "
                       "The SEC releases its review correspondence at least 20 business days "
                       "after a review closes."]}  # fmt: skip
-    if not rows:
-        listed = list(db.scalars(select(Filing).where(
-            Filing.cik == cik, Filing.form_type.in_(FORMS), Filing.filing_date >= since)
-            .order_by(Filing.filing_date.desc()).limit(limit * 3)))  # fmt: skip
+    any_read = select(CommentLetter.accession_number).where(CommentLetter.cik == cik).limit(1)
+    read = bool(rows) or (as_of is not None and db.scalar(any_read) is not None)
+    if not read:
+        lq = select(Filing).where(Filing.cik == cik, Filing.form_type.in_(FORMS),
+                                  Filing.filing_date >= since)  # fmt: skip
+        if as_of:
+            lq = lq.where(Filing.filing_date <= as_of)
+        listed = list(db.scalars(lq.order_by(Filing.filing_date.desc()).limit(limit * 3)))
         body["coverage"] = "not_read"
         body["letters"] = [{"date": f.filing_date.isoformat(),
                             "from": "sec" if f.form_type == "UPLOAD" else "company",

@@ -51,6 +51,25 @@ INTENTS = (  # first match wins
             r"\b(form d|reg(?:ulation)? d|private (?:placements?|raises?|offerings?))\b", re.I
         ),
     ),  # fmt: skip
+    # C-16 (2026-11-24): SEC comment letters (D-13) and the corporate tree (D-14), each with a
+    # table block; before holders ("owned by") and the LEI ("the parent's LEI")
+    (
+        "comment_letters",
+        re.compile(
+            r"\b(comment letters?|(?:sec|staff) comments?|comments? from the sec|"
+            r"sec (?:staff )?(?:letters?|correspondence)|corresp)\b",
+            re.I,
+        ),
+    ),  # fmt: skip
+    (
+        "corporate_tree",
+        re.compile(
+            r"\b((?:direct |ultimate )?parent (?:company|companies|entity|entities)|"
+            r"ultimate parent|(?:the )?parent of|subsidiar(?:y|ies)|exhibit 21|group structure|"
+            r"corporate (?:tree|structure|family|hierarchy|parent))\b",
+            re.I,
+        ),
+    ),  # fmt: skip
     (
         "changes",
         re.compile(
@@ -648,11 +667,147 @@ def private_raises(db: Session, b: Brief, as_of: date | None, text: str = "") ->
     return f"{missing}Form D offerings by {name}: " + "; ".join(parts) + ". " + form_d.BASIS
 
 
+def _cell(text: str, url: str | None = None) -> dict:
+    return {"text": text, **({"url": url} if url and url.startswith("https://www.sec.gov/")
+                             else {})}  # fmt: skip
+
+
+def _table(title: str, columns: list[str], rows: list[list[dict]]) -> dict:
+    from app.services.conversation import TABLE_ROWS
+
+    note = f"Showing {TABLE_ROWS} of {len(rows)}." if len(rows) > TABLE_ROWS else None
+    return {"type": "table", "title": title, "columns": columns, "rows": rows[:TABLE_ROWS],
+            "note": note}  # fmt: skip
+
+
+def comment_letters(db: Session, b: Brief, as_of: date | None) -> tuple[str, list[dict]]:
+    """C-16: the SEC's comment-letter reviews of the company (D-13), grouped by review, with the
+    topics tagged from the reviewed keyword list; each review links its first letter."""
+    from app.services import comment_letters as CL
+
+    body = CL.for_company(db, b.company.cik, limit=100, as_of=as_of)
+    name, since = _name(b), (as_of or date.today()).replace(year=(as_of or date.today()).year - 5)
+    if body["coverage"] == "not_read":
+        rows = body["letters"]
+        if not rows:
+            return (f"No SEC comment letters or responses for {name} since {since.isoformat()} "
+                    "are in the filings loaded here.", [])  # fmt: skip
+        latest = rows[0]
+        n = _cite(b, f"{latest['form']} filed {latest['date']}", latest["source_url"])
+        who = "the SEC's letter" if latest["from"] == "sec" else "the company's response"
+        text = (f"{name}'s SEC comment letters have not been read here yet, so their topics "
+                f"are not known. The filings list {len(rows)} letters and responses since "
+                f"{since.isoformat()}; the latest is {who} filed {latest['date']} "
+                f"[{n}].")  # fmt: skip
+        table = _table(f"SEC comment letters and responses, {name}", ["Filed", "From", "Form"],
+                       [[_cell(r["date"], r["source_url"]),
+                         _cell("SEC" if r["from"] == "sec" else name), _cell(r["form"])]
+                        for r in rows])  # fmt: skip
+        return text, [table]
+    threads, labels = body["threads"], body["topic_keys"]
+    if not threads:
+        return (f"No SEC comment-letter reviews of {name} since {since.isoformat()} are in the "
+                "letters read here.", [])  # fmt: skip
+
+    def topics(t) -> str:
+        return ", ".join(labels.get(k, k) for k in t["topics"]) or "no topic tagged"
+
+    t = threads[0]
+    first = t["letters"][0]
+    n = _cite(b, f"{first['form']} filed {first['date']}", first["source_url"])
+    closed = (f"the staff closed it on {t['closed']}" if t["closed"]
+              else "no closing letter is in the letters read here")  # fmt: skip
+    text = (f"{name} has {_count(len(threads), 'SEC comment-letter review')} since "
+            f"{since.isoformat()} in the letters read here. The latest opened {t['opened']}"
+            + (f" (file {t['file_number']})" if t["file_number"] else "")
+            + f" on {topics(t)}; {closed} [{n}].")  # fmt: skip
+    seen = [k for th in threads for k in th["topics"] if k != "other"]
+    if seen:
+        common = sorted(set(seen), key=lambda k: (-seen.count(k), k))[:3]
+        text += " Topics across these reviews: " + ", ".join(
+            f"{labels.get(k, k)} ({seen.count(k)})" for k in common) + "."  # fmt: skip
+    text += " Topics are tagged from a reviewed keyword list, not read by a model."
+    rows = [[_cell(th["opened"], th["letters"][0]["source_url"]),
+             _cell(th["closed"] or "no closing letter"), _cell(th["file_number"] or "—"),
+             _cell(th["subject"] or "—"), _cell(topics(th)), _cell(str(len(th["letters"])))]
+            for th in threads]  # fmt: skip
+    table = _table(
+        f"SEC comment-letter reviews, {name}",
+        ["Opened", "Closed", "File number", "Subject", "Topics", "Letters"],
+        rows,
+    )
+    return text, [table]
+
+
+def corporate_tree(db: Session, b: Brief, as_of: date | None) -> tuple[str, list[dict]]:
+    """C-16: GLEIF Level 2 parents or the reason none is reported, the entities reporting the
+    company as parent, and the latest exhibit 21 (D-14). GLEIF is named, never linked; only the
+    exhibit 21 filing is cited. GLEIF data is current, so as_of does not apply to it."""
+    from app.services import corporate_tree as CT
+
+    tree = CT.for_company(db, b.company, children_limit=500, subsidiaries_limit=1000)
+    name, parts = _name(b), []
+    p = tree["parents"]
+    if not tree["entity"]["lei"]:
+        parts.append(f"No LEI is linked to {name} here, so GLEIF reports no parent or children "
+                     "for it.")  # fmt: skip
+    else:
+
+        def who(x) -> str:
+            return f"{x['name'] or x['lei']}" + (f" ({x['jurisdiction']})" if x["jurisdiction"]
+                                                 else "")  # fmt: skip
+
+        if p["direct"]:
+            parts.append(f"GLEIF lists {name}'s direct parent as {who(p['direct'])}.")
+        if p["ultimate"] and (not p["direct"] or p["ultimate"]["lei"] != p["direct"]["lei"]):
+            parts.append(f"Its ultimate parent is {who(p['ultimate'])}.")
+        said: dict[str, list[str]] = {}  # one sentence per reason: "direct and ultimate"
+        for e in sorted(p["exceptions"], key=lambda e: e["kind"] != "direct"):
+            said.setdefault(e["text"], []).append(e["kind"])
+        for why, kinds in said.items():
+            which = " and ".join(kinds) + (" parents" if len(kinds) > 1 else " parent")
+            parts.append(f"For its {which}, {name} reports to GLEIF: {why}")
+        if not (p["direct"] or p["ultimate"] or p["exceptions"]):
+            parts.append(f"GLEIF has no parent relationship or exception for {name}.")
+        kids = tree["children"]["data"]
+        if kids:
+            direct = sum(1 for k in kids if k["relationship"] == "direct")
+            many = "entity reports" if len(kids) == 1 else "entities report"
+            parts.append(f"{len(kids)} {many} {name} as their parent to GLEIF ({direct} as "
+                         "direct parent).")  # fmt: skip
+    subs = tree["subsidiaries"]
+    if subs["filing"]:
+        f = subs["filing"]
+        n = _cite(b, f"{f['form']} filed {f['filed_date']}", f["source_url"])
+        with_lei = sum(1 for s in subs["data"] if s["lei"])
+        listed = f"{subs['total']} " + ("subsidiary" if subs["total"] == 1 else "subsidiaries")
+        parts.append(f"Its latest exhibit 21, in the {f['form']} filed {f['filed_date']}, lists "
+                     f"{listed} ({with_lei} matched to an LEI by exact name and jurisdiction) "
+                     f"[{n}].")  # fmt: skip
+        rows = [[_cell(s["name"], f["source_url"]), _cell(s["jurisdiction"] or "—"),
+                 _cell(s["lei"] or "—")] for s in subs["data"]]  # fmt: skip
+        table = _table(f"Exhibit 21 subsidiaries, {name}", ["Subsidiary", "Jurisdiction", "LEI"],
+                       rows)  # fmt: skip
+    else:
+        parts.append(f"No exhibit 21 subsidiary list for {name} is in the filings loaded here"
+                     " (20-F filers do not file one).")  # fmt: skip
+        kids = tree["children"]["data"]
+        table = _table(f"Entities reporting {name} as parent (GLEIF)",
+                       ["Entity", "Jurisdiction", "Relationship", "LEI"],
+                       [[_cell(k["name"] or "—"), _cell(k["jurisdiction"] or "—"),
+                         _cell("direct" if k["relationship"] == "direct" else "ultimate only"),
+                         _cell(k["lei"])] for k in kids]) if kids else None  # fmt: skip
+    parts.append("Parents and children are as the entities report them to GLEIF (Level 2, CC0), "
+                 "as of the latest golden copy loaded.")  # fmt: skip
+    return " ".join(parts), [table] if table else []
+
+
 HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
     "holders": "ownership", "five_percent": "holders", "auditor": "overview",
     "segments": "segments", "insiders": "insider-transactions", "lei": "overview",
     "pay": "executive-pay", "trading_plans": "insider-plans", "proposed_sales": "insider-plans",
     "changes": "changes", "calendar": "calendar", "private_raises": "private-raises",
+    "comment_letters": "comment-letters", "corporate_tree": "corporate-tree",
 }  # fmt: skip
 
 ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
@@ -662,7 +817,20 @@ ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
            "private_raises": private_raises}  # fmt: skip
 
 
+TABLED = {"comment_letters": comment_letters, "corporate_tree": corporate_tree}
+
+
+def reply(db: Session, b: Brief, intent: str, as_of: date | None,
+          text: str = "") -> tuple[str, list[dict]]:  # fmt: skip
+    """The answer and its table blocks (C-16 intents carry one; the others none)."""
+    if intent in TABLED:
+        return TABLED[intent](db, b, as_of)
+    return answer(db, b, intent, as_of, text), []
+
+
 def answer(db: Session, b: Brief, intent: str, as_of: date | None, text: str = "") -> str:
+    if intent in TABLED:
+        return TABLED[intent](db, b, as_of)[0]
     if intent == "insiders":
         return insiders(db, b, as_of, text)
     if intent == "calendar":

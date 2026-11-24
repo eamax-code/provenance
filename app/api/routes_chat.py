@@ -604,7 +604,8 @@ def _data_reply(found: conversation.DataAnswer) -> ChatReply:
 
 
 def _figure_reply(company, brief, brief_out, answer: str, notes: list[str],
-                  how: list[dict] | None = None) -> ChatReply:  # fmt: skip
+                  how: list[dict] | None = None,
+                  widgets: list[dict] | None = None) -> ChatReply:  # fmt: skip
     return ChatReply(
         company=_company_dict(company),
         answer=answer,
@@ -615,13 +616,25 @@ def _figure_reply(company, brief, brief_out, answer: str, notes: list[str],
         answered_by="data",
         intent="figure",
         notes=notes,
-        blocks=_blocks(answer, brief.citations, [], brief.facts, {company.cik: _display(company)}),
+        widgets=widgets or [],
+        blocks=_blocks(
+            answer, brief.citations, widgets or [], brief.facts, {company.cik: _display(company)}
+        ),  # fmt: skip
         how=how or [],
     )
 
 
 # C-13: questions about one company's own data, never a comparison
-SINGLE = ("pay", "trading_plans", "proposed_sales", "changes", "calendar", "private_raises")
+SINGLE = (
+    "pay",
+    "trading_plans",
+    "proposed_sales",
+    "changes",
+    "calendar",
+    "private_raises",
+    "comment_letters",
+    "corporate_tree",
+)  # C-16
 
 
 # 24 Nov intents whose answers carry a table: the demo key's 10-row cap applies to it
@@ -896,7 +909,7 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
     if quoted and c06 != "private_raises":  # a Form D is never answered from the prospectus
         c06 = None
     if c06:
-        answer = chat_intents.answer(db, brief, c06, body.as_of, body.message)
+        answer, tables = chat_intents.reply(db, brief, c06, body.as_of, body.message)
         how = [
             {
                 "endpoint": f"/v1/companies/{int(company.cik)}/{chat_intents.HOW[c06]}",
@@ -904,7 +917,7 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
                 "as_of": body.as_of.isoformat() if body.as_of else None,
             }
         ]
-        reply = _figure_reply(company, brief, brief_out, answer, notes, how)
+        reply = _figure_reply(company, brief, brief_out, answer, notes, how, tables)
         reply.intent = c06
         return reply
     margin = intel.asked_margin(body.message) if fresh else None

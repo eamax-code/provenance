@@ -76,3 +76,11 @@ Rules:
 | 404 `company_not_found` | unknown CIK |
 
 Events: none in this window. MCP: the `comment_letters` tool, `{cik, topic?, since?}`.
+
+Chat (C-16): intent `comment_letters` ("Has the SEC sent Apple any comment letters?", "SEC
+staff comments", "CORRESP"). The answer counts the reviews of the last five years (by `as_of`:
+letters filed later are left out, so a review closed later reads as open), gives the latest
+review's file number, topics and closing date cited to its first letter, and the most frequent
+topics; a table block lists every review (opened, linked to its first letter; closed; file
+number; subject; topics; letters). A company whose letters were not read gets the filings list
+and says the topics are not known. No new reply fields.
