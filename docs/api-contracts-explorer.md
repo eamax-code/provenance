@@ -154,13 +154,18 @@ Rules:
   has them). The text then names the split: "10:1 split, June 2024: shares and per-share figures
   before FY2023 are as originally filed; …", or, without a reviewed date, "(4:1, restated in the
   10-K filed 2020-10-30)". A pair whose income swing is over 2x counts only from the reviewed list.
+  S-02c (2026-11-24): `reviewed` (bool). Only a reviewed split names its ratio in `text` and gets
+  `split_adjusted`; any other break reads "The share basis changes here (restated in the 10-K filed
+  <date>): …" with no adjusted values (its `ratio_hint` is a hint only: a hand-check of 30 found
+  IPO and merger share changes read as splits and reverse-split ratios off). As filed stays the
+  default.
 - `split_adjusted` (S-02, 2026-11-24, additive): beside the as-filed cells of a row with a
   `split_break`, the row on the post-split basis: `{"ratio": "4:1", "derived": true, "values":
   [...one per column...], "source": {"accession_number", "form", "filed_date", "source_url",
   "evidence": "eps_basic for the period ending 2018-09-29: 12.01 as filed 2018-11-05, 3 in the
   10-K filed 2020-10-30"}, "basis": "..."}`. Given only when a later filing restates a year by
   the break's own ratio; before the split each value is the later filing's restated one where
-  it exists, else the as-filed value adjusted by that ratio. Older reviewed splits are
+  it exists, else the as-filed value adjusted by that ratio. Only for reviewed splits (S-02c). Older reviewed splits are
   compounded into the values before them and listed under `earlier` (`[{ratio, before, source}]`). The as-filed cells stay the default.
 
 ---

@@ -798,28 +798,42 @@ def statement(
             return date.fromisoformat(d).strftime("%B %Y")
 
         split_date, restated_in = when(b["ratio_hint"]), filing_at(b["between"][1])
-        lead = f"{b['ratio_hint']} split, {month(split_date)}: shares" if split_date else "Shares"
-        where = (f", restated in the {restated_in['form']} filed {restated_in['filed_date']}"
-                 if restated_in and not split_date else "")  # fmt: skip
+        # S-02c: only a reviewed split names its ratio and gets adjusted values; the guard alone
+        # failed a hand-check of 30 (IPOs and mergers read as splits, reverse ratios off)
+        is_reviewed = (cik, b["ratio_hint"]) in reviewed
+        filed_where = (f"restated in the {restated_in['form']} filed {restated_in['filed_date']}"
+                       if restated_in else "restated in a later filing")  # fmt: skip
         earlier = b.get("earlier", [])
         for e in earlier:
             e["split_date"] = when(e["ratio_hint"])
-        text = (
-            f"{lead} and per-share figures before {b['between'][1]} are as originally filed; "
-            f"later filings restated some years for a stock split ({b['ratio_hint']}{where}), so "
-            f"{b['between'][0]} and {b['between'][1]} are on different share bases."
-            + "".join(f" An earlier split ({e['ratio_hint']}"
-                      + (f", {month(e['split_date'])}" if e["split_date"] else "")
-                      + f") also separates {e['between'][0]} and {e['between'][1]}."
-                      for e in earlier)
-            + " They are not adjusted."
-        )  # fmt: skip
+        if is_reviewed:
+            lead = (f"{b['ratio_hint']} split, {month(split_date)}: shares" if split_date
+                    else "Shares")  # fmt: skip
+            where = "" if split_date else f", {filed_where}"
+            text = (
+                f"{lead} and per-share figures before {b['between'][1]} are as originally "
+                f"filed; later filings restated some years for a stock split "
+                f"({b['ratio_hint']}{where}), so {b['between'][0]} and {b['between'][1]} are "
+                "on different share bases."
+                + "".join(f" An earlier split ({e['ratio_hint']}"
+                          + (f", {month(e['split_date'])}" if e["split_date"] else "")
+                          + f") also separates {e['between'][0]} and {e['between'][1]}."
+                          for e in earlier)
+                + " They are not adjusted."
+            )  # fmt: skip
+        else:
+            text = (f"The share basis changes here ({filed_where}): shares and per-share "
+                    f"figures before {b['between'][1]} are as originally filed, so "
+                    f"{b['between'][0]} and {b['between'][1]} are on different share bases. "
+                    "They are not adjusted.")  # fmt: skip
         notes.append(text)
         for v in breaks.values():
             v["text"], v["split_date"], v["restated_in"] = text, split_date, restated_in
+            v["reviewed"] = is_reviewed
     for r in rows:
         r.split_break = breaks.get(r.metric)
-    adjusted = statements_service.split_adjusted(db, cik, rows, breaks, as_of)
+    reviewed_breaks = breaks if breaks and next(iter(breaks.values()))["reviewed"] else {}
+    adjusted = statements_service.split_adjusted(db, cik, rows, reviewed_breaks, as_of)
     if adjusted:
         a = next(iter(adjusted.values()))
         more = "".join(f", and {e['ratio']} before {e['before']} from the "

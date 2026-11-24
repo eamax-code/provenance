@@ -126,7 +126,7 @@ def test_split_break_on_the_statement(client, auth, db):
     assert [c["value"] for c in rows["eps_basic"]["cells"]] == [9.27, 3.0]  # never adjusted
 
 
-def test_split_adjusted_series_from_a_restating_filing(client, auth, db):
+def test_split_adjusted_series_from_a_restating_filing(client, auth, db, monkeypatch):
     """S-02: the ratio comes from a later filing restating a year (12.00 as filed, 3.00 in the
     10-K two years later); older years are adjusted by it, beside the as-filed cells."""
     import hashlib
@@ -162,8 +162,19 @@ def test_split_adjusted_series_from_a_restating_filing(client, auth, db):
                 observation_key=hashlib.sha256(f"{metric}{y}{suf}".encode()).hexdigest(),
             ))  # fmt: skip
     db.commit()
+    from app.services import statements as st
+
+    # S-02c: not in the reviewed split list: the break is noted, nothing is adjusted
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
+    assert rows["eps_basic"]["split_adjusted"] is None
+    assert rows["eps_basic"]["split_break"]["reviewed"] is False
+    note = rows["eps_basic"]["split_break"]["text"]
+    assert note.startswith("The share basis changes here (restated in the 10-K filed")
+    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "4:1"): "2020-08-31"})
+    body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
+    rows = {r["metric"]: r for r in body["rows"]}
+    assert rows["eps_basic"]["split_break"]["reviewed"] is True
     adj = rows["eps_basic"]["split_adjusted"]
     assert adj["ratio"] == "4:1" and adj["derived"] is True
     assert adj["values"] == [2.3175, 3.0]  # FY2017 9.27 / 4; FY2018 as restated
@@ -245,12 +256,11 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     plain = rows["eps_basic"]["split_break"]
-    assert "earlier" not in plain and plain["split_date"] is None
+    assert "earlier" not in plain and plain["split_date"] is None and plain["reviewed"] is False
     assert plain["restated_in"]["filed_date"] == "2020-11-01"  # the filing behind FY2018
-    assert "restated some years for a stock split (3:1, restated in the 10-K filed 2020-11-01)" \
-        in plain["text"] and plain["text"].startswith("Shares and per-share")  # fmt: skip
-    assert rows["eps_basic"]["split_adjusted"]["values"] == [2.0, 1.0, 1.0, 1.0]  # 6.00 / 3
-    assert "earlier" not in rows["eps_basic"]["split_adjusted"]
+    assert plain["text"].startswith("The share basis changes here (restated in the 10-K filed "
+                                    "2020-11-01)") and "3:1" not in plain["text"]  # fmt: skip
+    assert rows["eps_basic"]["split_adjusted"] is None  # S-02c: unreviewed, never adjusted
     # both splits reviewed: named with their dates, and compounded
     dates = {(cik, "2:1"): "2018-03-01", (cik, "3:1"): "2020-03-02"}
     monkeypatch.setattr(st, "reviewed_splits", lambda: dates)
