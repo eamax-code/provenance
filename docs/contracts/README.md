@@ -13,6 +13,7 @@ renamed before it is built, and ui is told when it is.
 | [changes.md](changes.md) | `GET /v1/filings/{accession}/changes`, `GET /v1/companies/{cik}/changes` | X-14 |
 | [calendar.md](calendar.md) | `GET /v1/companies/{cik}/calendar`, `GET /v1/watchlists/{id}/calendar` | X-15 |
 | [filing-search.md](filing-search.md) | `GET /v1/search/filings` | Q-01 |
+| [insider-screener.md](insider-screener.md) | `GET /v1/insider-transactions` | Q-03 |
 
 Common to all, as for the Explorer endpoints (`docs/api-contracts-explorer.md`):
 - `X-API-Key` is required. One request is one metered unit. The demo key works on the showcase
