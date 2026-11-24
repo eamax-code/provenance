@@ -19,7 +19,8 @@ not signals. **No yield** until end-of-day prices exist (P-01).
   companies and periods reported with it, then the 30-period hand-check below.
 - `dividends_paid` (the cash-flow total already stored) is shown beside each period, as stored.
 - A company that reports no per-share dividend tag gets `200` with `data: []` and a note, never
-  zeros: no dividend reported is not the same as no dividend paid.
+  zeros: no dividend reported is not the same as no dividend paid. The note never says the
+  company pays no dividend (the page shows "No dividends declared in the filings we hold").
 - Values are as reported, in the reporting currency (`unit`, e.g. `USD/shares`, `JPY/shares`);
   nothing is converted.
 
@@ -28,7 +29,7 @@ not signals. **No yield** until end-of-day prices exist (P-01).
 | Parameter | Values | Default |
 |---|---|---|
 | `period` | `annual` or `quarterly` | `annual` |
-| `periods` | 1-20 annual, 1-80 quarterly | 10 annual, 20 quarterly |
+| `periods` | 1-20 annual, 1-80 quarterly (ui asks 12 annual, 20 quarterly, as the statements) | 10 annual, 20 quarterly |
 | `as_of` | ISO date: only filings made by then | none |
 | `basis` | `as_reported` or `split_adjusted` (which value fills `value`; both are always given) | `as_reported` |
 
@@ -71,28 +72,43 @@ not signals. **No yield** until end-of-day prices exist (P-01).
 
 ### Field rules
 
+- **Columns line up with the statements (ui, 2026-11-25):** `period_label`, `period_start`,
+  `period_end` and the fiscal year come from the same source and labelling as
+  `/v1/companies/{cik}/statements` (`periods.label`, the company's fiscal year end), so
+  "FY2024" or "Q1 FY2025" here is the statements' column key for the same company and period.
 - **One value per period:** the latest filing (by `as_of`) that reports it; a later 10-K that
   restates a year (after a split) wins, as on the statements.
-- **Quarterly** values are as reported. A Q4 is **derived** (FY minus the first three quarters,
-  `derived: true` with its inputs) only when all four values sit on one share basis (no reviewed
-  split between the filings they cite); otherwise the Q4 is `null` with a note. Per-share
-  dividends add up over a year, unlike EPS, but only on one share basis.
+- **Quarterly** values are as reported. A Q4 is **derived** (FY minus the first three quarters)
+  only when all four values sit on one share basis (no reviewed split between the filings they
+  cite); otherwise the Q4 is `null` with a note. A derived Q4 says `derived: true` and lists
+  `inputs`: `[{period_label, value, accession_number, source_url}]` for the FY and Q1 to Q3.
+  Per-share dividends declared add up within a fiscal year on one share basis, unlike EPS or
+  weighted shares: the code names this metric on an allow-list of its own (PM, 2026-11-25), so
+  the "currency flows only" rule of d94eed8 stays closed to EPS and shares, with a test.
 - **`split_adjusted`** puts every value on the share basis of today, using only the reviewed
   split list (`app/data/splits_reviewed.csv`) and the statements' rule: a value cited from a
   filing made before a split's effective date is divided by that split's ratio (compounded across
-  splits); one made after is unchanged. `factor` is the divisor applied. A value filed within a
-  split given only to the month has `split_adjusted: null`. `splits` lists the reviewed splits
+  splits); one made after is unchanged. `factor` is the divisor applied: `1` means the value is
+  on today's basis already, more than 1 that it was filed on an earlier basis (the page marks
+  those, as the statements' pre-split cells). A value filed within a split given only to the
+  month has `split_adjusted: null`, and `notes` names those periods ("…filed in the month of a
+  split dated only to the month: no split-adjusted value"). `splits` lists the reviewed splits
   used, each with its filing quote. The as-reported value always stays beside it; headers say
   "as reported" or "split-adjusted".
-- **`special`** (*provisional*; derived): company facts do not mark special dividends (Costco's
-  $15.00 of December 2023 is inside its FY2024 total). A quarter is `likely: true` when its
-  declared amount is at least 2.5 times the median of the company's other declared quarters in
-  the two years around it (four or more such quarters, on one share basis); `amount_above_regular`
-  is the excess over that median. An annual period is `likely` when one of its quarters is. Fewer
-  than four quarters to compare: `special: null`. The basis text says it is a reading of the
-  amounts, not the company's label, and the gate reports how many flags are right.
+- **`special`** (*provisional*; derived; on quarterly and annual rows): company facts do not mark
+  special dividends (Costco's $15.00 of December 2023 is inside its FY2024 total). A quarter is
+  `likely: true` when its declared amount is at least 2.5 times the median of the company's other
+  declared quarters in the two years around it (four or more such quarters, on one share basis);
+  `amount_above_regular` is the excess over that median, **per share**. An annual period is
+  `likely` when one of its quarters is, and its `amount_above_regular` is the sum of those
+  quarters' excess, per share. Fewer than four quarters to compare: `special: null`. `basis` is
+  always given when `likely` is true: it says this is a reading of the amounts, not the
+  company's label (the page's wording: "Unusually large: possibly special", never "Special
+  dividend" unless a future source marks it). The gate reports how many flags are right.
 - **`payout_ratio`** (derived, annual only): declared dividends per share divided by diluted EPS
-  for the same fiscal year, both as reported in the same period and share basis. `null` when EPS
+  for the same fiscal year, both as reported in the same period and share basis. `inputs` lists
+  both sides with their citations: the declared dividend per share and `eps_diluted`, each
+  `{metric, value, accession_number, source_url}`. `null` when EPS
   is zero or negative, missing, or in another currency. Over 1.0 is possible (paying more than
   earned) and shown as it is. Quarterly views give `payout_ratio: null`.
 - `dividends_paid` is the cash-flow line for the period as stored (all classes, including
@@ -100,10 +116,16 @@ not signals. **No yield** until end-of-day prices exist (P-01).
   shares and is never used to derive anything here.
 - Links are sec.gov/Archives filing pages only. No API URLs, no fetch or detection times.
 
+## Not in scope
+
+Ex-dividend, record and payment dates are not in the SEC's company facts; they would come from
+8-K text later, if ever (PM, 2026-11-25). Yield waits for prices (P-01).
+
 ## Errors and access
 
 - `404 company_not_found`; `422 invalid_parameter` for a bad period, periods or basis.
-- The demo key: showcase companies only, at most 10 periods, trimmed with a note.
+- The demo key: showcase companies only, at most 10 periods, trimmed with a note. `as_of`
+  passes through from the Explorer's "as known on".
 - Usual rate and plan limits.
 
 ## MCP and chat (after the API)
