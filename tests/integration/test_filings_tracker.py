@@ -259,3 +259,22 @@ def test_handled_rows_are_purged_after_a_year(db, settings):
     db.commit()
     assert retention.purge(db, settings, now=now)["edgar_feed"] == 2
     assert {e.status for e in db.scalars(select(EdgarFeedEntry))} == {"new", "refreshed"}
+
+
+def test_a_tracker_run_refreshes_the_stats_snapshot(db, settings, monkeypatch):
+    """The launchd job runs the tracker alone (no poller loop, STATS_REFRESH_SECONDS=0 on the
+    web process): /v1/stats showed a fetch 10 hours old (24 Nov). A run now refreshes it."""
+    from app.jobs import filings_tracker as job
+    from app.services import stats
+
+    summary = {"search": {}, "latest": {}, "daily_index": {}, "failed": 0}
+    monkeypatch.setattr(job.filings_tracker, "run_once", lambda *a, **k: summary)
+    assert stats.read_snapshot(db, stats.SNAPSHOT) is None
+
+    class Client:
+        def close(self):
+            pass
+
+    job.run(db, settings, client=Client())
+    snap = stats.read_snapshot(db, stats.SNAPSHOT)
+    assert snap is not None and "freshness" in snap

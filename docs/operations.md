@@ -51,7 +51,8 @@ secret values) when:
 1. Provision managed PostgreSQL (enable automated backups) and set `DATABASE_URL`.
 2. Set all secrets via the platform secret manager; never commit `.env`.
 3. Run `alembic upgrade head` as a release step (the Compose `migrate` service does this).
-4. Start the API with 1-2 workers behind HTTPS; health check `GET /healthz`, readiness `GET /readyz`.
+4. Start the API with 2 workers (`uvicorn --workers 2`) behind HTTPS; health check `GET /healthz`, readiness
+   `GET /readyz`. One worker is too tight once full-text search is in the mix (R-2 for Q-01 below).
 5. Run the poller as a separate process or a cron job: `python scripts/poll_sec.py --once` every
    `INGESTION_POLL_INTERVAL_SECONDS`.
 6. Create the first API key: `python scripts/create_api_key.py you@example.com --plan builder`.
@@ -572,3 +573,27 @@ uvicorn worker, local Postgres, a temporary enterprise key revoked afterwards), 
 
 An earlier pass at 03:20 under a load average of 7 (Form 144 prefetch, letters and 10-K reads
 running) had /v1/search at 527 ms p95: contention, not the endpoint (single requests 25-55 ms).
+
+## R-2 for Q-01 full-text search (2026-11-24 evening)
+
+`scripts/load_smoke.py` against a scratch server on HEAD 87fad5b (one uvicorn worker, local
+Postgres, a temporary enterprise key revoked afterwards), load average 6-8 on the machine.
+
+| Run | Requests | Search p50 | Search p95 | Search p99 | Errors |
+| --- | --- | --- | --- | --- | --- |
+| `filing search` alone, 30 query shapes (15 queries x both sorts), 5 req/s, 180 s | 900 | 125 | 222 | 272 | 0 |
+| the 24 Nov mix plus `filing search`, 25 req/s, 120 s | 3,000 | 121 | 298 | 1,303 | 0 |
+
+The shapes: words, phrases, the stop-word phrase "will be available", or-groups, exclusions,
+and section, form, date and cik filters. With search in the mix the other endpoints' p95 rose
+to 70-440 ms (timeline 722 ms) and every endpoint had p99 stalls of about 1 s; the same mix
+without search kept them under 105 ms (except /v1/search at 230 ms under that load). Production
+therefore runs 2 workers. Before launch: re-run the mix plus search at 2 workers; if timeline
+is still over 500 ms p95, it gets a ticket.
+
+Speed decisions behind these numbers: the GIN index answers the match alone (sequential scans
+off for that query; a common word otherwise read every stored vector, about 650 ms); filters
+and dates come from an in-process section map, not a join of matches to filings; a quoted
+phrase is checked chunk by chunk with the phrase operator in the select list before texts are
+read; relevance ranks the newest 2,000 matches; a quoted single word matches by stem (exact
+single words read thousands of texts, 0.7-1.5 s).

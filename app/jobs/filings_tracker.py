@@ -28,6 +28,7 @@ def run(db: Session, settings: Settings, client: SecClient | None = None) -> dic
         status = "partial" if errors or summary["failed"] else "succeeded"
         finish_run(db, db.merge(run_row), status, "; ".join(errors)[:2000] or None)
         db.commit()
+        _refresh_stats(db, settings)
         return summary
     except Exception as exc:  # noqa: BLE001 - recorded on the run, then raised
         db.rollback()
@@ -37,6 +38,21 @@ def run(db: Session, settings: Settings, client: SecClient | None = None) -> dic
     finally:
         if own:
             client.close()
+
+
+def _refresh_stats(db: Session, settings: Settings) -> None:
+    """The public stats snapshot (/v1/stats: last fetch, counts) after every run. The web
+    process refreshes it only when STATS_REFRESH_SECONDS > 0, and the launchd job runs this
+    tracker without the poller loop, so the status page showed a fetch 10 hours old although
+    the tracker ran every hour (24 Nov)."""
+    from app.services import stats
+
+    try:
+        stats.refresh_snapshot(db, settings)
+        db.commit()
+    except Exception:  # noqa: BLE001 - the filings are in; the next run tries again
+        db.rollback()
+        logger.exception("stats snapshot refresh failed")
 
 
 def maybe_run(
