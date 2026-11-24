@@ -365,6 +365,7 @@
     n = String(n || '').replace(/\s*\/[A-Za-z]{2,3}\/?\s*$/, '').trim();
     // mixed case as filed ("CVS HEALTH Corp"): tidy only the shouted words of four letters or more, keep short acronyms
     n = n.replace(/,(?=[A-Za-z])/g, ', '); // "Cencora,Inc."
+    n = n.replace(/\bJpmorgan\b/g, 'JPMorgan'); // the API's display name, cased as a title
     if (n !== n.toUpperCase()) return n.replace(/\b(?:Mc)?[A-Z]{4,}\b/g, function (w) { return KEEP[w] ? w : /^Mc/.test(w) ? 'Mc' + w.charAt(2) + w.slice(3).toLowerCase() : w.charAt(0) + w.slice(1).toLowerCase(); });
     return n.split(/(\s+|[,.&()-])/).map(function (w, i) { return !/[A-Z]/.test(w) || KEEP[w] ? w : i && LOWER[w] ? w.toLowerCase() : w === 'JPMORGAN' ? 'JPMorgan' : w.charAt(0) + w.slice(1).toLowerCase(); }).join('');
   }
