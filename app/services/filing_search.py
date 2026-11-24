@@ -13,6 +13,7 @@ Other databases (the test suite's SQLite) match in Python.
 
 from __future__ import annotations
 
+import itertools
 import os
 import re
 import threading
@@ -33,6 +34,7 @@ MAX_LIMIT = 50
 MAX_OFFSET = 500
 MAX_PHRASES = 8
 SNIPPET_WORDS = 35
+SNIPPET_MARKS = 50  # occurrences of each term considered when placing the snippet
 RELEVANCE_POOL = 2000
 PHRASE_CHUNK = 500  # candidates checked by the phrase operator at a time
 VERIFY_BATCH = 100
@@ -201,9 +203,11 @@ class Row:
     form: str
     filed: date | None
     source_url: str
+    family: str | None = None
 
 
 _index: tuple[float, list[Row], dict[uuid.UUID, Row]] | None = None
+_coverage: list[dict] | None = None
 _index_lock = threading.Lock()
 
 
@@ -213,7 +217,7 @@ def section_map(db: Session) -> tuple[list[Row], dict[uuid.UUID, Row]]:
         if _index and time.monotonic() - _index[0] < INDEX_TTL_SECONDS:
             return _index[1], _index[2]
     rows = [
-        Row(i, c, a, it, (f or "").upper(), d, u)
+        Row(i, c, a, it, (f or "").upper(), d, u, family(it))
         for i, c, a, it, f, d, u in db.execute(
             select(FilingSection.id, FilingSection.cik, FilingSection.accession_number,
                    FilingSection.item, Filing.form_type, Filing.filing_date,
@@ -225,15 +229,18 @@ def section_map(db: Session) -> tuple[list[Row], dict[uuid.UUID, Row]]:
     ]  # fmt: skip
     rows.sort(key=lambda r: (r.filed or date.min, r.accession_number, r.item), reverse=True)
     by_id = {r.id: r for r in rows}
+    global _coverage
     with _index_lock:
         _index = (time.monotonic(), rows, by_id)
+        _coverage = None
     return rows, by_id
 
 
 def reset_section_map() -> None:
-    global _index
+    global _index, _coverage
     with _index_lock:
         _index = None
+        _coverage = None
 
 
 def family(item: str) -> str | None:
@@ -241,10 +248,15 @@ def family(item: str) -> str | None:
 
 
 def coverage(db: Session) -> list[dict]:
+    """Per section family: items, forms, counts and dates; computed once per section map."""
+    global _coverage
     rows, _ = section_map(db)
+    with _index_lock:
+        if _coverage is not None:
+            return [dict(c) for c in _coverage]
     out: dict[str, dict] = {}
     for r in rows:
-        fam = family(r.item) or r.item
+        fam = r.family or r.item
         c = out.setdefault(fam, {
             "section": fam, "items": set(), "forms": set(), "sections": 0, "ciks": set(),
             "first_filed": None, "last_filed": None})  # fmt: skip
@@ -255,13 +267,16 @@ def coverage(db: Session) -> list[dict]:
         if r.filed:
             c["first_filed"] = min(filter(None, (c["first_filed"], r.filed)))
             c["last_filed"] = max(filter(None, (c["last_filed"], r.filed)))
-    return [
+    result = [
         {"section": c["section"], "items": sorted(c["items"]), "forms": sorted(c["forms"]),
          "sections": c["sections"], "companies": len(c["ciks"]),
          "first_filed": c["first_filed"].isoformat() if c["first_filed"] else None,
          "last_filed": c["last_filed"].isoformat() if c["last_filed"] else None}
         for c in sorted(out.values(), key=lambda c: -c["sections"])
     ]  # fmt: skip
+    with _index_lock:
+        _coverage = result
+    return [dict(c) for c in result]
 
 
 def known_items(db: Session) -> set[str]:
@@ -288,7 +303,7 @@ class Filters:
             return False
         if self.forms and not any(r.form == f or r.form == f + "/A" for f in self.forms):
             return False
-        if self.section and r.item != self.section and family(r.item) != self.section:
+        if self.section and r.item != self.section and r.family != self.section:
             return False
         if self.items is not None and r.item not in self.items:
             return False
@@ -432,7 +447,8 @@ def snippet_for(query: Query, text: str) -> tuple[str, list[list[int]]]:
     text, with [start, end) offsets of each phrase or word shown."""
     pats = [_phrase_re(t.words) if t.phrase else _word_re(t.text, query.stems)
             for t in query.terms]  # fmt: skip
-    marks = sorted((m.start(), k) for k, p in enumerate(pats) for m in p.finditer(text))
+    marks = sorted((m.start(), k) for k, p in enumerate(pats)
+                   for m in itertools.islice(p.finditer(text), SNIPPET_MARKS))  # fmt: skip
     span = SNIPPET_WORDS * 7
     at, best = 0, -1
     for j, (pos, _) in enumerate(marks):
