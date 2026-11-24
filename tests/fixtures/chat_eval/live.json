@@ -315,6 +315,20 @@
    "kind": "company",
    "company_cik": "0001094517",
    "checked": "C-16: a 20-F filer: GLEIF 'no known person' for both parents, 41 GLEIF children in the table, no exhibit 21 (nothing to cite)"
+  },
+  {
+   "id": "L45",
+   "q": "What is HP's revenue?",
+   "kind": "company",
+   "company_cik": "0000047217",
+   "checked": "C-15: the reviewed alias HP is HP Inc (HPQ), not Helmerich & Payne (ticker HP)"
+  },
+  {
+   "id": "L46",
+   "q": "T. Rowe Price revenue",
+   "kind": "company",
+   "company_cik": "0001113169",
+   "checked": "C-15: T. Rowe Price Group (TROW, filed as PRICE T ROWE GROUP INC), not AT&T or a T. Rowe Price fund"
   }
  ]
 }

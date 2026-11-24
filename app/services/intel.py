@@ -6,10 +6,13 @@ pointing at the SEC record. The language model sees only this context (see route
 
 from __future__ import annotations
 
+import csv
 import re
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
+from functools import lru_cache
+from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -131,6 +134,10 @@ def _short_ticker_is_subject(text: str, raw: list[str], i: int, follow_up: bool)
     nxt = raw[i + 1].rstrip(".").lower() if i + 1 < len(raw) else ""
     if prev in _TICKER_BEFORE or (len(w) == 1 and raw[i].endswith(".")):
         return False
+    # "Berkshire Hathaway B shares": a share class letter after a company's name, not a ticker
+    if len(w) == 1 and i > 0 and nxt in _TICKER_AFTER and raw[i - 1][:1].isupper() \
+            and len(prev) >= 3 and prev not in _STOP and not prev.isdigit():  # fmt: skip
+        return False
     if re.search(rf"\${re.escape(w)}\b", text) or prev in ("ticker", "symbol"):
         return True
     last = i == len(raw) - 1 and prev in ("about", "for", "of", "on")  # "Tell me about GE"
@@ -138,6 +145,40 @@ def _short_ticker_is_subject(text: str, raw: list[str], i: int, follow_up: bool)
 
 
 _INITIAL = re.compile(r"^[A-Z]\.?$")
+BRAND_ALIASES = Path(__file__).resolve().parents[1] / "data" / "brand_aliases.csv"
+
+
+def _dots(text: str) -> str:
+    """ "T. Rowe Price" and "A.O. Smith" read as "T Rowe Price" and "A O Smith"."""
+    return re.sub(r"\s+", " ", re.sub(r"\.", " ", text)).strip()
+
+
+@lru_cache(maxsize=1)
+def _alias_patterns() -> list[tuple[re.Pattern, str, bool]]:
+    """C-15: reviewed brand and name aliases (app/data/brand_aliases.csv), longest first. One of
+    three letters or fewer ("HP") counts only in capitals."""
+    with BRAND_ALIASES.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    out = []
+    for r in sorted(rows, key=lambda r: -len(r["alias"])):
+        a = _dots(r["alias"])
+        short = len(a) <= 3
+        out.append((re.compile(rf"(?<![\w&$-]){re.escape(a)}(?![\w&-])", 0 if short else re.I),
+                    r["cik"], short))  # fmt: skip
+    return out
+
+
+def brand_alias(db: Session, text: str, follow_up: bool = False) -> Company | None:
+    """The company a reviewed alias names ("HP" is HP Inc, "T. Rowe Price" the group), checked
+    before tickers. With a company already given, a short alias never switches it."""
+    plain = _dots(text)
+    for pat, cik, short in _alias_patterns():
+        if (short and follow_up) or not pat.search(plain):
+            continue
+        c = db.scalar(select(Company).where(Company.cik == cik))
+        if c is not None:
+            return c
+    return None
 
 
 def _person_words(raw: list[str]) -> set[int]:
@@ -269,6 +310,9 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
     switches it: a ticker in capitals, a whole name, or a capitalised start of a name."""
     text = re.sub(r"['\u2019]s\b", "", text)  # "Apple's" -> "Apple"
     text = _DATES.sub(" ", text)  # "3 Nov 2026", "Mar 2025": dates, never a company
+    aliased = brand_alias(db, text, follow_up)
+    if aliased is not None:
+        return aliased
     raw = [m.group(0) for m in re.finditer(r"[A-Za-z0-9][A-Za-z0-9.&-]*", text)]
     words = [w.rstrip(".") for w in raw]
     for i, (prev, w) in enumerate(zip(["", *words], words, strict=False)):
@@ -286,6 +330,11 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
     named = _person_words(raw)
     person = {k for k, i in enumerate(kept) if i in named}  # C-14: never a company alone
     initial = {k for k, i in enumerate(kept) if _INITIAL.match(raw[i])}
+    # C-15: a run of three or more capitalised words is a person's name as filed ("Huang Jen
+    # Hsun"); none of its words is a near spelling of a company on its own
+    caps = [k for k, i in enumerate(kept) if raw[i][:1].isupper() and len(words[i]) >= 2]
+    run_of_three = {k for k in caps if {k - 2, k - 1} <= set(caps) or {k - 1, k + 1} <= set(caps)
+                    or {k + 1, k + 2} <= set(caps)}  # fmt: skip
 
     def names_a_person(i: int, size: int) -> bool:
         """A one- or two-word phrase made only of a person's name and initials ("Robert",
@@ -373,7 +422,7 @@ def resolve_company(db: Session, text: str, *, follow_up: bool = False,
     best = None
     for size in (2, 1):
         for i in range(len(useful) - size + 1):
-            if names_a_person(i, size):
+            if names_a_person(i, size) or (size == 1 and i in run_of_three):
                 continue
             phrase = " ".join(useful[i : i + size])
             lower_word = size == 1 and phrase.islower()

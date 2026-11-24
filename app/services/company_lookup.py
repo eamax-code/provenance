@@ -158,7 +158,8 @@ def _tier(h: SearchHit, name: str, query: str) -> int:
         return 10
     if h.match_type in ("ticker", "former_ticker"):
         strong = query.strip().isupper() or (
-            h.match_type == "ticker" and core_name(lname).startswith(name))
+            h.match_type == "ticker" and core_name(lname).startswith(name)
+        )
         return 10 if strong else 6
     if h.match_type in ("name_exact", "name_prefix") or h.successor_of:
         return 6
@@ -295,12 +296,15 @@ def fuzzy_companies(
         candidates = db.scalars(select(Company)).all()
     else:
         return []
-    n = len(phrase.split())
+    typed = phrase.split()
+    n = len(typed)
     found = []
     for c in candidates:
         words = core_name(c.legal_name).split()
-        # Typos rarely change the first letter; "as today" is not "USA Today".
-        if not words or (whole_name and len(words) != n) or words[0][0] != phrase[0]:
+        # Typos rarely change a word's first letter; "as today" is not "USA Today", and "Huang
+        # Jen" is not "Hang Feng" (C-15)
+        if not words or (whole_name and len(words) != n) or len(words) < n \
+                or any(t[0] != w[0] for t, w in zip(typed, words, strict=False)):  # fmt: skip
             continue
         dist = typo_distance(phrase, " ".join(words[:n]))
         if dist <= limit_typos:

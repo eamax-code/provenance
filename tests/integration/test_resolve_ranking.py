@@ -125,3 +125,44 @@ def test_a_person_named_with_an_initial_is_never_a_company(db):
     assert r(db, "Werner revenue").cik == "0000900142"
     assert r(db, "J. B. Hunt revenue").cik == "0000900144"
     assert r(db, "Berkshire Hathaway B shares").cik == "0000900145"
+
+
+def test_reviewed_brand_aliases_share_classes_and_names_without_initials(db):
+    """C-15 (2026-11-24): reviewed aliases (app/data/brand_aliases.csv) come before tickers: HP is
+    HP Inc, not Helmerich & Payne (ticker HP); GE Vernova and GE HealthCare by their own names;
+    T. Rowe Price, A. O. Smith and W. R. Berkley under their filed names. A share class letter
+    after a name is not a ticker, and a person's full name is never a near spelling."""
+    for cik, name, ticker, rev in (
+        ("0000047217", "HP INC", "HPQ", 55e9), ("0000046765", "Helmerich & Payne, Inc.", "HP", 3e9),
+        ("0000040545", "GENERAL ELECTRIC CO", "GE", 40e9),
+        ("0001996810", "GE Vernova Inc.", "GEV", 35e9),
+        ("0001932393", "GE HealthCare Technologies Inc.", "GEHC", 20e9),
+        ("0001113169", "PRICE T ROWE GROUP INC", "TROW", 7e9),
+        ("0000732717", "AT&T INC.", "T", 120e9),
+        ("0000091142", "SMITH A O CORP", "AOS", 4e9),
+        ("0000845982", "SMITH & NEPHEW PLC", "SNN", 5e9),
+        ("0000011544", "BERKLEY W R CORP", "WRB", 13e9),
+        ("0001045309", "W R GRACE & CO", None, 2e9),
+        ("0001067983", "BERKSHIRE HATHAWAY INC", "BRK-B", 370e9),
+        ("0000756894", "BARRICK MINING CORP", "B", 12e9), ("0001090872", "AGILENT", "A", 6e9),
+        ("0002060083", "Hang Feng Technology Innovation Co., Ltd.", "FOFO", 1e6),
+    ):  # fmt: skip
+        _co(db, cik, name, ticker, rev)
+    db.commit()
+    r = intel.resolve_company
+    want = {"HP revenue": "0000047217", "Tell me about HP": "0000047217",
+            "Helmerich & Payne revenue": "0000046765", "GE revenue": "0000040545",
+            "GE Aerospace revenue": "0000040545", "GE Vernova revenue": "0001996810",
+            "GE HealthCare revenue": "0001932393", "T Rowe Price revenue": "0001113169",
+            "T. Rowe Price revenue": "0001113169", "A. O. Smith revenue": "0000091142",
+            "AO Smith revenue": "0000091142", "W. R. Berkley revenue": "0000011544",
+            "Berkshire Hathaway B shares": "0001067983",
+            "Berkshire Hathaway A shares": "0001067983", "T revenue": "0000732717",
+            "What is AT&T's revenue?": "0000732717"}  # fmt: skip
+    for q, cik in want.items():
+        got = r(db, q)
+        assert got is not None and got.cik == cik, (q, got and got.legal_name)
+    assert r(db, "Huang Jen Hsun Form 4") is None
+    assert r(db, "What did Huang Jen Hsun sell?") is None
+    assert r(db, "HP revenue", follow_up=True) is None  # a short alias never switches
+    assert r(db, "GE Vernova revenue", follow_up=True).cik == "0001996810"
