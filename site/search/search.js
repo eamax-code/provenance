@@ -126,7 +126,8 @@
         var sort = st.sort === 'relevance' ? 'most relevant first' : 'newest filing first', asof = st.filed_to ? ' · as known on ' + day(st.filed_to) : '';
         if (!shown) say('No stored section matches this search. It ' + coverage(b.coverage) + '.');
         else say(shown + ' section' + (shown === 1 ? '' : 's') + ' shown' + (m.has_more ? (next > MAXOFF ? ', more than 500: narrow the search to see the rest' : ', more below') : '') + ' · ' + sort + asof + ' · ' + coverage(b.coverage) + '.');
-        $('fs-cov').textContent = (b.notes || []).join(' ');
+        // the summary line already says what is searched, so the API's coverage note is not repeated (PM, 24 Nov); other notes show
+        $('fs-cov').textContent = (b.notes || []).filter(function (n) { return !/not every filing on EDGAR/.test(n); }).join(' ');
         var api = $('fs-api'); api.hidden = false;
         api.replaceChildren('The same search from the API: ', el('code', { text: 'curl -H "X-API-Key: $KEY" "' + location.origin + '/v1/search/filings?' + query(0).toString() + '"' }));
       })
