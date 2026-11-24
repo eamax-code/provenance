@@ -821,18 +821,20 @@ def statement(
                 if not d:
                     continue
                 first, last = statements_service.date_span(d)
-                for i in range(1, len(labels)):
-                    lo, hi = filed[i - 1], filed[i]
-                    if lo and hi and last > lo and first <= hi:
-                        out.append((i, hint))
-                        break
+                at = [i for i in range(1, len(labels)) if filed[i - 1] and filed[i]
+                      and last > filed[i - 1] and first <= filed[i]]  # fmt: skip
+                if len(at) == 1:  # columns filed out of order (an S-1 re-presenting old
+                    out.append((at[0], hint))  # years) can bracket a date twice: then none
         return out
 
+    accs = [(filing_at(lab) or {}).get("accession_number") for lab in labels]
+    one_filing = {i for i in range(1, len(labels)) if accs[i] and accs[i] == accs[i - 1]}
     breaks = statements_service.split_breaks(
         {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
         labels,
         restated,
         placed(),
+        one_filing,
     )
     if breaks:
         b = next(iter(breaks.values()))

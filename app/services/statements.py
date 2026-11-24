@@ -205,7 +205,8 @@ def date_label(d: str) -> str:
 
 
 def split_breaks(values: dict[str, list[float | None]], keys: list[str], confirm=None,
-                 forced: list[tuple[int, str]] | None = None) -> dict[str, dict]:  # fmt: skip
+                 forced: list[tuple[int, str]] | None = None,
+                 one_filing: set[int] | None = None) -> dict[str, dict]:  # fmt: skip
     """Where adjacent columns mix share bases: a later filing restated some years for a stock
     split and the earlier years stay on the pre-split basis (Apple FY2017 5.2B shares, FY2018
     19.8B). Flag only, nothing is adjusted: a share row jumps by a near-whole factor and an EPS
@@ -216,9 +217,12 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str], confirm
     accept a latest pair whose income swing is too large (S-02b). The route's confirm checks the
     reviewed split list. forced [(column index, ratio)] are reviewed splits placed by their dates
     (Alphabet's 20:1 has no share row to detect it; Tesla's 3:1 came with a loss turning to a
-    profit); they count whether or not the guard sees them."""
+    profit); they count whether or not the guard sees them. one_filing: column indices whose
+    pair cites the same filing on both sides, never a basis change for the guard."""
     found: list[tuple[int, str]] = []
     for i in range(1, len(keys)):
+        if one_filing and i in one_filing:
+            continue  # S-02d: both columns from one filing are on one share basis
         hit = None
         for s in SHARE_ROWS:
             a, b = (values.get(s) or [None] * len(keys))[i - 1 : i + 1]
@@ -319,7 +323,8 @@ def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[s
             return None
         cut = cols.index(old_key)  # columns 0..cut are on the older share basis
         a, b = brk_["ratio_hint"].split(":")
-        expected = float(int(a)) if int(b) == 1 else 1 / int(b)  # the break's own split
+        expected = int(a) / int(b)  # the break's own split; 3:2 (S-02d) is 1.5 new per old
+        whole_ratio = int(a) == 1 or int(b) == 1
         for metric in EPS_ROWS + SHARE_ROWS:
             row = by_metric.get(metric)
             # the first new-basis year (Apple FY2018: 11.91 as filed, 2.98 restated) and then
@@ -330,9 +335,15 @@ def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[s
                 facts = reported(metric, cell)
                 for later in facts[1:]:
                     if later.filed_date > facts[0].filed_date and facts[0].value and later.value:
-                        f = share_factor(metric, facts[0], later)
-                        if f and abs(f / expected - 1) < 1e-9:  # the restatement is this split
-                            return cut, f, (metric, cell, facts[0], later)
+                        if whole_ratio:
+                            f = share_factor(metric, facts[0], later)
+                            ok = f and abs(f / expected - 1) < 1e-9  # the restatement is this
+                        else:  # a fractional split: the restated value within 5% of the ratio
+                            r = float(later.value) / float(facts[0].value)
+                            r = 1 / r if metric in EPS_ROWS else r
+                            ok = r > 0 and abs(r / expected - 1) < 0.05
+                        if ok:
+                            return cut, expected, (metric, cell, facts[0], later)
         return None
 
     brk = next(iter(breaks.values()))
@@ -361,7 +372,10 @@ def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[s
         }  # fmt: skip
 
     def ratio_of(f: float) -> str:
-        return f"{round(f)}:1" if f >= 1 else f"1:{round(1 / f)}"
+        from fractions import Fraction
+
+        q = Fraction(f).limit_denominator(1000)
+        return f"{q.numerator}:{q.denominator}"
 
     factor = newest[1]
     ratio, source = ratio_of(factor), source_of(newest)
