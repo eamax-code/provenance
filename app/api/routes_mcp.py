@@ -480,6 +480,71 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "search_managers": {
+        "title": "Find fund managers (Form 13F)",
+        "description": "Institutional investment managers that file Form 13F, by name or CIK, "
+        "with their latest quarter, positions and value.",
+        "path": "/v1/managers",
+        "params": {"query": "q", "limit": "limit"},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+            },
+            "required": ["query"],
+        },  # fmt: skip
+    },
+    "manager_portfolio": {
+        "title": "A fund manager's 13F portfolio",
+        "description": "A manager's positions for a quarter (per company and share class), "
+        "changes against the quarter before on shares (new, added, reduced, unchanged; "
+        "split-adjusted), exits and quarter history, each linked to its 13F. A manager that "
+        "filed only a 13F notice lists the managers reporting for it. Holdings are as of the "
+        "quarter end, filed up to 45 days later. Information, not signals.",
+        "path": "/v1/managers/{cik}",
+        "params": {
+            "quarter": "quarter",
+            "as_of": "as_of",
+            "sort": "sort",
+            "limit": "limit",
+            "offset": "offset",
+        },  # fmt: skip
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "quarter": _DATE,
+                "as_of": _DATE,
+                "sort": {"type": "string", "enum": ["value", "change", "name"]},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 100},
+                "offset": {"type": "integer", "minimum": 0, "maximum": 10000},
+            },
+            "required": ["cik"],
+        },
+    },
+    "fund_activity": {
+        "title": "Most bought or sold by funds",
+        "description": "Companies ranked by how many 13F managers opened or added against "
+        "reduced or exited in a quarter (shares, split-adjusted; mergers, listings and splits "
+        "left out, named in the notes). Information, not signals.",
+        "path": "/v1/managers/activity",
+        "params": {
+            "quarter": "quarter",
+            "direction": "direction",
+            "min_holders": "min_holders",
+            "limit": "limit",
+        },  # fmt: skip
+        "schema": {
+            "type": "object",
+            "properties": {
+                "quarter": _DATE,
+                "direction": {"type": "string", "enum": ["bought", "sold"], "default": "bought"},
+                "min_holders": {"type": "integer", "minimum": 1, "maximum": 1000, "default": 20},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
+            },
+        },
+    },
     "search_filings": {
         "title": "Search inside filings",
         "description": "Full-text search over stored filing sections (10-K risk factors and "

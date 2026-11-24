@@ -331,6 +331,47 @@ def insider_screen_request(text: str, today: date) -> dict | None:
     return out
 
 
+# Q-02: funds (Form 13F) in chat
+_FUND_WORDS = (
+    r"(?:funds?|fund managers?|managers?|institutions?|institutional investors?|hedge funds?|13f)"
+)
+_FUND_ACTIVITY = re.compile(
+    rf"\b(?:most|top|biggest)\b[^?]*?\b(?P<verb>bought|buying|purchased|sold|selling)\b[^?]*?\b{_FUND_WORDS}\b"
+    rf"|\bwhat (?:are|did|have) {_FUND_WORDS} (?P<verb2>buy|buying|bought|sell|selling|sold)\b"
+    rf"|\b(?:which|what) (?:stocks?|shares|companies) (?:did|are|have) {_FUND_WORDS} "
+    r"(?P<verb3>buy|buying|bought|sell|selling|sold)\b",
+    re.IGNORECASE)  # fmt: skip
+_MANAGER_MOVES = re.compile(
+    r"\bwhat (?:did|has|have|is) (?P<who>[\w&.,' -]{2,60}?) (?P<verb>buy|bought|buying|sell|sold|"
+    r"selling|add|added|adding|trim|trimmed|cut)\b", re.IGNORECASE)  # fmt: skip
+_WHO_SOLD = re.compile(r"\bwho (?P<verb>sold|is selling|has sold|bought|is buying|has bought|"
+                       r"trimmed|added to) (?P<co>[^?]{2,60})\??\s*$", re.IGNORECASE)  # fmt: skip
+_NOT_A_MANAGER = re.compile(
+    rf"^(?:the )?(?:{_FUND_WORDS}|insiders?|ceos?|cfos?|directors?|executives?|officers?|"
+    r"people|they|you|it)$", re.IGNORECASE)  # fmt: skip
+
+
+def fund_request(text: str) -> dict | None:
+    """{kind: activity|manager|holders, ...} for a funds question, or None."""
+    m = _FUND_ACTIVITY.search(text)
+    if m:
+        verb = (m.group("verb") or m.group("verb2") or m.group("verb3") or "").lower()
+        return {"kind": "activity", "direction": "sold" if verb.startswith("s") else "bought"}
+    m = _MANAGER_MOVES.search(text)
+    if m and not _NOT_A_MANAGER.match(m.group("who").strip()):
+        verb = m.group("verb").lower()
+        sells = verb.startswith(("s", "t", "c"))
+        return {"kind": "manager", "who": m.group("who").strip(), "sells": sells}
+    m = _WHO_SOLD.search(text)
+    if m:
+        return {
+            "kind": "holders",
+            "company": m.group("co").strip(),
+            "sells": m.group("verb").lower() in ("sold", "is selling", "has sold", "trimmed"),
+        }
+    return None
+
+
 def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) -> Plan | None:
     """The cross-company intent a question names, or None for the company flow."""
     if _OUT_OF_SCOPE.search(text):
@@ -339,6 +380,9 @@ def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) 
         return Plan("filing_search", filters={"text": text})
     if insider_screen_request(text, date.today()):
         return Plan("insider_screen", filters={"text": text})
+    fund = fund_request(text)
+    if fund:
+        return Plan("funds", filters={"text": text, **fund})
     if _is_private_raise(text):
         return Plan("private_raises", filters={"text": text})
     if db is not None and _COMPARE.search(text):
@@ -405,6 +449,8 @@ def answer(db: Session, p: Plan, ctx: ConversationContext | None, today: date) -
         return _filing_search(db, p, today)
     if p.kind == "insider_screen":
         return _insider_screen(db, p, today)
+    if p.kind == "funds":
+        return _funds(db, p, today)
     raise ValueError(p.kind)
 
 
@@ -1175,3 +1221,115 @@ def strongly_named(db: Session, text: str) -> Company | None:
     from app.services.intel import resolve_company
 
     return resolve_company(db, text, follow_up=True)
+
+
+def _funds(db: Session, p: Plan, today: date) -> DataAnswer:
+    """Q-02: funds' 13F moves: the activity list, one manager's buys or sales, or one company's
+    fund activity (with the same split and structural guards)."""
+    from app.services import fund_managers as fm
+
+    f = p.filters
+    q = fm.latest_quarter(db, today)
+    if q is None:
+        return DataAnswer("No Form 13F quarter is loaded yet.", "funds")
+    lag = f" {fm.LAG} {fm.DISCLAIMER}"
+    when = f"the quarter to {q.isoformat()}"
+    if f["kind"] == "activity":
+        rows, left = fm.activity(db, q, f["direction"], 20, TABLE_ROWS)
+        verb = "bought" if f["direction"] == "bought" else "sold"
+        how = [{"endpoint": "/v1/managers/activity",
+                "parameters": {"direction": f["direction"], "quarter": q.isoformat()}}]  # fmt: skip
+        if not rows:
+            return DataAnswer(f"No company qualifies for {when}.{lag}", "funds", how=how)
+        table = _table(f"Most {verb} by funds, {when}",
+                       ["Company", "Class", "Net managers", "New", "Added", "Reduced", "Exited",
+                        "Shares change"],
+                       [[_cell(r["issuer"]["name"] or r["issuer"]["cik"]), _cell(r["class_label"]),
+                         _cell(f"{r['net_managers']:+,}"), _cell(str(r["managers_new"])),
+                         _cell(str(r["managers_added"])), _cell(str(r["managers_reduced"])),
+                         _cell(str(r["managers_exited"])),
+                         _cell("—" if r["shares_change_pct"] is None
+                               else f"{r['shares_change_pct']:+.1f}%")] for r in rows])  # fmt: skip
+        top = ", ".join(r["issuer"]["name"] or r["issuer"]["cik"] for r in rows[:3])
+        named = "; ".join(f"{x['name']} ({x['reason']})" for x in left[:3])
+        note = (f"Left out: {len(left)} companies whose managers' total shares doubled or halved "
+                f"(mergers, listings, splits), e.g. {named}.") if left else None  # fmt: skip
+        return DataAnswer(f"Most {verb} by funds in {when}, by managers opening or adding against "
+                          f"reducing or exiting: {top}.{lag}", "funds", [table], how=how,
+                          notes=[note] if note else [])  # fmt: skip
+    if f["kind"] == "manager":
+        found, _ = fm.search(db, f["who"], 3)
+        found = [m for m in found if m["latest_quarter"] == q] or found
+        if not found:
+            return DataAnswer(f"No 13F manager named \u201c{f['who']}\u201d is stored.", "funds")
+        m = found[0]
+        port, _ = fm.cached_view(db, m["cik"], q, None)
+        params = {"quarter": q.isoformat(), "sort": "change"}
+        how = [{"endpoint": f"/v1/managers/{int(m['cik'])}", "parameters": params}]
+        if port is None:
+            nt = fm.notice(db, m["cik"], q)
+            who = ", ".join(r["name"] for r in (nt or {}).get("reported_by", [])[:5])
+            return DataAnswer(f"{m['name']} filed only a 13F notice for {when}; its holdings are "
+                              f"reported by {who or 'other managers'}.{lag}", "funds",
+                              how=how)  # fmt: skip
+        want = ("reduced",) if f["sells"] else ("new", "added")
+        moves = [x for x in port["positions"] if x["change"] and x["change"]["status"] in want]
+        if f["sells"]:
+            moves += [{"issuer": x["issuer"], "class_label": x["class_label"],
+                       "change": {"status": "exited", "shares_change": -x["shares_previous"],
+                                  "split_adjusted": False}, "value_usd": x["value_previous_usd"],
+                       "shares": 0} for x in port["exited"]]  # fmt: skip
+
+        def size(x):
+            per = x["value_usd"] / x["shares"] if x["shares"] else 0
+            return abs(x["change"]["shares_change"]) * per if per else x["value_usd"]
+
+        moves.sort(key=lambda x: -size(x))
+        cites: list[dict] = []
+        url = port["filing"]["source_url"]
+        n = _cite(cites, f"{m['name']} 13F for {q.isoformat()}", url)
+        verb = "sold or trimmed" if f["sells"] else "bought or added"
+        if not moves:
+            return DataAnswer(f"{m['name']} {verb} nothing in {when} [{n}].{lag}", "funds",
+                              citations=cites, how=how)  # fmt: skip
+        table = _table(f"{m['name']}: {verb}, {when}",
+                       ["Company", "Class", "Change", "Shares change", "Shares now"],
+                       [[_cell(x["issuer"]["name"] or "—"), _cell(x["class_label"]),
+                         _cell(x["change"]["status"]
+                               + (" (split-adjusted)" if x["change"].get("split_adjusted")
+                                  else "")),
+                         _cell(f"{x['change']['shares_change']:+,.0f}"),
+                         _cell(f"{x['shares']:,.0f}")] for x in moves[:TABLE_ROWS]],
+                       note=_more(len(moves)))  # fmt: skip
+        top = ", ".join(x["issuer"]["name"] or "—" for x in moves[:3])
+        return DataAnswer(f"{m['name']} {verb} {len(moves)} positions in {when} [{n}], the "
+                          f"largest {top}.{lag}", "funds", [table], citations=cites,
+                          how=how)  # fmt: skip
+    # who sold or bought a company: its fund activity row, and its holders view
+    from app.db.models import ThirteenFActivity
+    from app.services.intel import resolve_company
+
+    c = resolve_company(db, f["company"])
+    if c is None:
+        return DataAnswer(f"Which company is \u201c{f['company']}\u201d? Name it by ticker or "
+                          "CIK.", "funds")  # fmt: skip
+    rows = list(db.scalars(select(ThirteenFActivity).where(
+        ThirteenFActivity.report_period == q, ThirteenFActivity.issuer_cik == c.cik)))  # fmt: skip
+    how = [{"endpoint": f"/v1/companies/{int(c.cik)}/ownership", "parameters": {}}]
+    name = _name(c)
+    if not rows:
+        return DataAnswer(f"No 13F manager reported {name} in {when}.{lag}", "funds", how=how)
+    parts = []
+    for r in rows:
+        if r.possible_split or fm.structural(r):
+            parts.append(f"{r.class_label}: managers' total shares moved too much to compare "
+                         "(a split, merger or change of security), so buyers and sellers are "
+                         "not counted")  # fmt: skip
+            continue
+        parts.append(f"{r.class_label}: {r.managers_reduced} managers reduced and "
+                     f"{r.managers_exited} exited, {r.managers_added} added and {r.managers_new} "
+                     f"opened (net {r.net_managers:+,})"
+                     + (f", split-adjusted {r.split}" if r.split else ""))  # fmt: skip
+    return DataAnswer(f"Funds and {name} in {when}: " + "; ".join(parts) + ". Each manager's "
+                      f"change is on {name}'s ownership view (/companies/{int(c.cik)}/, "
+                      f"Ownership).{lag}", "funds", how=how)  # fmt: skip

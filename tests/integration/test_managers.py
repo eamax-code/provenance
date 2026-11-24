@@ -97,7 +97,7 @@ def funds(db):
     db.add(ThirteenFReportedBy(accession_number="0000900005-24-000001", seq=2, cik=None,
                                file_number="028-00002", name="Elsewhere Advisers Ltd"))  # fmt: skip
     db.commit()
-    thirteenf.mark_loaded_through(db, date(2024, 11, 30))
+    thirteenf.mark_loaded_through(db, date(2024, 8, 31))  # the latest complete quarter: Q2
     db.commit()
     for q in (Q1, Q2):
         fm.build_stats(db, q)
@@ -260,3 +260,38 @@ def test_a_split_adjusted_change_within_rounding_is_unchanged(client, auth, db, 
     assert nv["split_adjusted"] is True and nv["status"] == "unchanged"
     assert fm.same_after_split(110_969, 110_970.2667, "1:30")
     assert not fm.same_after_split(110_000, 110_970.2667, "1:30")
+
+
+def test_mcp_tools_and_chat_answers(client, auth, db, funds):
+    import json
+
+    from app.services import conversation as cv
+
+    def tool(name, args):
+        body = {"jsonrpc": "2.0", "id": 9, "method": "tools/call",
+                "params": {"name": name, "arguments": args}}  # fmt: skip
+        out = client.post("/mcp", json=body, headers=auth).json()
+        res = out.get("result")
+        assert res and res["isError"] is False, out
+        return json.loads(res["content"][0]["text"])
+
+    assert tool("search_managers", {"query": "alpha"})["data"][0]["cik"] == M1
+    port = tool("manager_portfolio", {"cik": M1, "quarter": "2024-06-30"})
+    assert port["manager"]["cik"] == M1 and port["positions"]
+    act = tool("fund_activity", {"quarter": "2024-06-30", "min_holders": 1})
+    assert act["data"] and act["labels"]["disclaimer"]
+    assert cv.fund_request("Which stocks did funds buy most last quarter?")["kind"] == "activity"
+    assert cv.fund_request("What are hedge funds selling?")["direction"] == "sold"
+    assert cv.fund_request("What did Alpha Capital buy last quarter?") == {
+        "kind": "manager", "who": "Alpha Capital", "sells": False}  # fmt: skip
+    assert cv.fund_request("Who sold Apple?")["company"] == "Apple"
+    for other in ("What did insiders buy?", "What did Apple report?", "Who is Apple's CEO?"):
+        assert cv.fund_request(other) is None, other
+    r = client.post("/v1/chat", json={"message": "What did Alpha Capital buy last quarter?"},
+                    headers=auth).json()  # fmt: skip
+    assert r["intent"] == "funds" and "45 days" in r["answer"]
+    (table,) = [w for w in r["widgets"] if w["type"] == "table"]
+    assert {row[2]["text"].split()[0] for row in table["rows"]} <= {"new", "added"}
+    assert r["citations"][0]["url"].startswith("https://www.sec.gov/Archives/")
+    who = client.post("/v1/chat", json={"message": "Who sold NVIDIA?"}, headers=auth).json()
+    assert who["intent"] == "funds" and "split-adjusted 10:1" in who["answer"]
