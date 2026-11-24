@@ -6,14 +6,14 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import db_session, require_reader, settings_dep
 from app.api.routes_companies import _ERRORS, _parse_cik_param
 from app.core.config import Settings
 from app.core.errors import APIError
-from app.db.models import Company
+from app.db.models import Company, InsiderFiling
 from app.services import insider_screener as scr
 from app.services import insiders
 from app.services.public import showcase_ciks
@@ -106,7 +106,10 @@ def insider_screener(
                      "companies; this list was trimmed.")  # fmt: skip
     companies = {c.cik: c for c in db.scalars(
         select(Company).where(Company.cik.in_({r["issuer_cik"] for r in page})))}  # fmt: skip
-    through = insiders.dataset_coverage(db)
+    datasets = insiders.dataset_coverage(db)
+    # the newest Form 4 stored (the data sets, then Forms 4 read as filed for covered companies)
+    through = db.scalar(select(func.max(InsiderFiling.filing_date))
+                        .where(InsiderFiling.form_type == "4"))  # fmt: skip
     notes += [
         "Open-market purchases (Form 4 code P) and sales (code S) only, one row per Form 4, "
         "code and security class; grants, exercises, gifts, tax withholding and derivative "
@@ -127,8 +130,8 @@ def insider_screener(
         notes.append(f"Left out as filed errors: {n} line{'s' if n != 1 else ''} dated "
                      "after the Form 4's own filing date or more than three years before "
                      "it.")  # fmt: skip
-    if through and until > through:
-        notes.append(f"The quarterly insider data sets run to {through.isoformat()}; later "
+    if datasets and until > datasets:
+        notes.append(f"The quarterly insider data sets run to {datasets.isoformat()}; later "
                      "Forms 4 are read as filed for companies covered here.")  # fmt: skip
     return {
         "data": [_out(r, companies.get(r["issuer_cik"])) for r in page],
@@ -136,6 +139,7 @@ def insider_screener(
                  "next_offset": offset + limit if more else None},
         "filters": {"type": type, "since": since, "until": until, "as_of": as_of},
         "through": through,
+        "datasets_through": datasets,
         "labels": {"disclaimer": scr.DISCLAIMER},
         "notes": notes,
     }  # fmt: skip

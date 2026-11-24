@@ -73,8 +73,28 @@ def _title_match(titles: list[str], officer_title: str | None) -> bool:
     """Any of the alternatives as whole words of the title as filed, case ignored ("cfo" finds
     "EVP & CFO", not "CFOX")."""
     t = officer_title or ""
-    return any(re.search(r"\b" + r"\s+".join(map(re.escape, a.split())) + r"\b", t, re.I)
-               for a in titles)  # fmt: skip
+    for a in titles:
+        for m in re.finditer(r"\b" + r"\s+".join(map(re.escape, a.split())) + r"\b", t, re.I):
+            if not _NOT_THE_OFFICER.search(t[: m.start()]) and not _NOT_AFTER.match(t[m.end() :]):
+                return True
+    return False
+
+
+# "Strategic Advisor to CEO", "Assistant to the CFO", "Deputy CEO": not the officer named (ui's
+# live pass, 24 Nov)
+_NOT_THE_OFFICER = re.compile(r"\b(?:advis[eo]r|assistant|aide|counsel(?:or)?|chief of staff)"
+                              r"\s+to\s+(?:the\s+)?$|\b(?:deputy|vice|associate|assistant)\s*$",
+                              re.IGNORECASE)  # fmt: skip
+_NOT_AFTER = re.compile(r"\s*(?:assistant|advis[eo]r|aide)\b", re.IGNORECASE)  # "CEO Assistant"
+
+
+def _matches(f, s: Screen) -> bool:
+    """The owner meets the screen's role, title and owner filters (listed first on its row)."""
+    if s.owner_cik and f.owner_cik != s.owner_cik:
+        return False
+    if s.roles and not _role_keys(f) & s.roles:
+        return False
+    return not (s.titles and not _title_match(s.titles, f.officer_title))
 
 
 def _role_keys(f: InsiderFiling) -> set[str]:
@@ -129,7 +149,8 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
     amended: dict[str, list] = {}
     rows = []
     for g in groups:
-        fs = sorted(owners.get(g.accession_number, []), key=lambda f: f.owner_cik)
+        fs = sorted(owners.get(g.accession_number, []), key=lambda f: (not _matches(f, s),
+                                                                       f.owner_cik))  # fmt: skip
         if not fs:
             continue
         f0 = fs[0]

@@ -14,7 +14,7 @@ the newest weeks). Information about what insiders reported, not signals.
 | `as_of` | ISO date: only Form 4s filed by then (no look-ahead); `until` defaults to it | none (today) |
 | `min_value`, `max_value` | US dollars, on the row's `value` | none |
 | `role` | comma-separated: `director`, `officer`, `ten_percent_owner`, `other` | none |
-| `title` | words in the officer title as filed, case ignored; up to 6 comma-separated alternatives, any of which matches, e.g. `chief executive,chief financial,ceo,cfo` | none |
+| `title` | words in the officer title as filed, case ignored; up to 6 comma-separated alternatives, any of which matches, e.g. `chief executive,chief financial,ceo,cfo`. "Advisor to the CEO", "Assistant to the CFO", "Deputy CEO" and "Chief Executive Assistant" do not match | none |
 | `cik` | one issuer CIK | none |
 | `owner_cik` | one reporting person's CIK | none |
 | `plan_10b5_1` | `true` (the Form 4 ticks the Rule 10b5-1 box) or `false` (it does not) | none |
@@ -23,7 +23,8 @@ the newest weeks). Information about what insiders reported, not signals.
 | `limit` | 1-100 | 50 |
 | `offset` | 0-5000 | 0 |
 
-`role` and `title` keep a row when any of its reporting owners matches.
+`role` and `title` keep a row when any of its reporting owners matches; the matching owners are
+listed first in `owners`.
 
 ## Response
 
@@ -63,6 +64,7 @@ the newest weeks). Information about what insiders reported, not signals.
   "meta": {"limit": 50, "offset": 0, "has_more": true, "next_offset": 50},
   "filters": {"type": "all", "since": "2026-09-04", "until": "2026-10-03", "as_of": null},
   "through": "2026-11-23",
+  "datasets_through": "2026-09-30",
   "labels": {"disclaimer": "Information, not signals. Not investment advice."},
   "notes": ["...", "..."]
 }
@@ -132,7 +134,9 @@ the newest weeks). Information about what insiders reported, not signals.
 - Transactions dated after their own filing date, or more than three years before it, are left
   out as filed errors (3,274 of 571,177 P and S lines today, such as the year 0023 for 2023). The
   per-company endpoint still shows them.
-- `through` is the date the stored Form 4 data runs to.
+- `through` is the newest filing date of a stored Form 4. `datasets_through` is where the SEC's
+  quarterly insider data sets end: after it, only Forms 4 of companies covered here are read as
+  filed, and `notes` says so.
 - `notes` say how rows are built (one per Form 4 and code; open market only) and when the window
   reaches past `through`.
 

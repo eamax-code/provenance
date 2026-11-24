@@ -324,3 +324,25 @@ def test_a_giant_value_needs_a_year_of_prices_behind_it(client, auth, db, trades
             for r in _get(client, auth, since="2026-01-01", limit=100).json()["data"]}  # fmt: skip
     assert rows["0000000007-26-000001"]["price_outlier"] is True
     assert rows["0000000007-26-000002"]["price_outlier"] is False
+
+
+def test_title_forms_that_are_not_the_officer_and_matching_owner_first(client, auth, db, trades):
+    from app.services.insider_screener import _title_match
+
+    t = ["chief executive", "chief financial", "ceo", "cfo"]
+    for title in ("Strategic Advisor to CEO", "SVP & Advisor to the CFO", "Global COO & Deputy CEO",
+                  "Chief Executive Assistant", "Executive Assistant to the CEO"):  # fmt: skip
+        assert not _title_match(t, title), title
+    for title in ("CEO", "President & CEO", "EVP & CFO", "CHIEF EXECUTIVE OFF."):
+        assert _title_match(t, title), title
+    # a joint Form 4: the owner that matches the title is listed first
+    acc = "0000000008-26-000001"
+    _filing(db, acc, C, "0000000801", "AARDVARK ANN", date(2026, 11, 9), officer=True,
+            title="EVP - Business Operations")  # fmt: skip
+    _filing(db, acc, C, "0000000899", "ZEBRA ZED", date(2026, 11, 9), officer=True, title="CEO")
+    _line(db, acc, C, 1, "S", date(2026, 11, 9), 10, 20, 90)
+    db.commit()
+    body = _get(client, auth, title="ceo", cik=C).json()
+    (row,) = [r for r in body["data"] if r["filing"]["accession_number"] == acc]
+    assert row["owners"][0]["officer_title"] == "CEO"
+    assert body["through"] == "2026-11-10" and "datasets_through" in body  # 4/A on 11-12 not
