@@ -32,6 +32,7 @@ from app.api import (
     routes_ipos,
     routes_key_requests,
     routes_listing_watches,
+    routes_managers,
     routes_markets,
     routes_mcp,
     routes_notifications,
@@ -275,6 +276,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_calendar.router)
     app.include_router(routes_private_raises.router)
     app.include_router(routes_insider_screener.router)
+    app.include_router(routes_managers.router)
     app.include_router(routes_watchlists.router)
     app.include_router(routes_ipos.router)
     app.include_router(routes_notifications.router)
@@ -392,6 +394,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     httponly=True,
                 )
             return response
+
+        @app.get("/managers/{cik}", include_in_schema=False, response_class=HTMLResponse)
+        @app.get("/managers/{cik}/", include_in_schema=False, response_class=HTMLResponse)
+        def manager_page(cik: str):
+            # Q-02: one page for every 13F manager; the page script reads the CIK from the path
+            page = site_dir / "managers" / "manager.html"
+            if not (cik.isdigit() and len(cik) <= 10) or not page.is_file():
+                raise StarletteHTTPException(status_code=404)  # browsers get the 404 page
+            return HTMLResponse(page.read_text(encoding="utf-8"))
 
         if settings.is_production:
             # the design prototypes are for review, never for visitors (GH #18)

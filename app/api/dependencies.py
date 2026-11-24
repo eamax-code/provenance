@@ -138,7 +138,12 @@ demo_all_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-all")
 DEMO_UPGRADE = "Create a free account at /account/ for your own key and full access."
 # Endpoints whose contract trims a demo request's limit instead of refusing it (Q-01: the
 # search page sends limit=20 and gets 10 hits with a note).
-DEMO_TRIMS_LIMIT = {"/v1/search/filings", "/v1/insider-transactions"}
+DEMO_TRIMS_LIMIT = {
+    "/v1/search/filings",
+    "/v1/insider-transactions",
+    "/v1/managers",
+    "/v1/managers/activity",
+}
 
 
 class DemoPrincipal:
@@ -191,7 +196,8 @@ def require_reader(
     )
     raw_limit = request.query_params.get("limit")
     if (raw_limit and raw_limit.isdigit() and int(raw_limit) > settings.demo_max_limit
-            and request.url.path not in DEMO_TRIMS_LIMIT):  # fmt: skip
+            and request.url.path not in DEMO_TRIMS_LIMIT
+            and not request.url.path.startswith("/v1/managers/")):  # fmt: skip
         raise APIError(
             403,
             "demo_limit",

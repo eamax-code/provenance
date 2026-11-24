@@ -493,6 +493,57 @@ class ThirteenFIssuerName(Base):
     share: Mapped[float] = mapped_column(Float, nullable=False)  # of those giving this name
 
 
+class ThirteenFSecurityStat(Base):
+    """Q-02: one security's quarter across every manager's Form 13F after amendments: holders,
+    total shares and value, and the median implied price (value over shares) that the
+    thousands-after-2023 check compares filings with. The CUSIP stays internal."""
+
+    __tablename__ = "thirteenf_security_stats"
+
+    cusip: Mapped[str] = mapped_column(String(9), primary_key=True)
+    report_period: Mapped[date] = mapped_column(Date, primary_key=True)
+    holders: Mapped[int] = mapped_column(Integer, nullable=False)
+    shares: Mapped[float] = mapped_column(Float, nullable=False)
+    value_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    median_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+class ThirteenFFilingScale(Base):
+    """Q-02: a 13F filing whose implied prices are about 1/1,000 of other managers' for the same
+    securities (still reporting thousands after 2023): values kept, flagged, left out of totals."""
+
+    __tablename__ = "thirteenf_filing_scale"
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    report_period: Mapped[date] = mapped_column(Date, nullable=False)
+    price_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)  # median of positions
+    suspect: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class ThirteenFActivity(Base):
+    """Q-02: most bought and sold by funds: per company and share class, managers that opened,
+    added, reduced or exited against the quarter before (shares, split-adjusted for reviewed
+    splits; a possible unreviewed split is marked and not ranked)."""
+
+    __tablename__ = "thirteenf_activity"
+
+    report_period: Mapped[date] = mapped_column(Date, primary_key=True)
+    issuer_cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    class_label: Mapped[str] = mapped_column(Text, primary_key=True)
+    previous_period: Mapped[date] = mapped_column(Date, nullable=False)
+    managers_new: Mapped[int] = mapped_column(Integer, nullable=False)
+    managers_added: Mapped[int] = mapped_column(Integer, nullable=False)
+    managers_reduced: Mapped[int] = mapped_column(Integer, nullable=False)
+    managers_exited: Mapped[int] = mapped_column(Integer, nullable=False)
+    net_managers: Mapped[int] = mapped_column(Integer, nullable=False)
+    holders: Mapped[int] = mapped_column(Integer, nullable=False)
+    holders_previous: Mapped[int] = mapped_column(Integer, nullable=False)
+    shares: Mapped[float] = mapped_column(Float, nullable=False)
+    shares_previous: Mapped[float] = mapped_column(Float, nullable=False)
+    split: Mapped[str | None] = mapped_column(Text, nullable=True)  # a reviewed split, "10:1"
+    possible_split: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
 class CompanyLei(Base):
     """An SEC filer's LEI (launch plan K-01), with how it was matched and how sure we are."""
 

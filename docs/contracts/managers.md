@@ -188,8 +188,11 @@ manager's change against the quarter before.
 
 - `404 manager_not_found` for a CIK with no 13F stored. `422 invalid_parameter` for a date that
   is not a quarter end, a quarter not loaded, or a bad sort or limit.
-- The demo key: managers search and the activity list work, at most 10 rows, a larger `limit`
-  trimmed with a note; a manager's portfolio at most 10 positions.
+- The demo key: managers search and the activity list work, at most 10 rows (activity from the
+  showcase companies), a larger `limit` trimmed with a note; a manager's portfolio only for
+  showcase CIKs (Berkshire Hathaway is one), at most 10 positions. A manager that filed only a
+  13F notice for the quarter (its holdings reported by another manager, as Vanguard Group since
+  2026) is `404 not_found` with that reason.
 - Usual rate limits and plan limits apply.
 
 ## MCP and chat
