@@ -187,10 +187,12 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str],
     19.8B). Flag only, nothing is adjusted: a share row jumps by a near-whole factor and an EPS
     row moves inversely across the same pair. Returns {metric: {"between": [a, b],
     "ratio_hint": "4:1"}} for each share and EPS row with values on both sides of the latest
-    such pair; "1:4" is a reverse split. confirm(between, hint) may accept a pair whose income
-    swing is too large (S-02b): the route checks the reviewed split list."""
-    found = None
+    such pair; "1:4" is a reverse split. Older pairs (NVIDIA: 4:1 in 2021, then 10:1 in 2024)
+    are listed under "earlier", newest first. confirm(between, hint) may accept a pair whose
+    income swing is too large (S-02b): the route checks the reviewed split list."""
+    found: list[tuple[int, str]] = []
     for i in range(1, len(keys)):
+        hit = None
         for s in SHARE_ROWS:
             a, b = (values.get(s) or [None] * len(keys))[i - 1 : i + 1]
             if not a or not b or a <= 0 or b <= 0:
@@ -210,18 +212,25 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str],
                 if inverse and (1 / SPLIT_MAX_INCOME_SWING < swing < SPLIT_MAX_INCOME_SWING
                                 or (confirm is not None and whole <= SPLIT_MAX_CLEAN_FACTOR
                                     and confirm([keys[i - 1], keys[i]], hint))):  # fmt: skip
-                    found = (i, hint)
+                    hit = (i, hint)
                     break
-            if found and found[0] == i:
+            if hit:
                 break
+        if hit:
+            found.append(hit)
     if not found:
         return {}
-    i, hint = found
+    i, hint = found[-1]
+    earlier = [
+        {"between": [keys[j - 1], keys[j]], "ratio_hint": h} for j, h in reversed(found[:-1])
+    ]
     out = {}
     for m in SHARE_ROWS + EPS_ROWS:
         a, b = (values.get(m) or [None] * len(keys))[i - 1 : i + 1]
         if a and b:
             out[m] = {"between": [keys[i - 1], keys[i]], "ratio_hint": hint}
+            if earlier:
+                out[m]["earlier"] = earlier
     return out
 
 
@@ -239,19 +248,12 @@ def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[s
         return {}
     wanted = SHARE_ROWS + EPS_ROWS
     by_metric = {r.metric: r for r in rows if not r.derived and r.metric in wanted}
-    brk = next(iter(breaks.values()))
-    old_key = brk["between"][0]
-    a, b = brk["ratio_hint"].split(":")
-    expected = float(int(a)) if int(b) == 1 else 1 / int(b)  # the break's own split
     any_row = next(iter(by_metric.values()), None)
     if any_row is None:
         return {}
     cols = [c.column if c else None for c in any_row.cells]
     for r in by_metric.values():  # the column labels, from any row that has them
         cols = [a or (c.column if c else None) for a, c in zip(cols, r.cells, strict=False)]
-    if old_key not in cols:
-        return {}
-    cut = cols.index(old_key)  # columns 0..cut are on the old share basis
 
     def reported(metric, cell) -> list:
         q = select(FinancialFact).where(
@@ -276,45 +278,84 @@ def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[s
             return None
         return float(whole)
 
-    factor = evidence = None
-    for metric in EPS_ROWS + SHARE_ROWS:
-        row = by_metric.get(metric)
-        # the first new-basis year (Apple FY2018: 11.91 as filed, 2.98 restated) and then the
-        # old-basis years, newest first; an older split (Apple 7:1, 2014) is not this one
-        for cell in reversed(row.cells[: cut + 2]) if row else []:
-            if cell is None:
-                continue
-            facts = reported(metric, cell)
-            for later in facts[1:]:
-                if later.filed_date > facts[0].filed_date and facts[0].value and later.value:
-                    f = share_factor(metric, facts[0], later)
-                    if f and abs(f / expected - 1) < 1e-9:  # the restatement is this split
-                        factor, evidence = f, (metric, cell, facts[0], later)
-                        break
-            if factor:
-                break
-        if factor:
-            break
-    if not factor:
+    def confirmed(brk_: dict):
+        """(cut, factor, evidence) when a filing restates a period before this break by its
+        ratio; None otherwise."""
+        old_key = brk_["between"][0]
+        if old_key not in cols:
+            return None
+        cut = cols.index(old_key)  # columns 0..cut are on the older share basis
+        a, b = brk_["ratio_hint"].split(":")
+        expected = float(int(a)) if int(b) == 1 else 1 / int(b)  # the break's own split
+        for metric in EPS_ROWS + SHARE_ROWS:
+            row = by_metric.get(metric)
+            # the first new-basis year (Apple FY2018: 11.91 as filed, 2.98 restated) and then
+            # the old-basis years, newest first; an older split (Apple 7:1, 2014) is not this one
+            for cell in reversed(row.cells[: cut + 2]) if row else []:
+                if cell is None:
+                    continue
+                facts = reported(metric, cell)
+                for later in facts[1:]:
+                    if later.filed_date > facts[0].filed_date and facts[0].value and later.value:
+                        f = share_factor(metric, facts[0], later)
+                        if f and abs(f / expected - 1) < 1e-9:  # the restatement is this split
+                            return cut, f, (metric, cell, facts[0], later)
+        return None
+
+    brk = next(iter(breaks.values()))
+    newest = confirmed(brk)
+    if not newest:
         return {}
-    metric, cell, orig, later = evidence
-    source = {
-        "accession_number": later.accession_number, "form": later.form_type,
-        "filed_date": later.filed_date.isoformat(), "source_url": later.source_url,
-        "evidence": f"{metric} for the period ending {cell.period_end.isoformat()}: "
-        f"{float(orig.value):g} as filed {orig.filed_date.isoformat()}, "
-        f"{float(later.value):g} in the {later.form_type} filed {later.filed_date.isoformat()}",
-    }  # fmt: skip
-    ratio = f"{round(factor)}:1" if factor >= 1 else f"1:{round(1 / factor)}"
+    # S-02b: older splits compound (NVIDIA FY2019 and before: 4:1 in 2021, then 10:1 in 2024,
+    # so 40 shares today per share then); before an older split no filing confirms, no value
+    steps, unknown_before = [newest], -1
+    for e in brk.get("earlier", []):
+        got = confirmed(e)
+        if got is None:
+            unknown_before = cols.index(e["between"][0]) if e["between"][0] in cols else -1
+            break
+        steps.append(got)
+
+    def source_of(step) -> dict:
+        _, _, (metric, cell, orig, later) = step
+        return {
+            "accession_number": later.accession_number, "form": later.form_type,
+            "filed_date": later.filed_date.isoformat(), "source_url": later.source_url,
+            "evidence": f"{metric} for the period ending {cell.period_end.isoformat()}: "
+            f"{float(orig.value):g} as filed {orig.filed_date.isoformat()}, "
+            f"{float(later.value):g} in the {later.form_type} filed "
+            f"{later.filed_date.isoformat()}",
+        }  # fmt: skip
+
+    def ratio_of(f: float) -> str:
+        return f"{round(f)}:1" if f >= 1 else f"1:{round(1 / f)}"
+
+    factor = newest[1]
+    ratio, source = ratio_of(factor), source_of(newest)
+    earlier_out = [{"ratio": ratio_of(st_[1]), "before": cols[st_[0] + 1],
+                    "source": source_of(st_)} for st_ in steps[1:]]  # fmt: skip
     out = {}
+
+    def factor_at(i: int) -> float:
+        out_ = 1.0
+        for cut_, f_, _ in steps:
+            if i <= cut_:
+                out_ *= f_
+        return out_
+
+    cut = newest[0]
     for m, row in by_metric.items():
         values = []
         for i, c in enumerate(row.cells):
             if c is None or i > cut:
                 values.append(c.value if c else None)
                 continue
+            if i <= unknown_before:
+                values.append(None)
+                continue
+            f_i = factor_at(i)
             v = float(c.value)
-            new = v * factor if m in SHARE_ROWS else v / factor
+            new = v * f_i if m in SHARE_ROWS else v / f_i
             # a later filing's own restated value wins when it agrees with the ratio
             again = [float(f.value) for f in reported(m, c)[1:] if f.value]
             match = next((x for x in reversed(again) if new and abs(x / new - 1) < 0.02), None)
@@ -323,4 +364,6 @@ def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[s
                   "basis": "Before the split: a later filing's restated value where it gives "
                   "one, else the as-filed value adjusted by the ratio the filings "
                   "show."}  # fmt: skip
+        if earlier_out:  # S-02b: older splits, compounded into the values before them
+            out[m]["earlier"] = earlier_out
     return out

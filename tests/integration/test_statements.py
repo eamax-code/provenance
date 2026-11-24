@@ -192,4 +192,60 @@ def test_a_reviewed_split_counts_when_income_swings_too(db):
     assert brk["eps_diluted"] == {"between": ["FY2022", "FY2023"], "ratio_hint": "10:1"}
     assert ("0001045810", "10:1") in st.reviewed_splits()
     assert ("0000929351", "1:14") not in st.reviewed_splits()  # Starz: 15-to-1, not a clean read
-    assert len(st.reviewed_splits()) == 12
+    assert len(st.reviewed_splits()) == 13  # NVIDIA 4:1 (2021) and 10:1 (2024) both
+
+
+def test_two_splits_compound_and_both_are_named(client, auth, db):
+    """S-02b (2026-11-24, provenance-pm): NVIDIA split 4:1 in 2021 and 10:1 in 2024; flagging the
+    10:1 had dropped the 4:1 and the oldest years were divided by 10, not 40. Every split pair is
+    named (the latest as split_break, older ones under "earlier") and the adjusted values
+    compound the ratios the filings confirm. Here 2:1, then 3:1: the oldest year is divided by 6."""
+    import hashlib
+    from datetime import UTC, date, datetime
+
+    from app.db.models import Company, Filing, FinancialFact
+
+    now, cik = datetime.now(UTC), "0000000779"
+    db.add(Company(cik=cik, legal_name="TWOSPLITS INC", ticker="TWOS",
+                   source_url="https://www.sec.gov/", first_detected_at=now,
+                   last_processed_at=now, quality_status="ok"))  # fmt: skip
+    facts = [  # (fiscal year, filed, accession suffix, shares, eps)
+        (2016, date(2016, 11, 1), "16", 100e6, 6.00),
+        (2017, date(2017, 11, 1), "17", 100e6, 6.00),
+        (2017, date(2018, 11, 1), "18", 200e6, 3.00),  # restated for the 2:1
+        (2018, date(2018, 11, 1), "18", 200e6, 3.00),
+        (2018, date(2020, 11, 1), "20", 600e6, 1.00),  # restated for the 3:1
+        (2019, date(2020, 11, 1), "20", 600e6, 1.00),
+    ]
+    seen = set()
+    for y, filed, suf, shares, eps in facts:
+        acc = f"{cik}-{suf}-000001"
+        url = f"https://www.sec.gov/Archives/edgar/data/779/{acc.replace('-', '')}/{acc}-index.html"
+        if acc not in seen:
+            seen.add(acc)
+            db.add(Filing(cik=cik, accession_number=acc, form_type="10-K", filing_date=filed,
+                          source_url=url, first_detected_at=now, quality_status="ok"))  # fmt: skip
+        for metric, value, unit in (("shares_basic_weighted", shares, "shares"),
+                                    ("eps_basic", eps, "USD/shares")):  # fmt: skip
+            db.add(FinancialFact(
+                cik=cik, metric=metric, value=value, unit=unit, currency="USD",
+                period_start=date(y - 1, 10, 1), period_end=date(y, 9, 30),
+                period_type="duration", period_class="annual", fiscal_year=y,
+                fiscal_period="FY", form_type="10-K", filed_date=filed, accession_number=acc,
+                source_tag="t", source_taxonomy="us-gaap", source_url=url,
+                mapping_version="1.5.0", quality_status="ok", derived=False,
+                first_detected_at=now, processed_at=now,
+                observation_key=hashlib.sha256(f"{metric}{y}{suf}".encode()).hexdigest(),
+            ))  # fmt: skip
+    db.commit()
+    body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
+    rows = {r["metric"]: r for r in body["rows"]}
+    brk = rows["eps_basic"]["split_break"]
+    assert brk["between"] == ["FY2017", "FY2018"] and brk["ratio_hint"] == "3:1"
+    assert brk["earlier"] == [{"between": ["FY2016", "FY2017"], "ratio_hint": "2:1"}]
+    assert "An earlier split (2:1) also separates FY2016 and FY2017." in brk["text"]
+    adj = rows["eps_basic"]["split_adjusted"]
+    assert adj["ratio"] == "3:1" and adj["values"] == [1.0, 1.0, 1.0, 1.0]
+    assert [(e["ratio"], e["before"]) for e in adj["earlier"]] == [("2:1", "FY2017")]
+    assert rows["shares_basic_weighted"]["split_adjusted"]["values"][0] == 600e6
+    assert [c["value"] for c in rows["eps_basic"]["cells"]] == [6.0, 3.0, 1.0, 1.0]  # as filed

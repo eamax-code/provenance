@@ -778,9 +778,11 @@ def statement(
         text = (
             f"Shares and per-share figures before {b['between'][1]} are as originally filed; "
             f"later filings restated some years for a stock split ({b['ratio_hint']}), so "
-            f"{b['between'][0]} and {b['between'][1]} are on different share bases. They are "
-            "not adjusted."
-        )
+            f"{b['between'][0]} and {b['between'][1]} are on different share bases."
+            + "".join(f" An earlier split ({e['ratio_hint']}) also separates "
+                      f"{e['between'][0]} and {e['between'][1]}." for e in b.get("earlier", []))
+            + " They are not adjusted."
+        )  # fmt: skip
         notes.append(text)
         for v in breaks.values():
             v["text"] = text
@@ -789,10 +791,13 @@ def statement(
     adjusted = statements_service.split_adjusted(db, cik, rows, breaks, as_of)
     if adjusted:
         a = next(iter(adjusted.values()))
+        more = "".join(f", and {e['ratio']} before {e['before']} from the "
+                       f"{e['source']['form']} filed {e['source']['filed_date']}"
+                       for e in a.get("earlier", []))  # fmt: skip
         notes.append(f"Split-adjusted values ({a['ratio']}) are given beside the as-filed ones "
                      f"for shares and per-share figures, derived from the "
-                     f"{a['source']['form']} filed {a['source']['filed_date']}; the as-filed "
-                     "values stay the default.")  # fmt: skip
+                     f"{a['source']['form']} filed {a['source']['filed_date']}{more}; the "
+                     "as-filed values stay the default.")  # fmt: skip
         for r in rows:
             r.split_adjusted = adjusted.get(r.metric)
     if as_of:

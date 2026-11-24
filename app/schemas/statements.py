@@ -47,15 +47,17 @@ class StatementRow(BaseModel):
     split_break: dict | None = Field(
         None,
         description="Adjacent years on different share bases (a split restated in later "
-        'filings for some years only): {"between": [label, label], "ratio_hint": "4:1"}. '
-        "Values are not adjusted.",
+        'filings for some years only): {"between": [label, label], "ratio_hint": "4:1"}, the '
+        'latest such pair; older splits under "earlier" (newest first). Values are not adjusted.',
     )
     split_adjusted: dict | None = Field(
         None,
         description="S-02: beside the as-filed cells, the same row on the post-split share "
         'basis: {"ratio": "4:1", "derived": true, "values": [...per column], "source": {the '
-        'filing that shows the ratio, with its evidence}, "basis"}. Only when a filing confirms '
-        "the ratio; the as-filed cells stay the default.",
+        'filing that shows the ratio, with its evidence}, "basis"}; older splits a filing also '
+        'confirms are compounded into the values before them and listed under "earlier" ([{ratio, '
+        "before, source}]). Only when a filing confirms the ratio; the as-filed cells stay the "
+        "default.",
     )
     cells: list[StatementCell | None]
 
