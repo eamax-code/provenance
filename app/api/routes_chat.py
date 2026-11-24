@@ -467,6 +467,8 @@ def chat(
     if not reply.blocks:  # every reply carries blocks (C-01); chips only where facts are known
         reply.blocks = _blocks(reply.answer, reply.citations, reply.widgets, [])
     _say_switch(db, given, reply)
+    if getattr(request.state, "demo", False) and reply.intent in DEMO_CAPPED:
+        _cap_tables(reply, settings.demo_max_limit)
     if reply.company and not reply.follow_ups:  # C-03: only what the stored data can answer
         comp = db.scalar(select(Company).where(Company.cik == reply.company["cik"]))
         if comp is not None:
@@ -620,6 +622,19 @@ def _figure_reply(company, brief, brief_out, answer: str, notes: list[str],
 
 # C-13: questions about one company's own data, never a comparison
 SINGLE = ("pay", "trading_plans", "proposed_sales", "changes", "calendar", "private_raises")
+
+
+# 24 Nov intents whose answers carry a table: the demo key's 10-row cap applies to it
+DEMO_CAPPED = ("private_raises",)
+
+
+def _cap_tables(reply: ChatReply, cap: int) -> None:
+    for w in [*(reply.widgets or []), *(reply.blocks or [])]:
+        if isinstance(w, dict) and w.get("type") == "table" and len(w.get("rows") or []) > cap:
+            w["rows"] = w["rows"][:cap]
+            w["note"] = " ".join(
+                x for x in (w.get("note"), f"The demo key shows at most {cap} rows.") if x
+            )
 
 
 def _is_given(given: str | None, cik: str) -> bool:

@@ -101,6 +101,30 @@ Review the underlying filing before relying on a value.
 """
 
 
+# The lists of rows a response can carry: `data` everywhere, and the named lists of the
+# 24 Nov endpoints (insider plans and proposed sales, comment-letter threads, the corporate
+# tree's parents, children and subsidiaries, each possibly as {"total", "data"}).
+DEMO_ROW_KEYS = ("data", "plans", "proposed_sales", "threads", "parents", "children",
+                 "subsidiaries")  # fmt: skip
+
+
+def _cap_rows(data: dict, cap: int) -> bool:
+    """Trim every row list of a demo response to `cap`; True when anything was trimmed."""
+    cut = False
+    for k in DEMO_ROW_KEYS:
+        v = data.get(k)
+        if isinstance(v, dict) and isinstance(v.get("data"), list) and len(v["data"]) > cap:
+            v["data"], cut = v["data"][:cap], True  # {"total": n, "data": [...]}: total stays
+        elif isinstance(v, list) and len(v) > cap:
+            data[k], cut = v[:cap], True
+    if cut:
+        if isinstance(data.get("meta"), dict):
+            data["meta"]["has_more"] = True
+        if isinstance(data.get("notes"), list):
+            data["notes"] = [*data["notes"], f"The demo key returns at most {cap} rows per list."]
+    return cut
+
+
 async def _demo_capped(request: Request, response):
     """The demo key's limits on every response: at most demo_max_limit rows in a list, whatever
     the endpoint's default page size, and its rate limit stated in the headers."""
@@ -112,14 +136,7 @@ async def _demo_capped(request: Request, response):
             data = json.loads(body)
         except ValueError:
             data = None
-        if (
-            isinstance(data, dict)
-            and isinstance(data.get("data"), list)
-            and len(data["data"]) > cap
-        ):
-            data["data"] = data["data"][:cap]
-            if isinstance(data.get("meta"), dict):
-                data["meta"]["has_more"] = True
+        if isinstance(data, dict) and _cap_rows(data, cap):
             body = json.dumps(data, separators=(",", ":"), default=str).encode()
         headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
         response = Response(content=body, status_code=response.status_code, headers=headers,
