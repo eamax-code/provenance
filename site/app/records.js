@@ -36,7 +36,7 @@
       var kids = head.concat([b.coverage === 'not_read' ? note('This company’s letters are listed but not read for topics yet.') : null]);
       if (!threads.length) kids.push(el('p', { class: 'muted', text: 'No SEC comment letters released for this company' + (b.since ? ' since ' + day(b.since) : ' in the last five years') + '.' }));
       else { kids.push(Object.keys(count).length ? chips : null, list); draw(); }
-      kids.push(note((b.notes || []).join(' ')), !o.keyed && threads.length >= 10 ? note('Without a key, the 10 latest threads are shown.') : null);
+      kids.push(note((b.notes || []).join(' ')), !o.keyed && threads.length === 10 && !/demo key/i.test((b.notes || []).join(' ')) ? note('Without a key, the 10 latest threads are shown.') : null);
       host.replaceChildren.apply(host, kids.filter(Boolean));
     });
   }
@@ -102,12 +102,12 @@
         var ch = C.data || [];
         kids.push(el('h4', { class: 'ct-k', text: 'Entities that report it as parent in GLEIF, ' + (C.total != null ? C.total : ch.length) }));
         kids = kids.concat(ch.length ? folded(ch, function (x) { return node(x, [el('span', { class: 'tag', text: x.relationship === 'ultimate_only' ? 'ultimate only' : 'direct' })]); }, 'GLEIF entities', o.all, o.onAll) : [note('None reported.')]);
-        if (C.total > ch.length) kids.push(note('The first ' + ch.length + ' of ' + C.total + ' are shown.'));
+        if (C.total > ch.length) kids.push(note('The first ' + ch.length + ' of ' + C.total + ' are shown.' + (o.keyed ? '' : ' Connect a free key to see them all.')));
       }
       var sub = S.data || [];
       kids.push(el('h4', { class: 'ct-k' }, ['Subsidiaries in exhibit 21, ' + (S.total != null ? S.total : sub.length) + ' ', S.filing && ARCHIVE.test(S.filing.source_url || '') ? el('a', { href: S.filing.source_url, target: '_blank', rel: 'noopener', text: (S.filing.form || '10-K') + ' filed ' + day(S.filing.filed_date) + ' ↗' }) : null]));
       kids = kids.concat(sub.length ? folded(sub, function (x) { return node({ name: x.name, jurisdiction: x.jurisdiction, lei: x.lei }); }, 'subsidiaries') : [note('No exhibit 21 in the filings loaded. Foreign private issuers list subsidiaries in the 20-F, which is not read here.')]);
-      if (S.total > sub.length) kids.push(note('The first ' + sub.length + ' of ' + S.total + ' are shown.'));
+      if (S.total > sub.length) kids.push(note('The first ' + sub.length + ' of ' + S.total + ' are shown.' + (o.keyed ? '' : ' Connect a free key to see them all.')));
       kids.push(note((b.notes || []).join(' ') || 'Parents and GLEIF children are from GLEIF Level 2 relationship data (CC0) as the entities report them; subsidiaries are as listed in exhibit 21.'),
         /exactly one/.test((b.notes || []).join(' ')) ? null : note('A subsidiary shows an LEI only when exactly one GLEIF entity has the same legal name and jurisdiction.'));
       host.replaceChildren.apply(host, kids.filter(Boolean));
