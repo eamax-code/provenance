@@ -514,6 +514,15 @@
     if (b === false) return statementsFallback();
     statementsBulk(b);
   }
+  // S-02b: a reviewed split names itself, when, and the filing that restated the earlier years ("10:1 split, June 2024 · restated in the 10-K filed 30 Oct 2020")
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function splitMeta(sb) {
+    if (!sb || sb.reviewed !== true || !sb.ratio_hint) return null;
+    var m = /^(\d{4})-(\d{2})/.exec(sb.split_date || ''), r = sb.restated_in;
+    var kids = [sb.ratio_hint + ' split' + (m ? ', ' + MONTHS[+m[2] - 1] + ' ' + m[1] : '')];
+    if (r && r.filed_date) kids.push(' · restated in the ', ARCHIVE.test(r.source_url || '') ? el('a', { href: r.source_url, target: '_blank', rel: 'noopener', text: (r.form || 'filing') + ' filed ' + day(r.filed_date) + ' ↗' }) : (r.form || 'filing') + ' filed ' + day(r.filed_date));
+    return el('p', { class: 'muted small st-meta' }, kids);
+  }
   var STN = { income: 'Income statement', balance: 'Balance sheet', cash_flow: 'Cash flow', ratios: 'Ratios' };
   var STS = { income: 'Income', balance: 'Balance', cash_flow: 'Cash flow', ratios: 'Ratios', common: 'Common' };
   // a long label for wide screens and screen readers, a short one shown on phones
@@ -570,7 +579,7 @@
     });
     var csvRows = function () { return [['line_item'].concat(cols.map(function (c) { return c.key; })).join(',')].concat(rows.map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(cols.map(function (c, i) { var x = at(r, i); return x ? x.value : ''; })).join(','); })); };
     var said = [];
-    body = body.reduce(function (acc, tr, ri) { var t = rows[ri].split_break && rows[ri].split_break.text; if (t && said.indexOf(t) < 0) { said.push(t); acc.push(el('tr', { class: 'st-note' }, [el('td', { colspan: String(cols.length + 1) }, [el('p', { text: adjOn && rows[ri].split_adjusted ? t.replace(/\s*They are not adjusted\.?\s*$/, '') + ' In this view, figures before the split are adjusted to the later basis (derived, in italics).' : t })])])); } acc.push(tr); return acc; }, []);
+    body = body.reduce(function (acc, tr, ri) { var t = rows[ri].split_break && rows[ri].split_break.text; if (t && said.indexOf(t) < 0) { said.push(t); acc.push(el('tr', { class: 'st-note' }, [el('td', { colspan: String(cols.length + 1) }, [el('p', { text: adjOn && rows[ri].split_adjusted ? t.replace(/\s*They are not adjusted\.?\s*$/, '') + ' In this view, figures before the split are adjusted to the later basis (derived, in italics).' : t }), splitMeta(rows[ri].split_break)])])); } acc.push(tr); return acc; }, []);
     var notes = (b.notes || []).filter(function (n) { return said.indexOf(n) < 0; });
     var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
     var ctl = stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as reported' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + (adjOn ? '-split-adjusted' : '') + '.csv');
