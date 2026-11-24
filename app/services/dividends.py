@@ -45,7 +45,10 @@ SPECIAL_BASIS = (
     "before and the quarter after. amount_above_regular is the "
     "excess over that median, per share."
 )
-PAYOUT_MAX = 10  # above this, the two per-share figures are on different shares, not a payout
+# S-06: outside these, the two per-share figures as filed are not on one basis (EPS tagged in
+# cents as dollars, Rio Tinto 2016-17: 0.0048; per-share figures of two share classes: 836)
+PAYOUT_MIN = 0.01
+PAYOUT_MAX = 10
 PAYOUT_BASIS = ("declared dividends per share / diluted EPS, same fiscal year, both as reported "
                 "in the same filing (one share basis)")  # fmt: skip
 ANNUAL_BASIS = (
@@ -213,6 +216,12 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
             row["dividends_paid"] = {"value": float(p.value), "unit": p.unit, **_cite(p)}
         if cls == "annual":
             row["payout_ratio"] = _payout(f, eps.get((f.accession_number, e)))
+            if row["payout_ratio"] == IMPLAUSIBLE:
+                row["payout_ratio"] = None
+                notes.append(f"{row['period_label']}: no payout ratio: the dividend and "
+                             "diluted EPS as filed give a ratio below 0.01 or above 10, so they "
+                             "are not on one basis (one may be in cents, or for another share "
+                             "class); see the filing.")  # fmt: skip
         if factor is None:
             notes.append(f"{row['period_label']}: filed in the month of a split dated only to the "
                          "month: no split-adjusted value.")  # fmt: skip
@@ -257,7 +266,10 @@ def _same_filing_eps(db, ciks, cells: list) -> dict:
     return out
 
 
-def _payout(dps, eps) -> dict | None:
+IMPLAUSIBLE = "implausible"  # _payout's answer for a ratio outside PAYOUT_MIN..PAYOUT_MAX
+
+
+def _payout(dps, eps) -> dict | str | None:
     """Declared per share over diluted EPS for the same fiscal year, in one currency; only on a
     declared or recognised basis (never on cash paid or distributions per unit)."""
     if eps is None or eps.value is None or dps.value is None:
@@ -268,8 +280,8 @@ def _payout(dps, eps) -> dict | None:
         return None
     if eps.accession_number != dps.accession_number:
         return None  # only from the dividend's own filing: one share basis (Toyota's 5:1 split)
-    if float(dps.value) / float(eps.value) > PAYOUT_MAX:
-        return None  # $593.58 against $0.71: per-share figures of two share classes
+    if not PAYOUT_MIN <= float(dps.value) / float(eps.value) <= PAYOUT_MAX:
+        return IMPLAUSIBLE
     return {
         "value": round(float(dps.value) / float(eps.value), 4), "derived": True,
         "basis": PAYOUT_BASIS,

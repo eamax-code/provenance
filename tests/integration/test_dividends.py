@@ -143,6 +143,33 @@ def test_payout_uses_the_dividends_own_filing_and_special_is_not_given(client, a
     assert rows["FY2025"]["payout_ratio"] is None  # 50 / 1: two share classes, not a payout
     assert all(r["special"] is None for r in body["data"])
     assert any("special is not given yet" in n for n in body["notes"])
+    assert any(n.startswith("FY2025: no payout ratio") for n in body["notes"])
+
+
+def test_a_payout_below_one_percent_is_not_shown(client, auth, db):
+    """S-06: Rio Tinto's 20-F tagged 2017 diluted EPS 486.9 (US cents) as dollars; against its
+    $2.35 dividend that is a 0.0048 payout. Below 0.01 the ratio is null with a note, never the
+    figure, and nothing is rescaled."""
+    from datetime import UTC, date, datetime
+
+    from app.db.models import Company, FinancialFact
+
+    cik, now = "0000000902", datetime.now(UTC)
+    db.add(Company(cik=cik, legal_name="CENTCO PLC", ticker="CNTC", fiscal_year_end="1231",
+                   source_url="https://www.sec.gov/", first_detected_at=now,
+                   last_processed_at=now, quality_status="ok"))  # fmt: skip
+    y17, a17 = (date(2017, 1, 1), date(2017, 12, 31)), "0000000902-18-000001"
+    db.add_all([
+        _fact(DividendFact, cik, "dividends_per_share", 2.35, "USD/shares", *y17, "annual", a17,
+              date(2018, 3, 1)),
+        _fact(FinancialFact, cik, "eps_diluted", 486.9, "USD/shares", *y17, "annual", a17,
+              date(2018, 3, 1)),
+    ])  # fmt: skip
+    db.commit()
+    body = client.get(f"/v1/companies/{cik}/dividends", headers=auth).json()
+    row = next(r for r in body["data"] if r["period_label"] == "FY2017")
+    assert row["payout_ratio"] is None and row["declared_per_share"] == 2.35
+    assert any(n.startswith("FY2017: no payout ratio") for n in body["notes"])
 
 
 def test_a_derived_quarter_uses_values_as_first_filed(client, auth, db):
