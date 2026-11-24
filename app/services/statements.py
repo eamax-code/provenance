@@ -206,7 +206,8 @@ def date_label(d: str) -> str:
 
 def split_breaks(values: dict[str, list[float | None]], keys: list[str], confirm=None,
                  forced: list[tuple[int, str]] | None = None,
-                 one_filing: set[int] | None = None) -> dict[str, dict]:  # fmt: skip
+                 one_filing: set[int] | None = None,
+                 reviewed_only: bool = False) -> dict[str, dict]:  # fmt: skip
     """Where adjacent columns mix share bases: a later filing restated some years for a stock
     split and the earlier years stay on the pre-split basis (Apple FY2017 5.2B shares, FY2018
     19.8B). Flag only, nothing is adjusted: a share row jumps by a near-whole factor and an EPS
@@ -218,7 +219,9 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str], confirm
     reviewed split list. forced [(column index, ratio)] are reviewed splits placed by their dates
     (Alphabet's 20:1 has no share row to detect it; Tesla's 3:1 came with a loss turning to a
     profit); they count whether or not the guard sees them. one_filing: column indices whose
-    pair cites the same filing on both sides, never a basis change for the guard."""
+    pair cites the same filing on both sides, never a basis change for the guard. reviewed_only
+    (S-02e, the route): only reviewed pairs count; the guard's unreviewed pairs failed a
+    hand-check of their note too (7 of 30 no basis change), so they are not shown."""
     found: list[tuple[int, str]] = []
     for i in range(1, len(keys)):
         if one_filing and i in one_filing:
@@ -240,9 +243,14 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str], confirm
                 inverse = (y / x < 1) == (r > 1)
                 swing = r * (y / x)
                 hint = f"{whole}:1" if r > 1 else f"1:{whole}"
-                if inverse and (1 / SPLIT_MAX_INCOME_SWING < swing < SPLIT_MAX_INCOME_SWING
-                                or (confirm is not None and whole <= SPLIT_MAX_CLEAN_FACTOR
-                                    and confirm([keys[i - 1], keys[i]], hint))):  # fmt: skip
+                ok = confirm is not None and whole <= SPLIT_MAX_CLEAN_FACTOR \
+                    and confirm([keys[i - 1], keys[i]], hint)  # fmt: skip
+                if reviewed_only:  # S-02e: an unreviewed pair is not shown at all
+                    accept = inverse and ok
+                else:
+                    accept = inverse and (1 / SPLIT_MAX_INCOME_SWING < swing
+                                          < SPLIT_MAX_INCOME_SWING or ok)  # fmt: skip
+                if accept:
                     hit = (i, hint)
                     break
             if hit:

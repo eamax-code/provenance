@@ -161,7 +161,11 @@ Rules:
   date, even where the share-row guard cannot see it (no share row, or EPS turning from a loss
   to a profit). S-02d: a ratio may be fractional (`"3:2"`, adjusted by 1.5); two columns cited from
   one filing are never a break (a filing shows every year on one basis); and a reviewed split is
-  placed only where exactly one column pair brackets its date. Only a reviewed split names its ratio in `text` and gets
+  placed only where exactly one column pair brackets its date.
+  S-02e (2026-11-24): `split_break` is given only for reviewed splits. An unreviewed break is not
+  shown at all, no note, no tag: a hand-check of 30 unreviewed "share basis changes here" notes
+  found 7 with no basis change (share issuance, data mismatches, both years on one basis), against
+  a bar of 3. `reviewed` is therefore always true when `split_break` is present. Only a reviewed split names its ratio in `text` and gets
   `split_adjusted`; any other break reads "The share basis changes here (restated in the 10-K filed
   <date>): shares and per-share figures before FYx are on the earlier share basis, as reported in
   the filing each cites, …" with no adjusted values and `ratio_hint: null` (a hand-check of 30 found IPO and

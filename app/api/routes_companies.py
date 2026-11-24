@@ -835,6 +835,7 @@ def statement(
         restated,
         placed(),
         one_filing,
+        reviewed_only=True,
     )
     if breaks:
         b = next(iter(breaks.values()))

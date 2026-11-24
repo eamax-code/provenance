@@ -118,13 +118,10 @@ def test_split_break_on_the_statement(client, auth, db):
     db.commit()
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
-    brk = rows["eps_basic"]["split_break"]
-    # S-02c: not in the reviewed list, so no ratio is shown
-    assert brk["between"] == ["FY2017", "FY2018"] and brk["ratio_hint"] is None
-    assert brk["reviewed"] is False
-    assert rows["shares_basic_weighted"]["split_break"] == brk
-    assert rows["net_income"]["split_break"] is None
-    assert brk["text"] in body["notes"] and "not adjusted" in brk["text"]
+    # S-02e: not in the reviewed list, so nothing is shown: the guard's unreviewed pairs failed
+    # a hand-check of their note (7 of 30 were no basis change)
+    assert all(r["split_break"] is None for r in rows.values())
+    assert not any("share basis" in n for n in body["notes"])
     assert [c["value"] for c in rows["eps_basic"]["cells"]] == [9.27, 3.0]  # never adjusted
 
 
@@ -166,14 +163,11 @@ def test_split_adjusted_series_from_a_restating_filing(client, auth, db, monkeyp
     db.commit()
     from app.services import statements as st
 
-    # S-02c: not in the reviewed split list: the break is noted, nothing is adjusted
+    # S-02e: not in the reviewed split list: no break, nothing adjusted
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     assert rows["eps_basic"]["split_adjusted"] is None
-    assert rows["eps_basic"]["split_break"]["reviewed"] is False
-    assert rows["eps_basic"]["split_break"]["ratio_hint"] is None
-    note = rows["eps_basic"]["split_break"]["text"]
-    assert note.startswith("The share basis changes here (restated in the 10-K filed")
+    assert rows["eps_basic"]["split_break"] is None
     monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "4:1"): "2020-08-31"})
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
@@ -264,13 +258,8 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     # not in the reviewed list: only the latest pair, adjusted by its own ratio (as before)
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
-    plain = rows["eps_basic"]["split_break"]
-    assert "earlier" not in plain and plain["split_date"] is None and plain["reviewed"] is False
-    assert plain["ratio_hint"] is None  # an unreviewed ratio is never shown
-    assert plain["restated_in"]["filed_date"] == "2020-11-01"  # the filing behind FY2018
-    assert plain["text"].startswith("The share basis changes here (restated in the 10-K filed "
-                                    "2020-11-01)") and "3:1" not in plain["text"]  # fmt: skip
-    assert rows["eps_basic"]["split_adjusted"] is None  # S-02c: unreviewed, never adjusted
+    assert rows["eps_basic"]["split_break"] is None  # S-02e: unreviewed, never shown
+    assert rows["eps_basic"]["split_adjusted"] is None
     # both splits reviewed: named with their dates, and compounded
     dates = {(cik, "2:1"): "2018-03-01", (cik, "3:1"): "2020-03-02"}
     monkeypatch.setattr(st, "reviewed_splits", lambda: dates)
@@ -295,9 +284,9 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     dates = {(cik, "2:1"): ("2018-03-01",), (cik, "3:1"): ("2016-01-01",)}
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
-    late = rows["eps_basic"]["split_break"]
-    assert late["reviewed"] is False and late["ratio_hint"] is None
-    assert rows["eps_basic"]["split_adjusted"] is None
+    only = rows["eps_basic"]["split_break"]  # the 3:1 is unconfirmed: the 2:1 is the break
+    assert only["between"] == ["FY2016", "FY2017"] and only["ratio_hint"] == "2:1"
+    assert "earlier" not in only and rows["eps_basic"]["split_adjusted"]["ratio"] == "2:1"
 
 
 def test_a_reviewed_split_is_placed_by_its_date_without_a_share_row(client, auth, db, monkeypatch):
