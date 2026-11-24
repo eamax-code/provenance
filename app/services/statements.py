@@ -174,11 +174,34 @@ REVIEWED_SPLITS = Path(__file__).resolve().parents[1] / "data" / "splits_reviewe
 
 
 @lru_cache(maxsize=1)
-def reviewed_splits() -> dict[tuple[str, str], str]:
-    """{(cik, ratio): effective date} of splits read in the filing's own disclosure
-    (app/data/splits_reviewed.csv)."""
+def reviewed_splits() -> dict[tuple[str, str], tuple[str, ...]]:
+    """{(cik, ratio): effective dates} of splits read in the filing's own disclosure
+    (app/data/splits_reviewed.csv); a company can split twice at one ratio (Amphenol 2:1 in 2021
+    and 2024). A date is YYYY-MM-DD, YYYY-MM or empty, as precise as the filing states it."""
+    out: dict[tuple[str, str], tuple[str, ...]] = {}
     with REVIEWED_SPLITS.open(newline="") as f:
-        return {(r["cik"], r["ratio"]): r["effective"] for r in csv.DictReader(f)}
+        for r in csv.DictReader(f):
+            out[(r["cik"], r["ratio"])] = (*out.get((r["cik"], r["ratio"]), ()), r["effective"])
+    return out
+
+
+def date_span(d: str) -> tuple[date, date]:
+    """The first and last day a YYYY, YYYY-MM or YYYY-MM-DD date covers."""
+    parts = [int(x) for x in d.split("-")]
+    if len(parts) == 3:
+        x = date(*parts)
+        return x, x
+    if len(parts) == 2:
+        y, m = parts
+        nxt = date(y + (m == 12), m % 12 + 1, 1)
+        return date(y, m, 1), date.fromordinal(nxt.toordinal() - 1)
+    return date(parts[0], 1, 1), date(parts[0], 12, 31)
+
+
+def date_label(d: str) -> str:
+    """ "June 2024" for a day or a month; the year alone for a year."""
+    first, _ = date_span(d)
+    return first.strftime("%B %Y") if d.count("-") >= 1 else str(first.year)
 
 
 def split_breaks(values: dict[str, list[float | None]], keys: list[str],

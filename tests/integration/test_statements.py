@@ -206,7 +206,11 @@ def test_a_reviewed_split_counts_when_income_swings_too(db):
     assert brk["eps_diluted"] == {"between": ["FY2022", "FY2023"], "ratio_hint": "10:1"}
     assert ("0001045810", "10:1") in st.reviewed_splits()
     assert ("0000929351", "1:14") not in st.reviewed_splits()  # Starz: 15-to-1, not a clean read
-    assert len(st.reviewed_splits()) == 13  # NVIDIA 4:1 (2021) and 10:1 (2024) both
+    # 51 rows read in each filing's own disclosure; Amphenol, Fastenal and Texas Pacific Land
+    # split twice at one ratio, so 48 (cik, ratio) keys
+    assert len(st.reviewed_splits()) == 48
+    assert st.reviewed_splits()[("0000820313", "2:1")] == ("2024-06-11", "2021-03-04")
+    assert st.date_label("2024-06-07") == "June 2024" and st.date_label("2020-08") == "August 2020"
 
 
 def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
@@ -283,3 +287,11 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     assert [(e["ratio"], e["before"]) for e in adj["earlier"]] == [("2:1", "FY2017")]
     assert rows["shares_basic_weighted"]["split_adjusted"]["values"][0] == 600e6
     assert [c["value"] for c in rows["eps_basic"]["cells"]] == [6.0, 3.0, 1.0, 1.0]  # as filed
+    # a reviewed date outside the pair's filings (after FY2017's filing, by FY2018's restating
+    # one) does not confirm it: the 3:1 here is dated before FY2017 was filed
+    dates = {(cik, "2:1"): ("2018-03-01",), (cik, "3:1"): ("2016-01-01",)}
+    body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
+    rows = {r["metric"]: r for r in body["rows"]}
+    late = rows["eps_basic"]["split_break"]
+    assert late["reviewed"] is False and late["ratio_hint"] is None
+    assert rows["eps_basic"]["split_adjusted"] is None

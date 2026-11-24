@@ -154,7 +154,9 @@ Rules:
   has them). The text then names the split: "10:1 split, June 2024: shares and per-share figures
   before FY2023 are as originally filed; …", or, without a reviewed date, "(4:1, restated in the
   10-K filed 2020-10-30)". A pair whose income swing is over 2x counts only from the reviewed list.
-  S-02c (2026-11-24): `reviewed` (bool). Only a reviewed split names its ratio in `text` and gets
+  S-02c (2026-11-24): `reviewed` (bool); a reviewed row confirms a pair only when its effective date
+  falls after the older column's filing and by the restating filing (`split_date` is that row's
+  date: YYYY-MM-DD or YYYY-MM, as precise as the filing states it). Only a reviewed split names its ratio in `text` and gets
   `split_adjusted`; any other break reads "The share basis changes here (restated in the 10-K filed
   <date>): …" with no adjusted values and `ratio_hint: null` (a hand-check of 30 found IPO and
   merger share changes read as splits and reverse-split ratios off: about 80% wrong, so an

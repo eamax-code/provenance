@@ -766,46 +766,64 @@ def statement(
              "inputs."]  # fmt: skip
 
     reviewed = statements_service.reviewed_splits()
+    labels = [c.key for c in columns]
+    share_eps = statements_service.SHARE_ROWS + statements_service.EPS_ROWS
+
+    def filing_at(label: str) -> dict | None:
+        """The filing behind a column of the share and EPS rows (for the first column on the
+        newer basis: the filing that restated that year)."""
+        k = labels.index(label)
+        for r in rows:
+            c = r.cells[k] if not r.derived and r.metric in share_eps else None
+            if c is not None and c.accession_number:
+                filed = c.filed_date.isoformat() if c.filed_date else None
+                return {"accession_number": c.accession_number, "form": c.form_type,
+                        "filed_date": filed, "source_url": c.source_url}  # fmt: skip
+        return None
+
+    def reviewed_match(between: list[str], hint: str) -> tuple[bool, str | None]:
+        """S-02b/c: a reviewed split confirms the pair when its effective date falls after the
+        older column's filing and by the filing that restated the newer one (a company with two
+        splits of one ratio, Amphenol 2021 and 2024, gets each its own). One undated row for the
+        ratio confirms on its own."""
+        dates = reviewed.get((cik, hint)) if isinstance(reviewed, dict) else None
+        if dates is None:
+            return ((cik, hint) in reviewed, None) if isinstance(reviewed, set) else (False, None)
+        dates = [dates] if isinstance(dates, str) else list(dates)
+        a, b_ = filing_at(between[0]), filing_at(between[1])
+        lo = date.fromisoformat(a["filed_date"]) if a and a["filed_date"] else None
+        hi = date.fromisoformat(b_["filed_date"]) if b_ and b_["filed_date"] else None
+        for d in dates:
+            if not d:
+                continue
+            first, last = statements_service.date_span(d)
+            if (lo is None or last > lo) and (hi is None or first <= hi):
+                return True, d
+        return (len(dates) == 1 and not dates[0]), None
 
     def restated(between: list[str], hint: str) -> bool:  # S-02b: a reviewed split
-        return (cik, hint) in reviewed
+        return reviewed_match(between, hint)[0]
 
     breaks = statements_service.split_breaks(
         {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
-        [c.key for c in columns],
+        labels,
         restated,
     )
     if breaks:
         b = next(iter(breaks.values()))
-        labels = [c.key for c in columns]
-
-        def filing_at(label: str) -> dict | None:
-            """The filing behind the first column on the newer basis: it restated that year."""
-            k = labels.index(label)
-            for r in rows:
-                c = r.cells[k] if not r.derived and r.metric in breaks else None
-                if c is not None and c.accession_number:
-                    filed = c.filed_date.isoformat() if c.filed_date else None
-                    return {"accession_number": c.accession_number, "form": c.form_type,
-                            "filed_date": filed, "source_url": c.source_url}  # fmt: skip
-            return None
-
-        def when(hint: str) -> str | None:  # S-02b: the split's date, from the reviewed list
-            d = reviewed.get((cik, hint)) if isinstance(reviewed, dict) else None
-            return d or None
 
         def month(d: str) -> str:
-            return date.fromisoformat(d).strftime("%B %Y")
+            return statements_service.date_label(d)
 
-        split_date, restated_in = when(b["ratio_hint"]), filing_at(b["between"][1])
+        is_reviewed, split_date = reviewed_match(b["between"], b["ratio_hint"])
+        restated_in = filing_at(b["between"][1])
         # S-02c: only a reviewed split names its ratio and gets adjusted values; the guard alone
         # failed a hand-check of 30 (IPOs and mergers read as splits, reverse ratios off)
-        is_reviewed = (cik, b["ratio_hint"]) in reviewed
         filed_where = (f"restated in the {restated_in['form']} filed {restated_in['filed_date']}"
                        if restated_in else "restated in a later filing")  # fmt: skip
         earlier = b.get("earlier", [])
         for e in earlier:
-            e["split_date"] = when(e["ratio_hint"])
+            e["split_date"] = reviewed_match(e["between"], e["ratio_hint"])[1]
         if is_reviewed:
             lead = (f"{b['ratio_hint']} split, {month(split_date)}: shares" if split_date
                     else "Shares")  # fmt: skip
