@@ -202,7 +202,7 @@ def test_a_reviewed_split_counts_when_income_swings_too(db):
     assert ("0000929351", "1:14") not in st.reviewed_splits()  # Starz: 15-to-1, not a clean read
     # 53 rows read in each filing's own disclosure; Amphenol, Fastenal and Texas Pacific Land
     # split twice at one ratio, so 50 (cik, ratio) keys (Tesla 5:1 and 3:1, Alphabet 20:1 too)
-    assert len(st.reviewed_splits()) == 97  # S-02d: 102 rows, 84 companies
+    assert len(st.reviewed_splits()) == 98  # S-02d: 102 rows, 84 companies; MNST 2:1 (Q-02)
     assert st.reviewed_splits()[("0001318605", "3:1")] == ("2022-08",)
     assert st.reviewed_splits()[("0000011544", "3:2")] == ("2024-07-10",)  # W. R. Berkley
     assert st.reviewed_splits()[("0000820313", "2:1")] == ("2024-06-11", "2021-03-04")
