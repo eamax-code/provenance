@@ -188,3 +188,42 @@ def test_ask_links_quote_an_accession_and_get_that_offering(tmp_path, db, client
     assert "$55.0 million sold" in own["answer"]
     missing = ask("Tell me about Nobody's Form D offering (accession 0009999999-26-000009).")
     assert missing["answer"].startswith("No Form D with accession number 0009999999-26-000009")
+
+
+def test_reviewed_implausible_amounts_sold_are_pinned(tmp_path, db, client, auth):
+    """D-15c (2026-11-24): every non-fund offering of $500M or more sold to 2 or fewer investors
+    was reviewed by hand; the implausible ones are listed with a reason in
+    app/data/form_d_suspect_reviewed.csv and marked suspect_amount on load and on recompute.
+    Infinite Reality ($3.36B, contested but as filed) and offering sizes with nothing sold stay
+    as filed."""
+    listed = form_d.reviewed_suspect()
+    assert sorted(listed) == [
+        "0001853446-25-000002",  # World View Enterprises
+        "0002011617-26-000019",  # Sierra International Network
+        "0002065365-26-000004",  # ZeroStack
+        "0002089407-25-000001",  # Apostolic Church of God-Childersburg
+        "0002149220-26-000001",  # MFG Diversified Holdings
+        "0002149220-26-000002",  # MFG Diversified Holdings, same day
+    ]
+    assert set(listed.values()) == {"reviewed: amount sold implausible for the filing"}
+    assert form_d.quality_of("ZeroStack Corp.", 1e9, 1e9, "0002065365-26-000004") \
+        == "suspect_amount"  # fmt: skip
+    assert form_d.quality_of("Infinite Reality, Inc.", 3.36e9, 3.36e9,
+                             "0001213900-25-035839") == "ok"  # fmt: skip
+    assert form_d.quality_of("Melodious Horse Holdings, LLC", 30e9, 0, "x") == "ok"
+    form_d.load(db, [_zip(tmp_path)])
+    from app.db.models import FormDFiling
+
+    row = db.get(FormDFiling, "0002-26-000001")
+    name = row.issuer_name
+    db.delete(row)
+    db.flush()
+    row = FormDFiling(**{c.name: getattr(row, c.name) for c in FormDFiling.__table__.columns})
+    row.accession_number = "0002065365-26-000004"
+    db.add(row)
+    db.flush()
+    form_d.mark_quality(db)
+    db.commit()
+    assert db.get(FormDFiling, "0002065365-26-000004").quality_status == "suspect_amount"
+    ranked = client.get("/v1/private-raises?order=sold", headers=auth).json()["data"]
+    assert name not in [x["issuer"]["name"] for x in ranked]

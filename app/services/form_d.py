@@ -17,6 +17,7 @@ import re
 import zipfile
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
 from pathlib import Path
 
 from sqlalchemy import delete, func, insert, select, update
@@ -47,7 +48,20 @@ _CASH_VEHICLE = re.compile(r"\b(cash|liquid\w*|money market|prime|treasury|reser
                            r"current asset|core funds?|series trust)\b", re.IGNORECASE)  # fmt: skip
 
 
-def quality_of(issuer_name: str, offered, sold) -> str:
+# D-15c: amounts sold reviewed one by one and found implausible for the filing (every non-fund
+# offering of $500M or more from 2 or fewer investors, 2026-11-24). Values stay as filed.
+REVIEWED_SUSPECT = Path(__file__).resolve().parents[1] / "data" / "form_d_suspect_reviewed.csv"
+
+
+@lru_cache(maxsize=1)
+def reviewed_suspect() -> dict[str, str]:
+    with REVIEWED_SUSPECT.open(newline="") as f:
+        return {r["accession_number"]: r["reason"] for r in csv.DictReader(f)}
+
+
+def quality_of(issuer_name: str, offered, sold, accession: str | None = None) -> str:
+    if accession in reviewed_suspect():
+        return "suspect_amount"
     big = max((v for v in (offered, sold) if v is not None), default=None)
     if big is not None and big >= SUSPECT_AMOUNT and not _CASH_VEHICLE.search(issuer_name or ""):
         return "suspect_amount"
@@ -151,7 +165,8 @@ def parse_zip(path: str | Path) -> list[dict]:
             })  # fmt: skip
             out[-1]["quality_status"] = quality_of(out[-1]["issuer_name"],
                                                    out[-1]["total_offering_amount"],
-                                                   out[-1]["total_amount_sold"])  # fmt: skip
+                                                   out[-1]["total_amount_sold"],
+                                                   out[-1]["accession_number"])  # fmt: skip
     return out
 
 
@@ -402,7 +417,8 @@ def mark_quality(db: Session) -> int:
     """Recompute quality_status for every stored filing; returns how many are suspect."""
     n = 0
     for r in db.scalars(select(FormDFiling)):
-        q = quality_of(r.issuer_name, r.total_offering_amount, r.total_amount_sold)
+        q = quality_of(r.issuer_name, r.total_offering_amount, r.total_amount_sold,
+                       r.accession_number)  # fmt: skip
         if r.quality_status != q:
             r.quality_status = q
         n += q != "ok"
