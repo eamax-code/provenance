@@ -103,3 +103,5 @@ dialog.fv[open] { animation: fv-in .18s ease-out; }
   .fv-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .fv-tab { white-space: nowrap; }
 }
+.co-sec { scroll-margin-top: 84px; } /* a deep link's section clears the sticky header */
+#main { min-height: 100vh; } /* the footer starts below the fold, so drawing the page never moves it (CLS 0) */

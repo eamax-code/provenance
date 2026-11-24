@@ -58,14 +58,15 @@
       if (go.done) return; go.done = true;
       var s = document.createElement('script');
       s.src = '/companies/page/company-lower.js';
-      s.onload = function () { if (lowerData) renderLower(lowerData); };
+      // a link to a lower section (#segments) lands there once it has been drawn
+      s.onload = function () { if (lowerData) renderLower(lowerData); var h = /^#([a-z][\w-]*)$/.exec(location.hash), t = h && $(h[1]); if (t) t.scrollIntoView(); };
       document.body.appendChild(s);
     };
     if ('IntersectionObserver' in window) {
       var io = new IntersectionObserver(function (es) { if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); go(); } }, { rootMargin: '800px 0px' });
       ['segments', 'events', 'people', 'ownership', 'peer-card'].forEach(function (id) { var n = $(id); if (n) io.observe(n); });
     }
-    setTimeout(go, 2500);
+    setTimeout(go, /^#[a-z][\w-]*$/.test(location.hash) ? 0 : 2500);
   }
 
   /* ---- header ---- */

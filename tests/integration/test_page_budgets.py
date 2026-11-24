@@ -32,6 +32,8 @@ BUDGETS = {
     ),
     # the company seal (shell/seal.js, brand B-3, 24 Nov) is counted with each page that loads it
     "company page, lower sections (loaded later)": (["companies/page/company-lower.js"], 8_500),
+    # the figure view (issue #10) left the first load on 24 Nov: page.js loads it on first open
+    "company page, figure view (loaded on open)": (["companies/page/figure-view.js"], 5_500),
     # chat: 25.3 KB on 23 Nov with C-01/C-02 (figure chips, how, hand-off); 27.3 KB on 24 Nov with C-08
     # (CSV per table, a link per answer, a visible Copy), so the budget went to 28 KB
     "chat": (["chat/index.html", "chat.css", "chat.js"], 28_000),

@@ -147,6 +147,9 @@ def test_company_page_layouts(client):
 def test_figure_view_is_wired_into_every_layout(client):
     js = client.get("/companies/page/page.js").text
     assert "/v1/public/companies/" in js and "/overview" in js
+    # the view itself loads on first open (figure-view.js), out of the first load
+    assert "/companies/page/figure-view.js" in js
+    js += client.get("/companies/page/figure-view.js").text
     for hook in ("P.openFigure", "P.insights", "P.figureChart", "#figure=", "showModal"):
         assert hook in js, hook
     for layout in ("report", "dossier"):

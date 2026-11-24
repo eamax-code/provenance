@@ -126,7 +126,7 @@ def test_prompts_treat_filing_text_as_data():
 def test_site_scripts_never_parse_api_text_as_markup():
     # The only innerHTML writes are clearing a box or static markup written in the file itself.
     risky = re.compile(r"innerHTML\s*=(?!=)(?!\s*(?:''|\"\"))")
-    allowed = {"chat.js": 1, "docs.js": 1, "page.js": 1}  # static strings, reviewed (GH #18)
+    allowed = {"chat.js": 1, "docs.js": 1, "figure-view.js": 1}  # static strings, reviewed (GH #18); the figure view's frame moved out of page.js
     for js in SITE.rglob("*.js"):
         if "vendor" in js.parts or "poc" in js.parts:
             continue
