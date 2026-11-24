@@ -489,7 +489,17 @@ def test_class_labels_are_plain_and_fall_back_to_the_title_as_filed():
     assert label("CLASS B") == "Class B common stock"
     assert label("COM NEW") == label("Common Stock, $0.00001 par value") == "Common stock"
     assert label("ORD SHS") == label("SHS") == "Ordinary shares"
-    assert label("SH BEN INT") == "SH BEN INT" and label(None) is None
+    assert label(None) is None
+    # Q-02 (25 Nov): capital stock and ordinary share classes, preferred, beneficial interest,
+    # depositary receipts, and an issuer's name followed by COM
+    assert label("CAP STK CL A") == "Class A capital stock"
+    assert label("SHS CL A") == "Class A ordinary shares"
+    assert label("PFD") == "Preferred stock"
+    assert label("SH BEN INT") == label("COMMON SHARES OF BENEFICIAL") == (
+        "Shares of beneficial interest")  # fmt: skip
+    assert label("DEPOSITORY RCPT") == "Depositary receipts"
+    assert label("LANDSTAR SYS INC COM") == "Common stock"
+    assert label("ST STR P400MID") == "ST STR P400MID"  # not clean: as filed
 
 
 def test_ownership_of_an_adr_class_gives_no_percentages(db, loaded_13f):

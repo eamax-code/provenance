@@ -86,6 +86,9 @@ def funds(db):
                          ("0000900004-24-000002", Q2, f2, 21_000)):  # fmt: skip
         _filing(db, acc, M4, "Delta Advisors", q, f)
         _hold(db, acc, M4, AAPL, q, f, 100, v)
+    # ...and NVIDIA across the split: 100 before, 1,000.4 after (fractional shares, not a buy)
+    _hold(db, "0000900004-24-000001", M4, NVDA, Q1, f1, 100, 90_000)
+    _hold(db, "0000900004-24-000002", M4, NVDA, Q2, f2, 1000.4, 123_400)
     # a 13F notice only
     _filing(db, "0000900005-24-000001", NT, "Notice Holdings", Q2, f2, "13F-NT")
     db.commit()
@@ -230,3 +233,13 @@ def test_a_cached_view_is_never_changed_by_a_request(client, auth, db, funds):
     db.commit()
     d = _get(client, auth, f"/v1/managers/{M1}", quarter="2024-06-30", sort="name").json()
     assert d == a
+
+
+def test_a_split_adjusted_change_within_rounding_is_unchanged(client, auth, db, funds):
+    """PM, 25 Nov: Ocean Power's 1:30 read as reduced by 1.27 shares; fractional shares paid in
+    cash after a split are not a sale."""
+    body = _get(client, auth, f"/v1/managers/{M4}", quarter="2024-06-30").json()
+    nv = next(p for p in body["positions"] if p["issuer"]["cik"] == "0001045810")["change"]
+    assert nv["split_adjusted"] is True and nv["status"] == "unchanged"
+    assert fm.same_after_split(110_969, 110_970.2667, "1:30")
+    assert not fm.same_after_split(110_000, 110_970.2667, "1:30")

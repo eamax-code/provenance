@@ -388,6 +388,20 @@ def _change(prev: dict | None, cur: dict | None, filed: bool) -> str | None:
 # filed. The raw title stays beside it.
 _CLASS_LABELS = (
     (re.compile(r"\b(ADRS?|ADS|AMERICAN DEP\w*)\b", re.I), None, "American depositary shares"),
+    # Q-02 (ui, 25 Nov): "CAP STK CL A" is Alphabet's class A capital stock
+    (re.compile(r"^CAP(?:ITAL)?\.?\s*(?:STK|STOCK)\s+CL(?:ASS)?\s?([A-Z])\b", re.I), 1,
+     "Class {} capital stock"),
+    (re.compile(r"^(?:SHS|ORD(?:INARY)?(?:\s+SHS)?)\s+CL(?:ASS)?\s?([A-Z])\b", re.I), 1,
+     "Class {} ordinary shares"),
+    (re.compile(r"^(?:PFD|PREF(?:ERRED)?)(?:\s+(?:STK|STOCK|SHS))?$", re.I), None,
+     "Preferred stock"),
+    (re.compile(r"\bSH(?:ARE)?S?\b.*\bBEN(?:EFICIAL)?\b", re.I), None,
+     "Shares of beneficial interest"),
+    (re.compile(r"\bDEP(?:OSI[TA]ORY)?\s+(?:RCPTS?|RECEIPTS?)\b", re.I), None,
+     "Depositary receipts"),
+    # "LANDSTAR SYS INC COM": the issuer's name, then COM
+    (re.compile(r"\b(?:INC|CORP|CO|LTD|PLC|HLDGS?|GROUP|TR)\b.*\bCOM(?:MON)?(?:\s+(?:STK|STOCK|"
+                r"SHS|NEW))?$", re.I), None, "Common stock"),
     (re.compile(r"\b(UNITS?|UT)\b.*\b(LTD|LP|PARTN\w*|PTN|REP)\b|^COM UNIT|^UNIT LTD PARTN"
                 r"|^UT LTD", re.I), None, "Common units"),
     (re.compile(r"^(?:COM(?:MON)?(?: STOCK| STK)?\s+)?CL(?:ASS)?\s?([A-Z])\b", re.I), 1,

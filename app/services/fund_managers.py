@@ -201,6 +201,16 @@ def split_check(cik: str, prev: date, cur: date, shares_now: float, shares_prev:
     return None, possible_split(shares_now, shares_prev, value_now, value_prev)
 
 
+def same_after_split(now: float, prev: float, ratio: str | None) -> bool:
+    """Unchanged: equal, or after a split within its own rounding (at most the ratio's larger
+    number of shares, or under 0.1%): fractional shares paid in cash are not a sale (Ocean
+    Power's 1:30 showed 110,970.27 against 110,969)."""
+    if ratio is None:
+        return abs(now - prev) <= 1e-7 * max(prev, 1)
+    a, b = (int(x) for x in ratio.split(":"))
+    return abs(now - prev) <= max(a, b) or abs(now - prev) < 0.001 * prev
+
+
 def build_activity(db: Session, period: date, write: bool = True) -> dict:
     """Most bought and sold by funds for a quarter against the quarter before."""
     prev = thirteenf.previous_quarter(period)
@@ -228,10 +238,13 @@ def build_activity(db: Session, period: date, write: bool = True) -> dict:
         before = {f: s * factor for f, s in before.items()}
         tot_now, tot_prev = sum(now.values()), sum(before.values())
         new = sum(1 for f, s in now.items() if s > 0 and before.get(f, 0) <= 0)
+        same = [f for f, s in now.items() if f in both and before.get(f, 0) > 0 and 0 < s
+                and same_after_split(s, before[f], split[0] if split else None)]  # fmt: skip
+        same_set = set(same)
         added = sum(1 for f, s in now.items() if f in both and before.get(f, 0) > 0
-                    and s > before[f] * 1.0000001)  # fmt: skip
+                    and f not in same_set and s > before[f])  # fmt: skip
         reduced = sum(1 for f, s in now.items() if f in both and 0 < s
-                      and before.get(f, 0) > 0 and s < before[f] * 0.9999999)  # fmt: skip
+                      and before.get(f, 0) > 0 and f not in same_set and s < before[f])  # fmt: skip
         exited = sum(1 for f, s in before.items() if s > 0 and f in both and now.get(f, 0) <= 0)
         rows.append({"report_period": period, "issuer_cik": cik, "class_label": label,
                      "previous_period": prev, "managers_new": new, "managers_added": added,
@@ -563,7 +576,9 @@ def _change(k, g, b, act, stats, quarter, prev_q, notes) -> dict | None:
     prev = b["shares"] * factor
     diff = g["shares"] - prev
     status = (
-        "unchanged" if abs(diff) <= 1e-7 * max(prev, 1) else ("added" if diff > 0 else "reduced")
+        "unchanged"
+        if same_after_split(g["shares"], prev, split[0] if split else None)
+        else ("added" if diff > 0 else "reduced")
     )
     return {"status": status, "shares_previous": prev, "shares_change": diff,
             "shares_change_pct": round(diff / prev * 100, 2) if prev else None,
