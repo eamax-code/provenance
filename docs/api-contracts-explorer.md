@@ -63,7 +63,7 @@ company's own diluted weighted shares let it be derived, else null.
 | `period` | `annual`, `quarterly` | `annual` |
 | `periods` | 1-20 columns (annual), 1-80 (quarterly) | 12 annual, 40 quarterly |
 | `as_of` | ISO date | none |
-| `include_derived` | `true`/`false`: quarters derived by subtraction (Q4 = FY − 9M) and the derived rows below | `true` |
+| `include_derived` | `true`/`false`: quarters derived by subtraction (Q4 = FY − 9M) and the derived rows below. Only currency flows are derived (revenue, income, cash flows); weighted average shares, EPS and ratios do not add up over quarters, so their quarters are only as reported (2026-11-25) | `true` |
 
 One request returns the whole statement: every row, up to `periods` columns, newest last.
 
@@ -180,6 +180,23 @@ Rules:
   the break's own ratio; before the split each value is the later filing's restated one where
   it exists, else the as-filed value adjusted by that ratio. Only for reviewed splits (S-02c). Older reviewed splits are
   compounded into the values before them and listed under `earlier` (`[{ratio, before, source}]`). The as-filed cells stay the default.
+- **Per column basis (2026-11-25).** For a reviewed split with a date (all but one row of the
+  list), each share and EPS cell's basis comes from the date of the filing it cites: filed before
+  the split's effective date, it is on the pre-split basis (a filing issued before a split does
+  not reflect it; Piper Sandler's 10-K filed 2026-02-26: "As the stock split has not yet been
+  effected, the accompanying financial statements and per-share data do not reflect the impact");
+  filed after, on the post-split basis. This holds quarterly as well as annually: a 10-Q restates
+  only the quarters it shows again, so Monster Beverage's Q1 and Q2 2026 (filed before its August
+  2026 2:1 split) sit beside a restated Q3 2025 and a post-split Q3 2026. `split_break` adds
+  `pre_split_columns` (every column on an earlier basis; they need not come first), `between` is
+  the latest pair of adjacent columns on different bases, and when the pre-split columns are not
+  simply the ones before it the text names them ("... figures in Q1 FY2026, Q2 FY2026 (filed
+  before the split) are on the pre-split share basis ..."). `split_adjusted.values` adjusts every
+  pre-split cell wherever it sits (a later filing's restated value where one agrees within 2%,
+  else the as-filed value by the ratio, compounded across splits); a cell filed within a split
+  given only to the month has `null`. `source` is the first filing found restating a shown period
+  by the newest split's ratio, else the split list's own filing quote (`accession_number` and
+  `source_url` then `null`). A statement whose cells are all on one basis has no break.
 
 ---
 

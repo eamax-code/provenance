@@ -422,3 +422,206 @@ def split_adjusted(db, cik: str, rows: list, breaks: dict, as_of=None) -> dict[s
         if earlier_out:  # S-02b: older splits, compounded into the values before them
             out[m]["earlier"] = earlier_out
     return out
+
+
+@lru_cache(maxsize=1)
+def dated_splits() -> dict[str, list[dict]]:
+    """{cik: [{first, last, factor, hint, date, form, filed, disclosure}]}: reviewed splits with
+    an effective day or month, oldest first. factor is new shares per old share (2:1 is 2.0,
+    1:10 is 0.1, 3:2 is 1.5)."""
+    out: dict[str, list[dict]] = {}
+    with REVIEWED_SPLITS.open(newline="") as f:
+        for r in csv.DictReader(f):
+            if not r["effective"] or r["effective"].count("-") < 1:
+                continue
+            first, last = date_span(r["effective"])
+            a, b = r["ratio"].split(":")
+            out.setdefault(r["cik"], []).append({
+                "first": first, "last": last, "factor": int(a) / int(b), "hint": r["ratio"],
+                "date": r["effective"], "form": r["form"], "filed": r["filed"],
+                "disclosure": r["disclosure"],
+            })  # fmt: skip
+    for v in out.values():
+        v.sort(key=lambda s: s["first"])
+    return out
+
+
+def cell_bases(rows: dict[str, list], splits: list[dict]) -> tuple[dict[str, list], list]:
+    """Q-statements (2026-11-25): the share basis of each share and EPS cell, from the date of
+    the filing it cites. A filing made before a split's effective date reports on the pre-split
+    basis; one made after it on the post-split basis (a split after the period end is applied
+    retroactively in statements issued after it). Only splits that some cell here was filed
+    after count. rows: {metric: [cell or None]}, cells with filed_date. Returns ({metric:
+    [basis, ...]}, the splits counted), basis being how many counted splits the cell's filing
+    came after (len(splits) is the newest basis), None for no cell and -1 for a filing made
+    within a split's month; ({}, []) when every cell is on one basis. Per column, not per
+    filing: Monster Beverage's quarterly view has Q3 2025 restated for its August 2026 2:1
+    split and Q1 and Q2 2026 as filed before it."""
+    counted = [s for s in splits
+               if any(c is not None and c.filed_date and c.filed_date > s["last"]
+                      for cells in rows.values() for c in cells)]  # fmt: skip
+    if not counted:
+        return {}, []
+    out: dict[str, list] = {}
+    for m, cells in rows.items():
+        out[m] = []
+        for c in cells:
+            filed = c.filed_date if c is not None else None
+            if c is None:
+                out[m].append(None)
+            elif filed is None or any(s["first"] <= filed <= s["last"] for s in counted):
+                out[m].append(-1)
+            else:
+                out[m].append(sum(1 for s in counted if s["last"] < filed))
+    newest = len(counted)
+    if not any(b is not None and 0 <= b < newest for v in out.values() for b in v):
+        return {}, []
+    return out, counted
+
+
+def factor_of(basis: int, splits: list[dict]) -> float:
+    """New shares (on the newest basis) per share on this basis."""
+    f = 1.0
+    for s in splits[basis:]:
+        f *= s["factor"]
+    return f
+
+
+def ratio_text(f: float) -> str:
+    """2.0 as "2:1", 0.1 as "1:10", 1.5 as "3:2"."""
+    from fractions import Fraction
+
+    q = Fraction(f).limit_denominator(1000)
+    return f"{q.numerator}:{q.denominator}"
+
+
+def basis_breaks(bases: dict[str, list], labels: list[str], splits: list[dict]) -> dict:
+    """split_break per row from cell_bases: `between` is the latest pair of adjacent reported
+    columns where the basis moves to a later split (older column first), `earlier` the pairs for
+    older splits, newest first, and `pre_split_columns` every column on an earlier basis than
+    the newest (they need not come first: a later filing restates only the periods it shows
+    again)."""
+    out = {}
+    newest = len(splits)
+    for m, bl in bases.items():
+        known = [(i, b) for i, b in enumerate(bl) if b is not None and b >= 0]
+        named: set[int] = set()
+        found = []
+        for (i, a), (j, b) in reversed(list(zip(known, known[1:], strict=False))):
+            new = [k for k in range(min(a, b), max(a, b)) if k not in named]
+            if not new:
+                continue
+            named.update(new)
+            one = splits[new[-1]]["date"] if len(new) == 1 else None
+            hint = ratio_text(factor_of(new[0], splits[: new[-1] + 1]))
+            found.append({"between": [labels[i], labels[j]], "split_date": one,
+                          "ratio_hint": hint, "_at": j})  # fmt: skip
+        if found:
+            cut = found[0]["_at"]  # by position: two columns can share a label
+            # in order: the columns before the break are exactly the ones on an earlier basis
+            in_order = all((b < newest) == (i < cut) for i, b in known)
+            for f in found:
+                f.pop("_at")
+            out[m] = {**found[0], **({"earlier": found[1:]} if found[1:] else {}),
+                      "in_order": in_order,
+                      "pre_split_columns": [labels[i] for i, b in known if b < newest]}  # fmt: skip
+    return out
+
+
+def basis_adjusted(db, cik: str, rows: list, bases: dict[str, list], splits: list[dict],
+                   brk: dict, as_of=None) -> dict[str, dict]:  # fmt: skip
+    """split_adjusted from cell_bases: each cell on an earlier basis is a later filing's restated
+    value where one agrees with its ratio within 2%, else the as-filed value times the ratio
+    (divided, for EPS); a cell filed within its split's month has no value. source is the first
+    filing found restating a figure by the newest split's ratio, else the reviewed split's own
+    filing quote (app/data/splits_reviewed.csv)."""
+    from app.db.models import FinancialFact
+
+    def quoted(s: dict) -> dict:
+        return {"accession_number": None, "form": s["form"], "filed_date": s["filed"],
+                "source_url": None, "evidence": s["disclosure"]}  # fmt: skip
+
+    found_source = _restatement(db, cik, rows, bases, splits, as_of)
+    out = {}
+    for row in rows:
+        bl = bases.get(row.metric)
+        if row.derived or bl is None:
+            continue
+        values = []
+        for c, b in zip(row.cells, bl, strict=False):
+            if c is None or b is None or b < 0:
+                values.append(None)
+                continue
+            f = factor_of(b, splits)
+            if f == 1.0:
+                values.append(c.value)
+                continue
+            v = float(c.value)
+            new = v * f if row.metric in SHARE_ROWS else v / f
+            q = select(FinancialFact).where(
+                FinancialFact.cik == (c.registrant_cik or cik), FinancialFact.metric == row.metric,
+                FinancialFact.period_end == c.period_end,
+                FinancialFact.period_start == c.period_start, FinancialFact.derived.is_(False),
+                FinancialFact.value.is_not(None),
+                FinancialFact.filed_date > c.filed_date)  # fmt: skip
+            if as_of:
+                q = q.where(FinancialFact.filed_date <= as_of)
+            again = list(db.scalars(q.order_by(FinancialFact.filed_date)))
+            match = next((x for x in again if new and abs(float(x.value) / new - 1) < 0.02), None)
+            values.append(round(float(match.value) if match is not None else new, 6))
+        out[row.metric] = {
+            "ratio": splits[-1]["hint"], "derived": True, "values": values,
+            "basis": "Before the split (each figure filed before it): a later filing's restated "
+            "value where it gives one, else the as-filed value adjusted by the split's ratio.",
+        }  # fmt: skip
+        # older splits the statement shows a break for, each with the first column after it
+        before = {e["split_date"]: e["between"][1] for e in brk.get("earlier", [])}
+        earlier = [{"ratio": s["hint"], "before": before[s["date"]], "source": quoted(s)}
+                   for s in reversed(splits[:-1]) if s["date"] in before]  # fmt: skip
+        if earlier:
+            out[row.metric]["earlier"] = earlier
+    for v in out.values():
+        v["source"] = found_source or quoted(splits[-1])
+    return out
+
+
+def _restatement(db, cik: str, rows: list, bases: dict[str, list], splits: list[dict],
+                 as_of=None) -> dict | None:  # fmt: skip
+    """The first filing found restating a shown period by the newest split's ratio (Apple FY2018
+    diluted EPS 11.91 as filed, 2.98 in the 10-K filed 2020-10-30): EPS rows first, newest
+    columns first. None when no filing here does."""
+    from app.db.models import FinancialFact
+
+    s = splits[-1]
+    before = splits[-2]["last"] if len(splits) > 1 else date.min
+    by_metric = {r.metric: r for r in rows if not r.derived and r.metric in bases}
+    for metric in EPS_ROWS + SHARE_ROWS:
+        row = by_metric.get(metric)
+        for c in reversed(row.cells) if row else []:
+            if c is None:
+                continue
+            q = select(FinancialFact).where(
+                FinancialFact.cik == (c.registrant_cik or cik), FinancialFact.metric == metric,
+                FinancialFact.period_end == c.period_end,
+                FinancialFact.period_start == c.period_start, FinancialFact.derived.is_(False),
+                FinancialFact.value.is_not(None), FinancialFact.value != 0)  # fmt: skip
+            if as_of:
+                q = q.where(FinancialFact.filed_date <= as_of)
+            facts = list(db.scalars(q.order_by(FinancialFact.filed_date)))
+            olds = [f for f in facts if before < f.filed_date < s["first"]]
+            news = [f for f in facts if f.filed_date > s["last"]]
+            for orig in olds:
+                for later in news:
+                    r = float(later.value) / float(orig.value)
+                    r = 1 / r if metric in EPS_ROWS else r
+                    if r > 0 and abs(r / s["factor"] - 1) < 0.02:
+                        return {
+                            "accession_number": later.accession_number, "form": later.form_type,
+                            "filed_date": later.filed_date.isoformat(),
+                            "source_url": later.source_url,
+                            "evidence": f"{metric} for the period ending "
+                            f"{c.period_end.isoformat()}: {float(orig.value):g} as filed "
+                            f"{orig.filed_date.isoformat()}, {float(later.value):g} in the "
+                            f"{later.form_type} filed {later.filed_date.isoformat()}",
+                        }  # fmt: skip
+    return None

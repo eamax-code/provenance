@@ -6,6 +6,7 @@ from app.services.fact_normalizer import (
     MAPPING_VERSION,
     METRIC_LABELS,
     SUPPORTED_METRICS,
+    NormalizedFact,
     classify_duration,
     currency_from_unit,
     default_unit,
@@ -206,6 +207,33 @@ def test_derive_quarters_by_subtraction(facts_aapl):
     # derived facts never feed further derivation and are never produced for instants
     assert all(d.period_type == "duration" for d in derived)
     assert derive_quarters(derived) == []
+
+
+def test_no_derived_quarter_for_shares_or_per_share_values():
+    """FY weighted shares minus nine months' is not a quarter: Monster Beverage's 2026 10-Q
+    restated the nine months for its 2:1 split, which read as -974,788,000 for Q4 2025. Only
+    currency flows are derived; shares, EPS and ratios stay as reported."""
+
+    def fact(metric, unit, start, end, cls, value, acc):
+        return NormalizedFact(
+            metric=metric, value=Decimal(value), unit=unit, currency=None,
+            period_start=start, period_end=end, period_type="duration", period_class=cls,
+            fiscal_year=2025, fiscal_period="FY", form_type="10-K", filed_date=date(2026, 2, 27),
+            accession_number=acc, source_tag="T", source_taxonomy="us-gaap", source_url=None,
+            mapping_version="x", quality_status="ok",
+        )  # fmt: skip
+
+    fy, nine = (date(2025, 1, 1), date(2025, 12, 31)), (date(2025, 1, 1), date(2025, 9, 30))
+    facts = []
+    for metric, unit, fy_v, nine_v in (
+        ("shares_basic_weighted", "shares", "975887000", "1950675000"),
+        ("eps_basic", "USD/shares", "2.12", "1.06"),
+        ("net_income", "USD", "2100000000", "1500000000"),
+    ):
+        facts.append(fact(metric, unit, *fy, "annual", fy_v, "0001104659-26-020831"))
+        facts.append(fact(metric, unit, *nine, "ytd", nine_v, "0001104659-26-123503"))
+    derived = derive_quarters(facts)
+    assert [(d.metric, d.value) for d in derived] == [("net_income", Decimal("600000000"))]
 
 
 def test_later_restatement_does_not_change_earlier_filing_quality(facts_aapl):

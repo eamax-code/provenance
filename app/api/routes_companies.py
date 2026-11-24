@@ -827,39 +827,55 @@ def statement(
                     out.append((at[0], hint))  # years) can bracket a date twice: then none
         return out
 
-    accs = [(filing_at(lab) or {}).get("accession_number") for lab in labels]
-    one_filing = {i for i in range(1, len(labels)) if accs[i] and accs[i] == accs[i - 1]}
-    breaks = statements_service.split_breaks(
-        {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
-        labels,
-        restated,
-        placed(),
-        one_filing,
-        reviewed_only=True,
+    # a reviewed split with a date: each share and EPS cell's basis from its own filing's date
+    # (quarterly too: a 10-Q restates only the quarters it shows again)
+    dated = statements_service.dated_splits().get(cik, [])
+    bases, counted = statements_service.cell_bases(
+        {r.metric: r.cells for r in rows if not r.derived and r.metric in share_eps}, dated
     )
+    if dated:  # the dates decide: one basis throughout is no break
+        breaks = statements_service.basis_breaks(bases, labels, counted) if bases else {}
+    else:  # a reviewed split without a date (one row): the share-row guard places it
+        accs = [(filing_at(lab) or {}).get("accession_number") for lab in labels]
+        one_filing = {i for i in range(1, len(labels)) if accs[i] and accs[i] == accs[i - 1]}
+        breaks = statements_service.split_breaks(
+            {r.metric: [c.value if c else None for c in r.cells] for r in rows if not r.derived},
+            labels,
+            restated,
+            placed(),
+            one_filing,
+            reviewed_only=True,
+        )
     if breaks:
         b = next(iter(breaks.values()))
 
         def month(d: str) -> str:
             return statements_service.date_label(d)
 
-        is_reviewed, split_date = reviewed_match(b["between"], b["ratio_hint"])
+        if bases:
+            is_reviewed, split_date = True, b["split_date"]
+        else:
+            is_reviewed, split_date = reviewed_match(b["between"], b["ratio_hint"])
         restated_in = filing_at(b["between"][1])
         # S-02c: only a reviewed split names its ratio and gets adjusted values; the guard alone
         # failed a hand-check of 30 (IPOs and mergers read as splits, reverse ratios off)
         filed_where = (f"restated in the {restated_in['form']} filed {restated_in['filed_date']}"
                        if restated_in else "restated in a later filing")  # fmt: skip
         earlier = b.get("earlier", [])
-        for e in earlier:
+        for e in earlier if not bases else []:
             e["split_date"] = reviewed_match(e["between"], e["ratio_hint"])[1]
+        pre = b.get("pre_split_columns") or []
+        in_order = b.get("in_order", True)  # else name the pre-split columns (MNST quarterly)
         if is_reviewed:
             lead = (f"{b['ratio_hint']} split, {month(split_date)}: shares" if split_date
                     else "Shares")  # fmt: skip
             where = "" if split_date else f", {filed_where}"
+            scope = (f"before {b['between'][1]}" if in_order
+                     else "in " + ", ".join(pre) + " (filed before the split)")  # fmt: skip
             text = (
-                f"{lead} and per-share figures before {b['between'][1]} are on the pre-split "
+                f"{lead} and per-share figures {scope} are on the pre-split "
                 f"share basis, as reported in the filing each cites; later filings restated "
-                f"some years for a stock split "
+                f"some {'years' if period == 'annual' else 'periods'} for a stock split "
                 f"({b['ratio_hint']}{where}), so {b['between'][0]} and {b['between'][1]} are "
                 "on different share bases."
                 + "".join(f" An earlier split ({e['ratio_hint']}"
@@ -878,12 +894,17 @@ def statement(
         for v in breaks.values():
             v["text"], v["split_date"], v["restated_in"] = text, split_date, restated_in
             v["reviewed"] = is_reviewed
+            v.pop("in_order", None)
             if not is_reviewed:  # about 80% of unreviewed ratios were wrong: never shown
                 v["ratio_hint"] = None
     for r in rows:
         r.split_break = breaks.get(r.metric)
     reviewed_breaks = breaks if breaks and next(iter(breaks.values()))["reviewed"] else {}
-    adjusted = statements_service.split_adjusted(db, cik, rows, reviewed_breaks, as_of)
+    if bases and reviewed_breaks:
+        brk = next(iter(reviewed_breaks.values()))
+        adjusted = statements_service.basis_adjusted(db, cik, rows, bases, counted, brk, as_of)
+    else:
+        adjusted = statements_service.split_adjusted(db, cik, rows, reviewed_breaks, as_of)
     if adjusted:
         a = next(iter(adjusted.values()))
         more = "".join(f", and {e['ratio']} before {e['before']} from the "

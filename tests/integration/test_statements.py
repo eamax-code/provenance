@@ -8,6 +8,27 @@ from decimal import Decimal
 CIK = "320193"
 
 
+def _reviewed(monkeypatch, splits: dict) -> None:
+    """The reviewed split list as given, {(cik, ratio): date or dates}, both as the share-row
+    guard reads it and with dates (cell bases, 2026-11-25)."""
+    from app.services import statements as st
+
+    dated: dict = {}
+    for (cik, ratio), dates in splits.items():
+        for d in [dates] if isinstance(dates, str) else dates:
+            if d and d.count("-") >= 1:
+                first, last = st.date_span(d)
+                a, b = ratio.split(":")
+                dated.setdefault(cik, []).append({
+                    "first": first, "last": last, "factor": int(a) / int(b), "hint": ratio,
+                    "date": d, "form": "8-K", "filed": d, "disclosure": f"a {ratio} split",
+                })  # fmt: skip
+    for v in dated.values():
+        v.sort(key=lambda x: x["first"])
+    monkeypatch.setattr(st, "reviewed_splits", lambda: splits)
+    monkeypatch.setattr(st, "dated_splits", lambda: dated)
+
+
 def _rows(body):
     return {r["metric"]: r for r in body["rows"]}
 
@@ -161,14 +182,13 @@ def test_split_adjusted_series_from_a_restating_filing(client, auth, db, monkeyp
                 observation_key=hashlib.sha256(f"{metric}{y}{suf}".encode()).hexdigest(),
             ))  # fmt: skip
     db.commit()
-    from app.services import statements as st
 
     # S-02e: not in the reviewed split list: no break, nothing adjusted
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     assert rows["eps_basic"]["split_adjusted"] is None
     assert rows["eps_basic"]["split_break"] is None
-    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "4:1"): "2020-08-31"})
+    _reviewed(monkeypatch, {(cik, "4:1"): "2020-08-31"})
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     assert rows["eps_basic"]["split_break"]["reviewed"] is True
@@ -202,7 +222,7 @@ def test_a_reviewed_split_counts_when_income_swings_too(db):
     assert ("0000929351", "1:14") not in st.reviewed_splits()  # Starz: 15-to-1, not a clean read
     # 53 rows read in each filing's own disclosure; Amphenol, Fastenal and Texas Pacific Land
     # split twice at one ratio, so 50 (cik, ratio) keys (Tesla 5:1 and 3:1, Alphabet 20:1 too)
-    assert len(st.reviewed_splits()) == 98  # S-02d: 102 rows, 84 companies; MNST 2:1 (Q-02)
+    assert len(st.reviewed_splits()) == 99  # S-02d: 102 rows, 84 companies; MNST 2:1 (Q-02), 3:1
     assert st.reviewed_splits()[("0001318605", "3:1")] == ("2022-08",)
     assert st.reviewed_splits()[("0000011544", "3:2")] == ("2024-07-10",)  # W. R. Berkley
     assert st.reviewed_splits()[("0000820313", "2:1")] == ("2024-06-11", "2021-03-04")
@@ -253,7 +273,6 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
                 observation_key=hashlib.sha256(f"{metric}{y}{suf}".encode()).hexdigest(),
             ))  # fmt: skip
     db.commit()
-    from app.services import statements as st
 
     # not in the reviewed list: only the latest pair, adjusted by its own ratio (as before)
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
@@ -262,7 +281,7 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     assert rows["eps_basic"]["split_adjusted"] is None
     # both splits reviewed: named with their dates, and compounded
     dates = {(cik, "2:1"): "2018-03-01", (cik, "3:1"): "2020-03-02"}
-    monkeypatch.setattr(st, "reviewed_splits", lambda: dates)
+    _reviewed(monkeypatch, dates)
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     brk = rows["eps_basic"]["split_break"]
@@ -282,6 +301,7 @@ def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     # a reviewed date outside the pair's filings (after FY2017's filing, by FY2018's restating
     # one) does not confirm it: the 3:1 here is dated before FY2017 was filed
     dates = {(cik, "2:1"): ("2018-03-01",), (cik, "3:1"): ("2016-01-01",)}
+    _reviewed(monkeypatch, dates)
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     only = rows["eps_basic"]["split_break"]  # the 3:1 is unconfirmed: the 2:1 is the break
@@ -298,7 +318,6 @@ def test_a_reviewed_split_is_placed_by_its_date_without_a_share_row(client, auth
     from datetime import UTC, date, datetime
 
     from app.db.models import Company, Filing, FinancialFact
-    from app.services import statements as st
 
     now, cik = datetime.now(UTC), "0000000780"
     db.add(Company(cik=cik, legal_name="NOSHARES INC", ticker="NOSH",
@@ -333,7 +352,7 @@ def test_a_reviewed_split_is_placed_by_its_date_without_a_share_row(client, auth
         return next(r for r in body["rows"] if r["metric"] == "eps_basic")
 
     assert eps_row()["split_break"] is None  # the guard alone: no share row, no break
-    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "20:1"): ("2022-07-15",)})
+    _reviewed(monkeypatch, {(cik, "20:1"): ("2022-07-15",)})
     row = eps_row()
     brk = row["split_break"]
     assert brk["between"] == ["FY2019", "FY2020"] and brk["ratio_hint"] == "20:1"
@@ -341,7 +360,7 @@ def test_a_reviewed_split_is_placed_by_its_date_without_a_share_row(client, auth
     assert brk["text"].startswith("20:1 split, July 2022: shares and per-share figures before")
     assert row["split_adjusted"]["values"] == [2.458, 2.93]  # 49.16 / 20; FY2020 as restated
     # a date that falls outside both columns' filings places nothing
-    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "20:1"): ("2024-07-15",)})
+    _reviewed(monkeypatch, {(cik, "20:1"): ("2024-07-15",)})
     assert eps_row()["split_break"] is None
 
 
@@ -382,7 +401,7 @@ def test_a_three_for_two_split_and_one_filing_pairs(client, auth, db, monkeypatc
             observation_key=hashlib.sha256(f"eps{y}{suf}".encode()).hexdigest(),
         ))  # fmt: skip
     db.commit()
-    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "3:2"): ("2024-07-10",)})
+    _reviewed(monkeypatch, {(cik, "3:2"): ("2024-07-10",)})
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     row = next(r for r in body["rows"] if r["metric"] == "eps_basic")
     assert row["split_break"]["ratio_hint"] == "3:2" and row["split_break"]["reviewed"] is True
@@ -395,14 +414,15 @@ def test_a_three_for_two_split_and_one_filing_pairs(client, auth, db, monkeypatc
     assert st.split_breaks(values, ["FY2024", "FY2025"], one_filing={1}) == {}
 
 
-def test_a_reviewed_split_bracketed_twice_is_not_placed(client, auth, db, monkeypatch):
-    """S-02d: columns cited from filings out of order (an S-1 re-presenting old years) can
-    bracket a split date at two pairs; then the split is placed nowhere, never guessed."""
+def test_columns_filed_out_of_order_each_get_their_own_basis(client, auth, db, monkeypatch):
+    """S-02d placed a split nowhere when columns cited from filings out of order (an S-1
+    re-presenting old years) bracketed its date twice. Since 2026-11-25 each column's basis
+    comes from its own filing's date, so FY2017 and FY2019 (filed before the 8:1) are the
+    pre-split columns, named in the note, and adjusted."""
     import hashlib
     from datetime import UTC, date, datetime
 
     from app.db.models import Company, Filing, FinancialFact
-    from app.services import statements as st
 
     now, cik = datetime.now(UTC), "0000000782"
     db.add(Company(cik=cik, legal_name="OUTOFORDER INC", ticker="OOO",
@@ -425,7 +445,71 @@ def test_a_reviewed_split_bracketed_twice_is_not_placed(client, auth, db, monkey
             observation_key=hashlib.sha256(f"eps{y}{suf}".encode()).hexdigest(),
         ))  # fmt: skip
     db.commit()
-    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "8:1"): ("2022-07-01",)})
+    _reviewed(monkeypatch, {(cik, "8:1"): ("2022-07-01",)})
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     row = next(r for r in body["rows"] if r["metric"] == "eps_basic")
-    assert row["split_break"] is None  # FY2017/18 and FY2019/20 both bracket the date
+    brk = row["split_break"]
+    assert brk["between"] == ["FY2019", "FY2020"] and brk["ratio_hint"] == "8:1"
+    assert brk["pre_split_columns"] == ["FY2017", "FY2019"]
+    assert "figures in FY2017, FY2019 (filed before the split) are on the pre-split" in brk["text"]
+    assert row["split_adjusted"]["values"] == [0.5, 0.5, 0.525, 0.6]
+    assert [c["value"] for c in row["cells"]] == [4.0, 0.5, 4.2, 0.6]  # as filed stays
+
+
+def test_quarterly_split_break_is_per_column(client, auth, db, monkeypatch):
+    """Monster Beverage, quarterly (ui, 2026-11-25): the 10-Q filed after the August 2026 2:1
+    split restated only the quarter it shows again (Q3 2025), so Q1 and Q2 2026, filed before the
+    split, stay pre-split beside a post-split Q3 2026 (978.7M, then 1.96B). Each column's basis
+    comes from its own filing's date. And Q4 weighted shares are never FY minus nine months
+    (that read -974.8M): a share count does not add up over quarters."""
+    import hashlib
+    from datetime import UTC, date, datetime
+
+    from app.db.models import Company, Filing, FinancialFact
+
+    now, cik = datetime.now(UTC), "0000000783"
+    db.add(Company(cik=cik, legal_name="QUARTERCO INC", ticker="QTRC", fiscal_year_end="1231",
+                   source_url="https://www.sec.gov/", first_detected_at=now,
+                   last_processed_at=now, quality_status="ok"))  # fmt: skip
+    filings = {"q2": date(2026, 8, 7), "q3": date(2026, 11, 6), "q1": date(2026, 5, 8),
+               "k": date(2026, 2, 27)}  # fmt: skip
+    facts = [  # (start, end, class, filing, shares)
+        (date(2025, 4, 1), date(2025, 6, 30), "quarterly", "q2", 975_749e3),
+        (date(2025, 7, 1), date(2025, 9, 30), "quarterly", "q3", 1_953_217e3),
+        (date(2025, 1, 1), date(2025, 9, 30), "ytd", "q3", 1_950_675e3),
+        (date(2025, 1, 1), date(2025, 12, 31), "annual", "k", 975_887e3),
+        (date(2026, 1, 1), date(2026, 3, 31), "quarterly", "q1", 978_309e3),
+        (date(2026, 4, 1), date(2026, 6, 30), "quarterly", "q2", 978_662e3),
+        (date(2026, 7, 1), date(2026, 9, 30), "quarterly", "q3", 1_958_641e3),
+    ]
+    for key, filed in filings.items():
+        acc = f"{cik}-26-00000{list(filings).index(key) + 1}"
+        url = f"https://www.sec.gov/Archives/edgar/data/783/{acc}-index.html"
+        db.add(Filing(cik=cik, accession_number=acc, form_type="10-K" if key == "k" else "10-Q",
+                      filing_date=filed, first_detected_at=now, quality_status="ok",
+                      source_url=url))  # fmt: skip
+    for start, end, cls, key, shares in facts:
+        acc = f"{cik}-26-00000{list(filings).index(key) + 1}"
+        db.add(FinancialFact(
+            cik=cik, metric="shares_basic_weighted", value=shares, unit="shares", currency=None,
+            period_start=start, period_end=end, period_type="duration", period_class=cls,
+            fiscal_year=end.year, fiscal_period="Q", form_type="10-Q", filed_date=filings[key],
+            accession_number=acc, source_tag="t", source_taxonomy="us-gaap",
+            source_url=f"https://www.sec.gov/Archives/edgar/data/783/{acc}-index.html",
+            mapping_version="1.5.0", quality_status="ok", derived=False, first_detected_at=now,
+            processed_at=now, observation_key=hashlib.sha256(f"s{start}{end}".encode()).hexdigest(),
+        ))  # fmt: skip
+    db.commit()
+    _reviewed(monkeypatch, {(cik, "2:1"): ("2026-08-10",)})
+    body = client.get(f"/v1/companies/{cik}/statements/income?period=quarterly",
+                      headers=auth).json()  # fmt: skip
+    keys = [c["key"] for c in body["columns"]]
+    row = next(r for r in body["rows"] if r["metric"] == "shares_basic_weighted")
+    cells = dict(zip(keys, row["cells"], strict=True))
+    assert "Q4 FY2025" not in keys or cells["Q4 FY2025"] is None  # never 975.9M - 1.95B
+    brk = row["split_break"]
+    assert brk["between"] == ["Q2 FY2026", "Q3 FY2026"] and brk["split_date"] == "2026-08-10"
+    assert brk["pre_split_columns"] == ["Q2 FY2025", "Q1 FY2026", "Q2 FY2026"]
+    adj = dict(zip(keys, row["split_adjusted"]["values"], strict=True))
+    assert adj["Q1 FY2026"] == 1_956_618e3 and adj["Q3 FY2025"] == 1_953_217e3
+    assert cells["Q2 FY2026"]["value"] == 978_662e3  # as filed stays the default

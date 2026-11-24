@@ -438,6 +438,12 @@ def _is_currency(code: str) -> bool:
     return len(code) == 3 and code.isalpha() and code.isupper()
 
 
+def additive_unit(unit: str | None) -> bool:
+    """A duration value in this unit adds up over periods: a plain currency, not shares, a
+    per-share value or a ratio."""
+    return bool(unit) and _is_currency(unit)
+
+
 def currency_from_unit(unit: str) -> str | None:
     """The ISO currency of a plain currency unit ("USD") or a per-share one ("USD/shares")."""
     if not unit:
@@ -824,6 +830,11 @@ def derive_quarters(facts: list[NormalizedFact]) -> list[NormalizedFact]:
     Only within the same metric, tag, unit and period_start, only when both inputs are
     reported (not derived), `ok`, and the difference spans 80-100 days. The result is
     marked derived=true, quality_status=derived, and carries both source observations.
+
+    Only additive flows are derived: a plain currency unit ("USD"). Weighted average shares,
+    per-share values (EPS) and ratios do not add up over quarters (FY weighted shares minus
+    nine months' gave Monster Beverage -974.8M for Q4 2025), so their quarters are only ever
+    as reported.
     """
     derived: list[NormalizedFact] = []
     groups: dict[tuple, list[NormalizedFact]] = {}
@@ -834,6 +845,7 @@ def derive_quarters(facts: list[NormalizedFact]) -> list[NormalizedFact]:
             or f.period_start is None
             or f.quality_status != "ok"
             or f.value is None
+            or not additive_unit(f.unit)
         ):
             continue
         groups.setdefault((f.metric, f.source_tag, f.unit, f.period_start), []).append(f)
