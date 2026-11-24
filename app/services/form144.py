@@ -275,6 +275,14 @@ def _loaded_quarters(db: Session) -> set[str]:
     return set(db.scalars(select(InsiderDataset.quarter)))
 
 
+def _as_of_cap(covered: date | None, as_of: date | None) -> date | None:
+    """With as_of, nothing filed later is known: "no sale reported" needs the whole 90 days to
+    have passed by as_of too, or a sale reported after as_of would be denied (look-ahead)."""
+    if covered is None or as_of is None:
+        return covered
+    return min(covered, as_of)
+
+
 def _window_covered(start: date, covered: date | None, loaded: set[str]) -> bool:
     """D-12b: "no sale reported" only when every quarterly Form 4 data set from the notice to 90
     days after it is loaded; a gap or a window past the newest data set is "pending", never "no
@@ -340,8 +348,8 @@ def for_company(db: Session, cik: str, since: date, as_of: date | None, limit: i
                        "filed_date": n.filing_date.isoformat(), "source_url": n.source_url},
             "followed_by": m,
             "followed_by_status": "matched" if m else (
-                "no_sale_reported" if _window_covered(n.notice_date or n.filing_date, covered,
-                                                      loaded)
+                "no_sale_reported" if _window_covered(n.notice_date or n.filing_date,
+                                                      _as_of_cap(covered, as_of), loaded)
                 else "pending"),
         })  # fmt: skip
     return out

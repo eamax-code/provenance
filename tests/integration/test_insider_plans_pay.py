@@ -379,6 +379,11 @@ def test_no_sale_reported_needs_every_quarter_of_the_window_loaded(db, client, a
                           last_filing_date=date(2024, 3, 28)))  # fmt: skip
     db.commit()
     assert status()["Nobody Sells"] == "no_sale_reported"
+    # as of a date inside the 90 days, a later Form 4 is not known yet: pending, not "no sale"
+    body = client.get(f"/v1/companies/{CIK}/insider-plans?since=2023-01-01&as_of=2024-02-01",
+                      headers=auth).json()  # fmt: skip
+    st = {s["person_name"]: s["followed_by_status"] for s in body["proposed_sales"]}
+    assert st["Nobody Sells"] == "pending"
 
 
 def test_form4_of_an_earlier_notice_is_not_this_notices_follow_up():
