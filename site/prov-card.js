@@ -35,7 +35,7 @@
     if (i.predecessor) kv('Registrant', i.registrant_label || 'Reported by the predecessor registrant (CIK ' + i.registrant_cik + ')');
     var asOf = cfg.asOf(); kv('As known on', asOf ? day(asOf) : 'latest');
     card = el('div', { class: 'prov-card', role: 'dialog', 'aria-label': 'Where this figure comes from', tabindex: '-1' }, [
-      el('p', { class: 'prov-v' }, [el('b', { text: b.textContent }), i.label ? ' ' + i.label : '']),
+      el('p', { class: 'prov-v' }, [el('b', { text: b.textContent, 'data-t': b.textContent }), i.label ? ' ' + i.label : '']),
       el('dl', {}, rows), el('div', { class: 'prov-act' }, cfg.actions(i, close) || [])
     ]);
     document.body.appendChild(card);
@@ -69,7 +69,7 @@
     var nx = all[all.indexOf(node) + 1]; (nx || node).focus();
   }
   function door(text, info, cls) {
-    var b = el('button', { type: 'button', class: 'door' + (cls ? ' ' + cls : ''), text: text, 'aria-haspopup': 'dialog' });
+    var b = el('button', { type: 'button', class: 'door' + (cls ? ' ' + cls : ''), text: text, 'aria-haspopup': 'dialog', 'data-t': text });
     b._prov = info;
     b.addEventListener('click', function (e) { e.stopPropagation(); if (cardFor === b) close(); else open(b); });
     return b;

@@ -251,19 +251,22 @@ tr:last-child td { border-bottom: 0; } td.wrap { white-space: normal; }
 /* B-4, the brand's one moment (docs/brand.md): hover or keyboard focus hints with an underline; opening the
    card sweeps the highlight across the figure, and in the card a leader draws from the figure to its filing.
    Background-size, stroke-dashoffset and an absolute SVG only, so nothing moves (CLS 0). The sweep's frames
-   keep the background colour clear, so once it ends the figure sits on the marker colour itself; the text
-   keeps its own colour until the highlight is mostly under it. */
+   reveal an ink-on-marker copy of the figure (::after, clip-path; its alt text is empty, so the name is said once) over the figure in its own colour, so every
+   pixel under the marker is ink from the first frame; when the sweep ends the figure itself is ink on the
+   marker, so contrast checks read it. */
 .door:hover, .door:focus-visible { text-decoration: underline solid var(--accent-hi); text-decoration-thickness: 2px; }
-.door[aria-expanded="true"], .prov-v b { color: var(--marker-ink); background: var(--marker) linear-gradient(var(--marker), var(--marker)) no-repeat 0 0 / 100% 100%; border-radius: 3px; text-decoration: none; animation: prov-sweep .22s var(--ease-out) backwards; }
-.prov-v b { padding: 0 4px; animation-delay: .08s; }
-@keyframes prov-sweep { from { background-size: 0 100%; background-color: transparent; color: var(--fg); } 55% { color: var(--fg); } to { background-size: 100% 100%; background-color: transparent; } }
+.door[aria-expanded="true"], .prov-v b { position: relative; color: var(--marker-ink); background: var(--marker); border-radius: 3px; text-decoration: none; animation: prov-sweep .22s var(--ease-out) backwards; }
+.door[aria-expanded="true"]::after, .prov-v b::after { content: attr(data-t); content: attr(data-t) / ""; position: absolute; inset: 0; padding: inherit; border-radius: inherit; white-space: nowrap; pointer-events: none; background: var(--marker); color: var(--marker-ink); clip-path: inset(0); animation: prov-reveal .22s var(--ease-out) backwards; }
+.prov-v b { padding: 0 4px; } .prov-v b, .prov-v b::after { animation-delay: .08s; }
+@keyframes prov-sweep { from, to { background-color: transparent; color: var(--fg); } }
+@keyframes prov-reveal { from { clip-path: inset(0 100% 0 0); } }
 .prov-lead { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .prov-lead path { fill: none; stroke: var(--accent-hi); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; animation: prov-draw .3s .24s var(--ease-out) forwards; }
 .prov-lead circle { fill: var(--accent-hi); opacity: 0; animation: prov-dot .14s .5s ease-out forwards; }
 @keyframes prov-draw { to { stroke-dashoffset: 0; } }
 @keyframes prov-dot { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .door[aria-expanded="true"], .prov-v b, .prov-lead path, .prov-lead circle { animation: none; }
+  .door[aria-expanded="true"], .door[aria-expanded="true"]::after, .prov-v b, .prov-v b::after, .prov-lead path, .prov-lead circle { animation: none; }
   .prov-lead path { stroke-dashoffset: 0; } .prov-lead circle { opacity: 1; }
 }
 .prov-card { position: absolute; z-index: 40; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: 0 12px 32px rgba(0,0,0,.35); font-size: .86rem; padding-left: 28px; }

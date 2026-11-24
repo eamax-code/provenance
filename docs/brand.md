@@ -72,7 +72,7 @@ Rules, each checked by a test or the UI audit:
 
 The one brand interaction lives in `site/prov-card.js` and `site/app/app.css`, which the Explorer and chat share. It happens when a figure (a `.door`) opens its provenance card:
 
-1. **Sweep (0–220 ms).** The highlight sweeps left to right across the figure. The figure keeps its own text colour until the highlight is mostly under it.
+1. **Sweep (0–220 ms).** The highlight sweeps left to right across the figure, as a highlighter does. An ink-on-marker copy of the figure (`::after`, its alt text empty so the figure is read once) is revealed through a growing clip, so every pixel under the marker is ink from the first frame. The frame run checks this at 90 ms.
 2. **In the card (80 ms on).** The card's copy of the figure gets the same sweep.
 3. **Leader (240–540 ms).** The leader draws from the card's figure, down the card's left gutter, to a dot at the Filing row: the logo's gesture. It is drawn in `--accent-hi`, which is olive on light grounds.
 

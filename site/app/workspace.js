@@ -538,7 +538,7 @@
     var baseRow = rows.filter(function (r) { return r.metric === base; })[0];
     // cells align with columns by position (keys can repeat when a filer reuses a period label); values may come as strings
     var at0 = function (r, j) { var c = null, ci = -1; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; ci = i; return true; } return false; }); return c ? Object.assign({}, c, { value: Number(c.value), _i: ci }) : null; };
-    // S-02: "Split-adjusted" swaps in the API's derived values (split_adjusted) where they differ from the as-filed ones; as filed stays the default
+    // S-02: "Split-adjusted" swaps in the API's derived values (split_adjusted) where they differ from the reported ones; as reported stays the default (each cell as reported in the filing it cites, which can be a later restated one)
     // only a split confirmed from the company's own filings (split_break.reviewed) offers the switch; an unreviewed break keeps its note
     var hasAdj = rows.some(function (r) { return r.split_break && r.split_break.reviewed === true; }) && rows.some(function (r) { return r.split_adjusted && r.split_adjusted.values; }), adjOn = hasAdj && S.adj === 'split';
     var at = function (r, j) {
@@ -546,7 +546,7 @@
       var v = A.values[c._i]; if (v == null || !isFinite(Number(v)) || Number(v) === c.value) return c;
       var s = A.source || {};
       return Object.assign({}, c, { value: Number(v), adj: true, derived: true, source_tag: null, mapping_version: null,
-        formula: 'split-adjusted for the ' + A.ratio + ' split from ' + c.value.toLocaleString('en-US') + ' as filed. ' + (A.basis || '') + (s.evidence ? ' Evidence: ' + s.evidence + '.' : ''),
+        formula: 'split-adjusted for the ' + A.ratio + ' split from ' + c.value.toLocaleString('en-US') + ' as reported. ' + (A.basis || '') + (s.evidence ? ' Evidence: ' + s.evidence + '.' : ''),
         inputs: ARCHIVE.test(s.source_url || '') ? [{ metric: 'the restating ' + (s.form || 'filing'), source_url: s.source_url, form_type: s.form, filed_date: s.filed_date }] : null });
     };
     // a split_break row mixes share bases: one note above those rows, a tag on each, a rule before the first column after the break
@@ -573,11 +573,11 @@
     body = body.reduce(function (acc, tr, ri) { var t = rows[ri].split_break && rows[ri].split_break.text; if (t && said.indexOf(t) < 0) { said.push(t); acc.push(el('tr', { class: 'st-note' }, [el('td', { colspan: String(cols.length + 1) }, [el('p', { text: adjOn && rows[ri].split_adjusted ? t.replace(/\s*They are not adjusted\.?\s*$/, '') + ' In this view, figures before the split are adjusted to the later basis (derived, in italics).' : t })])])); } acc.push(tr); return acc; }, []);
     var notes = (b.notes || []).filter(function (n) { return said.indexOf(n) < 0; });
     var wrap = el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]);
-    var ctl = stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as filed' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + (adjOn ? '-split-adjusted' : '') + '.csv');
-    if (hasAdj) ctl.insertBefore(el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Share basis' }, [['filed', 'As filed'], ['split', 'Split-adjusted']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String((S.adj || 'filed') === v[0]), title: v[0] === 'split' ? 'Shares and per-share figures before a split, adjusted to the later basis (derived)' : null, text: v[1], on: { click: function () { keep({ adj: v[0] }); statementsTab(); } } }); })), ctl.children[3]);
+    var ctl = stControls(cur, (S.p === 'quarterly' ? 'Quarterly' : 'Annual') + ' · in ' + cur + ' as reported' + (b.mapping_version ? ' · mapping ' + b.mapping_version : ''), csvRows, ((S.d.company || {}).ticker || S.cik) + '-' + S.st + '-' + S.p + (adjOn ? '-split-adjusted' : '') + '.csv');
+    if (hasAdj) ctl.insertBefore(el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Share basis' }, [['filed', 'As reported'], ['split', 'Split-adjusted']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String((S.adj || 'filed') === v[0]), title: v[0] === 'split' ? 'Shares and per-share figures before a split, adjusted to the later basis (derived)' : null, text: v[1], on: { click: function () { keep({ adj: v[0] }); statementsTab(); } } }); })), ctl.children[3]);
     pane.replaceChildren.apply(pane, [ctl,
       wrap,
-      adjOn ? el('p', { class: 'muted small', text: 'Split-adjusted values are derived (shown in italics): each opens its card with the split ratio, the evidence and the restating filing. Rows the API has not adjusted keep their as-filed values.' }) : null,
+      adjOn ? el('p', { class: 'muted small', text: 'Split-adjusted values are derived (shown in italics): each opens its card with the split ratio, the evidence and the restating filing. Rows the API has not adjusted keep their reported values.' }) : null,
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
       notes.length ? el('p', { class: 'muted small', text: notes.join(' ') }) : null].filter(Boolean));
     wrap.scrollLeft = wrap.scrollWidth; // open on the latest periods; earlier ones scroll in from the left
@@ -625,7 +625,7 @@
       })));
     });
     var csvRows = function () { return [['line_item'].concat(fy).join(',')].concat((sec ? sec.rows : []).map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(r.cells.map(function (c) { return c && c.value != null ? c.value : ''; })).join(','); })); };
-    pane.replaceChildren(stControls(cur, 'Annual · in ' + cur + ' as filed · last five years', csvRows, (d.company.ticker || d.company.cik) + '-' + S.st + '.csv'),
+    pane.replaceChildren(stControls(cur, 'Annual · in ' + cur + ' as reported · last five years', csvRows, (d.company.ticker || d.company.cik) + '-' + S.st + '.csv'),
       el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. Shaded cells were reported by a predecessor registrant.' + (S.st === 'ratios' ? ' Ratios are worked out here from reported figures.' : ' Longer histories and quarters load from the statements API when it\u2019s available.') }));
     var fw = pane.querySelector('.st-wrap'); if (fw) fw.scrollLeft = fw.scrollWidth; if (fw) rove(fw.querySelector('table'));
@@ -1000,7 +1000,7 @@
          ['Private raises', 'this company’s Form D offerings', to('filings', { sec: 'raises' })], ['Private raises screener', 'all Form D offerings, with filters', function () { location.href = '/app/?sv=raises#screener'; }],
          ['Corporate tree', 'parents and subsidiaries', to('connections', {})], ['People', 'officers, pay, plans, Form 144', to('people', { sec: null })], ['Pay versus performance', 'People', to('people', { sec: 'pay' })],
          ['Trading plans', 'People', to('people', { sec: 'plans' })], ['Form 144 notices', 'People', to('people', { sec: 'sales' })], ['Calendar', 'deadlines and dates', to('calendar', {})],
-         ['Split-adjusted ' + (S.adj === 'split' ? 'off' : 'on'), 'statements: shares and EPS ' + (S.adj === 'split' ? 'as filed' : 'on the later split basis'), to('statements', { adj: S.adj === 'split' ? 'filed' : 'split' })]]
+         ['Split-adjusted ' + (S.adj === 'split' ? 'off' : 'on'), 'statements: shares and EPS ' + (S.adj === 'split' ? 'as reported' : 'on the later split basis'), to('statements', { adj: S.adj === 'split' ? 'filed' : 'split' })]]
           .forEach(function (c) { var l = c[0].toLowerCase(); if (q && (l.indexOf(ql) === 0 || (ql.length > 2 && l.indexOf(ql) > -1)) && !out.some(function (x) { return x.label.toLowerCase() === 'go to ' + l; })) out.push({ label: c[0], hint: c[1], fn: c[2] }); });
         var rows = statementRows(); Object.keys(YEARLY).concat(Object.keys(rows)).forEach(function (m) { var lab = YEARLY[m] || rows[m].label; if (q.length > 1 && lab.toLowerCase().indexOf(ql) > -1 && !out.some(function (o) { return o.m === m; })) out.push({ m: m, label: 'Chart ' + lab, hint: 'metric', fn: function () { S.m = S.m.indexOf(m) > -1 ? S.m : [m].concat(S.m).slice(0, 3); go('chart'); } }); });
       }

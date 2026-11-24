@@ -91,10 +91,11 @@ def test_data_marks_are_never_the_accent():
 
 def test_the_provenance_moment_respects_reduced_motion():
     css = (SITE / "app" / "app.css").read_text()
-    assert "@keyframes prov-sweep" in css and "@keyframes prov-draw" in css
+    assert "@keyframes prov-sweep" in css and "@keyframes prov-reveal" in css and "@keyframes prov-draw" in css
+    assert "'data-t': text" in (SITE / "prov-card.js").read_text(), "the reveal copies the figure's own text"
     rm = css[css.index("@media (prefers-reduced-motion: reduce) {\n  .door"):]
     rm = rm[: rm.index("\n}") + 2]
-    for sel in (".door[aria-expanded=\"true\"]", ".prov-v b", ".prov-lead path", ".prov-lead circle"):
+    for sel in (".door[aria-expanded=\"true\"]", ".door[aria-expanded=\"true\"]::after", ".prov-v b::after", ".prov-lead path", ".prov-lead circle"):
         assert sel in rm, f"reduced motion must stop {sel}"
     assert "animation: none" in rm and "stroke-dashoffset: 0" in rm
     assert ".door:focus-visible" in css, "keyboard focus gets the same hint as hover"
