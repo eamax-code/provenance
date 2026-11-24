@@ -54,6 +54,6 @@ Rules:
 |---|---|
 | 200 | the comparison |
 | 404 `filing_not_found` | unknown accession |
-| 404 `changes_not_available` | not in the read set yet, or not an annual report (`reason` says which) |
+| 404 `changes_not_available` | `reason`: `not_read` (outside the read set yet), `no_annual_report`, `form_not_read` (a 20-F or 40-F filer: only 10-Ks are read), or why a filing has no comparison. Coverage, not access: never a 403 |
 
 MCP: the `filing_changes` tool, `{cik}` or `{accession}`, with texts trimmed to 400 characters.

@@ -119,6 +119,12 @@ def test_changes_endpoints(client, auth, db, ingested_aapl):
     assert body["risk_factors"]["counts"]["added"] == 1 and body["method"]["threshold"] == 0.6
     assert body["mdna"]["counts"]["unchanged"] == 3
     assert "fetched_at" not in str(body)
+    db.add(Filing(cik=CIK, accession_number="0000320193-19-900200", form_type="20-F",
+                  filing_date=date(2019, 3, 1), source_url="https://www.sec.gov/",
+                  first_detected_at=datetime.now(UTC), quality_status="ok"))  # fmt: skip
+    db.commit()
+    early = client.get(f"/v1/companies/{CIK}/changes?as_of=2020-01-01", headers=auth).json()
+    assert early["error"]["reason"] == "form_not_read" and "20-F" in early["error"]["message"]
     missing = client.get("/v1/filings/0000000000-25-000001/changes", headers=auth)
     assert missing.status_code == 404 and missing.json()["error"]["code"] == "filing_not_found"
     tl = client.get(f"/v1/companies/{CIK}/timeline?types=filing&from=2024-01-01&limit=200",
