@@ -1,0 +1,428 @@
+"""Q-03: open-market insider buys and sales across companies (docs/contracts/insider-screener.md).
+
+One row per original Form 4, transaction code (P or S) and security class: those lines are added
+up. Amendments (Form 4/A) never make a row; an original names the 4/As for the same issuer, a
+reporting owner of it and the same period (amended_by). Lines dated after their filing, or more
+than three years before it, are as-filed errors and left out. Information, not signals.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import statistics
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import date, timedelta
+
+from sqlalchemy import Date, and_, case, func, select
+from sqlalchemy.orm import Session
+
+from app.db.models import InsiderActivity, InsiderFiling, InsiderTransaction
+from app.services import insiders
+from app.services.insider_activity import CLUSTER
+from app.services.sec_client import filing_index_url
+
+TYPES = {"buy": "P", "sell": "S"}
+ROLES = ("director", "officer", "ten_percent_owner", "other")
+MAX_DAYS = 366
+PRICE_OUTLIER = 20  # times the median price of the issuer's other rows
+STALE_DAYS = 3 * 365  # a line dated this long before its filing is an as-filed error
+MAX_LIMIT = 100
+MAX_OFFSET = 5000
+_CHUNK = 1000
+DISCLAIMER = "Information, not signals. Not investment advice."
+
+
+@dataclass
+class Screen:
+    codes: set[str]
+    since: date
+    until: date
+    as_of: date | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    roles: set[str] = field(default_factory=set)
+    titles: list[str] = field(default_factory=list)  # any of these, as words of the title
+    cik: str | None = None
+    owner_cik: str | None = None
+    plan_10b5_1: bool | None = None
+    cluster: bool = False
+    allowed: set[str] | None = None  # the demo key's showcase companies
+
+
+_OWNER_COLS = (
+    InsiderFiling.accession_number, InsiderFiling.issuer_cik, InsiderFiling.owner_cik,
+    InsiderFiling.owner_name, InsiderFiling.is_director, InsiderFiling.is_officer,
+    InsiderFiling.is_ten_percent_owner, InsiderFiling.is_other, InsiderFiling.officer_title,
+    InsiderFiling.other_text, InsiderFiling.form_type, InsiderFiling.filing_date,
+    InsiderFiling.period_of_report, InsiderFiling.plan_10b5_1,
+)  # fmt: skip
+
+
+def _chunks(items: list, size: int = _CHUNK):
+    for i in range(0, len(items), size):
+        yield items[i : i + size]
+
+
+def _title_match(titles: list[str], officer_title: str | None) -> bool:
+    """Any of the alternatives as whole words of the title as filed, case ignored ("cfo" finds
+    "EVP & CFO", not "CFOX")."""
+    t = officer_title or ""
+    return any(re.search(r"\b" + r"\s+".join(map(re.escape, a.split())) + r"\b", t, re.I)
+               for a in titles)  # fmt: skip
+
+
+def _role_keys(f: InsiderFiling) -> set[str]:
+    keys = set()
+    if f.is_director:
+        keys.add("director")
+    if f.is_officer:
+        keys.add("officer")
+    if f.is_ten_percent_owner:
+        keys.add("ten_percent_owner")
+    if f.is_other:
+        keys.add("other")
+    return keys
+
+
+def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
+    """Every row of the screen (unpaged, unsorted; finish() completes a page) and counts for the
+    notes. Lines are added up in SQL per Form 4, code and class, with the value filters there, so
+    a year of sales (about 80,000 lines) never passes through Python; owners are read only for
+    the groups that remain."""
+    t = InsiderTransaction
+    priced = and_(t.price > 0, t.shares.is_not(None))
+    title = func.coalesce(t.security_title, "")
+    value = func.sum(case((priced, t.shares * t.price)))
+    q = (
+        select(t.accession_number, t.issuer_cik, t.trans_code, title.label("title"),
+               func.count().label("lines"), func.sum(t.shares).label("shares"),
+               value.label("value"), func.sum(case((priced, t.shares))).label("priced_shares"),
+               func.count(case((priced, 1))).label("priced_lines"),
+               func.min(t.trans_date, type_=Date).label("first"),
+               func.max(t.trans_date, type_=Date).label("last"),
+               func.count(func.distinct(t.direct_indirect)).label("n_di"),
+               func.max(t.direct_indirect).label("di"))
+        .where(t.trans_code.in_(sorted(s.codes)), t.is_derivative.is_(False),
+               t.trans_date >= s.since, t.trans_date <= s.until)
+        .group_by(t.accession_number, t.issuer_cik, t.trans_code, title)
+    )  # fmt: skip
+    if s.cik:
+        q = q.where(t.issuer_cik == s.cik)
+    if s.allowed is not None:
+        q = q.where(t.issuer_cik.in_(sorted(s.allowed)))
+    if s.min_value is not None:
+        q = q.having(value >= s.min_value)
+    if s.max_value is not None:
+        q = q.having(value <= s.max_value)
+    groups = list(db.execute(q))
+    owners: dict[str, list] = defaultdict(list)
+    for part in _chunks(sorted({g.accession_number for g in groups})):
+        for f in db.execute(select(*_OWNER_COLS).where(InsiderFiling.accession_number.in_(part))):
+            owners[f.accession_number].append(f)
+    counts = {"filed_errors": 0, "amendments": 0, "unpaired_amendments": 0, "duplicates": 0}
+    amended: dict[str, list] = {}
+    rows = []
+    for g in groups:
+        fs = sorted(owners.get(g.accession_number, []), key=lambda f: f.owner_cik)
+        if not fs:
+            continue
+        f0 = fs[0]
+        if s.as_of and f0.filing_date > s.as_of:
+            continue
+        if f0.form_type != "4":
+            if f0.form_type == "4/A":
+                amended[g.accession_number] = fs
+            continue
+        if s.owner_cik and s.owner_cik not in {f.owner_cik for f in fs}:
+            continue
+        if s.roles and not any(_role_keys(f) & s.roles for f in fs):
+            continue
+        if s.titles and not any(_title_match(s.titles, f.officer_title) for f in fs):
+            continue
+        if s.plan_10b5_1 is not None and f0.plan_10b5_1 is not s.plan_10b5_1:
+            continue
+        agg = dict(g._mapping)
+        stale = f0.filing_date - timedelta(STALE_DAYS)
+        if g.last > f0.filing_date or g.first < stale:  # as-filed date errors: rare, redone
+            agg, dropped = _regroup(db, g, f0.filing_date, stale, s)
+            counts["filed_errors"] += dropped
+            if agg is None:
+                continue
+        rows.append(_row(agg, fs))
+    rows = _collapse_duplicates(rows, counts)
+    counts["amendments"] = len(amended)
+    counts["unpaired_amendments"] = _unpaired(db, amended)
+    _flag_price_outliers(db, rows, s)
+    if s.cluster or any(r["trans_code"] == "P" for r in rows):
+        _add_clusters(db, rows, s)
+    if s.cluster:
+        rows = [r for r in rows if r["cluster"]]
+    if s.min_value is not None:
+        rows = [r for r in rows if _ranked_value(r) is not None and r["value"] >= s.min_value]
+    if s.max_value is not None:
+        rows = [r for r in rows if _ranked_value(r) is not None and r["value"] <= s.max_value]
+    return rows, counts
+
+
+def _lines(db: Session, acc: str, issuer: str, code: str, title: str, s: Screen | None = None):
+    t = InsiderTransaction
+    q = select(t.trans_date, t.shares, t.price, t.shares_after, t.direct_indirect, t.row_key).where(
+        t.accession_number == acc, t.issuer_cik == issuer, t.trans_code == code,
+        t.is_derivative.is_(False), func.coalesce(t.security_title, "") == title)  # fmt: skip
+    if s is not None:
+        q = q.where(t.trans_date >= s.since, t.trans_date <= s.until)
+    return sorted(db.execute(q), key=lambda x: (x.trans_date, x.row_key))
+
+
+def _regroup(db: Session, g, filed: date, stale: date, s: Screen) -> tuple[dict | None, int]:
+    """The group's lines again, without those dated after the filing or more than three years
+    before it."""
+    ls = _lines(db, g.accession_number, g.issuer_cik, g.trans_code, g.title, s)
+    keep = [x for x in ls if stale <= x.trans_date <= filed]
+    if not keep:
+        return None, len(ls)
+    pr = [x for x in keep if x.price is not None and float(x.price) > 0 and x.shares is not None]
+    di = {x.direct_indirect for x in keep if x.direct_indirect}
+    return {
+        "accession_number": g.accession_number, "issuer_cik": g.issuer_cik,
+        "trans_code": g.trans_code, "title": g.title, "lines": len(keep),
+        "shares": sum(float(x.shares or 0) for x in keep),
+        "value": sum(float(x.shares) * float(x.price) for x in pr) if pr else None,
+        "priced_shares": sum(float(x.shares) for x in pr), "priced_lines": len(pr),
+        "first": keep[0].trans_date, "last": keep[-1].trans_date, "n_di": len(di),
+        "di": next(iter(di)) if di else None,
+    }, len(ls) - len(keep)  # fmt: skip
+
+
+def finish(db: Session, page: list[dict], s: Screen) -> None:
+    """For the rows shown: amended_by, shares_after (the last line's holding) and
+    holdings_change_pct (reading them for every row of a screen cost more than the screen)."""
+    _add_amendments(db, page)
+    for r in page:
+        acc = r["filing"]["accession_number"]
+        ls = _lines(db, acc, r["issuer_cik"], r["trans_code"], r["_title"], s)
+        ls = [x for x in ls if r["first_date"] <= x.trans_date <= r["last_date"]]
+        after = ls[-1].shares_after if ls else None
+        r["shares_after"] = float(after) if after is not None else None
+        change = None
+        if after is not None and r["direct_indirect"] != "mixed":
+            sh = r["shares"]
+            before = float(after) + sh if r["trans_code"] == "S" else float(after) - sh
+            if before > 0:
+                change = round((-sh if r["trans_code"] == "S" else sh) / before * 100, 2)
+        r["holdings_change_pct"] = change
+
+
+def _filings_for(db: Session, form: str, keys: set[tuple]) -> list:
+    """Filings of `form` whose (issuer, owner, period) is in keys: read by issuer and filing
+    date (the issuer-and-date index; an OR of thousands of triples was slow), matched here."""
+    if not keys:
+        return []
+    first = min(k[2] for k in keys)
+    out = []
+    for part in _chunks(sorted({k[0] for k in keys}), 500):
+        q = select(*_OWNER_COLS).where(InsiderFiling.issuer_cik.in_(part),
+                                       InsiderFiling.filing_date >= first,
+                                       InsiderFiling.form_type == form)  # fmt: skip
+        out += [f for f in db.execute(q) if (f.issuer_cik, f.owner_cik, f.period_of_report) in keys]
+    return out
+
+
+def _unpaired(db: Session, amended: dict[str, list]) -> int:
+    """Form 4/As in the screen with no stored original Form 4 (same issuer, a reporting owner of
+    it, same period, filed by the 4/A's date): not shown (Q-03b)."""
+    keys = {(f.issuer_cik, f.owner_cik, f.period_of_report) for fs in amended.values() for f in fs
+            if f.period_of_report}  # fmt: skip
+    originals: dict[tuple, list[date]] = defaultdict(list)
+    for f in _filings_for(db, "4", keys):
+        originals[(f.issuer_cik, f.owner_cik, f.period_of_report)].append(f.filing_date)
+    n = 0
+    for fs in amended.values():
+        dates = [
+            (d, f.filing_date)
+            for f in fs
+            for d in originals.get((f.issuer_cik, f.owner_cik, f.period_of_report), [])
+        ]
+        if not any(d <= filed for d, filed in dates):
+            n += 1
+    return n
+
+
+def unquote(title: str | None) -> str | None:
+    """A class name as filed, without the CSV quoting some data-set rows kept:
+    '"Class A Common Stock (""Common Stock"")"' is 'Class A Common Stock ("Common Stock")'."""
+    if title and len(title) >= 2 and title[0] == title[-1] == '"':
+        return title[1:-1].replace('""', '"')
+    return title
+
+
+def _row(g: dict, fs: list) -> dict:
+    shares = float(g["shares"] or 0)
+    value = float(g["value"]) if g["value"] is not None else None
+    priced_shares = float(g["priced_shares"] or 0)
+    code, issuer, acc = g["trans_code"], g["issuer_cik"], g["accession_number"]
+    f0 = fs[0]
+    return {
+        "issuer_cik": issuer,
+        "owners": [
+            {
+                "cik": f.owner_cik,
+                "name": insiders.display_name(f.owner_name),
+                "role": insiders.role_label(insiders._flags(f)),
+                "is_director": f.is_director,
+                "is_officer": f.is_officer,
+                "is_ten_percent_owner": f.is_ten_percent_owner,
+                "officer_title": f.officer_title,
+            }
+            for f in fs
+        ],  # fmt: skip
+        "type": "buy" if code == "P" else "sell",
+        "trans_code": code,
+        "security_title": unquote(g["title"]) or None,
+        "_title": g["title"],  # as stored, to read the lines again (finish)
+        "first_date": g["first"],
+        "last_date": g["last"],
+        "lines": g["lines"],
+        "shares": shares,
+        "average_price": round(value / priced_shares, 4) if value and priced_shares else None,
+        "value": round(value, 2) if value is not None else None,
+        "value_partial": 0 < g["priced_lines"] < g["lines"],
+        "price_outlier": False,
+        "shares_after": None,
+        "holdings_change_pct": None,
+        "direct_indirect": "mixed" if g["n_di"] > 1 else g["di"],
+        "plan_10b5_1": f0.plan_10b5_1,
+        "cluster": None,
+        "amended_by": [],
+        "duplicate_filings": [],
+        "period": f0.period_of_report,
+        "filing": {
+            "accession_number": acc,
+            "form": f0.form_type,
+            "filed_date": f0.filing_date,
+            "source_url": filing_index_url(issuer, acc),
+        },  # fmt: skip
+    }
+
+
+def _add_clusters(db: Session, rows: list[dict], s: Screen) -> None:
+    """A purchase counted in an F-03 cluster-buying event: same issuer, its owner among the
+    event's insiders, its first trade from the event's first trade to the event's date."""
+    buys = [r for r in rows if r["trans_code"] == "P"]
+    issuers = sorted({r["issuer_cik"] for r in buys})
+    events: dict[str, list[dict]] = defaultdict(list)
+    for part in _chunks(issuers):
+        for e in db.scalars(select(InsiderActivity).where(
+                InsiderActivity.activity_type == CLUSTER, InsiderActivity.cik.in_(part),
+                InsiderActivity.activity_date >= s.since)):  # fmt: skip
+            if s.as_of and e.filing_date > s.as_of:
+                continue
+            detail = json.loads(e.detail or "{}")
+            first = detail.get("first_trade")
+            events[e.cik].append({
+                "event_date": e.activity_date,
+                "first_trade": date.fromisoformat(first) if first else e.activity_date,
+                "insiders": detail.get("insiders"),
+                "owners": {o.get("owner_cik") for o in json.loads(e.owners or "[]")},
+                "event_filing": {"accession_number": e.accession_number,
+                                 "source_url": e.source_url},
+            })  # fmt: skip
+    for r in buys:
+        mine = {o["cik"] for o in r["owners"]}
+        for e in sorted(events.get(r["issuer_cik"], []), key=lambda e: e["event_date"]):
+            if mine & e["owners"] and e["first_trade"] <= r["first_date"] <= e["event_date"]:
+                r["cluster"] = {k: e[k] for k in ("event_date", "insiders", "first_trade",
+                                                  "event_filing")}  # fmt: skip
+                break
+
+
+def _add_amendments(db: Session, rows: list[dict]) -> None:
+    """Form 4/As for the same issuer, a reporting owner of the row and the same period, filed
+    on or after the original."""
+    for r in rows:
+        r["amended_by"] = []  # idempotent: a row passed twice lists each 4/A once
+    want = {(r["issuer_cik"], o["cik"], r["period"]) for r in rows if r["period"]
+            for o in r["owners"]}  # fmt: skip
+    if not want:
+        return
+    found: dict[tuple, list] = defaultdict(list)
+    for f in _filings_for(db, "4/A", want):
+        found[(f.issuer_cik, f.owner_cik, f.period_of_report)].append(f)
+    for r in rows:
+        seen = set()
+        for o in r["owners"]:
+            for f in found.get((r["issuer_cik"], o["cik"], r["period"]), []):
+                if f.accession_number in seen or f.filing_date < r["filing"]["filed_date"]:
+                    continue
+                seen.add(f.accession_number)
+                r["amended_by"].append({
+                    "accession_number": f.accession_number, "filed_date": f.filing_date,
+                    "source_url": filing_index_url(r["issuer_cik"], f.accession_number),
+                })  # fmt: skip
+        r["amended_by"].sort(key=lambda a: (a["filed_date"], a["accession_number"]))
+
+
+def _collapse_duplicates(rows: list[dict], counts: dict) -> list[dict]:
+    """The same Form 4 filed twice the same day (same issuer, owners, code, class, lines,
+    shares, value and dates) is one trade: the first accession stays, the others are listed in
+    its duplicate_filings (one such pair counted $1.86 billion twice)."""
+    first: dict[tuple, dict] = {}
+    out = []
+    for r in sorted(rows, key=lambda r: r["filing"]["accession_number"]):
+        k = (r["issuer_cik"], frozenset(o["cik"] for o in r["owners"]), r["trans_code"],
+             r["security_title"], r["lines"], r["shares"], r["value"], r["first_date"],
+             r["last_date"], r["filing"]["filed_date"])  # fmt: skip
+        if k in first:
+            first[k]["duplicate_filings"].append(
+                {"accession_number": r["filing"]["accession_number"],
+                 "source_url": r["filing"]["source_url"]})  # fmt: skip
+            counts["duplicates"] += 1
+            continue
+        first[k] = r
+        out.append(r)
+    return out
+
+
+def _ranked_value(r: dict) -> float | None:
+    """The value used to filter and sort: none for a price outlier (shown as filed)."""
+    return None if r["price_outlier"] else r["value"]
+
+
+def _flag_price_outliers(db: Session, rows: list[dict], s: Screen) -> None:
+    """price_outlier: the row's average price is more than PRICE_OUTLIER times above or below the
+    median price of the issuer's open-market lines in the screen's dates (4 or more), whatever
+    the other filters. Filed prices with the total in the price box made a 15,000-share sale
+    worth $18.5 billion; ADR and local share prices also differ, so the row stays, flagged, out
+    of value filters and value ranking."""
+    t = InsiderTransaction
+    issuers = sorted({r["issuer_cik"] for r in rows if r["average_price"]})
+    prices: dict[str, list[float]] = defaultdict(list)
+    for part in _chunks(issuers):
+        q = select(t.issuer_cik, t.price).where(
+            t.issuer_cik.in_(part), t.trans_code.in_(("P", "S")), t.is_derivative.is_(False),
+            t.price > 0, t.trans_date >= s.since, t.trans_date <= s.until)  # fmt: skip
+        for issuer, price in db.execute(q):
+            prices[issuer].append(float(price))
+    med = {k: statistics.median(v) for k, v in prices.items() if len(v) >= 4}
+    for r in rows:
+        m = med.get(r["issuer_cik"])
+        ratio = r["average_price"] / m if r["average_price"] and m else None
+        r["price_outlier"] = ratio is not None and not (1 / PRICE_OUTLIER <= ratio <= PRICE_OUTLIER)
+
+
+def sort_rows(rows: list[dict], how: str) -> list[dict]:
+    if how == "value":
+        return sorted(rows, key=lambda r: (_ranked_value(r) is None, -(_ranked_value(r) or 0),
+                                           -r["last_date"].toordinal(),
+                                           r["filing"]["accession_number"]))  # fmt: skip
+    if how == "filed":
+        return sorted(rows, key=lambda r: (-r["filing"]["filed_date"].toordinal(),
+                                           -r["last_date"].toordinal(),
+                                           r["filing"]["accession_number"],
+                                           r["trans_code"], r["security_title"] or ""))  # fmt: skip
+    return sorted(rows, key=lambda r: (-r["last_date"].toordinal(),
+                                       -r["filing"]["filed_date"].toordinal(),
+                                       r["filing"]["accession_number"], r["trans_code"],
+                                       r["security_title"] or ""))  # fmt: skip

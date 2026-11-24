@@ -1,0 +1,271 @@
+"""Q-03: the cross-company insider screener (docs/contracts/insider-screener.md)."""
+
+from __future__ import annotations
+
+import json
+from datetime import date
+from decimal import Decimal
+
+import pytest
+
+from app.db.models import Company, InsiderActivity, InsiderFiling, InsiderTransaction, utcnow
+from app.services.insider_activity import CLUSTER
+
+DEMO = {"X-API-Key": "demo"}
+A, B, C = "0002999101", "0002999102", "0002999103"
+URL = "/v1/insider-transactions"
+ARCHIVES = "https://www.sec.gov/Archives/edgar/data/"
+
+
+def _filing(db, acc, issuer, owner, name, filed, form="4", period=None, plan=None, **roles):
+    db.add(InsiderFiling(accession_number=acc, issuer_cik=issuer, owner_cik=owner, owner_name=name,
+                         is_director=roles.get("director", False),
+                         is_officer=roles.get("officer", False),
+                         is_ten_percent_owner=roles.get("ten", False), is_other=False,
+                         officer_title=roles.get("title"), form_type=form, filing_date=filed,
+                         period_of_report=period or filed, plan_10b5_1=plan,
+                         source="test"))  # fmt: skip
+
+
+def _line(db, acc, issuer, n, code, day, shares, price, after=None, title="Common Stock",
+          di="D"):  # fmt: skip
+    db.add(InsiderTransaction(accession_number=acc, issuer_cik=issuer, row_kind="transaction",
+                              is_derivative=False, row_key=f"{acc}-{n}", security_title=title,
+                              trans_date=day, trans_code=code,
+                              shares=Decimal(str(shares)) if shares is not None else None,
+                              price=Decimal(str(price)) if price is not None else None,
+                              shares_after=Decimal(str(after)) if after is not None else None,
+                              direct_indirect=di))  # fmt: skip
+
+
+@pytest.fixture
+def trades(db):
+    now = utcnow()
+    for cik, name, tick in ((A, "Alder Example Corp", "ALDR"), (B, "Birch Example Inc.", None),
+                            (C, "Cedar Example Holdings", "CDR")):  # fmt: skip
+        db.add(Company(cik=cik, legal_name=name, ticker=tick, source_url="https://www.sec.gov/",
+                       first_detected_at=now, last_processed_at=now))  # fmt: skip
+    d = date
+    # A: the CEO sells Class A and Class C on one Form 4 (two rows), under a 10b5-1 plan
+    _filing(db, "0000000001-26-000001", A, "0000000101", "SMITH JANE", d(2026, 11, 10),
+            plan=True, officer=True, title="Chief Executive Officer")  # fmt: skip
+    _line(db, "0000000001-26-000001", A, 1, "S", d(2026, 11, 6), 1000, 100, 9000,
+          "Class A Common Stock")  # fmt: skip
+    _line(db, "0000000001-26-000001", A, 2, "S", d(2026, 11, 7), 3000, 104, 6000,
+          "Class A Common Stock")  # fmt: skip
+    _line(db, "0000000001-26-000001", A, 3, "S", d(2026, 11, 7), 500, 98, 2000,
+          "Class C Capital Stock")  # fmt: skip
+    # A: its 4/A (same owner, same period): never a row, listed on the original
+    _filing(db, "0000000001-26-000002", A, "0000000101", "SMITH JANE", d(2026, 11, 12),
+            form="4/A", period=d(2026, 11, 10), plan=True, officer=True,
+            title="Chief Executive Officer")  # fmt: skip
+    _line(db, "0000000001-26-000002", A, 1, "S", d(2026, 11, 6), 1000, 100, 9000,
+          "Class A Common Stock")  # fmt: skip
+    # B: a director buys; one line unpriced (value partial); direct and indirect lines mixed
+    _filing(db, "0000000002-26-000001", B, "0000000201", "DOE JOHN", d(2026, 11, 3), plan=False,
+            director=True)  # fmt: skip
+    _line(db, "0000000002-26-000001", B, 1, "P", d(2026, 11, 2), 2000, 10, 12000)
+    _line(db, "0000000002-26-000001", B, 2, "P", d(2026, 11, 2), 500, None, 4000, di="I")
+    # B: two more directors buy: a cluster (F-03 event at the third purchase)
+    _filing(db, "0000000002-26-000002", B, "0000000202", "ROE RICHARD", d(2026, 11, 4),
+            director=True)  # fmt: skip
+    _line(db, "0000000002-26-000002", B, 1, "P", d(2026, 11, 3), 100, 10, 1100)
+    _filing(db, "0000000002-26-000003", B, "0000000203", "POE ANN", d(2026, 11, 5), director=True)
+    _line(db, "0000000002-26-000003", B, 1, "P", d(2026, 11, 4), 100, 10, 100)
+    db.add(InsiderActivity(cik=B, activity_type=CLUSTER, activity_date=d(2026, 11, 4),
+                           filing_date=d(2026, 11, 5), accession_number="0000000002-26-000003",
+                           owners=json.dumps([{"owner_cik": o, "name": "x", "role": "Director"}
+                                              for o in ("0000000201", "0000000202",
+                                                        "0000000203")]),
+                           detail=json.dumps({"insiders": 3, "days": 30,
+                                              "first_trade": "2026-11-02"}),
+                           source_url=f"{ARCHIVES}2999102/x/"))  # fmt: skip
+    # C: an as-filed date error (after its own filing) and a price outlier (total in the box)
+    _filing(db, "0000000003-26-000001", C, "0000000301", "LEE AMY", d(2026, 11, 1), officer=True,
+            title="CFO")  # fmt: skip
+    _line(db, "0000000003-26-000001", C, 1, "S", d(2026, 11, 20), 100, 20, 900)
+    for i, day in enumerate((d(2026, 11, 2), d(2026, 11, 3), d(2026, 11, 4), d(2026, 11, 5))):
+        acc = f"0000000003-26-00001{i}"
+        _filing(db, acc, C, "0000000302", "KIM BO", day, officer=True, title="EVP and CFO")
+        _line(db, acc, C, 1, "S", day, 100, 20 if i < 3 else 20 * 5000, 1000)
+    # C: an unpaired 4/A (no original stored)
+    _filing(db, "0000000003-26-000099", C, "0000000303", "NOVAK EVE", d(2026, 11, 6), form="4/A",
+            period=d(2026, 11, 1))  # fmt: skip
+    _line(db, "0000000003-26-000099", C, 1, "S", d(2026, 11, 1), 50, 20, 0)
+    db.commit()
+
+
+def _get(client, auth, **params):
+    params.setdefault("since", "2026-10-25")
+    params.setdefault("until", "2026-11-24")
+    params = {k: v for k, v in params.items() if v is not None}
+    return client.get(URL, params=params, headers=auth)
+
+
+def _key(r):
+    return (r["filing"]["accession_number"], r["trans_code"], r["security_title"])
+
+
+def test_rows_per_form4_code_and_class(client, auth, db, trades):
+    body = _get(client, auth, cik=A).json()
+    rows = {r["security_title"]: r for r in body["data"]}
+    assert set(rows) == {"Class A Common Stock", "Class C Capital Stock"}  # never summed
+    a = rows["Class A Common Stock"]
+    assert (a["shares"], a["lines"], a["value"]) == (4000, 2, 412000)
+    assert a["average_price"] == 103 and a["value_partial"] is False
+    assert (a["first_date"], a["last_date"]) == ("2026-11-06", "2026-11-07")
+    assert a["shares_after"] == 6000 and a["holdings_change_pct"] == -40.0
+    assert a["plan_10b5_1"] is True and a["type"] == "sell"
+    assert a["owners"][0]["name"] == "Jane Smith" and a["issuer"]["ticker"] == "ALDR"
+    assert a["filing"]["form"] == "4"
+    assert a["filing"]["source_url"].startswith("https://www.sec.gov/Archives/")
+    # the 4/A is no row; the original lists it
+    assert all(r["filing"]["form"] == "4" for r in body["data"])
+    assert [x["accession_number"] for x in a["amended_by"]] == ["0000000001-26-000002"]
+    assert body["labels"]["disclaimer"] == "Information, not signals. Not investment advice."
+    raw = str(body)
+    for banned in ("first_detected_at", "source_updated_at", "cusip", "data.sec.gov"):
+        assert banned not in raw
+
+
+def test_partial_prices_mixed_holdings_clusters(client, auth, db, trades):
+    rows = {r["filing"]["accession_number"]: r for r in _get(client, auth, cik=B).json()["data"]}
+    first = rows["0000000002-26-000001"]
+    assert first["value"] == 20000 and first["value_partial"] is True
+    assert first["average_price"] == 10  # priced lines only
+    assert first["direct_indirect"] == "mixed" and first["holdings_change_pct"] is None
+    assert {k for k, r in rows.items() if r["cluster"]} == set(rows)
+    assert rows["0000000002-26-000003"]["cluster"]["insiders"] == 3
+    only = _get(client, auth, cluster="true").json()["data"]
+    assert {r["issuer"]["cik"] for r in only} == {B}
+    bad = _get(client, auth, cluster="true", type="sell")
+    assert bad.status_code == 422
+
+
+def test_filed_errors_outliers_and_unpaired_amendments(client, auth, db, trades):
+    body = _get(client, auth, cik=C).json()
+    accs = {r["filing"]["accession_number"] for r in body["data"]}
+    assert "0000000003-26-000001" not in accs  # dated after its own filing
+    assert "0000000003-26-000099" not in accs  # an amendment
+    notes = " ".join(body["notes"])
+    assert "1 line dated after" in notes and "1 amended filing" in notes
+    out = {r["filing"]["accession_number"]: r for r in body["data"]}
+    assert out["0000000003-26-000013"]["price_outlier"] is True
+    assert out["0000000003-26-000013"]["value"] == 10_000_000  # shown as filed
+    ranked = _get(client, auth, cik=C, sort="value").json()["data"]
+    assert ranked[-1]["filing"]["accession_number"] == "0000000003-26-000013"  # last
+    big = _get(client, auth, cik=C, min_value=1000).json()["data"]
+    assert "0000000003-26-000013" not in {r["filing"]["accession_number"] for r in big}
+
+
+def test_filters_sort_and_pages(client, auth, db, trades):
+    buys = _get(client, auth, type="buy").json()["data"]
+    assert {r["trans_code"] for r in buys} == {"P"}
+    ceo_cfo = _get(client, auth, title="chief executive,cfo", type="sell").json()["data"]
+    assert {r["issuer"]["cik"] for r in ceo_cfo} == {A, C}
+    assert _get(client, auth, title="cf").json()["data"] == []  # whole words only
+    directors = _get(client, auth, role="director").json()["data"]
+    assert {r["issuer"]["cik"] for r in directors} == {B}
+    planned = _get(client, auth, plan_10b5_1="true").json()["data"]
+    assert {r["issuer"]["cik"] for r in planned} == {A}
+    assert {r["issuer"]["cik"] for r in _get(client, auth, owner_cik="201").json()["data"]} == {B}
+    # as_of: nothing filed later; until follows it
+    early = _get(client, auth, as_of="2026-11-04", since="2026-10-25", until=None).json()
+    assert {r["filing"]["accession_number"] for r in early["data"]} <= {
+        "0000000002-26-000001", "0000000002-26-000002", "0000000003-26-000010",
+        "0000000003-26-000011", "0000000003-26-000012"}  # fmt: skip
+    assert early["filters"]["until"] == "2026-11-04"
+    page = _get(client, auth, limit=2).json()
+    assert page["meta"] == {"limit": 2, "offset": 0, "has_more": True, "next_offset": 2}
+    dates = [r["last_date"] for r in _get(client, auth).json()["data"]]
+    assert dates == sorted(dates, reverse=True)
+    values = [r["value"] for r in _get(client, auth, sort="value", type="buy").json()["data"]]
+    assert values == sorted(values, reverse=True)
+
+
+def test_errors(client, auth, db, trades):
+    for params in ({"since": "2025-01-01", "until": "2026-11-24"},
+                   {"since": "2026-11-24", "until": "2026-11-01"},
+                   {"role": "chair"}, {"title": "x" * 41}, {"title": ",".join("abcdefg")},
+                   {"min_value": 10, "max_value": 5}, {"cik": "abc"}):  # fmt: skip
+        r = _get(client, auth, **params)
+        assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_parameter", params
+
+
+def test_demo_key_showcase_and_trim(client, db, trades, settings, monkeypatch):
+    monkeypatch.setattr(settings, "public_showcase_ciks", f"{A},{C}")
+    params = {"since": "2026-10-25", "until": "2026-11-24", "limit": 20}
+    body = client.get(URL, params=params, headers=DEMO).json()
+    assert body["meta"]["limit"] == 10
+    assert {r["issuer"]["cik"] for r in body["data"]} <= {A, C}
+    r = client.get(URL, params={**params, "cik": B}, headers=DEMO)
+    assert r.status_code == 403 and r.json()["error"]["code"] == "demo_scope"
+
+
+def test_mcp_screen_insider_trades(client, auth, db, trades):
+    args = {"type": "buy", "cluster": True, "since": "2026-10-25", "until": "2026-11-24"}
+    body = {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "params": {"name": "screen_insider_trades", "arguments": args}}  # fmt: skip
+    res = client.post("/mcp", json=body, headers=auth).json()["result"]
+    assert res["isError"] is False
+    out = json.loads(res["content"][0]["text"])
+    assert {r["issuer"]["cik"] for r in out["data"]} == {B} and out["labels"]["disclaimer"]
+
+
+def test_chat_insider_questions(client, auth, db, trades, monkeypatch):
+    from datetime import date as real_date
+
+    from app.services import conversation as cv
+
+    today = real_date(2026, 11, 24)
+    f = cv.insider_screen_request("Which insiders bought over $1M last month?", today)
+    assert (f["type"], f["min_value"], f["cluster"]) == ("buy", 1e6, False)
+    f = cv.insider_screen_request("CEO and CFO sales this week", today)
+    assert f["type"] == "sell" and set(f["titles"]) == {"ceo", "chief executive", "cfo",
+                                                         "chief financial"}  # fmt: skip
+    assert cv.insider_screen_request("Cluster buying in the last 30 days", today)["cluster"]
+    for other in ("Who is the CEO of Tesla?", "What were Apple's sales last year?",
+                  "Which companies filed a 10-K last month?"):  # fmt: skip
+        assert cv.insider_screen_request(other, today) is None, other
+
+    class Today(real_date):
+        @classmethod
+        def today(cls):
+            return today
+
+    monkeypatch.setattr(cv, "date", Today)
+    q = "Which insiders made cluster buying purchases in the last 30 days?"
+    r = client.post("/v1/chat", json={"message": q}, headers=auth).json()
+    assert r["intent"] == "insider_screen"
+    (table,) = [w for w in r["widgets"] if w["type"] == "table"]
+    assert {row[0]["text"] for row in table["rows"]} == {"Birch Example Inc."}
+    assert table["rows"][0][8]["url"].startswith("https://www.sec.gov/Archives/")
+    assert "Information, not signals" in r["answer"] and r["citations"]
+    # on a company page the company's own insiders answer, not the screen
+    own = client.post("/v1/chat", json={"message": "How much did the CEO sell?", "cik": A},
+                      headers=auth).json()  # fmt: skip
+    assert own["intent"] != "insider_screen"
+
+
+def test_a_form4_filed_twice_the_same_day_counts_once(client, auth, db, trades):
+    for acc in ("0000000004-26-000001", "0000000004-26-000002"):
+        _filing(db, acc, C, "0000000401", "PARK SAM", date(2026, 11, 8), officer=True,
+                title="COO")  # fmt: skip
+        _line(db, acc, C, 1, "P", date(2026, 11, 7), 9000, 20, 10000)
+    db.commit()
+    body = _get(client, auth, cik=C, type="buy").json()
+    rows = [r for r in body["data"] if r["owners"][0]["cik"] == "0000000401"]
+    assert len(rows) == 1 and rows[0]["filing"]["accession_number"] == "0000000004-26-000001"
+    assert [d["accession_number"] for d in rows[0]["duplicate_filings"]] == [
+        "0000000004-26-000002"]  # fmt: skip
+    assert "Shown once: 1 Form 4 filed again" in " ".join(body["notes"])
+
+
+def test_class_names_lose_the_data_sets_csv_quoting(client, auth, db, trades):
+    _filing(db, "0000000005-26-000001", C, "0000000501", "WU LI", date(2026, 11, 9))
+    _line(db, "0000000005-26-000001", C, 1, "S", date(2026, 11, 9), 10, 20, 90,
+          '"Class A Common Stock (""Common Stock"")"')  # fmt: skip
+    db.commit()
+    (row,) = [r for r in _get(client, auth, owner_cik="501").json()["data"]]
+    assert row["security_title"] == 'Class A Common Stock ("Common Stock")'
+    assert row["shares_after"] == 90 and "_title" not in row

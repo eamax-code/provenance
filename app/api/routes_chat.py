@@ -128,7 +128,7 @@ class ChatReply(BaseModel):
         None,
         description="How the question was read: 'coverage', 'ipos', 'filers', 'filing_count', "
         "'rank', 'list_followup', 'out_of_scope', 'figure', 'leadership', 'trend', 'forecast', "
-        "'ipo_terms', 'filing_search' or 'question'",
+        "'ipo_terms', 'filing_search', 'insider_screen' or 'question'",
     )
     widgets: list[dict] = Field(
         [], description="Charts and figure tiles drawn from the cited data (see the chat page)"
@@ -728,6 +728,8 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             body.cik = issuer  # answered under the issuer; a different cik given is said so
         if body.cik:
             market = None  # an Ask link about one company's Form D: that company's offerings
+    if market and market.kind == "insider_screen" and body.cik:
+        market = None  # "How much did the CEO sell?" on a company page: that company's insiders
     if market and (
         market.kind in ("out_of_scope", "list_followup", "compare", "screen", "filing_search")
         or conversation.strongly_named(db, body.message) is None

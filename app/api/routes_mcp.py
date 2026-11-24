@@ -428,6 +428,58 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["metric", "year"],
         },
     },
+    "screen_insider_trades": {
+        "title": "Screen insider buys and sales",
+        "description": "Open-market insider purchases (Form 4 code P) and sales (S) across "
+        "companies, one row per Form 4, code and share class, with value, the 10b5-1 box, "
+        "F-03 cluster buying and amendments listed. Information, not signals; not investment "
+        "advice.",
+        "path": "/v1/insider-transactions",
+        "params": {
+            "type": "type",
+            "since": "since",
+            "until": "until",
+            "as_of": "as_of",
+            "min_value": "min_value",
+            "max_value": "max_value",
+            "role": "role",
+            "title": "title",
+            "cik": "cik",
+            "owner_cik": "owner_cik",
+            "plan_10b5_1": "plan_10b5_1",
+            "cluster": "cluster",
+            "sort": "sort",
+            "limit": "limit",
+            "offset": "offset",
+        },  # fmt: skip
+        "schema": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": ["buy", "sell", "all"], "default": "all"},
+                "since": _DATE,
+                "until": _DATE,
+                "as_of": _DATE,
+                "min_value": {"type": "number", "description": "USD"},
+                "max_value": {"type": "number", "description": "USD"},
+                "role": {
+                    "type": "string",
+                    "description": "director, officer, ten_percent_owner, other (comma-separated)",
+                },  # fmt: skip
+                "title": {
+                    "type": "string",
+                    "description": "words of the officer title; "
+                    "comma-separated alternatives, e.g. ceo,chief executive",
+                },  # fmt: skip
+                "cik": _CIK,
+                "owner_cik": _CIK,
+                "plan_10b5_1": {"type": "boolean"},
+                "cluster": {"type": "boolean"},
+                "sort": {"type": "string", "enum": ["date", "value", "filed"], "default": "date"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
+                "offset": {"type": "integer", "minimum": 0, "maximum": 5000, "default": 0},
+            },
+        },
+    },
     "search_filings": {
         "title": "Search inside filings",
         "description": "Full-text search over stored filing sections (10-K risk factors and "

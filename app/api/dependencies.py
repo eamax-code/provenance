@@ -138,7 +138,7 @@ demo_all_limiter = FixedWindowRateLimiter(window_seconds=60, name="demo-all")
 DEMO_UPGRADE = "Create a free account at /account/ for your own key and full access."
 # Endpoints whose contract trims a demo request's limit instead of refusing it (Q-01: the
 # search page sends limit=20 and gets 10 hits with a note).
-DEMO_TRIMS_LIMIT = {"/v1/search/filings"}
+DEMO_TRIMS_LIMIT = {"/v1/search/filings", "/v1/insider-transactions"}
 
 
 class DemoPrincipal:

@@ -293,12 +293,52 @@ def mention_request(text: str) -> tuple[str, set[str] | None, str | None, str | 
     return term, None, None, None
 
 
+# Q-03: "which insiders bought over $1M last month", "CEO sales this week", "cluster buying"
+_INSIDER_WHO = re.compile(r"\b(insiders?|ceos?|cfos?|directors?|executives?|officers?)\b",
+                          re.IGNORECASE)  # fmt: skip
+_INSIDER_BUY = re.compile(r"\b(bought|buys?|buying|purchas\w*)\b", re.IGNORECASE)
+_INSIDER_SELL = re.compile(r"\b(sold|sells?|selling|sales?)\b", re.IGNORECASE)
+_CLUSTER = re.compile(r"\bcluster(?:ed)?\s+(?:buy|buying|purchases?)\b", re.IGNORECASE)
+
+
+def insider_screen_request(text: str, today: date) -> dict | None:
+    """Screener parameters for a cross-company insider question, or None."""
+    cluster = bool(_CLUSTER.search(text))
+    who = _INSIDER_WHO.search(text)
+    buy, sell = _INSIDER_BUY.search(text), _INSIDER_SELL.search(text)
+    if not cluster and not (who and (buy or sell)):
+        return None
+    out: dict = {"type": "buy" if cluster or (buy and not sell) else
+                 "sell" if sell and not buy else "all", "cluster": cluster}  # fmt: skip
+    m = _AMOUNT.search(text)
+    if m:
+        mult = {"k": 1e3, "thousand": 1e3, "m": 1e6, "mm": 1e6, "mn": 1e6, "million": 1e6,
+                "b": 1e9, "bn": 1e9, "billion": 1e9}.get((m.group(2) or "").lower(), 1)  # fmt: skip
+        out["min_value"] = float(m.group(1).replace(",", "")) * mult
+    titles = []
+    if re.search(r"\bceos?\b|chief executive", text, re.IGNORECASE):
+        titles += ["ceo", "chief executive"]
+    if re.search(r"\bcfos?\b|chief financial", text, re.IGNORECASE):
+        titles += ["cfo", "chief financial"]
+    if titles:
+        out["titles"] = titles
+    if re.search(r"\bdirectors?\b", text, re.IGNORECASE):
+        out["roles"] = {"director"}
+    days, label = _window(text)
+    if not _WINDOW.search(text):
+        days, label = 30, "the last 30 days"
+    out.update(since=today - timedelta(days=min(days, 366)), until=today, label=label)
+    return out
+
+
 def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) -> Plan | None:
     """The cross-company intent a question names, or None for the company flow."""
     if _OUT_OF_SCOPE.search(text):
         return Plan("out_of_scope")
     if mention_request(text):
         return Plan("filing_search", filters={"text": text})
+    if insider_screen_request(text, date.today()):
+        return Plan("insider_screen", filters={"text": text})
     if _is_private_raise(text):
         return Plan("private_raises", filters={"text": text})
     if db is not None and _COMPARE.search(text):
@@ -363,7 +403,71 @@ def answer(db: Session, p: Plan, ctx: ConversationContext | None, today: date) -
         return _private_raises(db, p, today)
     if p.kind == "filing_search":
         return _filing_search(db, p, today)
+    if p.kind == "insider_screen":
+        return _insider_screen(db, p, today)
     raise ValueError(p.kind)
+
+
+def _insider_screen(db: Session, p: Plan, today: date) -> DataAnswer:
+    """Q-03: open-market insider buys and sales across companies, each cited to its Form 4."""
+    from app.services import insider_screener as scr
+
+    f = insider_screen_request(p.filters.get("text", ""), today) or {}
+    codes = {scr.TYPES[f["type"]]} if f.get("type") in scr.TYPES else set(scr.TYPES.values())
+    s = scr.Screen(codes=codes, since=f.get("since", today - timedelta(30)), until=today,
+                   as_of=today, min_value=f.get("min_value"), roles=f.get("roles", set()),
+                   titles=f.get("titles", []), cluster=f.get("cluster", False))  # fmt: skip
+    rows, _ = scr.screen(db, s)
+    rows = scr.sort_rows(rows, "value" if f.get("min_value") else "date")
+    top = rows[:TABLE_ROWS]
+    scr.finish(db, top, s)
+    what = ("cluster buying" if f.get("cluster") else
+            {"buy": "open-market insider purchases", "sell": "open-market insider sales"}.get(
+                f.get("type"), "open-market insider purchases and sales"))  # fmt: skip
+    if f.get("min_value"):
+        what += f" over ${_short(f['min_value'])}"
+    when = f.get("label", "the last 30 days")
+    how = [{"endpoint": "/v1/insider-transactions", "parameters": {
+        k: v for k, v in {"type": f.get("type"), "since": s.since.isoformat(),
+                          "until": today.isoformat(), "min_value": f.get("min_value"),
+                          "title": ",".join(f.get("titles", [])) or None,
+                          "role": "director" if f.get("roles") else None,
+                          "cluster": True if f.get("cluster") else None}.items()
+        if v is not None}}]  # fmt: skip
+    disclaimer = scr.DISCLAIMER
+    if not rows:
+        return DataAnswer(f"No {what} in {when} in the stored Forms 4. {disclaimer}",
+                          "insider_screen", how=how)  # fmt: skip
+    cites: list[dict] = []
+    names = {c.cik: c for c in db.scalars(select(Company).where(
+        Company.cik.in_({r["issuer_cik"] for r in top})))}  # fmt: skip
+    table_rows = []
+    for r in top:
+        c = names.get(r["issuer_cik"])
+        name = _name(c) if c else r["issuer_cik"]
+        url = r["filing"]["source_url"]
+        n = _cite(cites, f"{name} Form 4 filed {_d(r['filing']['filed_date'])}", url)
+        owner = r["owners"][0]
+        value = "—" if r["value"] is None else _money(r["value"]) + (
+            " (part priced)" if r["value_partial"] else "") + (
+            " (price as filed looks wrong)" if r["price_outlier"] else "")  # fmt: skip
+        table_rows.append([_cell(name), _cell(owner["name"]), _cell(owner["role"]),
+                           _cell("Buy" if r["type"] == "buy" else "Sale"),
+                           _cell(_d(r["last_date"])), _cell(f"{r['shares']:,.0f}"),
+                           _cell(value), _cell("Yes" if r["plan_10b5_1"] else "No"),
+                           _cell(f"Form 4 [{n}]" if n else "Form 4", url)])  # fmt: skip
+    k = len(rows)
+    lead = top[0]
+    lead_name = _name(names[lead["issuer_cik"]]) if lead["issuer_cik"] in names else ""
+    text = (f"{k:,} {what} in {when}, from Forms 4 as filed; "
+            f"{'the largest' if f.get('min_value') else 'the latest'} is "
+            f"{lead['owners'][0]['name']} at {lead_name}. {disclaimer}")  # fmt: skip
+    widget = _table(f"Insider {what}, {when}",
+                    ["Company", "Insider", "Role", "Type", "Date", "Shares", "Value", "10b5-1",
+                     "Filing"], table_rows, note=_more(k))  # fmt: skip
+    return DataAnswer(text, "insider_screen", [widget], citations=cites, how=how,
+                      notes=["One row per Form 4, code and share class; open-market codes P "
+                             "and S only. " + disclaimer])  # fmt: skip
 
 
 def _filing_search(db: Session, p: Plan, today: date) -> DataAnswer:

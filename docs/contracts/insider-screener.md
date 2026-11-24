@@ -14,7 +14,7 @@ the newest weeks). Information about what insiders reported, not signals.
 | `as_of` | ISO date: only Form 4s filed by then (no look-ahead); `until` defaults to it | none (today) |
 | `min_value`, `max_value` | US dollars, on the row's `value` | none |
 | `role` | comma-separated: `director`, `officer`, `ten_percent_owner`, `other` | none |
-| `title` | words in the officer title as filed, e.g. `ceo`, `chief financial` (case ignored) | none |
+| `title` | words in the officer title as filed, case ignored; up to 6 comma-separated alternatives, any of which matches, e.g. `chief executive,chief financial,ceo,cfo` | none |
 | `cik` | one issuer CIK | none |
 | `owner_cik` | one reporting person's CIK | none |
 | `plan_10b5_1` | `true` (the Form 4 ticks the Rule 10b5-1 box) or `false` (it does not) | none |
@@ -47,12 +47,14 @@ the newest weeks). Information about what insiders reported, not signals.
       "average_price": 254.83,
       "value": 33118461.0,
       "value_partial": false,
+      "price_outlier": false,
       "shares_after": 3280295,
       "holdings_change_pct": -3.8,
       "direct_indirect": "D",
       "plan_10b5_1": true,
       "cluster": null,
       "amended_by": [],
+      "duplicate_filings": [],
       "filing": {"accession_number": "0001214156-26-000012", "form": "4",
                  "filed_date": "2026-10-03",
                  "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000121415626000012/"}
@@ -76,9 +78,21 @@ the newest weeks). Information about what insiders reported, not signals.
   added up: `shares` is their sum; `value` is shares × price summed over the lines with a price;
   `average_price` is that value over those lines' shares (the priced lines only). `first_date`
   and `last_date` are the earliest and latest transaction dates; `lines` counts them.
+- Prices from the SEC's quarterly insider data sets are rounded to the cent; the Form 4 itself may
+  carry more decimals, so `value` and `average_price` can differ from the filing by rounding
+  (under 0.1% in the hand-check). Forms 4 read as filed keep every decimal.
+- **A Form 4 filed twice the same day with the same trades** (same issuer, owners, code, class,
+  lines, shares, value and dates) is one row: the first accession, with the others in
+  `duplicate_filings: [{"accession_number", "source_url"}]`, and a note.
 - `value_partial` is `true` when some lines have a price and others do not: `value` then
   understates the trade. `min_value` and `max_value` leave out rows whose `value` is `null`, and
   `sort=value` puts them last.
+- `price_outlier` is `true` when the row's average price is more than 20 times above or below
+  the median price of the issuer's open-market lines in the screen's dates (when there are 4
+  or more), whatever the other filters.
+  Filed prices sometimes carry the total in the price box (a 15,000-share sale "worth" $18.5
+  billion); ADR and local-share prices also differ, so the row stays with its value as filed,
+  but `min_value`, `max_value` and `sort=value` treat its value as missing.
 - **Amendments (Form 4/A) never make a row of their own,** so a trade is never counted twice.
   Rows come from original Forms 4, with the figures as first filed. `amended_by` lists each Form
   4/A for the same issuer, a reporting owner of the row, and the same reporting period, filed on
@@ -119,7 +133,7 @@ the newest weeks). Information about what insiders reported, not signals.
 ## Errors and access
 
 - `422 invalid_parameter`: a bad date, a range over 366 days or with `since` after `until`, a
-  bad CIK, an unknown role, a `title` over 40 characters, `min_value` above `max_value`, or
+  bad CIK, an unknown role, a `title` alternative over 40 characters or more than 6 of them, `min_value` above `max_value`, or
   `cluster=true` with `type=sell`.
 - The demo key covers the public showcase companies only: rows from others are left out, and
   `cik` outside them is `403 demo_scope`. The demo key gets at most 10 rows; a larger `limit` is

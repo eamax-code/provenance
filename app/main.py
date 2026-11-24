@@ -28,6 +28,7 @@ from app.api import (
     routes_events,
     routes_exports,
     routes_graph,
+    routes_insider_screener,
     routes_ipos,
     routes_key_requests,
     routes_listing_watches,
@@ -273,6 +274,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_changes.router)
     app.include_router(routes_calendar.router)
     app.include_router(routes_private_raises.router)
+    app.include_router(routes_insider_screener.router)
     app.include_router(routes_watchlists.router)
     app.include_router(routes_ipos.router)
     app.include_router(routes_notifications.router)

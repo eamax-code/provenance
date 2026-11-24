@@ -37,6 +37,7 @@ TARGET_P95_MS = {
     "corporate tree": 500,
     "comment letters": 500,
     "filing search": 500,
+    "insider screen": 500,
 }
 # the palette's names (ui's check, 2026-11-24) and the read set of 10-K changes
 TERMS = (
@@ -64,6 +65,16 @@ FILING_QUERIES = (
     "%22going%20concern%22&form=S-1,F-1", "tariffs&filed_from=2026-01-01&filed_to=2026-06-30",
     "%22will%20be%20available%22", "guidance%20or%20outlook&section=earnings_release",
     "%22risk%20factors%22&cik=320193",
+)  # fmt: skip
+# Q-03: the default screen and filtered shapes (dates fixed, so every run reads the same data)
+INSIDER_SCREENS = (
+    "since=2026-10-25&until=2026-11-24",
+    "type=buy&since=2026-08-26&until=2026-11-24&min_value=1000000&sort=value",
+    "type=sell&since=2026-10-25&until=2026-11-24&title=chief%20executive,chief%20financial,ceo,cfo",
+    "type=buy&cluster=true&since=2026-08-26&until=2026-11-24",
+    "type=sell&since=2025-11-23&until=2026-11-24&plan_10b5_1=false&min_value=5000000&sort=value",
+    "role=director&since=2026-10-25&until=2026-11-24&sort=filed",
+    "cik=320193&since=2025-11-23&until=2026-11-24",
 )  # fmt: skip
 SHOWCASE_PAGES = ("overview", "statements/income", "timeline", "insiders", "holders", "ownership")
 
@@ -104,6 +115,7 @@ def requests_for(
         ("calendar ciks", "GET", "/v1/calendar?ciks=320193,789019,19617,1067983,1326801", None),
         ("corporate tree", "GET", f"/v1/companies/{cik}/corporate-tree", None),
         ("comment letters", "GET", f"/v1/companies/{cik}/comment-letters", None),
+        ("insider screen", "GET", f"/v1/insider-transactions?{INSIDER_SCREENS[i % 7]}", None),
         ("filing search", "GET", f"/v1/search/filings?q={FILING_QUERIES[i % 15]}"
                                  f"&sort={('date', 'relevance')[i // 15 % 2]}", None),
     ]  # fmt: skip

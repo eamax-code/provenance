@@ -22,6 +22,7 @@ from sqlalchemy import (
     Uuid,
     event,
     func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -1272,6 +1273,13 @@ class InsiderTransaction(Base):
             name="uq_insider_transactions_row",
         ),  # fmt: skip
         Index("ix_insider_transactions_issuer_date", "issuer_cik", "trans_date"),
+        # Q-03: the cross-company screener reads open-market lines by date
+        Index(
+            "ix_insider_transactions_open_market",
+            "trans_date",
+            postgresql_where=text("trans_code IN ('P', 'S') AND NOT is_derivative"),
+            sqlite_where=text("trans_code IN ('P', 'S') AND NOT is_derivative"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)
