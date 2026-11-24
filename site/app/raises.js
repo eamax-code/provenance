@@ -44,13 +44,14 @@
       if (!r.ok) { host.replaceChildren(head, failed(r, 'Form D offerings')); return; }
       var items = r.body.data || [];
       if (!items.length) { host.replaceChildren(head, note('No Form D offerings by this company in the SEC’s Form D data sets loaded here (the last eight quarters).')); return; }
-      // D-15d: a related person who files Forms 3, 4 and 5 for this company (insider_cik) links to its insiders; the rest stay text
+      // D-15d: a related person who files Forms 3, 4 and 5 for this company (insider_cik) links to its insiders on Connections,
+      // which lists every Form 3, 4 or 5 filer (Ownership lists trades only, so a Form 3 filer is not there); the rest stay text
       var persons = function (ps, cik) {
         var out = [];
         ps.forEach(function (p, i) {
           var rel = p.relationships && p.relationships.length ? ' (' + p.relationships.join(', ') + ')' : '';
           if (i) out.push('; ');
-          out.push(p.insider_cik ? el('a', { href: '/app/?c=' + parseInt(cik, 10) + '&tab=ownership', title: 'Files Forms 3, 4 and 5 for this company as CIK ' + p.insider_cik + ': see its insiders', text: p.name }) : p.name, rel);
+          out.push(p.insider_cik ? el('a', { href: '/app/?c=' + parseInt(cik, 10) + '&tab=connections', title: 'Files Forms 3, 4 and 5 for this company as CIK ' + p.insider_cik + ': see its insiders', text: p.name }) : p.name, rel);
         });
         return out;
       };
