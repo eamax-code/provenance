@@ -158,7 +158,7 @@
       var ch = h.change ? el('span', { class: 'tag', text: CHANGE[h.change] || h.change }) : null;
       var chText = h.shares_change_pct != null && h.change !== 'new' && h.change !== 'exited' ? ' ' + P.pct(h.shares_change_pct, true) : '';
       tb.appendChild(el('tr', {}, [
-        el('th', { scope: 'row', text: P.orgName(h.name) }),
+        el('th', { scope: 'row' }, [h.filer_cik && /^13F/.test(h.form_type || '') ? el('a', { href: '/managers/' + parseInt(h.filer_cik, 10) + '/', text: P.orgName(h.name) }) : P.orgName(h.name)]), // only a row from a 13F links to its manager page (PM: never to manager_not_found)
         el('td', { class: 'n', title: h.value_usd != null ? '$' + Number(h.value_usd).toLocaleString('en-US') : null, text: P.money(h.value_usd, null, 'USD') }),
         multi ? null : el('td', { class: 'n opt', text: h.shares != null ? fmt(h.shares, 'shares') : 'not added up' }),
         noPct ? null : el('td', { class: 'n', text: h.pct_of_outstanding != null ? P.pct(h.pct_of_outstanding) : '—' }),
