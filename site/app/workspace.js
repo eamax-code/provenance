@@ -252,7 +252,7 @@
     // TTM comes with each key figure (key_figures[].ttm), only when four consecutive quarters exist
     var ttm = {}; (d.key_figures || []).forEach(function (k) { if (k.ttm && k.ttm.value != null) ttm[k.metric] = Object.assign({}, k.ttm, { value: Number(k.ttm.value), fiscal_label: 'TTM to ' + day(k.ttm.period_end) }); });
     var hasTTM = KEYS.some(function (k) { return ttm[k[0]]; });
-    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Annual, as filed' }), el('th', { scope: 'col', class: 'n', text: fy[last] || 'Latest' }), hasTTM ? el('th', { scope: 'col', class: 'n c-ttm', title: 'Trailing twelve months, from quarterly filings', text: 'TTM' }) : null, el('th', { scope: 'col', class: 'n c-yoy', text: 'YoY' }), el('th', { scope: 'col', class: 'n c-cagr', text: (last > 0 ? last : '') + 'y CAGR' }), el('th', { scope: 'col', class: 'n c-mg', text: 'Margin' }), el('th', { scope: 'col', class: 'spark-h', text: 'Trend' })]);
+    var head = el('tr', {}, [el('th', { scope: 'col', text: 'Annual, as reported' }), el('th', { scope: 'col', class: 'n', text: fy[last] || 'Latest' }), hasTTM ? el('th', { scope: 'col', class: 'n c-ttm', title: 'Trailing twelve months, from quarterly filings', text: 'TTM' }) : null, el('th', { scope: 'col', class: 'n c-yoy', text: 'YoY' }), el('th', { scope: 'col', class: 'n c-cagr', text: (last > 0 ? last : '') + 'y CAGR' }), el('th', { scope: 'col', class: 'n c-mg', text: 'Margin' }), el('th', { scope: 'col', class: 'spark-h', text: 'Trend' })]);
     var body = KEYS.map(function (k) {
       var r = rows[k[0]];
       if (!r && OPTIONAL[k[0]]) return null;
@@ -493,7 +493,7 @@
     var ask = el('a', { class: 'btn small', href: chatLink(S.m.map(labelOf).join(' and ') + ' over time'), text: 'Ask about this chart' });
     var host = el('div', { class: 'chart-host big' });
     pane.replaceChildren(el('div', { class: 'ch-bar' }, [chips, add, sc, mk, el('span', { class: 'ch-acts' }, [ask, copy])]), host,
-      el('p', { class: 'muted small', text: 'Annual, as filed. Ten fiscal years where the overview has them, five from the statements otherwise; quarterly and longer histories come with the statements view. Ratios use the right axis. Markers show 8-K items, officer changes and auditor changes from the events loaded. Click a year to pin it.' }));
+      el('p', { class: 'muted small', text: 'Annual, as reported. Ten fiscal years where the overview has them, five from the statements otherwise; quarterly and longer histories come with the statements view. Ratios use the right axis. Markers show 8-K items, officer changes and auditor changes from the events loaded. Click a year to pin it.' }));
     drawChart(host, { series: S.m.map(series).filter(Boolean), height: window.innerWidth < 600 ? 280 : 420 });
   }
 

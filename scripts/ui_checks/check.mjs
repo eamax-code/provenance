@@ -13,11 +13,13 @@
 // name, duplicate ids, a stray "null", "undefined" or "NaN" printed as text, text under WCAG AA contrast, horizontal page overflow, forbidden source URLs or
 // fields in the page (data.sec.gov, efts, GLEIF API, FIRDS files, first_detected_at, source_updated_at),
 // a figure or data mark (chart label, SVG shape, HTML bar, Chart.js dataset) drawn in the brand's marker
-// yellow (it may only sit behind a figure as the highlight).
+// yellow (it may only sit behind a figure as the highlight), and, for an entry with sweepAt, light text under
+// the marker while the provenance highlight sweeps (pixels read from a PNG of the figure at that moment).
 // WARN: skipped heading levels, touch targets under 24px, text under 12px.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { inflateSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -249,6 +251,30 @@ async function view(page, theme, width) {
       }
       if (!okEx) res.fail.push('expectation failed: ' + ex.label);
     }
+    // sweepAt (brand B-4): open the first figure's provenance card, hold every animation at that many ms, and
+    // read the figure's pixels: in the columns the marker already covers, no pixel may be light text (blue > 150)
+    if (page.sweepAt != null) {
+      const r2 = await send('Runtime.evaluate', { returnByValue: true, expression: `(() => { const d = document.querySelector('${page.sweepDoor || '#pane-overview .ov-table .door'}'); if (!d) return null;
+        d.scrollIntoView({ block: 'center' }); d.click(); document.getAnimations().forEach((a) => { a.pause(); a.currentTime = ${+page.sweepAt}; });
+        const r = d.getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height, scale: 2 }; })()` }, sessionId);
+      const clip = r2.result && r2.result.value;
+      if (!clip) res.fail.push('sweep: no figure door to open');
+      else {
+        // let the held frame paint before the capture (two animation frames)
+        await send('Runtime.evaluate', { awaitPromise: true, expression: 'new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))' }, sessionId);
+        await sleep(120);
+        const shot = await send('Page.captureScreenshot', { format: 'png', clip }, sessionId);
+        const im = decodePng(Buffer.from(shot.data, 'base64')), yellow = (c) => c[0] > 200 && c[1] > 180 && c[2] < 130;
+        let cols = 0, light = 0;
+        for (let x = 8; x < im.w - 2; x++) { // from x = 8: the highlight's rounded corners show the page through
+          const half = (cx) => { let n = 0; for (let y = 0; y < im.h; y++) if (yellow(im.at(cx, y))) n++; return n >= im.h * 0.5; };
+          if (!half(x) || !half(x + 2)) continue; // a covered column away from the clip's moving edge
+          cols++; for (let y = 0; y < im.h; y++) if (im.at(x, y)[2] > 150) light++;
+        }
+        if (cols < 5) res.fail.push(`sweep at ${page.sweepAt} ms: the marker covers ${cols} columns, too few to judge`);
+        else if (light) res.fail.push(`sweep at ${page.sweepAt} ms: ${light} light pixels under the marker (the figure must be ink wherever the marker is)`);
+      }
+    }
     if (out) {
       mkdirSync(out, { recursive: true });
       const shot = await send('Page.captureScreenshot', { format: 'jpeg', quality: 70 }, sessionId);
@@ -259,13 +285,34 @@ async function view(page, theme, width) {
     await send('Target.disposeBrowserContext', { browserContextId }).catch(() => {});
   return res;
 }
+// a PNG from Page.captureScreenshot (8-bit RGB or RGBA, not interlaced), for the sweep check
+function decodePng(b) {
+  let p = 8, w = 0, h = 0, ct = 2; const idat = [];
+  while (p < b.length) {
+    const len = b.readUInt32BE(p), type = b.toString('ascii', p + 4, p + 8), d = b.subarray(p + 8, p + 8 + len);
+    if (type === 'IHDR') { w = d.readUInt32BE(0); h = d.readUInt32BE(4); ct = d[9]; } else if (type === 'IDAT') idat.push(d);
+    p += 12 + len;
+  }
+  const bpp = ct === 6 ? 4 : 3, st = w * bpp, raw = inflateSync(Buffer.concat(idat)), px = Buffer.alloc(w * h * bpp);
+  for (let y = 0; y < h; y++) {
+    const f = raw[y * (st + 1)], row = y * (st + 1) + 1;
+    for (let x = 0; x < st; x++) {
+      const a = x >= bpp ? px[y * st + x - bpp] : 0, u = y ? px[(y - 1) * st + x] : 0, c = x >= bpp && y ? px[(y - 1) * st + x - bpp] : 0;
+      let pr = 0;
+      if (f === 1) pr = a; else if (f === 2) pr = u; else if (f === 3) pr = (a + u) >> 1;
+      else if (f === 4) { const q = a + u - c, pa = Math.abs(q - a), pb = Math.abs(q - u), pc = Math.abs(q - c); pr = pa <= pb && pa <= pc ? a : pb <= pc ? u : c; }
+      px[y * st + x] = (raw[row + x] + pr) & 255;
+    }
+  }
+  return { w, h, at: (x, y) => { const i = (y * w + x) * bpp; return [px[i], px[i + 1], px[i + 2]]; } };
+}
 // ---- run ----
 const results = [];
 let failures = 0;
 for (const page of config.pages) {
   if (only && !only.has(page.path)) continue;
   for (const theme of page.themes || [null]) {
-    for (const width of widths) {
+    for (const width of page.widths || widths) {
       // the public per-IP limit can answer 429 when views run back to back: wait and look again
       let res;
       for (let attempt = 0; attempt < 3; attempt++) {

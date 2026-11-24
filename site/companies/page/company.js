@@ -188,7 +188,7 @@
     var idx = st.fiscal_years.map(function (_, i) { return i; });
     if (narrow.matches) idx.reverse(); // newest year first on a phone
     var currencies = {}; sec.rows.forEach(function (r) { if (r.currency) currencies[r.currency] = 1; });
-    $('fin-note').textContent = 'Annual, as filed' + (Object.keys(currencies).length ? DOT + 'in ' + Object.keys(currencies).join(', ') : '') + DOT + 'quarterly and trailing twelve months with a free key';
+    $('fin-note').textContent = 'Annual, as reported' + (Object.keys(currencies).length ? DOT + 'in ' + Object.keys(currencies).join(', ') : '') + DOT + 'quarterly and trailing twelve months with a free key';
     var t = el('table', { class: 'fin' });
     t.appendChild(el('caption', { class: 'vh', text: sec.title + ', ' + st.fiscal_years[0] + ' to ' + st.fiscal_years[st.fiscal_years.length - 1] }));
     var hr = el('tr', {}, [el('th', { scope: 'col', class: 'fin-name', text: sec.key === 'ratios' ? 'Ratio' : 'Line item' })]);
