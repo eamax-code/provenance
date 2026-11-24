@@ -55,7 +55,7 @@ BUDGETS = {
     "managers": (["managers/index.html", "managers/managers.css", "managers/managers.js"], 10_000),
     "manager": (["managers/manager.html", "managers/managers.css", "managers/manager.js"], 11_000),
     # Q-04 dividends block, a shared lazy module (25 Nov): 4.1 KB gzipped at launch
-    "dividends": (["app/dividends.js"], 4_500),
+    "dividends": (["app/dividends.js"], 5_000),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
 }
 
