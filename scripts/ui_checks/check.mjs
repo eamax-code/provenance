@@ -151,6 +151,20 @@ function audit() {
     const cs = getComputedStyle(el); if (cs.maskImage && cs.maskImage !== 'none') continue; // the logo, drawn as a mask
     if (mark(cs.backgroundColor) && yellow.length < 6) yellow.push(`data mark ${desc(el)}`);
   }
+  // the logo (a mask of mark.svg painted in --mark) must stand out from what it sits on: 3:1, as for any graphic
+  for (const el of document.querySelectorAll('body *')) {
+    const cs = getComputedStyle(el); if (!/mark\.svg/.test(cs.maskImage || cs.webkitMaskImage || '') || !vis(el)) continue;
+    const c = parse(cs.backgroundColor), bg = el.parentElement && bgOf(el.parentElement); if (!c || !bg) continue;
+    const L1 = lum(blend(c, bg)), L2 = lum(bg), r = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+    if (r < 3) fail.push(`logo mark at ${r.toFixed(2)}:1 against its background (${desc(el)})`);
+  }
+  // a legend's key stands for a series, so it is a data mark too: an empty swatch inside a legend or key
+  for (const el of document.querySelectorAll('main [class*=legend] *, main [class*=key] *')) {
+    if (el.textContent.trim() || el.children.length || el.closest('svg') || !vis(el)) continue;
+    const r = el.getBoundingClientRect(); if (r.width > 24 || r.height > 24) continue;
+    const cs = getComputedStyle(el);
+    if ((mark(cs.backgroundColor) || mark(cs.borderTopColor) && parseFloat(cs.borderTopWidth) >= 2) && yellow.length < 6) yellow.push(`legend swatch ${desc(el)}`);
+  }
   // categorical series (a chart with 2+ series): neighbours must be told apart with normal vision (OKLab ΔE×100 >= 15)
   // and under protan, deutan and tritan simulation (>= 6, Machado 2009 at full severity), and each series must hold
   // 3:1 against the chart's background. Pairs: adjacent slots, plus all pairs among the first three (the palette's design).

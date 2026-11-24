@@ -206,6 +206,7 @@
   function renderTab() {
     if (!S.d) return;
     showPanes(S.tab);
+    var kn = $('pane-' + S.tab) && $('pane-' + S.tab).querySelector('.ws-keyneeded'); if (kn && X.hasKey()) kn.remove(); // a key was connected since
     if (KEYED[S.tab] && !X.hasKey()) { var p = $('pane-' + S.tab); keyNeeded(p); if (S.tab === 'filings') changesSection(); if (S.tab === 'connections') treeSection(); return; }
     if (S.tab === 'filings') changesSection(); if (S.tab === 'connections') treeSection();
     if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'people') peopleTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();

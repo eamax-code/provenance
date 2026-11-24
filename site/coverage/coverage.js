@@ -11,7 +11,7 @@
   };
   var int = function (n) { return n == null ? '—' : Number(n).toLocaleString('en-US'); };
   var dur = function (s) { return s == null ? 'not measured yet' : s < 90 ? s + ' s' : s < 5400 ? Math.round(s / 60) + ' min' : s < 172800 ? (s / 3600).toFixed(1) + ' hours' : Math.round(s / 86400) + ' days'; };
-  var set = function (k, v) { document.querySelectorAll('[data-cov="' + k + '"]').forEach(function (n) { n.textContent = v; }); };
+  var set = function (k, v) { document.querySelectorAll('[data-cov="' + k + '"]').forEach(function (n) { n.textContent = v; if (n.tagName === 'B') n.classList.toggle('is-na', !/\d/.test(v)); }); };
   var GROUPS = [
     ['Income statement', ['revenue', 'cost_of_revenue', 'gross_profit', 'r_and_d', 'sga', 'operating_income', 'interest_expense', 'net_interest_income', 'pretax_income', 'income_tax', 'net_income', 'eps_basic', 'eps_diluted', 'shares_basic_weighted', 'shares_diluted_weighted', 'd_and_a']],
     ['Balance sheet', ['cash_and_equivalents', 'current_assets', 'total_assets', 'current_liabilities', 'total_liabilities', 'long_term_debt', 'long_term_debt_current', 'stockholders_equity', 'retained_earnings']],

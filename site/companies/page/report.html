@@ -231,7 +231,7 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
       var nm = ch.person || 'An officer', ini = nm.split(/\s+/).filter(function (w) { return /^[A-Z]/.test(w); }).map(function (w) { return w[0]; }).slice(0, 2).join('');
       $('people').appendChild(el('div', { class: 'person' }, [el('span', { class: 'ini', 'aria-hidden': 'true', text: ini }), el('div', {}, [
         el('div', {}, [el('b', { text: nm }), ch.role ? el('span', { class: 'muted', text: ', ' + ch.role }) : null]),
-        el('div', { class: 'small' }, [ch.change_label + ' · filed ' + P.date(ch.filing_date) + ' · ', P.link('8-K', ch.source_url), ch.verified ? null : el('span', { class: 'chip warn', text: 'unverified' })]),
+        el('div', { class: 'small' }, [ch.change_label + ' · filed ' + P.date(ch.filing_date) + ' · ', P.link('8-K', ch.source_url), ch.verified ? null : el('span', { class: 'chip warn', title: 'Read by a model; the sentence did not match the filing exactly. Open the 8-K to check.', text: 'unverified' })]),
         ch.evidence ? el('blockquote', { text: ch.evidence.length > 240 ? ch.evidence.slice(0, 237) + '…' : ch.evidence }) : null,
       ])]));
     });

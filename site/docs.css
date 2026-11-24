@@ -9,6 +9,8 @@
 .doc-toc a:hover { text-decoration: none; border-left-color: var(--soft); }
 .doc-toc a[aria-current="true"], .doc-toc a[aria-current="page"] { border-left-color: var(--accent-hi); color: var(--accent-text); }
 @media (max-width: 980px) { .doc-toc { position: static; max-height: none; } .doc-toc ul { display: flex; flex-wrap: wrap; gap: 6px; } .doc-toc a { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; } }
+/* phones: each group is one row that scrolls sideways, so the guide list doesn't push the first step below the fold (Hick: the chips cut at the edge say there are more) */
+@media (max-width: 760px) { .doc-toc { gap: 8px; } .doc-toc ul { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--m, 16px)); padding: 2px var(--m, 16px); scroll-padding-inline: var(--m, 16px); } .doc-toc ul::-webkit-scrollbar { display: none; } .doc-toc li { flex: none; } .doc-toc a { white-space: nowrap; min-height: 32px; display: flex; align-items: center; } }
 .doc-body { display: grid; gap: clamp(40px, 5vw, 72px); min-width: 0; max-width: 920px; }
 .doc-body section { display: grid; gap: 14px; min-width: 0; scroll-margin-top: calc(var(--bar-h) + 16px); }
 .doc-body h2 { font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2.1rem); font-weight: var(--display-weight); letter-spacing: -0.03em; line-height: 1.05; }

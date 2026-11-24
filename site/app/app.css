@@ -158,17 +158,18 @@ tr:last-child td { border-bottom: 0; } td.wrap { white-space: normal; }
 .g-person { fill: var(--surface-2); stroke: var(--ink); }
 .g-person.r-officer { fill: color-mix(in srgb, var(--cat-3) 28%, var(--bg-2)); stroke: var(--cat-3); }
 .g-person.r-director { fill: color-mix(in srgb, var(--slate-deep) 40%, var(--bg-2)); stroke: var(--slate-deep); }
-.g-person.r-ten_percent_owner { fill: color-mix(in srgb, var(--warn) 28%, var(--bg-2)); stroke: var(--warn); }
+.g-person.r-ten_percent_owner { fill: color-mix(in srgb, var(--cat-4) 28%, var(--bg-2)); stroke: var(--cat-4); }
 .g-org { fill: var(--surface-2); stroke: var(--soft); }
 .g-company { fill: color-mix(in srgb, var(--slate-deep) 30%, var(--bg-2)); stroke: var(--slate-deep); }
-.g-holder { fill: color-mix(in srgb, var(--warn) 30%, var(--bg-2)); stroke: var(--warn); }
-.g-sub { fill: var(--bg-2); stroke: var(--good); }
-.g-sub.g-new { fill: var(--good); }
+/* nodes wear their legend's slot (edges and keys use the same --cat): no status colours as categories */
+.g-holder { fill: color-mix(in srgb, var(--cat-2) 30%, var(--bg-2)); stroke: var(--cat-2); }
+.g-sub { fill: var(--bg-2); stroke: var(--cat-1); }
+.g-sub.g-new { fill: var(--cat-1); }
 .g-cluster { fill: color-mix(in srgb, var(--good) 22%, var(--bg-2)); stroke: var(--good); }
 .g-cluster.g-open { fill: var(--good); }
 .g-label { font-family: var(--font-body); font-size: 15px; font-weight: 500; fill: var(--fg); paint-order: stroke; stroke: var(--bg-2); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
 .g-sublabel { font-family: var(--font-body); font-size: 12px; fill: var(--muted); paint-order: stroke; stroke: var(--bg-2); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
-.g-sublabel.g-sub-new { fill: var(--good); }
+.g-sublabel.g-sub-new { fill: var(--fg); font-weight: 600; }
 .g-center-label { font-family: var(--font-display); font-weight: 700; font-size: 18px; }
 .g-lane { font-family: var(--font-body); font-size: 13px; letter-spacing: 0; fill: var(--muted); font-weight: 700; }
 .g-lane-n { fill: var(--soft); font-weight: 400; }
@@ -242,6 +243,8 @@ tr:last-child td { border-bottom: 0; } td.wrap { white-space: normal; }
 .ws-ident { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; font-size: .85rem; color: var(--muted); }
 .ws-note { margin: 0; font-size: .88rem; color: var(--warn); }
 .ws-keyneeded { margin: 0 0 10px; }
+/* without a key the graph can't load: no empty stage or idle controls under the note (the corporate tree above still shows) */
+.ws-keyneeded ~ .g-controls, .ws-keyneeded ~ .g-stage { display: none; }
 .company .tabs { overflow-x: auto; scrollbar-width: none; } .company .tab { white-space: nowrap; }
 .tag { display: inline-block; margin-left: 6px; font: 600 .68rem var(--font-body); letter-spacing: .02em; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); vertical-align: middle; }
 .linkish { border: 0; background: none; color: var(--accent-text); font: inherit; font-size: .85rem; cursor: pointer; padding: 0; } .linkish:hover { text-decoration: underline; }
@@ -317,7 +320,8 @@ td.up { color: var(--good); } td.down { color: var(--bad); }
 .ws-chart .line.s1 { stroke: var(--cat-2); } .ws-chart .pt.s1 { fill: var(--cat-2); } .ws-chart .line.s2 { stroke: var(--cat-3); } .ws-chart .pt.s2 { fill: var(--cat-3); }
 .ws-chart.multi .line.s0 { stroke: var(--cat-1); } .ws-chart.multi .pt.s0 { stroke: var(--cat-1); fill: var(--cat-1); }
 .ws-chart .hl { fill: color-mix(in srgb, var(--fg) 6%, transparent); }
-.mk { stroke: none; } .mk-8k { fill: var(--accent-text); } .mk-officer { fill: var(--warn); } .mk-auditor { fill: var(--good); }
+/* event markers: shape and a free --cat slot (series use 1-3); green or orange would read as good or a warning */
+.mk { stroke: none; } .mk-8k { fill: var(--accent-text); } .mk-officer { fill: var(--cat-6); } .mk-auditor { fill: var(--cat-5); }
 .mk-ico { vertical-align: -1px; margin-right: 4px; }
 .ws-tip { position: absolute; top: 8px; width: 240px; z-index: 5; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; font-size: .84rem; display: grid; gap: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
 .ws-tip p { margin: 0; } .tip-s i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; background: var(--muted); }
@@ -556,7 +560,8 @@ table.pp-table { min-width: 640px; }
 table.pp-pay { min-width: 980px; }
 .pp-table th[scope="row"] { font-weight: 600; text-align: left; }
 .pp-title { display: block; font-weight: 400; }
-.pp-act.is-new { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+/* adopting a plan is a fact, not a warning: ink, not --warn (information, not signals) */
+.pp-act.is-new { color: var(--ink); border-color: var(--soft); }
 .pp-act.is-end { color: var(--muted); }
 .pp-match { display: block; }
 .pp-gone summary { cursor: pointer; color: var(--muted); font-size: .88rem; min-height: 28px; }

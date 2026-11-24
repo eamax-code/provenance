@@ -14,7 +14,7 @@
    ink (buttons); --accent-hi is the accent as a line (the marker on dark grounds, marker deep olive on
    light ones); --accent-text is link text: ink with a marker underline (--link-line) on dark grounds,
    olive on light ones; --data-hi marks a data point (never yellow); --marker/--marker-ink are the highlight
-   on a figure's provenance moment only, never a figure's own colour; --mark is the logo. Yellow never
+   on a figure's provenance moment only, never a figure's own colour; --mark is the logo (--side-mark on the always-dark side panel). Yellow never
    means up or down, and --warn is orange so it never meets the marker. */
 :root {
   --bg: #141719; --bg-2: #191c1f; --surface: #1b1f23; --surface-2: #2a3037; --paper: #20252a;
@@ -27,7 +27,7 @@
   --good: #4cc38a; --good-soft: #17322a; --warn: #f0883e; --warn-soft: #3a2414; --bad: #ff7b72; --bad-soft: #3a2020; --neutral-soft: #262d33;
   --field: #24323c; --field-ink: #ffffff; --field-soft: #c4d1da;
   --code-bg: #0e1113; --code-ink: #e3e8ec;
-  --side: #0f1214; --side-ink: #ffffff;
+  --side: #0f1214; --side-mark: #f3e04c; --side-ink: #ffffff;
   --scrim: rgba(5, 7, 9, 0.6); --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.5);
   --on-image: #ffffff;
   --face: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif; --display: var(--face); --display-weight: 800;
@@ -45,7 +45,7 @@
   --good: #0e7049; --good-soft: #dff3ea; --warn: #a34a07; --warn-soft: #fff4e0; --bad: #b3261e; --bad-soft: #fde6ea; --neutral-soft: #e3eaef;
   --field: #4f6575; --field-ink: #ffffff; --field-soft: #e4ebf0;
   --code-bg: #2b2f33; --code-ink: #e9eef2;
-  --side: #2b2f33; --side-ink: #ffffff;
+  --side: #2b2f33; --side-mark: #f3e04c; --side-ink: #ffffff;
   --scrim: rgba(43, 47, 51, 0.4); --shadow-lg: 0 24px 64px rgba(30, 36, 42, 0.22);
   color-scheme: light;
 }
@@ -60,7 +60,7 @@
   --good: #1f6b4f; --good-soft: #e2efe8; --warn: #9a4a12; --warn-soft: #f6e3d3; --bad: #a3322a; --bad-soft: #f6e1dc; --neutral-soft: #ebe4d7;
   --field: #2d3a33; --field-ink: #fffcf6; --field-soft: #d9e3dc;
   --code-bg: #1f1c17; --code-ink: #f4efe6;
-  --side: #1f1c17; --side-ink: #fffcf6;
+  --side: #1f1c17; --side-mark: #eed43a; --side-ink: #fffcf6;
   --scrim: rgba(31, 28, 23, 0.4); --shadow-lg: 0 24px 64px rgba(31, 28, 23, 0.2);
   --face: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; --display: "Newsreader", Georgia, serif; --display-weight: 600;
   color-scheme: light;
@@ -76,7 +76,7 @@
   --good: #3fb950; --good-soft: #14281a; --warn: #f0883e; --warn-soft: #2d1d12; --bad: #f85149; --bad-soft: #2d1716; --neutral-soft: #1a212b;
   --field: #16202c; --field-ink: #d6dde6; --field-soft: #a7b4c3;
   --code-bg: #090c10; --code-ink: #d6dde6;
-  --side: #090c10; --side-ink: #d6dde6;
+  --side: #090c10; --side-mark: #f3e04c; --side-ink: #d6dde6;
   --scrim: rgba(0, 0, 0, 0.6); --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6);
   --face: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; --display: var(--face); --display-weight: 600;
   --num: "IBM Plex Mono", ui-monospace, Menlo, monospace;

@@ -23,6 +23,8 @@
 .lead3 > div { background: var(--surface); border-radius: 4px; padding: 18px 20px; display: grid; gap: 6px; }
 .lead3 b { font-size: clamp(1.75rem, 3vw, 2.75rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
 .lead3 span { color: var(--soft); font-size: 15px; }
+/* a headline tile whose value is words ("Not measured yet") stays quiet: display size is for figures */
+.lead3 b.is-na, .cov-nums b.is-na { font-size: clamp(1.1rem, 1.6vw, 1.35rem); font-weight: 600; letter-spacing: -0.01em; color: var(--soft); line-height: 1.25; }
 @media (max-width: 700px) { .lead3 { grid-template-columns: minmax(0, 1fr); } }
 
 /* company search (directory and 404) */
@@ -38,3 +40,15 @@
 .cs-tag { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 13px; color: var(--soft); }
 .cs-empty { color: var(--soft); padding: 8px 2px; }
 .dir-h { margin-top: 40px; font-size: clamp(1.4rem, 2vw, 1.8rem); }
+/* listings on phones: one card per event (date, event and source; the issuer; its ISIN and venue) instead of a
+   six-column table cut at the edge. Roles in the markup keep it a table for screen readers. */
+@media (max-width: 600px) {
+  #listings-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  #listings-table, #listings-table tbody { display: block; min-width: 0; }
+  #listings-table tr { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 4px 8px; padding: 12px; border-bottom: 1px solid var(--line-soft); }
+  #listings-table tr:last-child { border-bottom: 0; }
+  #listings-table td { display: block; padding: 0; border: 0; white-space: normal; }
+  #listings-table td:nth-child(6) { grid-column: 3; grid-row: 1; justify-self: end; color: var(--soft); font-size: 13px; }
+  #listings-table td:nth-child(3) { grid-column: 1 / -1; font-weight: 600; }
+  #listings-table td:nth-child(4), #listings-table td:nth-child(5) { grid-column: 1 / -1; color: var(--soft); font-size: 13.5px; }
+}

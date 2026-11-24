@@ -16,7 +16,7 @@
 .cx.side-closed .cx-shell{grid-template-columns:0 minmax(0,1fr)}
 
 /* Sidebar */
-.cx-side{background:var(--side);color:var(--side-ink);border-right:1px solid var(--line-soft);--muted:color-mix(in srgb,var(--side-ink) 72%,transparent);--soft:color-mix(in srgb,var(--side-ink) 12%,transparent);--fg:var(--side-ink);display:flex;flex-direction:column;gap:10px;padding:12px 10px;min-width:0;overflow:hidden;transition:opacity .25s var(--ease)}
+.cx-side{background:var(--side);color:var(--side-ink);--mark:var(--side-mark);border-right:1px solid var(--line-soft);--muted:color-mix(in srgb,var(--side-ink) 72%,transparent);--soft:color-mix(in srgb,var(--side-ink) 12%,transparent);--fg:var(--side-ink);display:flex;flex-direction:column;gap:10px;padding:12px 10px;min-width:0;overflow:hidden;transition:opacity .25s var(--ease)}
 .cx.side-closed .cx-side{opacity:0;pointer-events:none}
 .cx-side-top{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 6px}
 .cx-brand{font-family:var(--font-display);font-size:15px;color:var(--fg);text-decoration:none;display:flex;align-items:center;gap:8px;white-space:nowrap}

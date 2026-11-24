@@ -64,7 +64,7 @@
       if (!res.ok) throw new Error(res.status);
       var d = res.body; grid.innerHTML = '';
       // the three numbers a builder checks first
-      var setLead = function (id, v) { var n = $(id); if (n) n.textContent = v; };
+      var setLead = function (id, v) { var n = $(id); if (n) { n.textContent = v; n.classList.toggle('is-na', !/\d/.test(v)); } }; // words, not a figure: not at figure size
       var ql = d.quality_snapshot && d.quality_snapshot.latency, p50 = ql && ql.accept_to_detect_p50_seconds;
       setLead('lead-latency', p50 == null ? 'Not measured yet' : p50 < 90 ? p50 + ' s' : p50 < 5400 ? Math.round(p50 / 60) + ' min' : p50 < 172800 ? (p50 / 3600).toFixed(1) + ' hours' : Math.round(p50 / 86400) + ' days');
       setLead('lead-latest', d.filings.latest_filing_date ? humanDay(d.filings.latest_filing_date) : 'None yet');
@@ -159,13 +159,14 @@
       res.body.data.forEach(function (e) {
         var v = res.body.venues[e.mic] || {};
         // the event date only: when we noticed a change is never shown (owner rule, 2026-11-04)
-        tb.appendChild(el('tr', {}, [
-          el('td', { text: humanDay(e.event_date) }),
-          el('td', {}, [el('span', { class: 'badge', text: (EVENT[e.event_type] || e.event_type.replace(/_/g, ' ')) })]),
-          el('td', { class: 'wrap', text: e.issuer_name }),
-          el('td', { class: 'mono', text: e.isin || e.symbol || e.listing_key }),
-          el('td', { text: e.mic + ' · ' + (v.name || '') + (v.country ? ' (' + v.country + ')' : '') }),
-          el('td', { text: SOURCE[e.source] || e.source })
+        // explicit roles: on phones each row is drawn as a card (display: grid), which would drop table semantics
+        tb.appendChild(el('tr', { role: 'row' }, [
+          el('td', { role: 'cell', text: humanDay(e.event_date) }),
+          el('td', { role: 'cell' }, [el('span', { class: 'badge', text: (EVENT[e.event_type] || e.event_type.replace(/_/g, ' ')) })]),
+          el('td', { role: 'cell', class: 'wrap', text: e.issuer_name }),
+          el('td', { role: 'cell', class: 'mono', text: e.isin || e.symbol || e.listing_key }),
+          el('td', { role: 'cell', text: e.mic + ' · ' + (v.name || '') + (v.country ? ' (' + v.country + ')' : '') }),
+          el('td', { role: 'cell', text: SOURCE[e.source] || e.source })
         ]));
       });
       var m = $('listings-meta'); if (m) m.textContent = res.body.data.length + ' events · generated ' + fmtTs(res.body.generated_at);

@@ -135,7 +135,7 @@ section.card h2 { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
     </div>
     <div class="figs" id="figs" aria-label="Latest annual figures"></div>
     <section class="card" aria-labelledby="t-growth">
-      <div class="card-head"><h2 id="t-growth">Revenue and operating margin by fiscal year</h2><span class="legend"><span><i class="l-rev"></i>latest year</span><span><i class="l-old"></i>earlier years</span><span><i class="l-m"></i>operating margin</span></span></div>
+      <div class="card-head"><h2 id="t-growth">Revenue and operating margin by fiscal year</h2><span class="legend"><span><i class="l-rev"></i>revenue</span><span><i class="l-m"></i>operating margin</span></span></div>
       <div id="chart"></div>
       <div class="tw"><table id="years"></table></div>
     </section>
@@ -269,7 +269,7 @@ section.card h2 { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
     L.changes.slice(0, 4).forEach(function (ch) {
       $('changes').appendChild(el('div', { class: 'change' }, [
         el('b', { text: (ch.person || 'An officer') + (ch.role ? ', ' + ch.role : '') }),
-        el('span', { class: 'small' }, [ch.change_label + ' · filed ' + P.date(ch.filing_date) + ' · ', P.link('8-K', ch.source_url), ch.verified ? null : el('span', { class: 'chip warn', text: 'unverified' })]),
+        el('span', { class: 'small' }, [ch.change_label + ' · filed ' + P.date(ch.filing_date) + ' · ', P.link('8-K', ch.source_url), ch.verified ? null : el('span', { class: 'chip warn', title: 'Read by a model; the sentence did not match the filing exactly. Open the 8-K to check.', text: 'unverified' })]),
         ch.evidence ? el('q', { text: ch.evidence.length > 180 ? ch.evidence.slice(0, 177) + '…' : ch.evidence }) : null,
       ]));
     });
