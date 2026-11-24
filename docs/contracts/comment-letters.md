@@ -1,6 +1,6 @@
 # D-13 SEC comment letters
 
-**Built 2026-11-24.** Additive: topic keys `governance` (board leadership, Item 407, risk
+**Built 2026-11-24.** Additive: topic key `executive_compensation` (C-13b: Item 402, 402(v), CD&A, pay versus performance, the Summary Compensation Table, compensation actually paid, executive compensation); topic keys `governance` (board leadership, Item 407, risk
 oversight) and `leases` (ASC 842); `kind` can be `no_review` (the staff did not review the
 filing: it closes the thread and its thread has no topics). Thread topics come from the SEC's own
 letters; a response's wording counts only when no SEC letter of the thread is readable. Read set:
@@ -48,7 +48,8 @@ come from a reviewed keyword list, not a model.
                  "mdna": "MD&A", "income_taxes": "Income taxes", "disclosure_controls":
                  "Disclosure controls", "climate": "Climate disclosure", "cybersecurity":
                  "Cybersecurity", "crypto": "Crypto assets", "going_concern": "Going concern",
-                 "related_parties": "Related parties", "other": "Other"},
+                 "related_parties": "Related parties",
+                 "executive_compensation": "Executive compensation", "other": "Other"},
   "notes": ["Topics are tagged from a reviewed keyword list; a letter can have several."]
 }
 ```

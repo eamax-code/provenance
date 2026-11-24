@@ -48,6 +48,11 @@ TOPICS = {  # key: (label, reviewed keyword pattern)
     "crypto": ("Crypto assets", r"crypto|digital assets?|bitcoin"),
     "going_concern": ("Going concern", r"going concern"),
     "related_parties": ("Related parties", r"related part(?:y|ies)"),
+    # C-13b (2026-11-24): Item 402 disclosure, from a reviewed keyword list
+    "executive_compensation": ("Executive compensation", r"item 402\b|402\(v\)|"
+                               r"compensation discussion and analysis|\bcd&a\b|"
+                               r"pay[- ]versus[- ]performance|summary compensation table|"
+                               r"compensation actually paid|executive compensation"),
 }  # fmt: skip
 _TOPIC_RX = {k: re.compile(p, re.I) for k, (_, p) in TOPICS.items()}
 TOPIC_LABELS = {k: v[0] for k, v in TOPICS.items()} | {"other": "Other"}

@@ -166,3 +166,16 @@ def test_comment_letters_chat_not_read_lists_the_filings(client, auth, db, inges
     table = next(b for b in a["blocks"] if b["type"] == "table")
     assert table["rows"][0][0] == {"text": "2025-06-01", "url": "https://www.sec.gov/Archives/"
                                    "edgar/data/320193/x-index.html"}  # fmt: skip
+
+
+def test_executive_compensation_topic():
+    """C-13b (2026-11-24): Item 402 letters (pay versus performance, CD&A, the Summary
+    Compensation Table) get the executive_compensation topic; other topics stay as they were."""
+    pvp = ("Re: Example Corp. Definitive Proxy Statement on Schedule 14A File No. 001-12345 "
+           "Pay Versus Performance Table, page 8 1. Item 402(v)(2)(iii) of Regulation S-K "
+           "specifies the calculations required to derive compensation actually paid. We note "
+           "your use of Adjusted EBITDA, a non-GAAP measure.")  # fmt: skip
+    assert CL.parse(pvp, "UPLOAD")["topics"] == ["non_gaap", "executive_compensation"]
+    assert CL.TOPIC_LABELS["executive_compensation"] == "Executive compensation"
+    assert "executive_compensation" not in CL.parse(SEC_LETTER, "UPLOAD")["topics"]
+    assert CL.parse(SEC_LETTER, "UPLOAD")["topics"] == ["non_gaap", "segments"]
