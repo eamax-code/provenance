@@ -116,7 +116,7 @@ def test_robots_and_sitemap(client, ingested_aapl, settings, monkeypatch):
     assert "Sitemap: http://testserver/sitemap.xml" in robots.text
     r = client.get("/sitemap.xml")
     assert r.status_code == 200 and r.headers["content-type"].startswith("application/xml")
-    for path in ("/", "/developers/", "/docs/", "/companies/", "/changelog/"):
+    for path in ("/", "/developers/", "/docs/", "/companies/", "/changelog/", "/managers/"):
         assert f"<loc>http://testserver{path}</loc>" in r.text, path
     assert "<loc>http://testserver/companies/0000320193</loc>" in r.text  # showcase companies
     assert "/poc/" not in r.text and "/v1/" not in r.text

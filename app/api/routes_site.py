@@ -22,6 +22,7 @@ SITEMAP_PAGES = (
     "/companies/",
     "/search/",
     "/insiders/",
+    "/managers/",
     "/chat/",
     "/listings/",
     "/playground/",
