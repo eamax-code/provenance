@@ -168,7 +168,8 @@ def test_cursor_and_since_validation(client, auth):
 
 def test_demo_key_polls_but_cannot_stream(client):
     assert client.get("/v1/events?limit=5", headers={"X-API-Key": "demo"}).status_code == 200
-    assert client.get("/v1/events?limit=50", headers={"X-API-Key": "demo"}).status_code == 200  # D-L1
+    # D-L1: a larger limit is trimmed for the demo key, not refused
+    assert client.get("/v1/events?limit=50", headers={"X-API-Key": "demo"}).status_code == 200
     r = client.get("/v1/events/stream", headers={"X-API-Key": "demo"})
     assert r.status_code == 401
 
