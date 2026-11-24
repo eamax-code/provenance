@@ -187,9 +187,10 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str],
     19.8B). Flag only, nothing is adjusted: a share row jumps by a near-whole factor and an EPS
     row moves inversely across the same pair. Returns {metric: {"between": [a, b],
     "ratio_hint": "4:1"}} for each share and EPS row with values on both sides of the latest
-    such pair; "1:4" is a reverse split. Older pairs (NVIDIA: 4:1 in 2021, then 10:1 in 2024)
-    are listed under "earlier", newest first. confirm(between, hint) may accept a pair whose
-    income swing is too large (S-02b): the route checks the reviewed split list."""
+    such pair; "1:4" is a reverse split. Older pairs that confirm(between, hint) accepts (NVIDIA:
+    4:1 in 2021, then 10:1 in 2024) are listed under "earlier", newest first; confirm may also
+    accept a latest pair whose income swing is too large (S-02b). The route's confirm checks the
+    reviewed split list."""
     found: list[tuple[int, str]] = []
     for i in range(1, len(keys)):
         hit = None
@@ -221,9 +222,12 @@ def split_breaks(values: dict[str, list[float | None]], keys: list[str],
     if not found:
         return {}
     i, hint = found[-1]
-    earlier = [
-        {"between": [keys[j - 1], keys[j]], "ratio_hint": h} for j, h in reversed(found[:-1])
-    ]
+    # older pairs only when the reviewed list confirms them (NVIDIA's 2021 4:1): the guard alone
+    # read IPO conversions and mergers as splits and got reverse-split ratios wrong (hand-check of
+    # 30 earlier pairs, 2026-11-24: 2 right)
+    earlier = [{"between": [keys[j - 1], keys[j]], "ratio_hint": h}
+               for j, h in reversed(found[:-1])
+               if confirm is not None and confirm([keys[j - 1], keys[j]], h)]  # fmt: skip
     out = {}
     for m in SHARE_ROWS + EPS_ROWS:
         a, b = (values.get(m) or [None] * len(keys))[i - 1 : i + 1]

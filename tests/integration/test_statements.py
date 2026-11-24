@@ -195,11 +195,12 @@ def test_a_reviewed_split_counts_when_income_swings_too(db):
     assert len(st.reviewed_splits()) == 13  # NVIDIA 4:1 (2021) and 10:1 (2024) both
 
 
-def test_two_splits_compound_and_both_are_named(client, auth, db):
+def test_two_splits_compound_and_both_are_named(client, auth, db, monkeypatch):
     """S-02b (2026-11-24, provenance-pm): NVIDIA split 4:1 in 2021 and 10:1 in 2024; flagging the
     10:1 had dropped the 4:1 and the oldest years were divided by 10, not 40. Every split pair is
     named (the latest as split_break, older ones under "earlier") and the adjusted values
-    compound the ratios the filings confirm. Here 2:1, then 3:1: the oldest year is divided by 6."""
+    compound the ratios the filings confirm. Here 2:1, then 3:1: the oldest year is divided by 6.
+    Older pairs count only when reviewed: the guard alone failed a hand-check of 30 (2 right)."""
     import hashlib
     from datetime import UTC, date, datetime
 
@@ -238,6 +239,16 @@ def test_two_splits_compound_and_both_are_named(client, auth, db):
                 observation_key=hashlib.sha256(f"{metric}{y}{suf}".encode()).hexdigest(),
             ))  # fmt: skip
     db.commit()
+    from app.services import statements as st
+
+    # not in the reviewed list: only the latest pair, adjusted by its own ratio (as before)
+    body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
+    rows = {r["metric"]: r for r in body["rows"]}
+    assert "earlier" not in rows["eps_basic"]["split_break"]
+    assert rows["eps_basic"]["split_adjusted"]["values"] == [2.0, 1.0, 1.0, 1.0]  # 6.00 / 3
+    assert "earlier" not in rows["eps_basic"]["split_adjusted"]
+    # the earlier split reviewed: named and compounded
+    monkeypatch.setattr(st, "reviewed_splits", lambda: {(cik, "2:1"), (cik, "3:1")})
     body = client.get(f"/v1/companies/{cik}/statements/income", headers=auth).json()
     rows = {r["metric"]: r for r in body["rows"]}
     brk = rows["eps_basic"]["split_break"]
