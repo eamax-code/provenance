@@ -46,6 +46,8 @@ BUDGETS = {
                   "app/records.js", "app/whatsnew.js", "app/workspace.js", "app/raises.js",
                   "app/screener.js", "app/watchlists.js", "shell/seal.js"], 147_000),
     "explorer, connections graph (loaded when the tab opens)": (["app/graph.js"], 16_500),
+    # Search inside filings (Q-01, 24 Nov): 9.2 KB when added
+    "search": (["search/index.html", "search/search.css", "search/search.js"], 10_500),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
 }
 

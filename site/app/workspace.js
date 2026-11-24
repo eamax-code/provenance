@@ -1039,7 +1039,10 @@
           .forEach(function (c) { var l = c[0].toLowerCase(); if (q && (l.indexOf(ql) === 0 || (ql.length > 2 && l.indexOf(ql) > -1)) && !out.some(function (x) { return x.label.toLowerCase() === 'go to ' + l; })) out.push({ label: c[0], hint: c[1], fn: c[2] }); });
         var rows = statementRows(); Object.keys(YEARLY).concat(Object.keys(rows)).forEach(function (m) { var lab = YEARLY[m] || rows[m].label; if (q.length > 1 && lab.toLowerCase().indexOf(ql) > -1 && !out.some(function (o) { return o.m === m; })) out.push({ m: m, label: 'Chart ' + lab, hint: 'metric', fn: function () { S.m = S.m.indexOf(m) > -1 ? S.m : [m].concat(S.m).slice(0, 3); go('chart'); } }); });
       }
-      return out.slice(0, 6);
+      // ⌘K "search inside filings" (Q-01): the words go to the Search page, scoped to the open company when there is one
+      out = out.slice(0, 5);
+      if (q.trim().length > 2) out.push({ label: 'Search inside filings for “' + q.trim() + '”', hint: S.cik ? 'this company’s 10-K, prospectus and 8-K sections' : '10-K, prospectus and 8-K sections we hold', fn: function () { location.href = '/search/?q=' + encodeURIComponent(q.trim()) + (S.cik ? '&cik=' + parseInt(S.cik, 10) : ''); } });
+      return out;
     }
     function search(q) {
       items = local(q); sel = 0; render();
