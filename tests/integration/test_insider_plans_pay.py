@@ -351,5 +351,8 @@ def test_form144_load_skips_a_failed_fetch_and_goes_on(db, ingested_aapl):
                 raise SecUnavailable("SEC endpoint returned 504 after retries", 504, url)
             return SimpleNamespace(data=NOTICE)
 
-    stats = form144.load(db, Client(), date(2026, 11, 1))
+    # D-12b: a back history read in date ranges; a range that ends before both reads nothing
+    assert form144.load(db, Client(), date(2026, 11, 1), write=False,
+                        until=date(2026, 11, 19))["filings"] == 0  # fmt: skip
+    stats = form144.load(db, Client(), date(2026, 11, 1), until=date(2026, 11, 20))
     assert (stats["stored"], stats["failed"]) == (1, 1)  # the next run picks up the failed one

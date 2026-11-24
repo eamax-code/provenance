@@ -289,6 +289,7 @@ def load(
     write: bool = True,
     limit: int | None = None,
     only: list[str] | None = None,
+    until: date | None = None,
 ) -> dict:
     """Read every Form 144 filed since `since` that is not stored yet (cached documents cost no
     request). With write False nothing is stored and the parsed rows are returned for review."""
@@ -298,6 +299,8 @@ def load(
     q = select(Filing).where(Filing.form_type.in_(["144", "144/A"]), Filing.filing_date >= since)
     if only:
         q = q.where(Filing.accession_number.in_(only))
+    if until:  # D-12b: a back history read in date ranges, one process each
+        q = q.where(Filing.filing_date <= until)
     filings, seen = [], set(have)
     for f in db.scalars(q.order_by(Filing.filing_date.desc(), Filing.cik)):
         if f.accession_number not in seen:  # a notice is listed under the issuer and the filer

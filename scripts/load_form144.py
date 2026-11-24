@@ -4,6 +4,7 @@ insider-plans.md).
 
   python scripts/load_form144.py --since 2025-11-24 --dry-run     # parse, store nothing
   python scripts/load_form144.py --since 2025-11-24               # store, then emit events
+  python scripts/load_form144.py --since 2023-04-01 --until 2024-08-31 --dry-run --out rows.jsonl
 
 Reads each notice's raw XML (the Archives copy; cached documents cost no request), stores the
 fields as given and emits sec.proposed_sale events (backfill never alerts; ADR 0004). The Form 4
@@ -27,12 +28,19 @@ def main() -> int:
     ap.add_argument("--since", required=True, type=date.fromisoformat)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--until", type=date.fromisoformat, default=None, help="last filing date")
+    ap.add_argument("--out", default=None, help="with --dry-run: write the parsed rows here")
     args = ap.parse_args()
     settings, Session = bootstrap()
     db = Session()
     sec = SecClient(settings)
-    stats = form144.load(db, sec, args.since, write=not args.dry_run, limit=args.limit)
+    stats = form144.load(db, sec, args.since, write=not args.dry_run, limit=args.limit,
+                         until=args.until)  # fmt: skip
     rows = stats.pop("rows") or []
+    if args.dry_run and args.out:
+        with open(args.out, "w") as f:
+            for r in rows:
+                f.write(json.dumps(r, default=str) + "\n")
     print(json.dumps({**stats, "parsed": len(rows) if args.dry_run else stats["stored"]}),
           flush=True)  # fmt: skip
     if not args.dry_run:
