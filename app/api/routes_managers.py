@@ -84,10 +84,11 @@ def fund_activity(
         "price moves are not read as buying or selling.",
     ]
     if left_out:
-        notes.append(f"{left_out} companies are left out: their managers' total shares more than "
-                     "doubled or fell by more than half (a merger, takeover, listing, "
+        named = "; ".join(f"{x['name']} ({x['reason']})" for x in left_out[:5])
+        notes.append(f"{len(left_out)} companies are left out: their managers' total shares more "
+                     "than doubled or fell by more than half (a merger, takeover, listing, "
                      "reorganisation, stock split or a change of security), which is not funds "
-                     "buying or selling.")  # fmt: skip
+                     f"buying or selling. The most widely held of them: {named}.")  # fmt: skip
     return {"quarter": q, "previous_quarter": thirteenf.previous_quarter(q),
             "direction": direction, "value_basis": "usd", "reporting_lag": fm.LAG, "data": rows,
             "labels": {"disclaimer": fm.DISCLAIMER}, "notes": notes}  # fmt: skip
@@ -112,8 +113,8 @@ def manager_portfolio(
     if filed is None:
         raise APIError(404, "manager_not_found", "No Form 13F of this CIK is stored.")
     q = _quarter(db, quarter, as_of)
-    p = fm.portfolio(db, cik, q, as_of)
-    if p is None:
+    cached, hist = fm.cached_view(db, cik, q, as_of)
+    if cached is None:
         notice = db.scalar(select(Filing13F.accession_number).where(
             Filing13F.filer_cik == cik, Filing13F.report_period == q,
             Filing13F.form_type.in_(("13F-NT", "13F-NT/A"))))  # fmt: skip
@@ -121,8 +122,9 @@ def manager_portfolio(
                "manager." if notice else "")  # fmt: skip
         raise APIError(404, "not_found", f"No Form 13F holdings of this manager for "
                        f"{q.isoformat()}.{why}")  # fmt: skip
-    notes = list(p.pop("notes"))
-    positions = p.pop("positions")
+    p = {k: v for k, v in cached.items() if k not in ("notes", "positions")}
+    notes = list(cached["notes"])
+    positions = list(cached["positions"])  # sorted here, never in the cache
     if sort == "value":
         positions.sort(key=lambda x: (p["filing"]["value_scale_suspect"], -x["value_usd"]))
     elif sort == "change":  # the absolute share change at this quarter's price per share
@@ -133,11 +135,10 @@ def manager_portfolio(
     if _demo(request, db, settings) is not None and limit > DEMO_ROWS:
         limit, offset = DEMO_ROWS, 0
         notes.append(f"The demo key shows at most {DEMO_ROWS} positions.")
-    page, more = positions[offset : offset + limit], len(positions) > offset + limit
-    for x in page:
-        x.pop("key", None)
+    page = [{k: v for k, v in x.items() if k != "key"} for x in positions[offset : offset + limit]]
+    more = len(positions) > offset + limit
     return {**p, "value_basis": "usd", "reporting_lag": fm.LAG, "positions": page,
-            "history": fm.history(db, cik, as_of), "coverage": fm.coverage(db),
+            "history": hist, "coverage": fm.coverage(db),
             "meta": {"limit": limit, "offset": offset, "has_more": more,
                      "next_offset": offset + limit if more else None},
             "labels": {"disclaimer": fm.DISCLAIMER}, "notes": notes}  # fmt: skip

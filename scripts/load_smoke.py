@@ -38,6 +38,7 @@ TARGET_P95_MS = {
     "comment letters": 500,
     "filing search": 500,
     "insider screen": 500,
+    "managers": 500,
 }
 # the palette's names (ui's check, 2026-11-24) and the read set of 10-K changes
 TERMS = (
@@ -75,6 +76,15 @@ INSIDER_SCREENS = (
     "type=sell&since=2025-11-23&until=2026-11-24&plan_10b5_1=false&min_value=5000000&sort=value",
     "role=director&since=2026-10-25&until=2026-11-24&sort=filed",
     "cik=320193&since=2025-11-23&until=2026-11-24",
+)  # fmt: skip
+# Q-02: manager search, a small and a 5,500-position portfolio (both sorts) and the activity list
+MANAGER_SHAPES = (
+    "/v1/managers?q=berkshire",
+    "/v1/managers/1067983",
+    "/v1/managers/2012383?sort=value",
+    "/v1/managers/2012383?sort=change",
+    "/v1/managers/activity?direction=bought",
+    "/v1/managers/activity?direction=sold",
 )  # fmt: skip
 SHOWCASE_PAGES = ("overview", "statements/income", "timeline", "insiders", "holders", "ownership")
 
@@ -115,6 +125,7 @@ def requests_for(
         ("calendar ciks", "GET", "/v1/calendar?ciks=320193,789019,19617,1067983,1326801", None),
         ("corporate tree", "GET", f"/v1/companies/{cik}/corporate-tree", None),
         ("comment letters", "GET", f"/v1/companies/{cik}/comment-letters", None),
+        ("managers", "GET", MANAGER_SHAPES[i % 6], None),
         ("insider screen", "GET", f"/v1/insider-transactions?{INSIDER_SCREENS[i % 7]}", None),
         ("filing search", "GET", f"/v1/search/filings?q={FILING_QUERIES[i % 15]}"
                                  f"&sort={('date', 'relevance')[i // 15 % 2]}", None),

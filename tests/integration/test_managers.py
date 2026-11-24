@@ -154,6 +154,7 @@ def test_activity_ranks_net_managers_and_leaves_out_jumps(client, auth, db, fund
     assert "0000320193" in rows and rows["0001045810"]["split_adjusted"] is True
     # Coca-Cola: every holder left (shares fell by more than half): left out, with a note
     assert "0000021344" not in rows and any("left out" in n for n in body["notes"])
+    assert any("Coca Cola Co (no longer held)" in n for n in body["notes"]), body["notes"]
     sold = _get(client, auth, "/v1/managers/activity", quarter="2024-06-30", direction="sold",
                 min_holders=1).json()["data"]  # fmt: skip
     nets = [r["net_managers"] for r in sold]
@@ -212,3 +213,20 @@ def test_the_manager_page_route_takes_digits_only(client, tmp_path, monkeypatch)
     assert js.status_code == 200 and js.text == "// page script"
     css = client.get("/managers/managers.css")
     assert css.status_code == 200 and "text/css" in css.headers["content-type"]
+
+
+def test_a_cached_view_is_never_changed_by_a_request(client, auth, db, funds):
+    """The portfolio is cached per process; sorting and paging must not alter the cache."""
+    a = _get(client, auth, f"/v1/managers/{M1}", quarter="2024-06-30", sort="name").json()
+    (cached,) = [v[1] for v in fm._views.values()]
+    before = [x["key"] for x in cached["positions"]]
+    b = _get(client, auth, f"/v1/managers/{M1}", quarter="2024-06-30", sort="value",
+             limit=1).json()  # fmt: skip
+    assert [x.get("key") for x in cached["positions"]] == before  # unsorted, keys kept
+    c = _get(client, auth, f"/v1/managers/{M1}", quarter="2024-06-30", sort="name").json()
+    assert a == c and len(b["positions"]) == 1 and "key" not in b["positions"][0]
+    # a load bumps the holdings version: the next request reads again
+    thirteenf.bump_holdings_version(db)
+    db.commit()
+    d = _get(client, auth, f"/v1/managers/{M1}", quarter="2024-06-30", sort="name").json()
+    assert d == a

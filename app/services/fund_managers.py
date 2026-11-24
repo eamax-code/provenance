@@ -129,8 +129,23 @@ def build_stats(db: Session, period: date, write: bool = True) -> dict:
         for rows, table in ((stats, ThirteenFSecurityStat), (scale, ThirteenFFilingScale)):
             for i in range(0, len(rows), 20_000):
                 db.execute(insert(table), rows[i : i + 20_000])
+        _bump_stats_version(db)
         db.commit()
     return out
+
+
+STATS_VERSION_KEY = "thirteenf:stats_version"
+
+
+def _bump_stats_version(db: Session) -> None:
+    from app.db.models import JobState, utcnow
+
+    row = db.get(JobState, STATS_VERSION_KEY)
+    now = utcnow()
+    if row is None:
+        db.add(JobState(name=STATS_VERSION_KEY, value=now.isoformat(), updated_at=now))
+    else:
+        row.value, row.updated_at = now.isoformat(), now
 
 
 def keymap(db: Session) -> dict[str, tuple[str, str]]:
@@ -233,6 +248,7 @@ def build_activity(db: Session, period: date, write: bool = True) -> dict:
         db.execute(delete(ThirteenFActivity).where(ThirteenFActivity.report_period == period))
         for i in range(0, len(rows), 20_000):
             db.execute(insert(ThirteenFActivity), rows[i : i + 20_000])
+        _bump_stats_version(db)
         db.commit()
     return out
 
@@ -337,6 +353,35 @@ def _ciks(db: Session) -> dict[str, str]:
 def reset_cache() -> None:
     global _cik_map
     _cik_map = None
+    _views.clear()
+
+
+_views: dict[tuple, tuple[float, dict, list]] = {}
+VIEW_TTL = 600
+VIEW_MAX = 64
+
+
+def cached_view(db: Session, cik: str, quarter: date, as_of: date | None):
+    """(portfolio, history) for a manager and quarter, cached per process: a 5,500-position
+    manager took about 430 ms a request (R-2, 24 Nov). Keyed on the 13F holdings version every
+    load bumps and the stats version the batch bumps; never longer than VIEW_TTL. The caller
+    must not change what it gets back."""
+    import time
+
+    from app.db.models import JobState
+
+    stats_version = db.scalar(select(JobState.value).where(JobState.name == STATS_VERSION_KEY))
+    version = (thirteenf._holdings_version(db), stats_version)
+    key = (cik, quarter, as_of, version)
+    hit = _views.get(key)
+    if hit and time.monotonic() - hit[0] < VIEW_TTL:
+        return hit[1], hit[2]
+    p = portfolio(db, cik, quarter, as_of)
+    h = history(db, cik, as_of) if p is not None else []
+    if len(_views) >= VIEW_MAX:
+        _views.pop(next(iter(_views)))
+    _views[key] = (time.monotonic(), p, h)
+    return p, h
 
 
 def _grouped(db: Session, pos: dict[str, dict], period: date,
@@ -564,13 +609,15 @@ def structural(r) -> bool:
 
 
 def activity(db: Session, quarter: date, direction: str, min_holders: int, limit: int,
-             allowed: set[str] | None = None) -> tuple[list[dict], int]:  # fmt: skip
-    """The ranked list and how many possible splits were left out."""
+             allowed: set[str] | None = None) -> tuple[list[dict], list[dict]]:  # fmt: skip
+    """The ranked list, and the companies left out (possible splits, and managers' shares
+    doubled or halved), largest holder counts first."""
     from app.db.models import Company, ThirteenFActivity
 
     rows = list(db.scalars(select(ThirteenFActivity).where(
         ThirteenFActivity.report_period == quarter)))  # fmt: skip
-    left_out = sum(1 for r in rows if r.possible_split or structural(r))
+    out_rows = sorted((r for r in rows if r.possible_split or structural(r)),
+                      key=lambda r: -max(r.holders, r.holders_previous))  # fmt: skip
     rows = [r for r in rows if not r.possible_split and not structural(r)
             and max(r.holders, r.holders_previous) >= min_holders
             and (allowed is None or r.issuer_cik in allowed)]  # fmt: skip
@@ -585,6 +632,17 @@ def activity(db: Session, quarter: date, direction: str, min_holders: int, limit
 
     names = {c.cik: c for c in db.scalars(select(Company).where(
         Company.cik.in_([r.issuer_cik for r in rows])))}  # fmt: skip
+    left = []
+    lnames = {c.cik: c for c in db.scalars(select(Company).where(
+        Company.cik.in_([r.issuer_cik for r in out_rows[:5]])))}  # fmt: skip
+    for r in out_rows:
+        c = lnames.get(r.issuer_cik)
+        why = ("possible stock split" if r.possible_split else
+               "no longer held" if r.shares <= 0 else
+               "first widely held" if r.shares_previous <= 0 or r.holders_previous < 5 else
+               "shares doubled" if r.shares > r.shares_previous else "shares halved")  # fmt: skip
+        left.append({"name": display_name(c.legal_name, c.ticker, c.registrant_name) if c
+                     else r.issuer_cik, "reason": why})  # fmt: skip
     out = []
     for r in rows:
         c = names.get(r.issuer_cik)
@@ -598,4 +656,4 @@ def activity(db: Session, quarter: date, direction: str, min_holders: int, limit
                     "shares": r.shares, "shares_previous": r.shares_previous,
                     "shares_change_pct": round(pct(r), 2) if r.shares_previous else None,
                     "split_adjusted": bool(r.split), "split": r.split})  # fmt: skip
-    return out, left_out
+    return out, left
