@@ -220,6 +220,8 @@
     if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'people') peopleTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
   }
   // dividends (Q-04): a shared module, loaded only when a view shows them
+  // a lazy script, loaded once: lz('/app/x.js', 'globalName') resolves with window[globalName]
+  var lzP = {}; function lz(src, g) { return lzP[src] || (lzP[src] = new Promise(function (ok, no) { if (window[g]) return ok(window[g]); var sc = document.createElement('script'); sc.src = src; sc.onload = function () { window[g] ? ok(window[g]) : no(); }; sc.onerror = function () { delete lzP[src]; no(); }; document.head.appendChild(sc); })); }
   var acP; function ac() { return acP || (acP = new Promise(function (ok, no) { if (window.prvActivists) return ok(window.prvActivists); var sc = document.createElement('script'); sc.src = '/app/activists.js'; sc.onload = function () { window.prvActivists ? ok(window.prvActivists) : no(); }; sc.onerror = function () { acP = null; no(); }; document.head.appendChild(sc); })); }
   var dvP; function dv() { return dvP || (dvP = new Promise(function (ok, no) { if (window.prvDividends) return ok(window.prvDividends); var sc = document.createElement('script'); sc.src = '/app/dividends.js'; sc.onload = function () { window.prvDividends ? ok(window.prvDividends) : no(); }; sc.onerror = function () { dvP = null; no(); }; document.head.appendChild(sc); })); }
   function keyNeeded(p) {
@@ -830,6 +832,20 @@
       keep(); ro.observe(pane); ev.forEach(function (e) { addEventListener(e, stop, true); }); setTimeout(stop, 4000);
     };
     actDraw(false);
+    // Q-06 fails to deliver: a lazy module, after the activist stakes; 3 and 6 months come from the API's default 180
+    // days to the latest settlement date, 1 year asks for the 365 days before that date
+    var ftdHead = el('div', { class: 'ov-h' }, [el('h3', { id: 'ftd-h', text: 'Fails to deliver (SEC)' })]);
+    var ftd = el('section', { id: 'ftd', class: 'ws-sec', 'aria-labelledby': 'ftd-h' }, [ftdHead, el('p', { class: 'muted', text: 'Loading…' })]);
+    pane.appendChild(ftd);
+    var ftdLast = null, ftdDraw = function (range) {
+      var since = range === '1y' && ftdLast ? new Date(Date.parse(ftdLast) - 365 * 864e5).toISOString().slice(0, 10) : null;
+      lz('/app/ftd.js', 'prvFtd').then(function (F) { return F.load(cik, { since: since, asOf: S.as_of }).then(function (r) {
+        if (S.tab !== 'ownership' || S.cik !== cik) return;
+        var rows = [].concat.apply([], ((r.b || {}).data || []).map(function (g) { return g.rows || []; })), d = rows.map(function (x) { return x.settlement_date; }).sort().pop(); if (d) ftdLast = d;
+        F.block(ftd, r, { head: ftdHead, range: range, onRange: ftdDraw, asOf: S.as_of });
+      }); }).catch(function () { ftd.hidden = true; });
+    };
+    ftdDraw('3m');
     if (d.ownership) companyLower().then(function (L) {
       if (!L || S.tab !== 'ownership') return;
       window.CompanyPage.cur = cur; L.ownership(d); var more = $('own-more'); if (more) more.hidden = true;
