@@ -506,6 +506,40 @@ class IssuerCusip(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class FailsToDeliver(Base):
+    """Q-06: the SEC's fails-to-deliver, one row per CUSIP and settlement date, for CUSIPs mapped
+    to a company here (issuer_cusips; the CUSIP is never returned). quantity: the aggregate net
+    balance of shares failed to deliver outstanding in NSCC's CNS on that date, as published;
+    price: the previous day's close as filed (null for ".")."""
+
+    __tablename__ = "fails_to_deliver"
+    __table_args__ = (Index("ix_fails_to_deliver_cik_date", "cik", "settlement_date"),)
+
+    cusip: Mapped[str] = mapped_column(String(9), primary_key=True)
+    settlement_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    symbol: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    quantity: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    price: Mapped[Decimal | None] = mapped_column(Numeric(24, 6), nullable=True)
+    source_file: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class FtdFile(Base):
+    """Q-06: each SEC fails-to-deliver file loaded: its publication date (the file's
+    Last-Modified at the SEC; as_of filters on it), its rows and how many matched a company."""
+
+    __tablename__ = "ftd_files"
+
+    name: Mapped[str] = mapped_column(Text, primary_key=True)  # cnsfails202610b.zip
+    published: Mapped[date] = mapped_column(Date, nullable=False)
+    first_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    rows: Mapped[int] = mapped_column(Integer, nullable=False)
+    matched: Mapped[int] = mapped_column(Integer, nullable=False)
+    loaded_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class Filing13F(Base):
     """One Form 13F filing by an institutional investment manager (E-1), from the SEC's Form
     13F data sets or EDGAR. The manager's address is not stored."""

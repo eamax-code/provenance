@@ -1,6 +1,6 @@
 # Q-06 Fails-to-deliver (SEC, per company)
 
-Status: **contract** (2026-11-25), for ui. The UI sketch is PM-approved: an Ownership-tab section,
+Status: **built** (2026-11-25), for ui. The UI sketch is PM-approved: an Ownership-tab section,
 a table and chart per settlement date, one sub-table per symbol and share class.
 
 The SEC publishes, twice a month, the fails-to-deliver recorded at NSCC for every equity
@@ -90,8 +90,9 @@ necessarily the result of short selling, and are not evidence of abusive short s
   as titled where the CUSIP is mapped (`issuer_cusips.class_title`), else `null`. `description` is
   the file's company name, as filed.
 - **`source.file`** names the SEC file as text, with no link: it is not an EDGAR Archives document.
-  `source.published` is the date we first saw the file. `as_of` filters on it, so a settlement date
-  is known only from its file's publication.
+  `source.published` is the file's publication date: its Last-Modified date at the SEC (the date we
+  first read it when the SEC gives none). `as_of` filters on it, so a settlement date is known only
+  from its file's publication.
 
 ## Errors and access
 
