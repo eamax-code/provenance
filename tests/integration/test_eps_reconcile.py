@@ -162,9 +162,12 @@ def test_the_other_filings_name_the_one_figure_off(db):
     assert set(found) == {(B, "eps_diluted"), (B, "shares_diluted_weighted"), (C, "net_income")}
     assert found[(B, "eps_diluted")]["factor"] == 1000.0
     assert found[(C, "net_income")]["factor"] == 0.001
-    assert "about 1,000 times" in eps_reconcile.scale_note(found[(B, "eps_diluted")])
-    note = eps_reconcile.scale_note(found[(C, "net_income")])
-    assert "about 1/1,000 of" in note and "10-K filed 2027-03-01" in note
+    assert "1,000 times too large" in eps_reconcile.scale_note(found[(B, "eps_diluted")])
+    note = eps_reconcile.scale_note(
+        found[(C, "net_income")], {"form": "10-K", "filed_date": date(2027, 3, 1)}
+    )
+    assert "1,000 times too small" in note and "the 10-K of 2027-03-01" in note
+    assert found[(C, "net_income")]["other"]["filed_date"] == date(2027, 3, 1)
 
 
 def test_a_lone_wrong_comparison_or_two_possible_fixes_flag_nothing(db):
@@ -206,8 +209,26 @@ def test_flagged_figures_show_as_filed_with_notes_and_derived_cells_blank(client
     # 2024: the only 2024 net income in hand besides C's is D's, which is right and wins
     assert rows["net_income"]["FY2024"]["value"] == 52_224_000
     assert rows["net_margin"]["FY2024"]["value"] is not None
-    # 2022: A's right EPS wins over B's flagged one
-    assert rows["eps_diluted"]["FY2022"]["value"] == 1.57
+    # 2022: A's right EPS wins over B's flagged one, cites A, and says what happened
+    eps = rows["eps_diluted"]["FY2022"]
+    assert eps["value"] == 1.57 and eps["accession_number"] == A
+    assert eps["quality_note"] == (
+        "The figure as filed in the 10-K of 2025-03-01 (1,570) looks to be about 1,000 times too "
+        "large; shown as reported in the 10-K of 2024-03-01."
+    )
+    # no look-ahead: on 2026-06-01 only C's 2024 net income (in thousands) had been filed
+    early = client.get(f"/v1/companies/{CO2}/statements/income?period=annual&as_of=2026-06-01",
+                       headers=auth).json()  # fmt: skip
+    ni = next(r for r in early["rows"] if r["metric"] == "net_income")
+    cell = next(c for c in ni["cells"] if c and c["column"] == "FY2024")
+    assert cell["value"] is None and "no agreeing filing had been filed" in cell["quality_note"]
+    assert "1,000 times too small" in cell["quality_note"]
+    # nor does a figure filed after the date asked leave a note (B's 1,570 came in 2025)
+    then = client.get(f"/v1/companies/{CO2}/statements/income?period=annual&as_of=2024-06-01",
+                      headers=auth).json()  # fmt: skip
+    e22 = next(c for r in then["rows"] if r["metric"] == "eps_diluted"
+               for c in r["cells"] if c and c["column"] == "FY2022")  # fmt: skip
+    assert e22["value"] == 1.57 and e22["quality_note"] is None
 
 
 def test_the_company_ingest_runs_the_check(db, sec_client, fake_sec, facts_aapl, monkeypatch):

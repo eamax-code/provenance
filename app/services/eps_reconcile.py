@@ -50,7 +50,7 @@ def _triples(db: Session, ciks: list[str] | None):
                          else_=PAIRS["eps_basic"])  # fmt: skip
     q = (select(e.id, e.cik, e.accession_number, e.metric, e.period_start, e.period_end,
                 e.unit, e.value, e.quality_status, n.id, n.value, n.unit, n.quality_status,
-                sh.id, sh.metric, sh.value, sh.quality_status)
+                sh.id, sh.metric, sh.value, sh.quality_status, e.form_type, e.filed_date)
          .join(n, and_(same(n), n.metric == "net_income", n.value != 0))
          .join(sh, and_(same(sh), sh.metric == shares_metric, sh.value > 0))
          .where(e.metric.in_(tuple(PAIRS)), e.value != 0,
@@ -73,7 +73,7 @@ def find(db: Session, ciks: list[str] | None = None) -> list[dict]:
     """Every EPS observation about 100 times its same-filing net income over weighted shares."""
     out = []
     for (fid, cik, acc, metric, _start, end, _unit, eps, status, _nid, ni, _nu, _ns, shares_id,
-         _sm, shares, _ss) in _triples(db, ciks):  # fmt: skip
+         _sm, shares, _ss, _form, _filed) in _triples(db, ciks):  # fmt: skip
         ratio = _ratio(float(eps), float(ni), float(shares))
         if not cents_as_units(ratio):
             continue
@@ -107,7 +107,7 @@ def find_off(db: Session, ciks: list[str] | None = None) -> list[dict]:
     out, seen = [], set()
     for t in _triples(db, ciks):
         (eid, cik, acc, metric, start, end, unit, eps, es, nid, ni, nu, ns, sid, sm, shares,
-         ss) = t  # fmt: skip
+         ss, form, filed) = t  # fmt: skip
         vals = {"eps": float(eps), "net_income": float(ni), "shares": float(shares)}
         if not (_near(_ratio(**vals), 1000.0) or _near(_ratio(**vals), 0.01)):
             continue
@@ -127,7 +127,8 @@ def find_off(db: Session, ciks: list[str] | None = None) -> list[dict]:
             if abs(_ratio(**tried) - 1) <= BAND:
                 factor = next(k for k in _SCALES if _near(v / float(other[0]), k))
                 fixes.append({"id": fid, "cik": cik, "accession_number": acc, "metric": m,
-                              "period_end": end, "value": v, "factor": factor,
+                              "period_start": start, "period_end": end, "value": v,
+                              "factor": factor, "form": form, "filed_date": filed,
                               "other": {"value": float(other[0]), "form": other[1],
                                         "filed_date": other[2], "accession_number": other[3],
                                         "source_url": other[4]},
@@ -138,24 +139,30 @@ def find_off(db: Session, ciks: list[str] | None = None) -> list[dict]:
     return out
 
 
-_DIRECTION = {
-    1000.0: ("about 1,000 times", "probably reported in thousands without the scale"),
-    100.0: ("about 100 times", "probably in cents or pence tagged as the main unit"),
-    0.001: ("about 1/1,000 of", "probably reported in thousands"),
-    0.01: ("about 1/100 of", "probably reported in hundreds or as cents"),
+_TOO = {
+    1000.0: "1,000 times too large",
+    100.0: "100 times too large",
+    0.001: "1,000 times too small",
+    0.01: "100 times too small",
 }
 
 
-def scale_note(f: dict) -> str:
-    """The cell note for a figure off by a scale, in its direction, citing a filing it was
-    compared with."""
-    size, why = _DIRECTION[f["factor"]]
-    o = f["other"]
-    when = getattr(o["filed_date"], "isoformat", lambda: str(o["filed_date"]))()
+def _day(d) -> str:
+    return getattr(d, "isoformat", lambda: str(d))()
+
+
+def scale_note(f: dict, shown: dict | None = None) -> str:
+    """The cell note for a figure off by a scale (S-06b), in its direction. `shown`: the agreeing
+    filing whose figure the cell shows instead ({form, filed_date}); None when no agreeing
+    filing was filed by the date asked, and the cell is blank."""
+    v = f"{f['value']:,.4f}".rstrip("0").rstrip(".")
+    head = (f"The figure as filed in the {f['form']} of {_day(f['filed_date'])} ({v}) looks to be "
+            f"about {_TOO[f['factor']]}")  # fmt: skip
+    if shown is not None:
+        return f"{head}; shown as reported in the {shown['form']} of {_day(shown['filed_date'])}."
     return (
-        f"As filed, this figure is {size} the same figure in the company's {o['form']} filed "
-        f"{when} ({why}); with that filing's figure the EPS reconciles. Shown as filed; left "
-        "out of ratios, growth and screens."
+        f"{head} (other filings for the period disagree with it by that scale); no agreeing "
+        "filing had been filed by the date asked, so no figure is shown."
     )
 
 

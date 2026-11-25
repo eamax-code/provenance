@@ -723,20 +723,41 @@ def statement(
     # S-06: EPS that does not reconcile with the same filing's net income over weighted shares:
     # shown as filed, with a note on it and on the shares cell it was checked against
     recon: dict = {}
-    if any(f.quality_status in eps_reconcile.STATUSES for f in by_key.values()):
-        flagged_ciks = sorted({f.cik for f in by_key.values()})
+    off_by_period: dict = {}  # S-06b: (metric, start, end) -> flagged figures, latest first
+    flagged_ciks = sorted({f.cik for f in by_key.values()})
+    if flagged_ciks and db.scalar(select(FinancialFact.id).where(
+            FinancialFact.cik.in_(flagged_ciks),
+            FinancialFact.quality_status.in_(eps_reconcile.STATUSES)).limit(1)):  # fmt: skip
         for x in eps_reconcile.find(db, flagged_ciks):
             n = eps_reconcile.NOTE
             recon[(x["accession_number"], x["metric"], x["period_end"])] = n
             recon[(x["accession_number"], eps_reconcile.PAIRS[x["metric"]], x["period_end"])] = n
-        for x in eps_reconcile.find_off(db, flagged_ciks):  # S-06b: the one figure off
-            recon.setdefault((x["accession_number"], x["metric"], x["period_end"]),
-                             eps_reconcile.scale_note(x))  # fmt: skip
+        for x in eps_reconcile.find_off(db, flagged_ciks):
+            if as_of is None or x["filed_date"] is None or x["filed_date"] <= as_of:
+                off_by_period.setdefault((x["metric"], x["period_start"], x["period_end"]),
+                                         []).append(x)  # fmt: skip
+
+    def s06b(f: FactOut) -> tuple[bool, str | None]:
+        """(blank, note): the cell shows another filing's agreeing figure in place of a later
+        one off by a scale; or the figure shown is itself off and none agreeing was filed by the
+        date asked, and the cell is blank (no look-ahead)."""
+        for x in off_by_period.get((f.metric, f.period_start, f.period_end), []):
+            if x["accession_number"] == f.accession_number:
+                return True, eps_reconcile.scale_note(x)
+        later = [x for x in off_by_period.get((f.metric, f.period_start, f.period_end), [])
+                 if f.filed_date is None or (x["filed_date"] and x["filed_date"] >= f.filed_date)]
+        if later:
+            x = max(later, key=lambda x: x["filed_date"])
+            return False, eps_reconcile.scale_note(
+                x, {"form": f.form_type, "filed_date": f.filed_date})
+        return False, None
 
     def cell(f: FactOut, end) -> StatementCell:
         own = statements_service.registrant(f, cik)
+        blank, scale = s06b(f)
         return StatementCell(
-            column=keys[end], value=float(f.value) if f.value is not None else None,
+            column=keys[end],
+            value=None if blank or f.value is None else float(f.value),
             unit=f.unit, period_start=f.period_start,
             period_end=f.period_end, form_type=f.form_type, filed_date=f.filed_date,
             accession_number=f.accession_number, source_url=f.source_url, source_tag=f.source_tag,
@@ -744,7 +765,7 @@ def statement(
             quality_status=f.quality_status, derived=f.derived, derivation=f.derivation,
             registrant_cik=own["registrant_cik"], predecessor=own["predecessor"],
             registrant_label=own.get("registrant_label"),
-            quality_note=recon.get((f.accession_number, f.metric, f.period_end)),
+            quality_note=scale or recon.get((f.accession_number, f.metric, f.period_end)),
         )  # fmt: skip
 
     rows = []
