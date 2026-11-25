@@ -28,7 +28,7 @@ from app.db.models import (
     utcnow,
 )
 from app.db.models import Filing as FilingRow
-from app.services import eps_reconcile, events, ipo_pipeline, notifications
+from app.services import eps_reconcile, events, filing_conflicts, ipo_pipeline, notifications
 from app.services.fact_normalizer import (
     DIVIDEND_CONCEPTS,
     NormalizedFact,
@@ -818,6 +818,7 @@ def _ingest_company(
                                             _statement_context(db, cik))  # fmt: skip
             fi, fu = upsert_facts(db, cik, facts, now)
             eps_reconcile.apply(db, [cik])  # S-06: EPS that does not add up, flagged as filed
+            filing_conflicts.apply(db, [cik])  # M-01: IFRS beside US GAAP in one filing
             # Q-04: dividends per share from the same payload, in the same transaction
             dps = normalize_company_facts(facts_resp.data, cik, www_base,
                                           concepts=DIVIDEND_CONCEPTS)  # fmt: skip

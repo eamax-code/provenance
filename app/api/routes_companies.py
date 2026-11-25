@@ -740,12 +740,22 @@ def statement(
 
         spans_q = sorted({(x[0], x[1], x[3]) for xs in fiscal_years.transitions(
             db, ciks, as_of).values() for x in xs})  # fmt: skip
-        if spans_q:
-            for end in sorted({e for _, e in by_key}):
-                t = next((t for t in spans_q if t[0] < end <= t[1] + timedelta(days=7)), None)
-                if t:
-                    n = max(1, round((end - t[0]).days / 91.3))
-                    quarter_in[end] = (f"Transition Q{n} (ended {end.isoformat()})", t[2])
+        # its quarters run in sequence from its first day, each starting the day after the last
+        # ended; any other quarter inside it is a later report's recast calendar quarter
+        # (Pandora's quarters to March, June and September 2013 beside its transition's to
+        # April, July and October) and keeps its own label
+        qs = sorted({(f.period_start, e) for (_, e), f in by_key.items() if f.period_start})
+        week = timedelta(days=7)
+        for t0, t1, form in spans_q:
+            cur, n = t0, 0
+            while True:
+                nxt = [e for s, e in qs if abs((s - cur).days) <= week.days
+                       and max(t0, cur) < e <= t1 + week]  # fmt: skip
+                if not nxt:
+                    break
+                n, end = n + 1, min(nxt)
+                quarter_in[end] = (f"Transition Q{n} (ended {end.isoformat()})", form)
+                cur = end + timedelta(days=1)
     ends = sorted({end for _, end in by_key})[-n_cols:]
     for (m, dated), f in sorted(cover.items(), key=lambda kv: kv[0][1]):
         home = [e for e in ends if e <= dated and (dated - e).days <= 120]
@@ -818,9 +828,24 @@ def statement(
                 x, {"form": f.form_type, "filed_date": f.filed_date})
         return False, None
 
+    # M-01: a filing reporting two figures for one period (IFRS beside US GAAP) that the
+    # company's other filings back neither of: no figure is shown, with a note
+    m01: set = set()
+    if any(f.quality_status == "ambiguous_mapping" for f in by_key.values()):
+        from app.services import filing_conflicts
+
+        m01 = {(c["accession_number"], c["metric"], c["period_start"], c["period_end"])
+               for c in filing_conflicts.find(db, flagged_ciks, filing_conflicts.STATUSES)
+               if c["none"]}  # fmt: skip
+
     def cell(f: FactOut, end) -> StatementCell:
         own = statements_service.registrant(f, cik)
         blank, scale = s06b(f)
+        if f.quality_status == "ambiguous_mapping" and (
+                f.accession_number, f.metric, f.period_start, f.period_end) in m01:  # fmt: skip
+            from app.services.filing_conflicts import NOTE as M01
+
+            blank, scale = True, M01
         return StatementCell(
             column=keys[end],
             value=None if blank or f.value is None else float(f.value),

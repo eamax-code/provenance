@@ -209,3 +209,50 @@ def test_a_reports_run_of_years_brings_old_years_and_the_transition(client, auth
                      headers=auth).json()  # fmt: skip
     assert [c["period_end"] for c in bal["columns"]] == ["2016-06-30", "2017-01-31",
                                                         "2018-01-31"]  # fmt: skip
+
+
+def test_a_predecessor_and_successor_year_is_not_a_transition(db):
+    """Frontier: December years; on emerging in 2021 its report shows a predecessor's four
+    months to April 30 and a successor's eight from May 1. The year end never changed: no
+    transition, whichever part is short."""
+    now = datetime.now(UTC)
+    cik = "0000000910"
+    db.add(Company(cik=cik, legal_name="FRONTIER", source_url="https://www.sec.gov/",
+                   first_detected_at=now, last_processed_at=now,
+                   quality_status="ok"))  # fmt: skip
+    r = "0000000910-23-000001"
+    for v, start, end, cls in [
+        (80, date(2020, 1, 1), date(2020, 12, 31), "annual"),
+        (25, date(2021, 1, 1), date(2021, 4, 30), "other"),
+        (50, date(2021, 5, 1), date(2021, 12, 31), "other"),
+        (78, date(2022, 1, 1), date(2022, 12, 31), "annual"),
+    ]:
+        f = _fact("revenue", v, start, end, cls, r, "10-K", date(2023, 2, 28))
+        f.cik = cik
+        db.add(f)
+    db.commit()
+    from app.services import fiscal_years
+
+    assert fiscal_years.transitions(db, [cik]) == {}
+
+
+def test_a_recast_calendar_quarter_is_not_a_transition_quarter(client, auth, db):
+    """Pandora-like: a 10-KT from January to September 2021 (CHANGER's) with its quarters to
+    March and June, and a later report's recast quarters, one starting before the transition
+    and one inside it but out of its sequence: neither is a transition quarter."""
+    _seed(db)
+    t, later = "0000000905-21-000009", "0000000905-22-000001"
+    for v, s, e, acc in [(31, date(2021, 1, 1), date(2021, 3, 31), t),
+                         (32, date(2021, 4, 1), date(2021, 6, 30), t),
+                         (33, date(2020, 12, 1), date(2021, 2, 28), later),
+                         (34, date(2021, 3, 1), date(2021, 5, 31), later)]:  # fmt: skip
+        db.add(_fact("revenue", v, s, e, "quarterly", acc, "10-KT" if acc == t else "10-K",
+                     date(2022, 12, 1)))  # fmt: skip
+    db.commit()
+    body = client.get(f"/v1/companies/{CIK}/statements/income?period=quarterly",
+                      headers=auth).json()  # fmt: skip
+    cols = {c["period_end"]: (c["key"], c["transition"]) for c in body["columns"]}
+    assert cols["2021-03-31"] == ("Transition Q1 (ended 2021-03-31)", True)
+    assert cols["2021-06-30"] == ("Transition Q2 (ended 2021-06-30)", True)
+    assert cols["2021-02-28"][1] is False and cols["2021-05-31"][1] is False
+    assert len({k for k, _ in cols.values()}) == len(cols)

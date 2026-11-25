@@ -85,7 +85,7 @@ def _chains(db: Session, ciks: list[str] | None) -> tuple[dict, dict]:
         # before the next starts: the 12-month ones are fiscal years, short ones transitions
         # (Cenntro's report for January 2018: a 7-month transition to January 2017, then its
         # June 2016 and 2015 years)
-        cur, short = own, None
+        cur, run, after = own, [], own
         for _ in range(12):
             prev = [p for p in periods if 0 < (cur[1] - p[2]).days <= 4 and (
                 p[0] == "annual" or SHORT[0] <= (p[2] - p[1]).days <= SHORT[1])]  # fmt: skip
@@ -94,11 +94,15 @@ def _chains(db: Session, ciks: list[str] | None) -> tuple[dict, dict]:
             cur = max(prev, key=lambda p: (p[2] - p[1]).days)
             if cur[0] == "annual":
                 found.add(cur[2])
-                if short:  # a short period between two fiscal years: a transition
-                    shorts[key[0]].append((short[1], short[2], key[1], form, filed))
-                short = None
+                # one short period between two fiscal years ending on different days: the year
+                # end changed. Two short periods, or years ending on the same day either side,
+                # are a predecessor's and successor's parts of one year (Frontier's four months
+                # to April 2021 beside eight from May; Waldencast's to July 2022), never one
+                if len(run) == 1 and not _same_day(cur[2], after[2]):
+                    shorts[key[0]].append((run[0][1], run[0][2], key[1], form, filed))
+                run, after = [], cur
             else:
-                short = cur
+                run.append(cur)
         out[key[0]].update(found)
     result = {}
     for cik, ends in out.items():
