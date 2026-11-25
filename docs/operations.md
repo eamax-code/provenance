@@ -644,6 +644,32 @@ DATABASE_URL=.../provenance_migration_drill alembic upgrade +1   # repeated, tim
 - Scratch database at the end: 91 MB. Not measured: full-size loader times on a restored copy,
   and the final database size (needs the full drill).
 
+## Q-03e: the insider screener at 2 workers (2026-11-25 16:50 IST)
+
+The screener was the one endpoint over 500 ms p95 in the 2-worker R-2 (630 ms). Step 1
+(04b9694): its lines are filtered on `NOT is_derivative`, so the partial open-market index is
+used (written `IS false` it was not: a scan of 2.8M lines); direct/indirect as min/max instead of
+`count(distinct)`, so a hash aggregate is possible (`work_mem` 32 MB for that query); a partial
+index for 4/As on `insider_filings`. Step 2: a per-process response cache
+(`app/services/response_cache.py`) keyed by every parameter and the demo scope, retired when
+the insider tables are written (the showcase cache's `pg_stat_user_tables` version, rechecked
+every 30 s) and after 10 minutes at most. Rows identical before and after on 10 shapes.
+
+Scratch server, 2 workers, a temporary key read from a file and revoked afterwards; machine
+load average 3-7 from other sessions.
+
+| Run | p50 ms | p95 ms | p99 ms |
+| --- | --- | --- | --- |
+| Insider screen only, **cold** (every request a new cache key: `insider screen cold`), 5 req/s, 120 s | 212 | 520 | 558 |
+| Insider screen only, **warm** (the 7 shapes repeated; the first call of each shape per worker is a miss), 5 req/s, 120 s | 24 | 33 | 160 |
+| The full mix, 25 req/s, 240 s (insider screen) | 15 | 477 | 640 |
+
+- Every keyed endpoint in the mix under 500 ms p95; no errors on keyed endpoints.
+- **Cold is still about 500 ms p95** under this load: the first screen of each shape after a
+  data change. The mix's p95 sits near it because some of its 200 screener requests miss
+  (first calls, and insider writes that retire the cache). Q-03f (after launch) moves the
+  aggregation into a per-Form-4 table so cold screens fit too.
+
 ## R-2 at 2 workers, before launch (2026-11-25 15:41 IST)
 
 `scripts/load_smoke.py --rps 25 --seconds 240` against a scratch server on HEAD 348da86 with **2

@@ -18,7 +18,9 @@ from app.services import insider_screener as scr
 from app.services import insiders
 from app.services.notes import detail, dev
 from app.services.public import showcase_ciks
+from app.services.response_cache import VersionedCache
 
+CACHE = VersionedCache("/v1/insider-transactions")  # Q-03e
 router = APIRouter(tags=["connections"])  # beside each company's insider-transactions
 DEMO_ROWS = 10
 
@@ -92,7 +94,6 @@ def insider_screener(
         raise APIError(422, "invalid_parameter", "cluster=true covers purchases only.")
     cik = _parse_cik_param(cik) if cik else None
     owner_cik = _parse_cik_param(owner_cik) if owner_cik else None
-    notes: list[str] = []
     allowed = set(showcase_ciks(db, settings)[0]) if getattr(request.state, "demo", False) else None
     if allowed is not None:
         if cik and cik not in allowed:
@@ -106,63 +107,73 @@ def insider_screener(
                    plan_purchase=False if plan_purchase is None and type == "buy"
                    else plan_purchase,
                    cluster=bool(cluster), allowed=allowed)  # fmt: skip
-    if plan_purchase is None and type == "buy":
-        notes.append("Purchases under an employee or director stock purchase plan, a plan trust "
-                     "or dividend reinvestment are left out (plan_purchase=true lists them): "
-                     "they are not open-market buys.")  # fmt: skip
-    rows, counts = scr.screen(db, s)
-    rows = scr.sort_rows(rows, sort)
-    page, more = rows[offset : offset + limit], len(rows) > offset + limit
-    scr.finish(db, page, s)
-    if allowed is not None and more:
-        more = False
-        notes.append(f"The demo key shows at most {DEMO_ROWS} rows, from the showcase "
-                     "companies; this list was trimmed.")  # fmt: skip
-    companies = {c.cik: c for c in db.scalars(
-        select(Company).where(Company.cik.in_({r["issuer_cik"] for r in page})))}  # fmt: skip
-    datasets = insiders.dataset_coverage(db)
-    # the newest Form 4 stored (the data sets, then Forms 4 read as filed for covered companies)
-    through = db.scalar(select(func.max(InsiderFiling.filing_date))
-                        .where(InsiderFiling.form_type == "4"))  # fmt: skip
-    notes += [
-        "Open-market purchases (Form 4 code P) and sales (code S) only, one row per Form 4, "
-        "code and security class; grants, exercises, gifts, tax withholding and derivative "
-        "rows are on each company's insider-transactions.",
-        dev("Amendments (Form 4/A) never make a row: an original lists the 4/As for the same "
-        "issuer, owner and period in amended_by. When a 4/A reports the row's code and class "
-        "again with different figures (and at least as many lines), the row shows the 4/A's "
-        "figures with amended: true, the 4/A as its filing, and the original's in first_filed; "
-        "otherwise the figures are as first filed."
-        + (f" {counts['restated']} row{'s' if counts['restated'] != 1 else ''} in this screen "
-           "show a 4/A's figures." if counts["restated"] else "")
-        + (f" {counts['unpaired_amendments']} amended filing"
-           f"{'s' if counts['unpaired_amendments'] != 1 else ''} in this screen "
-           "with no stored original Form 4 are not shown."
-           if counts["unpaired_amendments"] else "")),
-    ]  # fmt: skip
-    if counts["duplicates"]:
-        n = counts["duplicates"]
-        notes.append(f"Shown once: {n} Form 4{'s' if n != 1 else ''} filed again the same day "
-                     "with the same trades (listed in duplicate_filings).")  # fmt: skip
-    if counts["filed_errors"]:
-        n = counts["filed_errors"]
-        notes.append(f"Left out as filed errors: {n} line{'s' if n != 1 else ''} dated "
-                     "after the Form 4's own filing date or more than three years before "
-                     "it.")  # fmt: skip
-    if datasets and until > datasets:
-        notes.append(f"The quarterly insider data sets run to {datasets.isoformat()}; later "
-                     "Forms 4 are read as filed for companies covered here.")  # fmt: skip
-    return {
-        "data": [_out(r, companies.get(r["issuer_cik"])) for r in page],
-        "meta": {"limit": limit, "offset": offset, "has_more": more,
-                 "next_offset": offset + limit if more else None},
-        "filters": {"type": type, "since": since, "until": until, "as_of": as_of},
-        "through": through,
-        "datasets_through": datasets,
-        "labels": {"disclaimer": scr.DISCLAIMER},
-        "notes": notes,
-        "notes_detail": detail(notes),
-    }  # fmt: skip
+    # Q-03e: a whole response is kept until the insider tables change (or 10 minutes pass);
+    # the key is every parameter that shapes it, the demo scope included
+    key = (type, since, until, as_of, min_value, max_value, tuple(sorted(roles)), tuple(titles),
+           cik, owner_cik, plan_10b5_1, bool(cluster), plan_purchase, sort, limit, offset,
+           tuple(sorted(allowed)) if allowed is not None else None)  # fmt: skip
+
+    def build() -> dict:
+        notes: list[str] = []
+        if plan_purchase is None and type == "buy":
+            notes.append("Purchases under an employee or director stock purchase plan, a plan "
+                         "trust or dividend reinvestment are left out (plan_purchase=true lists "
+                         "them): they are not open-market buys.")  # fmt: skip
+        rows, counts = scr.screen(db, s)
+        rows = scr.sort_rows(rows, sort)
+        page, more = rows[offset : offset + limit], len(rows) > offset + limit
+        scr.finish(db, page, s)
+        if allowed is not None and more:
+            more = False
+            notes.append(f"The demo key shows at most {DEMO_ROWS} rows, from the showcase "
+                         "companies; this list was trimmed.")  # fmt: skip
+        companies = {c.cik: c for c in db.scalars(
+            select(Company).where(Company.cik.in_({r["issuer_cik"] for r in page})))}  # fmt: skip
+        datasets = insiders.dataset_coverage(db)
+        # the newest Form 4 stored (the data sets, then Forms 4 read as filed for covered companies)
+        through = db.scalar(select(func.max(InsiderFiling.filing_date))
+                            .where(InsiderFiling.form_type == "4"))  # fmt: skip
+        notes += [
+            "Open-market purchases (Form 4 code P) and sales (code S) only, one row per Form 4, "
+            "code and security class; grants, exercises, gifts, tax withholding and derivative "
+            "rows are on each company's insider-transactions.",
+            dev("Amendments (Form 4/A) never make a row: an original lists the 4/As for the same "
+            "issuer, owner and period in amended_by. When a 4/A reports the row's code and class "
+            "again with different figures (and at least as many lines), the row shows the 4/A's "
+            "figures with amended: true, the 4/A as its filing, and the original's in first_filed; "
+            "otherwise the figures are as first filed."
+            + (f" {counts['restated']} row{'s' if counts['restated'] != 1 else ''} in this screen "
+               "show a 4/A's figures." if counts["restated"] else "")
+            + (f" {counts['unpaired_amendments']} amended filing"
+               f"{'s' if counts['unpaired_amendments'] != 1 else ''} in this screen "
+               "with no stored original Form 4 are not shown."
+               if counts["unpaired_amendments"] else "")),
+        ]  # fmt: skip
+        if counts["duplicates"]:
+            n = counts["duplicates"]
+            notes.append(f"Shown once: {n} Form 4{'s' if n != 1 else ''} filed again the same day "
+                         "with the same trades (listed in duplicate_filings).")  # fmt: skip
+        if counts["filed_errors"]:
+            n = counts["filed_errors"]
+            notes.append(f"Left out as filed errors: {n} line{'s' if n != 1 else ''} dated "
+                         "after the Form 4's own filing date or more than three years before "
+                         "it.")  # fmt: skip
+        if datasets and until > datasets:
+            notes.append(f"The quarterly insider data sets run to {datasets.isoformat()}; later "
+                         "Forms 4 are read as filed for companies covered here.")  # fmt: skip
+        return {
+            "data": [_out(r, companies.get(r["issuer_cik"])) for r in page],
+            "meta": {"limit": limit, "offset": offset, "has_more": more,
+                     "next_offset": offset + limit if more else None},
+            "filters": {"type": type, "since": since, "until": until, "as_of": as_of},
+            "through": through,
+            "datasets_through": datasets,
+            "labels": {"disclaimer": scr.DISCLAIMER},
+            "notes": notes,
+            "notes_detail": detail(notes),
+        }  # fmt: skip
+
+    return CACHE.get_or_build(key, build)
 
 
 def _out(r: dict, c: Company | None) -> dict:

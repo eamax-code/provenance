@@ -43,6 +43,7 @@ TARGET_P95_MS = {
     "filing search": 500,
     "insider screen": 500,
     "managers": 500,
+    "insider screen cold": 500,
     "timeline": 500,
     "activists": 500,
     "activists all": 500,
@@ -157,6 +158,12 @@ def requests_for(
     ]  # fmt: skip
     if watchlist:
         plan.append(("watchlist rows", "GET", f"/v1/watchlists/{watchlist}/rows", None))
+    if only and "insider screen cold" in only:
+        # Q-03e: the same screens, each request a new cache key (limit and offset vary; the
+        # whole screen is built before paging), so every one is a cache miss: the cold cost
+        plan.append(("insider screen cold", "GET", f"/v1/insider-transactions?"
+                     f"{INSIDER_SCREENS[i % 7]}&limit={1 + i % 100}&offset={(i // 100) % 3}",
+                     None))  # fmt: skip
     if only:
         plan = [p for p in plan if p[0] in only]
     return plan[i % len(plan)]

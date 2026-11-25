@@ -506,3 +506,33 @@ def test_the_screen_query_can_use_the_open_market_index(client, auth, db, trades
     assert any("is_derivative" in s for s in lines)
     assert not any("is_derivative IS" in s for s in lines)
     assert not any("count(distinct" in s.lower() for s in lines)
+
+
+def test_a_cached_screen_equals_a_fresh_one_until_the_data_changes(client, auth, db, trades,
+                                                                    monkeypatch):  # fmt: skip
+    """Q-03e: a repeat screen is served from the cache and equals a fresh build; a change to the
+    insider tables (a new data version) serves fresh rows. On PostgreSQL the version is the write
+    counters of the insiders table group; here a version is given."""
+    from app.api import routes_insider_screener as rs
+    from app.services import showcase_cache
+
+    assert showcase_cache.group_for(rs.CACHE.path) == "insiders"
+    assert {"insider_transactions", "insider_filings", "insider_activity"} <= set(
+        showcase_cache.GROUPS["insiders"])  # fmt: skip
+    version = [1]
+    monkeypatch.setattr(rs.CACHE, "_version", lambda: version[0])
+    first = _get(client, auth, type="sell").json()
+    again = _get(client, auth, type="sell").json()
+    assert again == first and rs.CACHE.hits == 1 and rs.CACHE.misses == 1
+    assert _get(client, auth, type="buy").json() != first  # another key: built
+    rs.CACHE.clear()
+    assert _get(client, auth, type="sell").json() == first  # a fresh build is the same answer
+    # a new sale lands: the cached answer stays until the data version moves
+    _filing(db, "0000000009-26-000001", A, "0000000109", "NEW SELLER", date(2026, 11, 20),
+            officer=True, title="Chief Operating Officer")  # fmt: skip
+    _line(db, "0000000009-26-000001", A, 1, "S", date(2026, 11, 19), 700, 101, 300)
+    db.commit()
+    accs = lambda b: {r["filing"]["accession_number"] for r in b["data"]}  # noqa: E731
+    assert "0000000009-26-000001" not in accs(_get(client, auth, type="sell").json())
+    version[0] = 2
+    assert "0000000009-26-000001" in accs(_get(client, auth, type="sell").json())
