@@ -256,3 +256,36 @@ def test_a_recast_calendar_quarter_is_not_a_transition_quarter(client, auth, db)
     assert cols["2021-06-30"] == ("Transition Q2 (ended 2021-06-30)", True)
     assert cols["2021-02-28"][1] is False and cols["2021-05-31"][1] is False
     assert len({k for k, _ in cols.values()}) == len(cols)
+
+
+def test_one_balance_column_per_year_end(client, auth, db):
+    """S-07b: LATAM-like adoption-date balances at January 1 and 4, 2018 beside the December
+    31, 2017 balance sheet are not columns; where a restated opening balance at January 1, 2019
+    is the full balance sheet and December 31, 2018 has only a cash figure (Avino), the full
+    one is the column. No year end loses its column."""
+    now = datetime.now(UTC)
+    cik = "0000000911"
+    db.add(Company(cik=cik, legal_name="AEROLINEA", fiscal_year_end="1231",
+                   fiscal_year_ends="2017-12-31,2018-12-31,2019-12-31",
+                   source_url="https://www.sec.gov/", first_detected_at=now,
+                   last_processed_at=now, quality_status="ok"))  # fmt: skip
+    acc = "0000000911-20-000001"
+    rows = [("total_assets", 100, date(2017, 12, 31)),
+            ("total_liabilities", 60, date(2017, 12, 31)),
+            ("cash_and_equivalents", 9, date(2017, 12, 31)),
+            ("total_assets", 104, date(2018, 1, 1)), ("total_liabilities", 64, date(2018, 1, 4)),
+            ("cash_and_equivalents", 11, date(2018, 12, 31)),
+            ("total_assets", 120, date(2019, 1, 1)), ("total_liabilities", 70, date(2019, 1, 1)),
+            ("total_assets", 130, date(2019, 12, 31)),
+            ("total_liabilities", 75, date(2019, 12, 31))]  # fmt: skip
+    for metric, v, end in rows:
+        f = _fact(metric, v, None, end, "annual", acc, "20-F", date(2020, 4, 30))
+        f.cik, f.period_type = cik, "instant"
+        db.add(f)
+    db.commit()
+    bal = client.get(f"/v1/companies/{cik}/statements/balance?period=annual",
+                     headers=auth).json()  # fmt: skip
+    assert [(c["key"], c["period_end"]) for c in bal["columns"]] == [
+        ("FY2017", "2017-12-31"), ("FY2018", "2019-01-01"), ("FY2019", "2019-12-31")]  # fmt: skip
+    (assets,) = [r for r in bal["rows"] if r["metric"] == "total_assets"]
+    assert [c["value"] for c in assets["cells"]] == [100, 120, 130]

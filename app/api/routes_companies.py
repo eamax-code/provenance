@@ -720,6 +720,18 @@ def statement(
         for k in [k for k in by_key if not periods.is_fiscal_year_end(k[1], own_ends)
                   and not any(abs((k[1] - t).days) <= 7 for t in t_ends)]:  # fmt: skip
             by_key.pop(k)
+        # S-07b: one column per fiscal year end; an adoption-date balance (January 1, 2018)
+        # beside the year end stays in /facts
+        counts: dict = {}
+        for _, e in by_key:
+            counts[e] = counts.get(e, 0) + 1
+        reports = set(db.scalars(select(Filing.report_date).where(
+            Filing.cik.in_(ciks), Filing.form_type.in_(fiscal_years.FORMS),
+            Filing.report_date.is_not(None))))  # fmt: skip
+        skip = {e for e in counts if any(abs((e - t).days) <= 7 for t in t_ends)}
+        drop = periods.one_per_year_end(counts, own_ends, reports, skip)
+        for k in [k for k in by_key if k[1] in drop]:
+            by_key.pop(k)
         spans = {(x[0], x[1]): x[2] for x in found}
         span_form = {x[1]: x[3] for x in found}  # the cover's form: 10-KT, or 10-K or 20-F
         if spans:

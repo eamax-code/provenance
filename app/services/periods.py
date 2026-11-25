@@ -135,6 +135,16 @@ def is_fiscal_year_end(end: date, year_ends: tuple, near: int = 7) -> bool:
     year ends are known."""
     if not year_ends:
         return True
+    return year_end_anchor(end, year_ends, near) is not None
+
+
+def year_end_anchor(end: date, year_ends: tuple, near: int = 7) -> date | None:
+    """S-07b: the date, on the month and day of the company's own year end nearest in time,
+    within a week of end, or None. Two period ends with one anchor are one fiscal year's: the
+    nearest is its column (LATAM's December 31, 2017, not its adoption-date balances of January
+    1, 2 and 4, 2018)."""
+    if not year_ends:
+        return None
     o = min(year_ends, key=lambda x: abs((x - end).days))
     for y in (end.year - 1, end.year, end.year + 1):
         try:
@@ -142,8 +152,31 @@ def is_fiscal_year_end(end: date, year_ends: tuple, near: int = 7) -> bool:
         except ValueError:  # February 29
             same = date(y, o.month, 28)
         if abs((same - end).days) <= near:
-            return True
-    return False
+            return same
+    return None
+
+
+def one_per_year_end(counts: dict, year_ends: tuple, report_dates=frozenset(),
+                     skip=frozenset(), near: int = 7) -> set:  # fmt: skip
+    """S-07b: the period ends to leave out of annual columns, one column per fiscal year end.
+    counts: {period end: figures dated there}. Among ends within a week of one year end (an
+    adoption-date balance beside the year end: LATAM's January 1, 2 and 4, 2018), the column is
+    the end with the most figures (the full balance sheet: Avino's restated one at January 1,
+    2016 beside a lone cash figure at December 31), then an annual report's period of report,
+    then the nearest. skip: ends never grouped (a transition period's)."""
+    groups: dict = {}
+    for e in counts:
+        if e not in skip:
+            a = year_end_anchor(e, year_ends, near)
+            if a is not None:
+                groups.setdefault(a, []).append(e)
+    out = set()
+    for a, es in groups.items():
+        if len(es) > 1:
+            best = min(es, key=lambda e: (-counts[e], e not in report_dates,
+                                          abs((e - a).days), e))  # fmt: skip
+            out.update(e for e in es if e != best)
+    return out
 
 
 def transition_label(start: date, end: date) -> str:
