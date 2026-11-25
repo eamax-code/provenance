@@ -21,7 +21,7 @@
   var ACC = pm ? pm[1] : (/^\d{10}-\d{2}-\d{6}$/.test(u.get('a') || '') ? u.get('a') : '');
   var ITEM = (pm ? pm[2] : (u.get('i') || '1A')).toUpperCase(), Q = (u.get('q') || '').trim().slice(0, 200), O = /^\d{1,9}$/.test(u.get('o') || '') ? +u.get('o') : -1;
   var here = function (item) { return pm ? '/filings/' + ACC + '/' + item + '/' : '/filings/section.html?a=' + ACC + '&i=' + item; };
-  var say = function (t, extra) { $('sx-text').replaceChildren.apply($('sx-text'), [el('p', { class: 'sx-state', text: t })].concat(extra || [])); };
+  var say = function (t, extra) { $('sx-text').replaceChildren.apply($('sx-text'), [el('p', { class: 'sx-state', role: 'status', text: t })].concat(extra || [])); };
   if (!ACC || !/^(1A|7)$/.test(ITEM)) { say('This address does not name a filing and an item (1A or 7).'); return; }
 
   // the words to mark: quoted phrases as written, other words on their own (as Search matches them)
@@ -69,11 +69,13 @@
     var ms = [].slice.call(document.querySelectorAll('mark.sx-m'));
     var hit = document.querySelector('mark.sx-hit');
     if (Q || hit) {
-      var f = $('sx-find'), i = hit ? ms.indexOf(hit) : 0, go = function (k) { if (!ms.length) return; ms[i].classList.remove('on'); i = (k + ms.length) % ms.length; ms[i].classList.add('on'); ms[i].scrollIntoView({ block: 'center' }); pos.textContent = (i + 1) + ' of ' + ms.length; };
+      var f = $('sx-find'), i = hit ? ms.indexOf(hit) : 0, go = function (k) { if (!ms.length) return; ms[i].classList.remove('on'); i = (k + ms.length) % ms.length; ms[i].classList.add('on'); ms[i].scrollIntoView({ block: 'center' }); pos.textContent = (i + 1) + ' of ' + ms.length; tell(); };
+      // said to screen readers: the count and the words around the match
+      var tell = function () { var m = ms[i], p = m.parentNode, r = document.createRange(); r.setStart(p, 0); r.setEndBefore(m); var o = r.toString().length, t = p.textContent; $('sx-say').textContent = (i + 1) + ' of ' + ms.length + ': ' + t.slice(Math.max(0, o - 70), o + m.textContent.length + 70).replace(o > 70 ? /^\S*\s/ : /^/, '').replace(/\s\S*$/, '').trim(); }; // whole words
       var pos = el('span', { class: 'sx-pos' }), prev = el('button', { type: 'button', class: 'btn', text: 'Previous' }), next = el('button', { type: 'button', class: 'btn', text: 'Next' });
       prev.addEventListener('click', function () { go(i - 1); }); next.addEventListener('click', function () { go(i + 1); });
       f.replaceChildren.apply(f, ms.length ? [el('span', { text: ms.length + ' match' + (ms.length === 1 ? '' : 'es') + (Q ? ' for “' + Q + '”' : '') + ' · ' }), pos, ' ', prev, next] : ['No match for “' + Q + '” in this section.']);
-      f.hidden = false; if (ms.length) { ms[i].classList.add('on'); pos.textContent = (i + 1) + ' of ' + ms.length; setTimeout(function () { ms[i].scrollIntoView({ block: 'center' }); }, 0); }
+      f.hidden = false; if (ms.length) { ms[i].classList.add('on'); pos.textContent = (i + 1) + ' of ' + ms.length; setTimeout(function () { ms[i].scrollIntoView({ block: 'center' }); tell(); }, 0); }
     } else if (location.hash && document.getElementById(location.hash.slice(1))) document.getElementById(location.hash.slice(1)).scrollIntoView();
   }
 

@@ -43,3 +43,4 @@ mark.sx-m.on { outline: 2px solid var(--accent-hi); outline-offset: 2px; border-
   /* phones: Contents floats at the thumb */
   .sx-tocbtn:not([hidden]) { display: inline-flex; align-items: center; position: fixed; right: var(--m, 16px); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 3; min-height: 44px; margin: 0; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); font: 600 .9rem var(--face); box-shadow: 0 2px 8px rgba(0, 0, 0, .2); }
 }
+.sx-say { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
