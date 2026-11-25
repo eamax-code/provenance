@@ -1553,6 +1553,10 @@ class InsiderForm4Group(Base):
     di_max: Mapped[str | None] = mapped_column(String(1), nullable=True)
     plan_lines: Mapped[int] = mapped_column(Integer, nullable=False)
     inferred_lines: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Q-03g: the median price of the issuer's open-market lines of the class within the outlier
+    # window around first_date..last_date, and how many lines it is of (the price-outlier flag)
+    near_median: Mapped[float | None] = mapped_column(Float, nullable=True)
+    near_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class InsiderDataset(Base):

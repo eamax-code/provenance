@@ -311,6 +311,14 @@ JobState row `insider_form4_groups` records the lines' max id at the last build;
 newer, the screen adds up the lines itself. A Form 4 whose lines fall on both sides of a screen's
 dates is added up again from its lines, so a screen's answer is always the lines' own.
 
+`near_median`, `near_count` (Q-03g): the price-outlier flag's median for the group, precomputed:
+the issuer's priced open-market lines of the class (non-derivative, P or S, price over 0) within
+30 days of the group's `first_date` and `last_date`, and how many there are (the flag needs 4).
+Recomputed with the groups; a refresh redoes every group of the issuer and class a written Form 4
+touches, since a new line moves its neighbours' medians. A screen row that is one group with the
+group's own dates takes it; any other row (plan buckets added together, a Form 4 cut by the
+screen's dates, a restated row) reads the lines, so the flag is always the lines' own.
+
 ### insider_datasets
 
 One loaded quarter: `quarter`, `sha256` of the zip, `filings`, `rows`, `last_filing_date` (the

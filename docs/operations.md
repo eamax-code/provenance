@@ -99,6 +99,7 @@ head`, before the new code starts:
 | `b9d1f3a5c7e0` | D-01: `mart_company.periodic_active`, `last_periodic_date`, `last_periodic_form` | adds three columns (false until the marts run); then `scripts/build_marts.py` (or `marts.build_company_marts`, about 2 minutes) sets them. Apply with the code: until the build, the screen's default lists no company |
 | `c1e3a5b7d9f2` | D-01b: `named_successors` | creates one table; then `scripts/find_named_successors.py --dry-run --out found.jsonl` (reads the stopped registrants' 8-Ks with Item 2.01 or 5.01 and the 8-K12B/8-K12G3s through SecClient, cached, stopping on 403/429), the 30-row check, then without `--dry-run`; run after the marts build (it reads `periodic_active`) |
 | `d3f5b7c9e1a4` | Q-03e: partial index on `insider_filings (filing_date)` for 4/As | built concurrently, no data step |
+| `f6c8e0a2b4d7` | Q-03g: `near_median`, `near_count` on `insider_form4_groups` (the price-outlier median, precomputed) | adds two nullable columns; then `scripts/build_insider_groups.py` (about 12 s with the medians). Until then, rows read the lines for the flag (same answers) |
 | `e4a6c8b0d2f5` | Q-03f: `insider_form4_groups` (the insider screener's per-Form-4 groups) | creates one table; then `scripts/build_insider_groups.py` (about 3 s, 267,040 groups, 55 MB); `insiders.store` keeps it after that, and `flag_plan_purchases.py` rebuilds it. Until it is built, the screen reads the lines (same answers, slower) |
 | `b2c4d6e8f0a3` | Q-07: `class_title` and `amendment_number` on `schedule_13d_purposes` | adds two nullable columns; run after `f0a2b4c6d8e1`'s load: `scripts/load_13d_purposes.py` again fills them from the cache |
 | `f0a2b4c6d8e1` | Q-07: `schedule_13d_purposes` (Item 4 of structured 13Ds, as filed) | create table; then `scripts/load_13d_purposes.py --dry-run` (fetches into the document cache through SecClient, stops on 403/429), then without `--dry-run` (stores from the cache) |
@@ -661,6 +662,22 @@ R-2 at 2 workers (scratch server, a key read from a file and revoked), load aver
 other sessions: insider screen **cold p95 508 ms and 551 ms** on two runs (520 before), warm p95
 33 ms, the mix 19 ms (every keyed endpoint under 500, no errors). So the cold target is **not
 met** by the groups alone: the remaining work is outside the aggregation.
+
+## Q-03g (b): precomputed price-outlier medians (2026-11-25)
+
+Each group stores its outlier median (`near_median`, `near_count`), computed when the groups are
+built or refreshed (the full build is about 12 s instead of 3). A row that is exactly one group
+with that group's dates takes the stored value; others read the lines as before (in the default
+month, 3,531 of 3,556 rows take the stored value). The rows are identical to the line path on
+all 10 shapes, and a deliberately wrong stored ratio changes every shape.
+
+R-2 at 2 workers (scratch server, key read from a file and revoked after), load average 3-7:
+insider screen **cold p95 321 ms and 419 ms** on two runs (508/551 after Q-03f), so it is under
+500. The warm p95 is 33 ms. The mix is at 25 rps: insider screen p95 217 ms, every keyed endpoint
+is under 500, and the only errors are the usual local 429/404 on coverage, overview and stats.
+The first warm run gave p95 148 ms, but only because the 1,200 unique cold keys had pushed the
+warm entries out of the 256-entry cache; the rerun gave 33. Q-03g (c) and (a) are not needed for
+the target.
 
 ## Q-03e: the insider screener at 2 workers (2026-11-25 16:50 IST)
 

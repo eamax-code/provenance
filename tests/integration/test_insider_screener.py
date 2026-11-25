@@ -599,3 +599,55 @@ def test_a_load_refreshes_the_groups(db, trades):
     s = scr.Screen(codes={"S"}, since=date(2026, 11, 1), until=date(2026, 11, 24))
     rows, _ = _all_rows(db, s)
     assert any("0001140361-26-000001" in r for r in rows)
+
+
+def test_the_stored_medians_flag_as_the_lines_do(db, trades, monkeypatch):
+    """Q-03g: each group keeps its price-outlier median; screens flag exactly as the lines do, and
+    a Form 4 stored later moves its neighbours' medians (a fourth line makes a median)."""
+    from app.db.models import InsiderForm4Group
+    from app.services import insider_screener as scr
+
+    E = "0002999105"
+    db.add(Company(cik=E, legal_name="Elm Example Corp", source_url="https://www.sec.gov/",
+                   first_detected_at=utcnow(), last_processed_at=utcnow()))  # fmt: skip
+    n = 0
+
+    def sale(day, price, title="Common Stock"):
+        nonlocal n
+        n += 1
+        acc = f"0000000008-26-{n:06d}"
+        _filing(db, acc, E, f"0000000{800 + n}", f"OWNER{n} Y", day, officer=True, title="VP")
+        _line(db, acc, E, 1, "S", day, 10, price, 1000, title)
+        return acc
+
+    for i in range(4):
+        sale(date(2026, 11, 10 + i), 100 + i)
+    typo = sale(date(2026, 11, 14), 1_000_000)  # the total in the price box
+    sale(date(2026, 10, 20), 100, "Class B Stock")
+    sale(date(2026, 10, 21), 101, "Class B Stock")
+    lone = sale(date(2026, 10, 22), 5_000, "Class B Stock")  # three lines: no median yet
+    db.commit()
+    s = scr.Screen(codes={"S"}, since=date(2026, 10, 1), until=date(2026, 11, 24), cik=E)
+
+    def flagged():
+        return {r["filing"]["accession_number"] for r in scr.screen(db, s)[0]
+                if r["price_outlier"]}  # fmt: skip
+
+    lines = _all_rows(db, s)
+    assert flagged() == {typo}
+    scr.refresh_groups(db)
+    db.commit()
+    got = db.get(InsiderForm4Group, (typo, E, "S", "Common Stock", False))
+    assert (got.near_median, got.near_count) == (102, 5)
+    assert db.get(InsiderForm4Group, (lone, E, "S", "Class B Stock", False)).near_count == 3
+    assert _all_rows(db, s) == lines and flagged() == {typo}
+    fourth = sale(date(2026, 11, 5), 102, "Class B Stock")  # stored later, as insiders.store does
+    db.flush()
+    scr.refresh_groups(db, [fourth])
+    db.commit()
+    assert scr.groups_fresh(db)
+    assert db.get(InsiderForm4Group, (lone, E, "S", "Class B Stock", False)).near_count == 4
+    assert flagged() == {typo, lone}
+    stored = _all_rows(db, s)
+    monkeypatch.setattr(scr, "groups_fresh", lambda db: False)
+    assert _all_rows(db, s) == stored

@@ -16,7 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import Date, and_, case, delete, func, insert, or_, select
+from sqlalchemy import Date, and_, case, delete, func, insert, or_, select, tuple_, update
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
@@ -231,10 +231,69 @@ def refresh_groups(db: Session, accessions: list[str] | None = None, stamp: bool
             db.execute(delete(g).where(g.accession_number.in_(part)))
             db.execute(insert(g).from_select(list(_GROUP_COLS),
                                              sel.where(t.accession_number.in_(part))))  # fmt: skip
+    _refresh_medians(db, accessions)
     if stamp:
         state = db.get(JobState, GROUPS_STATE) or JobState(name=GROUPS_STATE, value="")
         state.value, state.updated_at = str(_max_line_id(db)), utcnow()
         db.merge(state)
+
+
+def _refresh_medians(db: Session, accessions: list[str] | None = None) -> None:
+    """Q-03g: each group's price-outlier median (near_median, near_count): the issuer's priced
+    open-market lines of the class within OUTLIER_DAYS of the group's first and last dates, as
+    _flag_price_outliers reads them. A new line moves its neighbours' medians, so an incremental
+    refresh redoes every group of the issuer and class the written Form 4s touch."""
+    t, g = InsiderTransaction, InsiderForm4Group
+    keys = None
+    if accessions is not None:
+        keys = set()
+        for part in _chunks(sorted(set(accessions))):
+            keys |= set(db.execute(select(g.issuer_cik, g.title)
+                                   .where(g.accession_number.in_(part))).all())  # fmt: skip
+        if not keys:
+            return
+    title = func.coalesce(t.security_title, "")
+    q = select(t.issuer_cik, title, t.trans_date, t.price).where(
+        t.trans_code.in_(("P", "S")), ~t.is_derivative, t.price > 0, t.trans_date.is_not(None)
+    )
+    gq = select(g.accession_number, g.issuer_cik, g.trans_code, g.title, g.plan_bucket,
+                g.first_date, g.last_date)  # fmt: skip
+    lines: dict[tuple, list[tuple[date, float]]] = defaultdict(list)
+    groups = []
+    if keys is None:
+        for issuer, ti, day, price in db.execute(q):
+            lines[(issuer, ti)].append((day, float(price)))
+        groups = list(db.execute(gq))
+    else:
+        for part in _chunks(sorted(keys)):
+            for issuer, ti, day, price in db.execute(
+                q.where(t.issuer_cik.in_({k[0] for k in part}))
+            ):
+                if (issuer, ti) in keys:
+                    lines[(issuer, ti)].append((day, float(price)))
+            groups += [r for r in db.execute(gq.where(tuple_(g.issuer_cik, g.title).in_(part)))]
+    for v in lines.values():
+        v.sort()
+    days = {k: [d for d, _ in v] for k, v in lines.items()}
+    out = []
+    for r in groups:
+        got = lines.get((r.issuer_cik, r.title), [])
+        median, count = None, 0
+        if got:
+            i = bisect.bisect_left(
+                days[(r.issuer_cik, r.title)], r.first_date - timedelta(OUTLIER_DAYS)
+            )
+            j = bisect.bisect_right(
+                days[(r.issuer_cik, r.title)], r.last_date + timedelta(OUTLIER_DAYS)
+            )
+            near = [p for _, p in got[i:j]]
+            count = len(near)
+            median = statistics.median(near) if near else None
+        out.append({"accession_number": r.accession_number, "issuer_cik": r.issuer_cik,
+                    "trans_code": r.trans_code, "title": r.title, "plan_bucket": r.plan_bucket,
+                    "near_median": median, "near_count": count})  # fmt: skip
+    for i in range(0, len(out), 5000):
+        db.execute(update(g), out[i : i + 5000])
 
 
 def _from_groups(db: Session, s: Screen, q) -> list:
@@ -258,7 +317,10 @@ def _from_groups(db: Session, s: Screen, q) -> list:
                case((func.min(g.di_min) != func.max(g.di_max), 2),
                     (func.max(g.di_max).is_(None), 0), else_=1).label("n_di"),
                func.max(g.di_max).label("di"), func.sum(g.plan_lines).label("plan_lines"),
-               func.sum(g.inferred_lines).label("inferred_lines"))
+               func.sum(g.inferred_lines).label("inferred_lines"),
+               # Q-03g: one bucket's group has its own dates, so its median is the row's
+               case((func.count() == 1, func.max(g.near_median))).label("near_median"),
+               case((func.count() == 1, func.max(g.near_count))).label("near_count"))
         .where(*conds)
         .group_by(g.accession_number, g.issuer_cik, g.trans_code, g.title)
     )  # fmt: skip
@@ -398,6 +460,9 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
                 continue
         rows.append(_row(agg, fs))
         rows[-1]["_reread"] = key4 in reread
+        if agg.get("near_count") is not None:  # Q-03g: valid only for this class and these dates
+            at = (agg["issuer_cik"], agg["title"], agg["first"], agg["last"])
+            rows[-1]["_near"] = (agg["near_median"], agg["near_count"], at)
     rows = _collapse_duplicates(rows, counts)
     _apply_restatements(db, rows, restating, counts, s)
     # read past the value filters only for a 4/A: unless restated, the filters had left it out
@@ -744,7 +809,19 @@ def _flag_price_outliers(db: Session, rows: list[dict], s: Screen) -> None:
     15,000-share sale worth $18.5 billion; the row stays, with its value as filed, but out of
     value filters and value ranking."""
     t = InsiderTransaction
-    keys = {(r["issuer_cik"], r["_title"]) for r in rows if r["average_price"]}
+    # Q-03g: a row whose issuer, class and dates are still its group's takes the stored median;
+    # the others (merged plan buckets, rows added up again, restated rows) read the lines
+    ready = set()
+    for n, r in enumerate(rows):
+        near = r.pop("_near", None)
+        if near and near[2] == (r["issuer_cik"], r["_title"], r["first_date"], r["last_date"]):
+            ready.add(n)
+            r["price_outlier"] = False
+            if r["average_price"] and near[1] >= 4 and near[0]:
+                ratio = r["average_price"] / near[0]
+                r["price_outlier"] = not (1 / PRICE_OUTLIER <= ratio <= PRICE_OUTLIER)
+    rest = [r for n, r in enumerate(rows) if n not in ready]
+    keys = {(r["issuer_cik"], r["_title"]) for r in rest if r["average_price"]}
     issuers = sorted({k[0] for k in keys})
     lo, hi = s.since - timedelta(OUTLIER_DAYS), s.until + timedelta(OUTLIER_DAYS)
     lines: dict[tuple, list[tuple[date, float]]] = defaultdict(list)
@@ -758,7 +835,7 @@ def _flag_price_outliers(db: Session, rows: list[dict], s: Screen) -> None:
                 lines[(issuer, ti)].append((day, float(price)))
     for v in lines.values():
         v.sort()
-    for r in rows:
+    for r in rest:
         r["price_outlier"] = False
         got = lines.get((r["issuer_cik"], r["_title"]))
         if not r["average_price"] or not got:
