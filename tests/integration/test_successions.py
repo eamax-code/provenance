@@ -90,7 +90,11 @@ def test_successor_overview_continues_the_history(db, reorganised):
 def test_the_reviewed_file_is_complete_and_quotes_every_stored_pair():
     rows = successions.reviewed()
     stored = [r for r in rows.values() if r["decision"] == "store"]
-    assert len(rows) == 79 and len(stored) == 63  # K-05c: 46 joined on the successor's own filing
+    assert len(rows) == 98 and len(stored) == 69  # K-05c: 52 joined on the successor's own filing
+    # the batch after D-01d: Medtronic 2015 joined (its 10-K: Medtronic, Inc.'s history is the
+    # company's), TechTarget 2024 not (its accounting predecessor is Informa's business)
+    assert rows[("0000064670", "0001613103")]["decision"] == "store"
+    assert rows[("0001293282", "0002018064")]["decision"] == "reject"
     # STERIS 2015: after D-01e put the link on the 2015 STERIS plc (now STERIS Ltd)
     assert rows[("0000815065", "0001624899")]["match_method"] == "accounting_predecessor"
     # Cardtronics 2016: the earlier reject reversed on the plc's 10-Q (PM, 2026-11-25)
