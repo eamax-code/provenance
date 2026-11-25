@@ -483,12 +483,18 @@ def _rank(db: Session, query: Query, rows: list[Row], pg: bool) -> dict[uuid.UUI
     if not rows:
         return {}
     titled = {r.id for r in rows if section_title(r.item).lower() in query.q.lower()}
+    together = _together_words(query)
     if pg:
         tsq = tsquery(query)
         rank = func.ts_rank_cd(_VECTOR, tsq, 32)  # 32: rank / (rank + 1), between 0 and 1
         ids = [r.id for r in rows]
-        scored = dict(db.execute(select(FilingSection.id, rank)
-                                 .where(FilingSection.id.in_(ids))).all())  # fmt: skip
+        if together:  # Q-01b: the words side by side somewhere in the section
+            adj = _VECTOR.op("@@")(func.phraseto_tsquery(_EN, " ".join(together)))
+            scored = {i: _adjacent_score(float(v), ok) for i, v, ok in db.execute(
+                select(FilingSection.id, rank, adj).where(FilingSection.id.in_(ids)))}  # fmt: skip
+        else:
+            scored = dict(db.execute(select(FilingSection.id, rank)
+                                     .where(FilingSection.id.in_(ids))).all())  # fmt: skip
     else:
         scored = {}
         texts = _texts(db, [r.id for r in rows])
@@ -498,7 +504,11 @@ def _rank(db: Session, query: Query, rows: list[Row], pg: bool) -> dict[uuid.UUI
                 continue
             n = sum(len(_word_re(w, query.stems, query.forms).findall(t)) for w in query.words)
             n += sum(len(_phrase_re(p.split()).findall(t)) for p in query.phrases)
-            scored[r.id] = n / (n + len(t.split()) / 50 + 1)
+            score = n / (n + len(t.split()) / 50 + 1)
+            adj = _adjacent_re(query)
+            scored[r.id] = (
+                _adjacent_score(score, bool(adj and adj.search(t))) if together else score
+            )
     return {k: min(1.0, float(v) * (TITLE_BOOST if k in titled else 1)) for k, v in scored.items()}
 
 
@@ -523,16 +533,46 @@ def _best_at(pats: list[re.Pattern], text: str) -> int | None:
     return at
 
 
+def _together_words(query: Query) -> list[str] | None:
+    """Q-01b: the words of an unquoted query of two or more words with no `or` (each group one
+    word), in order; None otherwise."""
+    if any(len(g) != 1 or g[0].phrase for g in query.groups):
+        return None
+    words = [g[0].text for g in query.groups]
+    return words if len(words) >= 2 else None
+
+
+def _adjacent_re(query: Query) -> re.Pattern | None:
+    """The query's words side by side, in order, each by its stem forms (Q-01b)."""
+    words = _together_words(query)
+    if not words:
+        return None
+    parts = [_word_re(w, query.stems, query.forms).pattern for w in words]
+    return re.compile(r"[\W_]+".join(f"(?:{p})" for p in parts), re.IGNORECASE)
+
+
+def _adjacent_score(rank: float, together: bool) -> float:
+    """Sections with the words side by side above every section with them apart (Q-01b)."""
+    return 0.5 + rank / 2 if together else rank / 2
+
+
+def _at(query: Query, text: str) -> int | None:
+    adj = _adjacent_re(query)
+    m = adj.search(text) if adj else None
+    return m.start() if m else _best_at(_patterns(query), text)
+
+
 def hit_at(query: Query, text: str) -> int | None:
-    """Q-09: the hit's character offset in a section's text as filed (see Hit.section_offset)."""
-    return _best_at(_patterns(query), text)
+    """Q-09: the hit's character offset in a section's text as filed (see Hit.section_offset);
+    for an unquoted query of several words, where they stand side by side when they do."""
+    return _at(query, text)
 
 
 def snippet_for(query: Query, text: str) -> tuple[str, list[list[int]]]:
     """About SNIPPET_WORDS words around the stretch that holds the most different terms, as plain
     text, with [start, end) offsets of each phrase or word shown."""
     pats = _patterns(query)
-    at = _best_at(pats, text) or 0
+    at = _at(query, text) or 0
     begin = text.rfind(" ", 0, max(0, at - 60)) + 1 if at else 0
     words = text[begin:].split()
     body = " ".join(words[:SNIPPET_WORDS])

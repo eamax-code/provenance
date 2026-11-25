@@ -104,6 +104,12 @@ A query with no searchable word (only common words or symbols) is `422 invalid_q
   relevance, a section whose title names the query (`risk factors`) ranks higher; ties go to the
   newer filing. Relevance ranks the newest 2,000 matching sections (ranking reads each section's
   stored index; a note says so); narrow with filters to rank older ones.
+- **Words side by side (Q-01b).** For an unquoted query of two or more words with no `or`
+  (`going concern`), relevance puts every section where the words stand side by side, in
+  order and by stem, above every section where they are apart (`relevance` above 0.5 against
+  below 0.5), and the snippet and `section_offset` sit at the side-by-side words when the
+  section has them. Matching is unchanged: the words still match anywhere in a section;
+  quote them to require the phrase.
 - With a quoted phrase, sections are checked for the phrase as written; if 5,000 have been checked
   (or 800 read in full) without filling the page, the page ends there with a note.
 - `company` is the company's current name; `ticker` is its primary ticker or `null`.

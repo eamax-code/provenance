@@ -214,3 +214,33 @@ def test_a_short_stem_never_matches_by_prefix():
     assert text[fs.hit_at(q, text):].startswith("going concern")
     assert not fs._word_re("going", q.stems, q.forms).search("goods and governance")
     assert fs._word_re("going", q.stems, q.forms).search("as we go forward")  # a form, not prefix
+
+
+def test_unquoted_words_side_by_side_rank_first_and_place_the_snippet(client, auth, db):
+    """Q-01b: under relevance, a section with "going concern" side by side ranks above one with
+    the words apart (even with more of them), and the snippet sits at the side-by-side words."""
+    now = datetime.now(UTC)
+    db.add(Company(cik="0002999009", legal_name="Adjacent Example Inc.", source_url=A,
+                   first_detected_at=now, last_processed_at=now))  # fmt: skip
+    texts = {
+        "0002999009-26-000001": "Going forward we are going to expand. This concern and that "
+        "concern and another concern are going away as we keep going.",
+        "0002999009-26-000002": "We are going to grow; our concern is costs. "
+        + "Revenue grew in the year. " * 20
+        + "There is substantial "
+        "doubt about our ability to continue as a going concern.",
+    }
+    for acc, text in texts.items():
+        url = f"{A}2999009/{acc.replace('-', '')}/doc.htm"
+        db.add(Filing(cik="0002999009", accession_number=acc, form_type="S-1",
+                      filing_date=date(2026, 6, 1), source_url=url, first_detected_at=now,
+                      quality_status="ok"))  # fmt: skip
+        db.add(FilingSection(cik="0002999009", accession_number=acc, item="pr:risk",
+                             status="ok", text=text, source_url=url))  # fmt: skip
+    db.commit()
+    body = _get(client, auth, q="going concern", cik="0002999009", sort="relevance").json()
+    assert _accs(body) == ["0002999009-26-000002", "0002999009-26-000001"]
+    top = body["hits"][0]
+    shown = [top["snippet"][a:b].lower() for a, b in top["highlights"]]
+    assert shown[:2] == ["going", "concern"] and "going concern" in top["snippet"]
+    assert body["hits"][0]["relevance"] > 0.5 > body["hits"][1]["relevance"]
