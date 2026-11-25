@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from sqlalchemy import Date, and_, case, func, or_, select
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from app.db.models import InsiderActivity, InsiderFiling, InsiderTransaction
@@ -192,11 +193,14 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
                func.count(case((priced, 1))).label("priced_lines"),
                func.min(t.trans_date, type_=Date).label("first"),
                func.max(t.trans_date, type_=Date).label("last"),
-               func.count(func.distinct(t.direct_indirect)).label("n_di"),
+               # Q-03e: D and I only, so two values differ exactly when min and max do; a
+               # count(distinct) would force a sorted aggregate (about 2x slower over a year)
+               case((func.min(t.direct_indirect) != func.max(t.direct_indirect), 2),
+                    (func.max(t.direct_indirect).is_(None), 0), else_=1).label("n_di"),
                func.max(t.direct_indirect).label("di"),
                func.count(case((t.plan_purchase.is_(True), 1))).label("plan_lines"),
                func.count(case((t.plan_inferred.is_(True), 1))).label("inferred_lines"))
-        .where(t.trans_code.in_(sorted(s.codes)), t.is_derivative.is_(False),
+        .where(t.trans_code.in_(sorted(s.codes)), ~t.is_derivative,
                t.trans_date >= s.since, t.trans_date <= s.until)
         .group_by(t.accession_number, t.issuer_cik, t.trans_code, title)
     )  # fmt: skip
@@ -210,6 +214,10 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
         q = q.having(value >= s.min_value)
     if s.max_value is not None:
         q = q.having(value <= s.max_value)
+    if db.get_bind().dialect.name == "postgresql":
+        # Q-03e: a year of sales groups about 90,000 lines; in memory the hash aggregate takes
+        # about 110 ms, against 200 ms sorted on disk at the default 4 MB (this query only)
+        db.execute(sql_text("SET LOCAL work_mem = '32MB'"))
     groups = list(db.execute(q))
     reread: set[tuple] = set()  # groups read past the value filters (Q-03d)
     if s.min_value is not None or s.max_value is not None:
@@ -326,7 +334,7 @@ def _lines(db: Session, acc: str, issuer: str, code: str, title: str, s: Screen 
     q = select(t.trans_date, t.shares, t.price, t.shares_after, t.direct_indirect, t.row_key,
                t.plan_purchase, t.plan_inferred).where(
         t.accession_number == acc, t.issuer_cik == issuer, t.trans_code == code,
-        t.is_derivative.is_(False), func.coalesce(t.security_title, "") == title)  # fmt: skip
+        ~t.is_derivative, func.coalesce(t.security_title, "") == title)  # fmt: skip
     if s is not None:
         q = q.where(t.trans_date >= s.since, t.trans_date <= s.until)
     q = _plan_filter(q, s)
@@ -636,7 +644,7 @@ def _flag_price_outliers(db: Session, rows: list[dict], s: Screen) -> None:
     title = func.coalesce(t.security_title, "")
     for part in _chunks(issuers):
         q = select(t.issuer_cik, title, t.trans_date, t.price).where(
-            t.issuer_cik.in_(part), t.trans_code.in_(("P", "S")), t.is_derivative.is_(False),
+            t.issuer_cik.in_(part), t.trans_code.in_(("P", "S")), ~t.is_derivative,
             t.price > 0, t.trans_date >= lo, t.trans_date <= hi)  # fmt: skip
         for issuer, ti, day, price in db.execute(q):
             if (issuer, ti) in keys:
@@ -672,7 +680,7 @@ def _flag_unsupported_giants(db: Session, rows: list[dict]) -> None:
             continue
         q = select(t.price).where(
             t.issuer_cik == r["issuer_cik"], title == r["_title"], t.trans_code.in_(("P", "S")),
-            t.is_derivative.is_(False), t.price > 0,
+            ~t.is_derivative, t.price > 0,
             t.trans_date >= r["first_date"] - timedelta(GIANT_DAYS),
             t.trans_date <= r["last_date"] + timedelta(GIANT_DAYS))  # fmt: skip
         prices = [float(p) for p in db.scalars(q)]

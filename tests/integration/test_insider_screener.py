@@ -482,3 +482,27 @@ def test_inferred_plan_purchases_are_marked_and_left_out_of_buys(client, auth, d
     plan = _get(client, auth, type="buy", cik=B, plan_purchase="true").json()["data"]
     (row,) = [r for r in plan if r["filing"]["accession_number"] == "0000000002-26-000010"]
     assert row["plan_inferred"] is True and row["plan_purchase"] is False
+
+
+def test_the_screen_query_can_use_the_open_market_index(client, auth, db, trades):
+    """Q-03e: ix_insider_transactions_open_market is partial on NOT is_derivative; written as
+    "is_derivative IS false" PostgreSQL cannot prove the predicate and scans 2.8M rows. And no
+    count(distinct ...): it forces a sorted aggregate."""
+    from sqlalchemy import event
+
+    seen: list[str] = []
+
+    def grab(conn, cur, stmt, params, ctx, many):
+        seen.append(stmt)
+
+    event.listen(db.get_bind(), "before_cursor_execute", grab)
+    try:
+        assert _get(client, auth, type="sell", min_value=1).status_code == 200
+    finally:
+        event.remove(db.get_bind(), "before_cursor_execute", grab)
+    lines = [s for s in seen if "FROM insider_transactions" in s]
+    # PostgreSQL renders ~is_derivative as "NOT ...is_derivative" (SQLite: "= 0"); the old form
+    # was "is_derivative IS false" ("IS 0" here)
+    assert any("is_derivative" in s for s in lines)
+    assert not any("is_derivative IS" in s for s in lines)
+    assert not any("count(distinct" in s.lower() for s in lines)

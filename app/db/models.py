@@ -1450,6 +1450,13 @@ class InsiderFiling(Base):
         UniqueConstraint("accession_number", "owner_cik", name="uq_insider_filings_acc_owner"),
         Index("ix_insider_filings_issuer_date", "issuer_cik", "filing_date"),
         Index("ix_insider_filings_owner_date", "owner_cik", "filing_date"),
+        # Q-03e: the screener lists the 4/As filed since a date (17,000 of 1.1M filings)
+        Index(
+            "ix_insider_filings_amendment_date",
+            "filing_date",
+            postgresql_where=text("form_type = '4/A'"),
+            sqlite_where=text("form_type = '4/A'"),
+        ),  # fmt: skip
     )
 
     id: Mapped[int] = mapped_column(BigSerial, primary_key=True, autoincrement=True)

@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 """R-2 load smoke: a fixed request rate against a running API, with latency per endpoint.
 
-  python scripts/load_smoke.py --base http://127.0.0.1:8771 --key $KEY --rps 50 --seconds 300
+  python scripts/load_smoke.py --base http://127.0.0.1:8771 --key-file PATH --rps 50 --seconds 300
+
+The key comes from --key-file (a file holding only the key, mode 600) or PROVENANCE_LOAD_KEY,
+never from the command line, where any process listing would show it.
 
 Requests are spread over the endpoints below in turn (facts, screen, search, MCP, the public
 overview, the keyed company overview, ownership, stats and coverage), at an open-loop rate:
@@ -14,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import threading
 import time
@@ -168,7 +172,9 @@ def pct(values: list[float], q: float) -> float | None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--base", default="http://127.0.0.1:8771")
-    ap.add_argument("--key", default="", help="An API key (not the demo key: it is capped)")
+    ap.add_argument("--key-file", default="",
+                    help="a file holding the API key (not the demo key: it is capped); "
+                    "or set PROVENANCE_LOAD_KEY")  # fmt: skip
     ap.add_argument("--rps", type=float, default=50)
     ap.add_argument("--seconds", type=float, default=300)
     ap.add_argument("--workers", type=int, default=64)
@@ -181,13 +187,18 @@ def main() -> int:
         "read with the demo key (repeat views are served from the server's cache)",
     )
     args = ap.parse_args()
+    if args.key_file:
+        with open(args.key_file, encoding="utf-8") as fh:
+            key = fh.read().strip()
+    else:
+        key = os.environ.get("PROVENANCE_LOAD_KEY", "")
     demo_ciks = tuple(c for c in args.demo.split(",") if c)
     only = [e for e in args.endpoints.split(",") if e] or None
     results: dict[str, list[float]] = {}
     errors: dict[str, dict[str, int]] = {}
     lock = threading.Lock()
     client = httpx.Client(base_url=args.base, timeout=30,
-                          headers={"X-API-Key": "demo" if demo_ciks else args.key},
+                          headers={"X-API-Key": "demo" if demo_ciks else key},
                           limits=httpx.Limits(max_connections=args.workers))  # fmt: skip
 
     def one(i: int) -> None:
