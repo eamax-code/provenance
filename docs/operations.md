@@ -670,6 +670,17 @@ load average 3-7 from other sessions.
   (first calls, and insider writes that retire the cache). Q-03f (after launch) moves the
   aggregation into a per-Form-4 table so cold screens fit too.
 
+**Invalidation drill on real PostgreSQL counters (2026-11-25).** A scratch database
+(`provenance_cache_drill`: the 24 Nov dump's schema, upgraded to head, plus the companies and a
+month of insider rows copied from live, 45 MB) and a one-worker server on it with a key of its
+own; no write to live tables; the scratch database was dropped afterwards. One screen (an
+issuer's sales over a month) was cached (repeat 10 ms, same answer), then one Form 4 sale at a
+price taken from that issuer's own lines was written into the scratch tables: the same request
+kept the cached answer 12 times and served the new sale **24.4 s after the write**, rebuilt (62
+ms), within the 30 s version recheck. A first attempt used a $999-a-share sale, which the price
+outlier rule keeps out of value ranking, so it was not seen on a value-sorted page: a fault in
+the drill, not the cache.
+
 ## R-2 at 2 workers, before launch (2026-11-25 15:41 IST)
 
 `scripts/load_smoke.py --rps 25 --seconds 240` against a scratch server on HEAD 348da86 with **2
