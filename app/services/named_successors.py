@@ -49,9 +49,11 @@ _DESCR = re.compile(r"(?<![”\"’]\)),\s*(?:an?|the)\s+(?:[^,()]|" + _SFX + r"
                     r"(?:corporation|company|partnership|trust|société|societe|entity|limited|organized|incorporated)"
                     r"(?:[^,()]|" + _SFX + r")*$", re.I)  # fmt: skip
 _WORD = r"(?:[A-Z0-9][\w&'’.\-]*)"
+# D-01d: a lowercase legal form after a space counts too ("... STERIS plc")
 _TAIL = re.compile(r"((?:" + _WORD + r"|of|and|&|de|du|la|the)(?:\s+(?:" + _WORD +
                    r"|of|and|&|de|du|la|the))*(?:,\s*(?:Inc\.?|LLC|L\.L\.C\.|L\.P\.|LP|Ltd\.?|"
-                   r"N\.V\.|S\.A\.|plc|PLC|Corp\.?|Co\.|AG|SE))?)\s*$")  # fmt: skip
+                   r"N\.V\.|S\.A\.|plc|PLC|Corp\.?|Co\.|AG|SE)|\s+(?:plc|ltd\.?|llc|"
+                   r"inc\.?|N\.V\.|S\.A\.))?)\s*$")  # fmt: skip
 # the label check only: a lowercase legal form after a space ("... Exchange Act), STERIS plc")
 _LOOSE_TAIL = re.compile(r"([A-Z][\w&'’.\-]*(?:\s+[A-Z][\w&'’.\-]*)*\s+"
                          r"(?:plc|ltd\.?|llc|inc\.?))\s*$")  # fmt: skip
@@ -102,6 +104,9 @@ def norm(name: str | None) -> str:
     """A name for exact matching: case, punctuation, a leading "The", an EDGAR state tag
     ("/DE/") and the legal-form abbreviations aside. Nothing else is dropped."""
     s = re.sub(r"\s/[A-Z]{2,}/?\s*$", "", (name or "").upper().strip())
+    # D-01d: a bare trailing slash ("WALT DISNEY CO/"); a state tag without a space before it
+    # ("PEOPLES BANCORP INC/NC") names another company and stays
+    s = re.sub(r"/\s*$", "", s)
     s = s.replace("&", " AND ")
     s = re.sub(r"[.,'’\"“”()]", " ", s)
     words = [_LEGAL.get(w, w) for w in s.split()]
@@ -240,6 +245,8 @@ class Names:
         if not current:  # a former name still in force on the date (as before D-01e)
             got = {c for c, to in self.former_dates.get(key, []) if c != exclude
                    and (to is None or to >= on)}  # fmt: skip
+            if len(got) > 1:  # D-01d: several did; the one holding it on the date
+                got = {c for c in got if self.name_on(c, on) == key}
             return next(iter(got)) if len(got) == 1 else None
         then = {c for c in self.former.get(key, set()) - {exclude} - current
                 if self.name_on(c, on) == key}  # fmt: skip

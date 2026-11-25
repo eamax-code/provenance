@@ -377,3 +377,30 @@ def test_a_name_resolves_to_the_company_holding_it_on_the_date(db):
     # a lone current holder is kept whatever the date: EDGAR's former names include formatting
     # variants of one company's name, dated when EDGAR changed them ("LILLY ELI & CO")
     assert names.find("WRKCo Inc.", date(2015, 7, 2), exclude="x") == old
+
+
+def test_coverage_plc_slash_and_former_holders(db):
+    """D-01d: "STERIS plc" after a comma-less run is a name; a bare trailing slash on an EDGAR
+    name goes ("WALT DISNEY CO/") but a state tag written without a space names another company
+    ("PEOPLES BANCORP INC/NC"); with no current holder and two former ones, the one holding the
+    name on the date (Gannett Co., Inc. in 2013: today's TEGNA, not the Gannett spun off in
+    2015)."""
+    from app.db.models import CompanyAlias
+
+    assert N.tail_name("the Exchange Act), STERIS plc") == "STERIS plc"
+    assert N.norm("WALT DISNEY CO/") == N.norm("The Walt Disney Company")
+    assert N.norm("PEOPLES BANCORP INC/NC") != N.norm("PEOPLES BANCORP INC")
+    now = datetime.now(UTC)
+    tegna, spun = "0000000971", "0000000972"
+    for cik, name in ((tegna, "TEGNA INC"), (spun, "Gannett Media Corp.")):
+        db.add(Company(cik=cik, legal_name=name, source_url="https://www.sec.gov/",
+                       first_detected_at=now, last_processed_at=now,
+                       quality_status="ok"))  # fmt: skip
+    for cik, alias, to in ((tegna, "GANNETT CO INC", date(2015, 6, 29)),
+                           (spun, "New Gannett", date(2015, 6, 29)),
+                           (spun, "GANNETT CO INC", date(2019, 11, 19))):  # fmt: skip
+        db.add(CompanyAlias(cik=cik, alias=alias, kind="former", valid_to=to))
+    db.commit()
+    names = N.Names(db)
+    assert names.find("Gannett Co., Inc.", date(2013, 12, 24), exclude="x") == tegna
+    assert names.find("Gannett Co., Inc.", date(2016, 8, 9), exclude="x") == spun

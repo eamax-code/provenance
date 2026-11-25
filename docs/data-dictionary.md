@@ -700,6 +700,13 @@ Archives).
   EDGAR's former names also record formatting variants of one name, dated when EDGAR changed
   them. Corrected in place: 6 links (STERIS Corp, MeadWestvaco, Multi Packaging, Heelys, Dollar
   Thrifty, Ameristar), each checked against the companies' name histories.
+- **Coverage (D-01d, 2026-11-25).** A lowercase legal form after a space is part of a name
+  ("... STERIS plc"); a bare trailing slash on an EDGAR name is dropped ("WALT DISNEY CO/"),
+  while a state tag written without a space ("PEOPLES BANCORP INC/NC") still names another
+  company (dropping it merged distinct companies and lost 5 links in a first dry run); with no
+  current holder and several former ones, the one holding the name on the date. 49 links added,
+  none lost or moved; 30 checked, 0 wrong (among them Belo -> TEGNA, the Gannett of 2013, and
+  STERIS Ltd -> today's STERIS plc).
 - **Reviewed overrides.** `app/data/named_successors_reviewed.csv` (predecessor, successor, kind,
   quote, reason) sets a kind after the rule, where a reviewer read the filing differently; an
   override whose link changed is reported, not applied. One row: United Financial 2014, a merger
