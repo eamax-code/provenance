@@ -22,7 +22,8 @@
   var big = function (v) { if (v == null) return '—'; var a = Math.abs(v); return a >= 1e12 ? '$' + (v / 1e12).toFixed(2) + 'T' : a >= 1e9 ? '$' + (v / 1e9).toFixed(1) + 'B' : a >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : '$' + Math.round(v).toLocaleString('en-US'); };
   var pct = function (v, sign) { return v == null ? '—' : (sign ? (v > 0 ? '+' : v < 0 ? '−' : '') : '') + Math.abs(v).toFixed(sign ? 1 : 2) + '%'; };
   var common = function (c) { return !c || /^common stock$/i.test(String(c).trim()); };
-  var flag = function (text, tip, href) { return href && ARCHIVE.test(href) ? el('a', { class: 'mg-flag', href: href, target: '_blank', rel: 'noopener', title: tip, text: text }) : el('span', { class: 'mg-flag', title: tip, text: text }); };
+  // a mark cites its filing when it has one; otherwise it opens its entry on /docs/flags/ (id)
+  var flag = function (text, tip, href, id) { return href && ARCHIVE.test(href) ? el('a', { class: 'mg-flag', href: href, target: '_blank', rel: 'noopener', title: tip, text: text }) : id ? el('a', { class: 'mg-flag', href: '/docs/flags/#' + id, title: tip, 'aria-label': text + ': what this means', text: text }) : el('span', { class: 'mg-flag', title: tip, text: text }); };
   var arch = function (text, href, label) { return ARCHIVE.test(href || '') ? el('a', { href: href, target: '_blank', rel: 'noopener', text: text, 'aria-label': label || null }) : text; };
 
   var st = { quarter: '', sort: 'value' }, off = 0, seq = 0, shown = 0;
@@ -34,9 +35,9 @@
   $('mg-more').addEventListener('click', function () { load(true); });
 
   function change(c) {
-    if (!c) return [flag('Possible split; not compared', 'The shares all managers hold of this security moved as a split would, so this quarter is not compared with the one before.')];
+    if (!c) return [flag('Possible split; not compared', 'The shares all managers hold of this security moved as a split would, so this quarter is not compared with the one before.', null, 'possible-split')];
     var out = [el('span', { class: 'mg-ch', text: CHANGE[c.status] || c.status }), c.status === 'added' || c.status === 'reduced' ? ' ' + pct(c.shares_change_pct, true) : ''];
-    if (c.split_adjusted) out.push(' ', flag('Compared after the ' + (c.split || '') + ' split', 'Shares before the split were put on the new basis before comparing.'));
+    if (c.split_adjusted) out.push(' ', flag('Compared after the ' + (c.split || '') + ' split', 'Shares before the split were put on the new basis before comparing.', null, 'compared-after-split'));
     return out;
   }
   function who(i) { i = i || {}; return i.cik ? [el('a', { href: '/app/?c=' + parseInt(i.cik, 10) + '&tab=ownership', text: i.name }), i.ticker ? el('span', { class: 'tag', text: i.ticker }) : null] : [el('span', { title: 'Name as filed on Forms 13F; not matched to a company here', text: i.name || '—' })]; }
@@ -76,14 +77,14 @@
           if (b.labels && b.labels.disclaimer) $('mg-disc').textContent = b.labels.disclaimer;
           var sel = $('mg-quarter'); sel.replaceChildren.apply(sel, (b.history || []).map(function (h) { return el('option', { value: h.quarter, text: dmy(h.quarter) }); })); sel.value = b.quarter;
           var fl = [];
-          if (f.value_scale_suspect) fl.push(flag('Values look reported in thousands; left out of totals', 'This 13F’s values look 1,000 times too small, as if still reported in thousands after 2023. They are shown as filed and left out of totals, shares of the portfolio and rankings.'));
+          if (f.value_scale_suspect) fl.push(flag('Values look reported in thousands; left out of totals', 'This 13F’s values look 1,000 times too small, as if still reported in thousands after 2023. They are shown as filed and left out of totals, shares of the portfolio and rankings.', null, 'thousands'));
           if (f.confidential_omitted) fl.push(flag('Some positions confidential; missing here as on EDGAR', 'The manager asked the SEC for confidential treatment of some positions, so they are not in this 13F.'));
           $('mg-flags').replaceChildren.apply($('mg-flags'), fl); $('mg-flags').hidden = !fl.length;
           var tile = function (label, v, prev) { return el('div', {}, [el('b', { text: v }), el('span', { text: label + (prev ? ' · ' + prev + ' the quarter before' : '') })]); };
           // a quarter with only a 13F notice: its holdings are on the managers the notice names (PM copy)
           var nt = !!b.notice_only, nb = $('mg-notice');
           nb.hidden = !nt; $('mg-totals').hidden = nt; $('mg-portfolio').hidden = nt;
-          if (nt) nb.replaceChildren(el('p', {}, [el('b', { text: 'Files notices only. Its holdings are reported by:' })]),
+          if (nt) nb.replaceChildren(el('p', {}, [el('b', { text: 'Files notices only. Its holdings are reported by:' }), ' ', el('a', { href: '/docs/flags/#notice-only', text: 'What this means' })]),
             el('ul', {}, (b.reported_by || []).map(function (x) { return el('li', {}, [x.cik && x.files_holdings_here ? el('a', { href: '/managers/' + parseInt(x.cik, 10) + '/', text: x.name }) : x.name]); })),
             el('p', {}, ['The notice: ', arch((f.form || '13F-NT') + ' filed ' + dmy(f.filed_date) + ' ↗', f.source_url, (f.form || '13F-NT') + ' on sec.gov')]));
           $('mg-totals').replaceChildren(tile('reported value of positions', big(t.value_usd), t.previous_value_usd != null ? big(t.previous_value_usd) : null), tile('positions', int(t.positions), t.previous_positions != null ? int(t.previous_positions) : null), tile('matched to companies here', int(t.matched_positions), null));

@@ -50,14 +50,14 @@
     if (!data.length) { host.replaceChildren.apply(host, [head, el('p', { class: 'muted', text: empty }), (b.notes || []).length ? el('p', { class: 'muted small', text: b.notes.join(' ') }) : null].filter(Boolean)); return; }
     data.forEach(function (d) { by[d.period_label] = d; });
     var cols = (o.cols && o.cols.length ? o.cols : data.map(function (d) { return d.period_label; })), flags = [];
-    var row = function (label, tip, cell) { return el('tr', {}, [el('th', { scope: 'row' }, [tip ? el('span', { title: tip, text: label }) : label])].concat(cols.map(function (c) { var d = by[c]; return d ? cell(d, c) : el('td', { class: 'n muted', title: 'not reported', text: '—' }); }))); };
+    var row = function (label, tip, cell, id) { return el('tr', {}, [el('th', { scope: 'row' }, [id ? el('a', { href: '/docs/flags/#' + id, title: tip, 'aria-label': label + ': what this means', text: label }) : tip ? el('span', { title: tip, text: label }) : label])].concat(cols.map(function (c) { var d = by[c]; return d ? cell(d, c) : el('td', { class: 'n muted', title: 'not reported', text: '—' }); }))); };
     var rows = [row(label(data), adj ? 'Split-adjusted: each value put on today’s share basis with the reviewed splits listed below (derived)' : 'As reported: each value on the share basis of the filing it cites', function (d, c) {
       var sa = d.split_adjusted, v = adj ? sa && sa.value : d.declared_per_share, pre = !adj && sa && sa.factor > 1, f = d.filing || {};
       if (d.special && d.special.likely) flags.push(el('li', {}, [c + ': ', el('span', { class: 'dv-flag', title: d.special.basis || '', text: 'Unusually large: possibly special' })]));
       var tip = (d.derived ? 'Derived: the fiscal year less its first three quarters. ' : '') + (adj && sa && sa.factor > 1 ? 'Split-adjusted (derived): ' + dps(d.declared_per_share, d.unit) + ' as reported, divided by ' + sa.factor + '. ' : '') + (basis(d) !== 'declared' ? 'Basis: ' + basis(d) + '. ' : '') + (f.form || 'Filing') + ' filed ' + (f.filed_date || '');
       if (adj && !sa) return el('td', { class: 'n muted', title: 'Not adjusted: the split is dated only to the month around this filing', text: '—' });
       return el('td', { class: 'n' + (pre ? ' pre' : '') + (d.derived || (adj && sa && sa.factor > 1) ? ' dv-der' : '') }, [cite(dps(v, d.unit) + (d.special && d.special.likely ? '*' : ''), d.derived && d.inputs && d.inputs[0] ? d.inputs[0] : f, tip, 'dv-v')]);
-    })];
+    }, label(data) === 'Declared per share' ? null : 'dividend-basis')];
     if (!q) rows.push(row('Payout ratio', 'Derived: declared dividends per share over diluted EPS for the same fiscal year, both as reported', function (d) {
       var p = d.payout_ratio, e = p && (p.inputs || []).filter(function (x) { return x.metric === 'eps_diluted'; })[0];
       if (!payable(basis(d))) return el('td', { class: 'n muted', title: NOPAY, text: '—' });
@@ -70,7 +70,7 @@
     var mixed = label(data) === 'Dividends per share' ? 'The basis differs by period; each value’s tooltip names it.' : null;
     var splits = (b.splits || []).map(function (s) { var src = s.source || {}; return s.ratio + ' split, ' + s.date + (src.form ? ' (' + src.form + ' filed ' + (src.filed_date || '') + ')' : ''); });
     host.replaceChildren.apply(host, [head,
-      el('p', { class: 'muted small', text: (adj ? 'Split-adjusted' : 'As reported') + ' · ' + label(data).replace(/^./, function (c) { return c.toLowerCase(); }) + ' in ' + cur((data[0] || {}).unit) + ', never converted · no yield until prices are loaded' }),
+      el('p', { class: 'muted small' }, [(adj ? 'Split-adjusted' : 'As reported') + ' · ' + label(data).replace(/^./, function (c) { return c.toLowerCase(); }) + ' in ' + cur((data[0] || {}).unit) + ', never converted · no yield until prices are loaded · ', el('a', { href: '/docs/flags/#dividends-h', text: 'How to read the marks' })]),
       el('div', { class: 'tw' }, [t]),
       flags.length ? el('ul', { class: 'dv-flags', 'aria-label': 'Flags' }, flags) : null,
       mixed ? el('p', { class: 'muted small', text: mixed }) : null,

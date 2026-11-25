@@ -19,6 +19,8 @@
     (kids || []).forEach(function (c) { if (c != null && c !== '') n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return n;
   }
+  // a mark without its own filing link explains itself: it opens its entry on /docs/flags/ (the tooltip stays for mice)
+  var fx = function (text, title, id) { return el('a', { class: 'it-flag', href: '/docs/flags/#' + id, title: title, 'aria-label': text + ': what this means', text: text }); };
   var key = function () { try { return localStorage.getItem('prv_api_key') || 'demo'; } catch (e) { return 'demo'; } };
   var dmy = function (iso, yr) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? +m[3] + ' ' + MON[+m[2] - 1] + (yr === false ? '' : ' ' + m[1]) : ''; };
   var int = function (v) { return v == null ? '—' : Math.round(v).toLocaleString('en-US'); };
@@ -82,19 +84,19 @@
     // Q-03d: a 4/A that restated the row: the figures shown are the 4/A's, the original's are said beside them
     var ff = r.amended && r.first_filed, fff = ff && ff.filing || {};
     if (ff) {
-      out.push(el('span', { class: 'it-flag', title: 'Figures as amended on ' + dmy((r.filing || {}).filed_date) + '; first filed: ' + int(ff.shares) + ' shares' + (ff.average_price != null ? ' at ' + px(ff.average_price) : '') + ' (Form ' + (fff.form || '4') + ')', text: 'Amended (4/A)' }));
+      out.push(fx('Amended (4/A)', 'Figures as amended on ' + dmy((r.filing || {}).filed_date) + '; first filed: ' + int(ff.shares) + ' shares' + (ff.average_price != null ? ' at ' + px(ff.average_price) : '') + ' (Form ' + (fff.form || '4') + ')', 'amended'));
       out.push(el('span', { class: 'it-ff' }, ['First filed: ' + int(ff.shares) + (ff.average_price != null ? ' at ' + px(ff.average_price) : '') + ' ', ARCHIVE.test(fff.source_url || '') ? el('a', { href: fff.source_url, target: '_blank', rel: 'noopener', text: 'Form ' + (fff.form || '4') + ' ↗', 'aria-label': 'The original Form ' + (fff.form || '4') + ' filed ' + dmy(fff.filed_date) + ' on sec.gov' }) : null]));
     }
     (ff ? [] : r.amended_by || []).slice(0, 1).forEach(function (a) {
       var t = 'Amended (4/A) on ' + dmy(a.filed_date) + ': the figures may have been corrected. Open the amendment on sec.gov.';
-      out.push(ARCHIVE.test(a.source_url || '') ? el('a', { class: 'it-flag', href: a.source_url, target: '_blank', rel: 'noopener', title: t, text: 'Amended (4/A)' + ((r.amended_by || []).length > 1 ? ' ×' + r.amended_by.length : '') }) : el('span', { class: 'it-flag', title: t, text: 'Amended (4/A)' }));
+      out.push(ARCHIVE.test(a.source_url || '') ? el('a', { class: 'it-flag', href: a.source_url, target: '_blank', rel: 'noopener', title: t, text: 'Amended (4/A)' + ((r.amended_by || []).length > 1 ? ' ×' + r.amended_by.length : '') }) : fx('Amended (4/A)', t, 'amended'));
     });
-    if (r.value_partial) out.push(el('span', { class: 'it-flag', title: 'Value partial: some lines had no price', text: 'Value partial' }));
-    if (r.price_outlier) out.push(el('span', { class: 'it-flag', title: 'The price on this Form 4 is far from this company\u2019s other trades that month; it may be a total typed in the price box. Left out of value filters and ranking.', text: 'Price looks wrong as filed' }));
-    (r.duplicate_filings || []).slice(0, 1).forEach(function (d) { var t = 'Filed twice: the same trades on ' + f0(r) + ' and ' + d.source_url + '. Shown once.'; out.push(ARCHIVE.test(d.source_url || '') ? el('a', { class: 'it-flag', href: d.source_url, target: '_blank', rel: 'noopener', title: t, text: 'Filed twice' }) : el('span', { class: 'it-flag', title: t, text: 'Filed twice' })); });
+    if (r.value_partial) out.push(fx('Value partial', 'Value partial: some lines had no price', 'value-partial'));
+    if (r.price_outlier) out.push(fx('Price looks wrong as filed', 'The price on this Form 4 is far from this company\u2019s other trades that month; it may be a total typed in the price box. Left out of value filters and ranking.', 'price-outlier'));
+    (r.duplicate_filings || []).slice(0, 1).forEach(function (d) { var t = 'Filed twice: the same trades on ' + f0(r) + ' and ' + d.source_url + '. Shown once.'; out.push(ARCHIVE.test(d.source_url || '') ? el('a', { class: 'it-flag', href: d.source_url, target: '_blank', rel: 'noopener', title: t, text: 'Filed twice' }) : fx('Filed twice', t, 'filed-twice')); });
     if (r.cluster) {
       var c = r.cluster, ef = c.event_filing || {}, ct = 'Cluster buy: ' + c.insiders + ' insiders bought from ' + dmy(c.first_trade) + ' to ' + dmy(c.event_date) + '. Open the filing behind the event.';
-      out.push(ARCHIVE.test(ef.source_url || '') ? el('a', { class: 'it-flag', href: ef.source_url, target: '_blank', rel: 'noopener', title: ct, text: 'Cluster buy' }) : el('span', { class: 'it-flag', title: ct, text: 'Cluster buy' }));
+      out.push(ARCHIVE.test(ef.source_url || '') ? el('a', { class: 'it-flag', href: ef.source_url, target: '_blank', rel: 'noopener', title: ct, text: 'Cluster buy' }) : fx('Cluster buy', ct, 'cluster'));
     }
     return out.length ? el('span', { class: 'it-flags' }, out) : null;
   }

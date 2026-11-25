@@ -21,7 +21,9 @@
   function sv(tag, attrs, text) { var n = document.createElementNS(NS, tag); Object.keys(attrs || {}).forEach(function (k) { if (attrs[k] != null) n.setAttribute(k, attrs[k]); }); if (text != null) n.textContent = text; return n; }
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   // S-05: a fiscal column's header says what it covers and how the company names it (label_basis on statements)
+  function colLabel(c) { return String(c.period_label || c.key || '').replace(/\d{4}-\d{2}-\d{2}/, function (d) { return day(d); }); }
   function fyTip(c, basis) {
+    if (c.transition) return colLabel(c) + (/\bQ\d/.test(c.period_label || '') ? ', a quarter of the transition period after a year-end change' : '') + (c.transition_form ? ', reported on Form ' + c.transition_form : '') + (/\bQ\d/.test(c.period_label || '') ? '.' : '. A part year: no year-on-year change.');
     var l = c.period_label || c.key || '', q = /^Q\d/.test(l); if (!c.period_end) return '';
     return l + ': the ' + (q ? 'quarter' : 'year') + ' ended ' + day(c.period_end) + (!/FY\d{4}/.test(l) || !basis ? '.' : /10-K/.test(basis) ? ', named as in the company\u2019s 10-K.' : q ? ', named by the year its fiscal year ends in.' : ', named by the year it ends in.');
   }
@@ -553,7 +555,7 @@
     var csv = el('button', { type: 'button', class: 'btn small', text: 'CSV', on: { click: function () {
       var a = el('a', { href: URL.createObjectURL(new Blob([csvRows().join('\n')], { type: 'text/csv' })), download: csvName }); document.body.appendChild(a); a.click(); a.remove();
     } } });
-    return el('div', { class: 'ch-bar st-bar' }, [tabs, per, shows, el('span', { class: 'muted small', text: note }), el('span', { class: 'ch-acts' }, [csv])]);
+    return el('div', { class: 'ch-bar st-bar' }, [tabs, per, shows, el('span', { class: 'muted small' }, [note, ' · ', el('a', { href: '/docs/flags/#statements-h', text: 'How to read the marks' })]), el('span', { class: 'ch-acts' }, [csv])]);
   }
   function statementsBulk(b) {
     var pane = $('pane-statements'), cur = b.reporting_currency || ((S.d.company || {}).reporting_currency) || 'USD';
@@ -565,7 +567,8 @@
     (b.columns || []).forEach(function (c, i) { var k = cols.length ? cols.map(function (x) { return x.key; }).lastIndexOf(c.key) : -1; if (k > -1 && k >= cols.length - 2) idx[k].push(i); else { cols.push(c); idx.push([i]); } });
     var baseRow = rows.filter(function (r) { return r.metric === base; })[0];
     // cells align with columns by position (keys can repeat when a filer reuses a period label); values may come as strings
-    var at0 = function (r, j) { var c = null, ci = -1; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; ci = i; return true; } return false; }); return c ? Object.assign({}, c, { value: Number(c.value), _i: ci }) : null; };
+    // a column's figure: the first cell with a value; with none, a cell withheld with a note (M-01), value kept null
+    var at0 = function (r, j) { var c = null, ci = -1, w = null; (idx[j] || []).some(function (i) { var x = (r.cells || [])[i]; if (x && x.value != null) { c = x; ci = i; return true; } if (x && !w && (x.quality_note || (x.quality_status && x.quality_status !== 'ok'))) w = x; return false; }); return c ? Object.assign({}, c, { value: Number(c.value), _i: ci }) : w ? Object.assign({}, w, { value: null }) : null; };
     // S-02: "Split-adjusted" swaps in the API's derived values (split_adjusted) where they differ from the reported ones; as reported stays the default (each cell as reported in the filing it cites, which can be a later restated one)
     // only a split confirmed from the company's own filings (split_break.reviewed) offers the switch; an unreviewed break keeps its note
     var hasAdj = rows.some(function (r) { return r.split_break && r.split_break.reviewed === true; }) && rows.some(function (r) { return r.split_adjusted && r.split_adjusted.values; }), adjOn = hasAdj && S.adj === 'split';
@@ -584,14 +587,28 @@
     // columns on an earlier share basis (split_break.pre_split_columns): they need not come first (a later filing restates
     // only the periods it shows again), so each such cell is marked and YoY only compares two cells on the same basis
     var preOf = function (r) { var ks = r.split_break && r.split_break.pre_split_columns; if (!ks) return null; var set = {}; ks.forEach(function (k) { var q = colAt(k); if (q > -1) set[q] = 1; }); return set; };
-    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: fyTip(c, b.label_basis), text: c.period_label || c.key }); })));
+    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: fyTip(c, b.label_basis), text: colLabel(c) }); })));
+    // YoY compares a column with the one that ends about a year before it (S-07): a transition period, or a year that
+    // overlaps the one before (a changed year end), has no like-for-like year and shows "—"
+    // a quarter inside a transition is still a quarter, so it compares; only the part-year column does not
+    var dn = function (d) { return Date.parse(d) / 864e5; }, back = S.p === 'quarterly' ? 4 : 1, part = function (c) { return c.transition && !/\bQ\d/.test(c.period_label || ''); };
+    var prior = cols.map(function (c, i) {
+      if (part(c)) return -1;
+      for (var j = i - 1; j >= 0; j--) { var p = cols[j]; if (!c.period_end || !p.period_end) return i >= back ? i - back : -1; var g = dn(c.period_end) - dn(p.period_end); if (g > 385) return -1; if (!part(p) && g >= 345) return j; }
+      return -1;
+    });
     var body = rows.map(function (r) {
       var ratio = r.unit_kind === 'ratio' || r.unit_kind === 'percent' || r.unit_kind === 'multiple';
       return el('tr', { class: /^(gross_profit|operating_income|net_income|total_assets|total_liabilities|stockholders_equity|operating_cash_flow|free_cash_flow)$/.test(r.metric) ? 'tot' : '' }, [el('th', { scope: 'row', class: 'stick' }, [r.label, r.derived ? el('span', { class: 'tag', title: r.formula || '', text: 'derived' }) : null, adjOn && r.split_adjusted ? el('span', { class: 'tag', title: (r.split_adjusted.basis || '') + ' Ratio ' + r.split_adjusted.ratio + '.' }, lab('split-adjusted, derived', 'adjusted')) : r.split_break ? el('span', { class: 'tag tag-sb', title: r.split_break.text || '' }, lab('mixed split basis', 'split')) : null])].concat(cols.map(function (col, i) {
         var sb = sbOf(r), pre = preOf(r), adjRow = adjOn && r.split_adjusted, sbc = (sb > -1 && i === sb ? ' sb' : '') + (pre && pre[i] && !adjRow ? ' pre' : '');
-        var c = at(r, i); if (!c || !isFinite(c.value)) return el('td', { class: 'n muted' + sbc, title: 'not reported', text: '—' });
+        var c = at(r, i);
+        // no figure: not reported, or (M-01) withheld with a note when one filing gives two that nothing else backs; the
+        // mark then links its entry, since there is no figure to open (isFinite(null) is true, so null is tested first)
+        if (!c || c.value == null || !isFinite(c.value)) return c && (c.quality_note || (c.quality_status && c.quality_status !== 'ok'))
+          ? el('td', { class: 'n muted' + sbc }, ['—', el('a', { class: 'qf', href: '/docs/flags/#quality', title: c.quality_note || c.quality_status.replace(/_/g, ' '), 'aria-label': 'No figure: ' + (c.quality_note || c.quality_status.replace(/_/g, ' ')), text: '!' })])
+          : el('td', { class: 'n muted' + sbc, title: 'not reported', text: '—' });
         var txt;
-        if (S.show === 'yoy') { var back = S.p === 'quarterly' ? 4 : 1, pc = i >= back && !(!adjRow && (pre ? !pre[i] !== !pre[i - back] : sb > -1 && i >= sb && i - back < sb)) ? at(r, i - back) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
+        if (S.show === 'yoy') { var j = prior[i], pc = j > -1 && !(!adjRow && (pre ? !pre[i] !== !pre[j] : sb > -1 && i >= sb && j < sb)) ? at(r, j) : null; txt = ratio ? '—' : pct(pc ? growth(c.value, pc.value) : null, true); }
         else if (S.show === 'common') { var bc = baseRow && at(baseRow, i); txt = ratio || !bc || !bc.value ? '—' : pct(100 * c.value / bc.value); }
         else txt = c.unit === 'ratio' ? pct(100 * c.value) : fmtv(c.value, c.unit, cur);
         var info = Object.assign({ label: r.label, metric: r.metric, currency: cur, fiscal_label: col.period_label || col.key, formula: r.formula }, c);

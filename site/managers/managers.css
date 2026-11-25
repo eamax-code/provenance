@@ -28,6 +28,7 @@
 .mg-flags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 .mg-flag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); color: var(--ink); font-size: .75rem; font-weight: 600; line-height: 1.6; cursor: help; vertical-align: 1px; text-decoration-line: none; }
 .mg-flags .mg-flag { margin-left: 0; font-size: .82rem; }
+a.mg-flag { cursor: pointer; text-decoration-line: underline; text-decoration-color: var(--link-line); } /* a mark that opens its filing or its entry on /docs/flags/ */
 .mg-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
 .mg-totals > div { background: var(--surface); border-radius: 4px; padding: 14px 16px; display: grid; gap: 4px; }
 .mg-totals b { font-size: clamp(1.4rem, 2.2vw, 2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }

@@ -89,7 +89,7 @@
   <p class="fg-lede">Marks you can meet next to a figure, what each one means, and an example to open. A mark says how a figure was filed or worked out; it is never a judgement on the company.</p>
   <p class="fg-disc">Information, not signals. Not investment advice.</p>
   <p class="fg-note">Examples marked <span class="fk">free key</span> open with a <a href="/account/">free key</a>; the others open for anyone.</p>
-  <nav class="fg-toc" aria-label="On this page"><a href="#statements-h">Statements</a><a href="#dividends-h">Dividends</a><a href="#insiders-h">Insider trades</a><a href="#managers-h">Fund managers</a></nav>
+  <nav class="fg-toc" aria-label="On this page"><a href="#statements-h">Statements</a><a href="#dividends-h">Dividends</a><a href="#insiders-h">Insider trades</a><a href="#managers-h">Fund managers</a><a href="#activists-h">Activist stakes</a></nav>
   <section aria-labelledby="statements-h">
     <h2 id="statements-h">Figures in the statements</h2>
     <dl class="fls">
@@ -128,6 +128,18 @@
       <div class="fl" id="thousands"><dt>Values look reported in thousands</dt><dd><p>The filing’s values look 1,000 times too small, as if still reported in thousands after 2023; shown as filed and left out of totals.</p><p class="ex">Example: <a href="/managers/19475/?quarter=2025-12-31">Chase Investment Counsel, quarter ended 31 December 2025</a> <span class="fk">free key</span>.</p></dd></div>
       <div class="fl" id="notice-only"><dt>Files notices only</dt><dd><p>The manager filed a 13F notice; its holdings are reported by the managers it names, listed on its page.</p><p class="ex">Example: <a href="/managers/102909/">Vanguard Group</a> <span class="fk">free key</span>.</p></dd></div>
     </dl>
+  </section>
+  <section aria-labelledby="activists-h">
+    <h2 id="activists-h">Activist stakes (Schedule 13D)</h2>
+    <dl class="fls">
+      <div class="fl" id="switched"><dt>Switched from passive (13G) to active (13D)</dt><dd><p>The filer, or someone filing with it, first reported the stake on a Schedule 13G, the form for passive holders, and then filed a 13D, the form required when the holder may seek to change or influence control of the company, or no longer qualifies for the short form. The 13G is linked.</p><p class="ex">Example: <a href="/app/?c=1720592&amp;tab=ownership#activists">Repay Holdings, Forager Fund</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="group"><dt>{lead filer} and N others (group)</dt><dd><p>Several reporting persons filed together as a group; the first named is the lead filer. The percent is the one the filing gives, never added up across members: members often each report the group’s shares they are deemed to own, so adding them would count shares twice.</p><p class="ex">Example: <a href="/app/?c=1370755&amp;tab=ownership#activists">Saba Capital Management and 2 others on BlackRock TCP Capital, 8.46%</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="stated-in"><dt>Item 4, stated in …</dt><dd><p>The stated purpose is quoted as filed from Item 4 of an earlier filing in the chain, because the latest amendment left Item 4 unchanged or said it does not apply. It is never summarised; the filing it comes from is linked.</p><p class="ex">Example: <a href="/app/?c=2012706&amp;tab=ownership#activists">Sunrise Realty Trust, Leonard M. Tannenbaum</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="percent-basis"><dt>The percent shown is one member’s</dt><dd><p>When no single cover page reached 5%, the percent shown is the largest single reporting person’s. These filings give no group total, so the group’s own stake can’t be read from them.</p><p class="ex">Example: <a href="/app/?c=355019&amp;tab=ownership#activists">FONAR, Timothy Raymond Damadian and 56 others, under Include exited stakes</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="exited"><dt>Exited</dt><dd><p>The latest filing reports under 5% after the stake was 5% or more, or no shares at all; the filings before it stay listed with it.</p><p class="ex">Example: <a href="/app/?c=1335258&amp;tab=ownership#activists">Liberty Media on Live Nation Entertainment, under Include exited stakes</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="activist-coverage"><dt>What is covered</dt><dd><p>13D filings in the SEC’s structured format, December 2024 onward. Earlier and free-text filings are not read: for example, the Schedule 13D on Match Group filed 15 July 2024 is not shown.</p><p class="ex">Example: <a href="/activists/">Activist stakes across companies</a>.</p></dd></div>
+    </dl>
+    <p class="fg-disc">Information, not signals. A 13D says what the filer reported, not what it will do.</p>
   </section>
 </main>
 <!-- shell:footer -->

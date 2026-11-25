@@ -15,7 +15,7 @@
 // a figure link without a visible underline (every number is a door, on every theme), a figure or data mark
 // (chart label, SVG shape, HTML bar, Chart.js dataset) drawn in the brand's marker
 // yellow (it may only sit behind a figure as the highlight), chart series too alike to tell apart (normal or
-// colour-blind vision) or under 3:1 against the chart, and, for an entry with sweepAt, light text under
+// colour-blind vision) or under 3:1 against the chart, a link to /docs/flags/#x with no such entry on that page, and, for an entry with sweepAt, light text under
 // the marker while the provenance highlight sweeps (pixels read from a PNG of the figure at that moment).
 // A page's documented API errors (a 403 demo scope, a 404 not read) are excused only by allowHttp [{status, url, code}]:
 // the failed request's status, URL and JSON error.code must all match; every other failed request fails.
@@ -326,6 +326,9 @@ async function view(page, theme, width) {
       if (rules.some((a) => a.code === code)) excused.add(line);
     }
     res.fail.push(...[...new Set(errors)].filter((e) => !excused.has(e) && !(want === 404 && /404/.test(e)) && !allowed.some((re) => re.test(e))));
+    // a mark that explains itself must land on its entry: /docs/flags/#x with x an id on that page
+    const fl = await send('Runtime.evaluate', { expression: `[...document.querySelectorAll('a[href^="/docs/flags/#"]')].map((a) => a.getAttribute('href').slice(13))`, returnByValue: true }, sessionId).catch(() => null);
+    for (const id of new Set((fl && fl.result && fl.result.value) || [])) if (!flagIds.has(id)) res.fail.push('link to /docs/flags/#' + id + ': no such entry');
     // page-specific expectations: each a JS expression that must be true once the page has settled
     for (const ex of page.expect || []) {
       let okEx = false;
@@ -392,6 +395,8 @@ function decodePng(b) {
   return { w, h, at: (x, y) => { const i = (y * w + x) * bpp; return [px[i], px[i + 1], px[i + 2]]; } };
 }
 // ---- run ----
+// the anchors /docs/flags/ offers (its element ids), read once: every link to /docs/flags/#x on any view must name one
+const flagIds = await fetch(base + '/docs/flags/').then((r) => (r.ok ? r.text() : '')).then((t) => new Set([...t.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]))).catch(() => new Set());
 const results = [];
 let failures = 0;
 for (const page of config.pages) {

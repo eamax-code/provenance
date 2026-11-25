@@ -24,6 +24,8 @@
   // "13D", "13D/A No. 3": the form as filed without the word SCHEDULE
   var form = function (f, n) { var s = String(f || 'Filing').replace(/^SCHEDULE\s+/i, '').replace(/^SC\s+/i, ''); return n ? s + ' No. ' + n : s; };
   var link = function (text, url) { return ARCHIVE.test(url || '') ? el('a', { href: url, target: '_blank', rel: 'noopener', text: text + ' ↗' }) : text; };
+  // a mark opens its entry on /docs/flags/ (Pattern A, 25 Nov); its name starts with the visible text
+  var mk = function (text, id, cls) { return el('a', { class: cls, href: '/docs/flags/#' + id, 'aria-label': text + ': what this means', text: text }); };
   var common = function (c) { return !c || /^common stock$/i.test(String(c).trim()); };
   var ofClass = function (c) { return common(c) ? ' of the class' : ' of ' + c; };
 
@@ -41,24 +43,24 @@
   // "Starboard Value LP and 2 others (group)": the lead filer, and the reporting persons with it
   function who(filer, n) {
     var o = (n || 1) - 1;
-    return [el('b', { text: (filer && filer.name) || 'Filer not named' }), o > 0 ? ' and ' + o + (o === 1 ? ' other' : ' others') + ' (group)' : null];
+    return [el('b', { text: (filer && filer.name) || 'Filer not named' }), o > 0 ? ' and ' + o + (o === 1 ? ' other ' : ' others ') : null, o > 0 ? mk('(group)', 'group') : null];
   }
   // Item 4 quoted as filed, with the filing it comes from; an amendment that left Item 4 unchanged cites the earlier
   // filing ("stated in"); a cut excerpt links the whole Item 4
   function quote(p, accession) {
     if (!p || !p.excerpt) return el('p', { class: 'ac-nop muted small', text: 'No purpose stated in Item 4 of the structured filings.' });
     var carried = p.carried_forward != null ? p.carried_forward : !!(accession && p.accession_number && p.accession_number !== accession);
-    var src = p.form ? (carried ? 'Item 4, stated in ' : 'Item 4, ') + form(p.form) + ' filed ' + dmy(p.filed_date) : 'Item 4, as filed';
+    var src = p.form ? form(p.form) + ' filed ' + dmy(p.filed_date) : 'as filed', lead = carried && p.form ? ['Item 4, ', mk('stated in', 'stated-in'), ' '] : ['Item 4, '];
     return el('figure', { class: 'ac-q' }, [el('blockquote', { cite: ARCHIVE.test(p.source_url || '') ? p.source_url : null, text: p.excerpt + (p.truncated ? ' …' : '') }),
-      el('figcaption', {}, p.truncated ? [src + ' · ', link('Read the full Item 4', p.source_url)] : [link(src, p.source_url)])]);
+      el('figcaption', {}, lead.concat(p.truncated ? [src + ' · ', link('Read the full Item 4', p.source_url)] : [link(src, p.source_url)]))]);
   }
   function switched(s) {
-    return s ? el('p', { class: 'ac-sw' }, [el('span', { class: 'ac-tag', text: 'Switched from passive (13G) to active (13D)' }), 'after ', link(form(s.form) + ' filed ' + dmy(s.filed_date) + (s.percent != null ? ' at ' + pc(s.percent) : ''), s.source_url)]) : null;
+    return s ? el('p', { class: 'ac-sw' }, [mk('Switched from passive (13G) to active (13D)', 'switched', 'ac-tag'), 'after ', link(form(s.form) + ' filed ' + dmy(s.filed_date) + (s.percent != null ? ' at ' + pc(s.percent) : ''), s.source_url)]) : null;
   }
   function disclaimer(b) { return el('p', { class: 'ac-disc', text: ((b && b.labels) || {}).disclaimer || 'Information, not signals. Not investment advice.' }); }
   function coverage(b) {
     var m = /^(\d{4})-(\d{2})/.exec(((b && b.coverage) || {}).from || ''), when = m ? MONTHS[+m[2] - 1] + ' ' + m[1] : 'December 2024';
-    return el('p', { class: 'ac-cov' }, ['Covers 13D filings in the SEC’s structured format, ' + when + ' onward. Earlier and free-text filings are not read: for example, ', link('the Schedule 13D on Match Group filed 15 July 2024', EXAMPLE), ' is not shown.']);
+    return el('p', { class: 'ac-cov' }, ['Covers 13D filings in the SEC’s structured format, ' + when + ' onward. Earlier and free-text filings are not read: for example, ', link('the Schedule 13D on Match Group filed 15 July 2024', EXAMPLE), ' is not shown. ', el('a', { href: '/docs/flags/#activists-h', text: 'How to read the marks' })]);
   }
 
   // one filer's stake at a company (a chain from /v1/companies/{cik}/activists)
@@ -74,7 +76,7 @@
       el('tbody', {}, ch.map(function (f) { var p = f.change_pct_points; return el('tr', {}, [el('td', { text: dmy(f.filed_date) }), el('td', {}, [link(form(f.form, f.amendment_number), f.source_url)]), el('td', { text: dmy(f.event_date) || '—' }), el('td', { class: 'n', text: pc(f.percent) }), el('td', { class: 'n', text: p == null ? 'first filing' : Math.abs(p) < 0.05 ? 'unchanged' : (p > 0 ? 'up ' : 'down ') + Math.abs(p).toFixed(1) + ' pts' }), el('td', { class: 'n', text: int(f.shares) })]); }))])]));
     return el('li', { class: 'ac-item' }, [el('p', { class: 'ac-who' }, who(c.filer, grp.length)), el('p', { class: 'ac-stake', text: stake }),
       // percent_basis: the chain never reached 5% on any one cover page, so the figure is one member's, not the group's
-      c.percent_basis ? el('p', { class: 'ac-meta', text: 'The percent shown is the largest single reporting person’s; these filings give no group total.' }) : null,
+      c.percent_basis ? el('p', { class: 'ac-meta' }, ['The percent shown is the largest single reporting person’s; these filings give no group total. ', el('a', { href: '/docs/flags/#percent-basis', text: 'What this means' })]) : null,
       el('p', { class: 'ac-meta' }, ['Latest: ', link(form(cur.form, cur.amendment_number) + ' filed ' + dmy(cur.filed_date), cur.source_url), cur.event_date ? el('span', { title: 'The date of the event that required the filing, as filed', text: ' (event ' + dmy(cur.event_date) + ')' }) : null,
         cur.shares != null ? ' · ' + int(cur.shares) + ' shares' : null, ch.length > 1 ? ' · first 13D filed ' + dmy(first.filed_date) + ' at ' + pc(first.percent) : null]),
       switched(c.switched_from_13g), quote(c.purpose, cur.accession_number),

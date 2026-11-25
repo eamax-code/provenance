@@ -27,11 +27,15 @@
     kv('Accession', i.accession_number);
     kv('Tag', i.source_tag);
     kv('Mapping', i.mapping_version);
-    kv('Quality', i.quality_status ? String(i.quality_status).replace(/_/g, ' ') : null);
-    if (i.derived) kv('Derived', (i.formula || 'worked out here from reported figures') + (i.inputs && i.inputs.length ? ': ' + i.inputs.map(function (x) { return String(x.metric || x.name || '').replace(/_/g, ' ') + ' ' + money(x.value, i.currency); }).join(', ') : ''));
+    // a mark's row links its entry on /docs/flags/ ("What this means"); the quality note itself is said here too
+    var why = function (id) { return el('a', { class: 'prov-why', href: '/docs/flags/#' + id, text: 'What this means' }); };
+    var bad = i.quality_status && i.quality_status !== 'ok';
+    if (bad || i.quality_note) kv('Quality', el('span', {}, [(bad ? String(i.quality_status).replace(/_/g, ' ') + (i.quality_note ? ': ' : '') : '') + (i.quality_note || '') + ' ', why(i.quality_status === 'unit_doubtful' || /about 100 times/.test(i.quality_note || '') ? 'unit-doubtful' : 'quality')]));
+    if (i.derived) kv('Derived', el('span', {}, [(i.formula || 'worked out here from reported figures') + (i.inputs && i.inputs.length ? ': ' + i.inputs.map(function (x) { return String(x.metric || x.name || '').replace(/_/g, ' ') + ' ' + money(x.value, i.currency); }).join(', ') : ''), ' ', why('derived')]));
     if (i.derived && i.inputs && i.inputs.some(function (x) { return x.source_url && ARCHIVE.test(x.source_url); })) kv('Inputs', el('span', { class: 'prov-in' }, i.inputs.map(function (x) {
       return ARCHIVE.test(x.source_url || '') ? el('a', { href: x.source_url, target: '_blank', rel: 'noopener', text: String(x.metric || '').replace(/_/g, ' ') + ' · ' + (x.form_type || 'filing') + (x.filed_date ? ' filed ' + day(x.filed_date) : '') + ' ↗' }) : null;
     })));
+    if (i.adj) kv('Split-adjusted', el('span', {}, ['put on today’s share basis here ', why('split-adjusted')]));
     if (i.predecessor) kv('Registrant', i.registrant_label || 'Reported by the predecessor registrant (CIK ' + i.registrant_cik + ')');
     var asOf = cfg.asOf(); kv('As known on', asOf ? day(asOf) : 'latest');
     card = el('div', { class: 'prov-card', role: 'dialog', 'aria-label': 'Where this figure comes from', tabindex: '-1' }, [
