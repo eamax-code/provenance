@@ -90,7 +90,9 @@ def test_successor_overview_continues_the_history(db, reorganised):
 def test_the_reviewed_file_is_complete_and_quotes_every_stored_pair():
     rows = successions.reviewed()
     stored = [r for r in rows.values() if r["decision"] == "store"]
-    assert len(rows) == 78 and len(stored) == 62  # K-05c: 45 joined on the successor's own filing
+    assert len(rows) == 79 and len(stored) == 63  # K-05c: 46 joined on the successor's own filing
+    # STERIS 2015: after D-01e put the link on the 2015 STERIS plc (now STERIS Ltd)
+    assert rows[("0000815065", "0001624899")]["match_method"] == "accounting_predecessor"
     # Cardtronics 2016: the earlier reject reversed on the plc's 10-Q (PM, 2026-11-25)
     card = rows[("0001277856", "0001671013")]
     assert card["decision"] == "store" and "Delaware to the United Kingdom" in card["quote"]

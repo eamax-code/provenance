@@ -621,8 +621,8 @@ find, from D-01b's named successors, are joined only where the successor's own f
 continuity (its 8-K12B, first 10-Q or 10-K: predecessor registrant, accounting acquirer,
 holding-company reorganisation, redomicile or conversion), quoted with its link in the reviewed
 file (`successions.pairs_from_reviewed`; the evidence is the successor's 8-K12B within 60 days
-where there is one). 45 of 60 candidates were joined; the rest stay display-only (no such
-statement found, or an acquisition). The reviewed file gains a `note` column (Cardtronics 2016:
+where there is one). 46 of 60 candidates were joined (STERIS 2015 after D-01e corrected its
+successor); the rest stay display-only (no such statement found, or an acquisition). The reviewed file gains a `note` column (Cardtronics 2016:
 an earlier reject reversed on the plc's 10-Q). Facts stay under the CIK that filed
 them. The overview joins the predecessors' annual figures at query time: every statement cell and
 year carries `registrant_cik` and `predecessor` (with `registrant_label`, "Reported by predecessor
