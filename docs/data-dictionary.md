@@ -463,11 +463,16 @@ quarterly), `unit` and `period_end`, the annual report's observation first. Each
 `period_start`, `value`, `currency`, the fiscal labels `fiscal_year` and `fiscal_quarter` (from
 `app/services/periods.py`, named by the period end and the company's year end), `form_type`,
 `filed_date`, `accession_number`, `source_tag`, `source_url`, `quality_status` and
-`mapping_version`. Derived quarters are not stored.
+`mapping_version`. Derived quarters are not stored. S-07b: an annual period that is not a fiscal
+year's column in the statements (an adoption-date balance beside the year end, chosen per period
+type and unit by `fiscal_years.left_out`, so a company that moved to US dollars keeps its dollar
+opening balance) is not stored either; it stays in `financial_facts`.
 
 `mart_company_period`: one row per `cik` and `fiscal_year`, with `period_end` and the five
-annual USD figures as columns, plus `sources` (JSON: each figure's filing link). Exported by
-`GET /v1/exports/company-years`.
+annual USD figures as columns, plus `sources` (JSON: each figure's filing link). Periods ending
+within a week of each other are one year's (income dated December 30, the balance sheet December
+31) and `period_end` is the later; a period months later in the same fiscal year (a change of
+year end) replaces the year. Exported by `GET /v1/exports/company-years`.
 
 `company_aliases` (issue #3, step 2): other names a company is found by, one row per `cik`
 and `alias`, with `kind` (`former`: a name the SEC lists as the company's former name) and the

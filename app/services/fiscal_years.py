@@ -20,10 +20,10 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Filing, FinancialFact
+from app.db.models import Company, Filing, FinancialFact
 
 FORMS = ("10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A", "10-KT", "10-KT/A")
 NEAR = 7
@@ -150,4 +150,45 @@ def transitions(db: Session, ciks: list[str] | None = None,
         if as_of and r[3] and r[3] > as_of:
             continue
         out[cik].append((r[6], r[7], acc, r[2], r[3]))
+    return out
+
+
+def left_out(db: Session, ciks: list[str] | None = None) -> set[tuple]:
+    """S-07b: {(cik, period type, unit, period end)} of the annual periods that are not a fiscal
+    year's column, such as an adoption-date balance at January 1, 2018; the marts leave them out
+    as the statements do, choosing per period type (periods.one_per_year_end): balances apart
+    from durations, as the balance sheet is apart from the income statement; and per unit, so a
+    company that moved to US dollars keeps its dollar opening balance beside the year end in
+    its old currency (BELLUS Health's January 1, 2019 beside its Canadian dollar December 31)."""
+    from app.services import periods
+
+    f = FinancialFact
+    q = (select(f.cik, f.period_type, f.unit, f.period_end, func.count(distinct(f.metric)))
+         .where(f.period_class == "annual", f.derived.is_(False), f.value.is_not(None),
+                f.quality_status.in_(("ok", "partial")))
+         .group_by(f.cik, f.period_type, f.unit, f.period_end))  # fmt: skip
+    if ciks:
+        q = q.where(f.cik.in_(ciks))
+    counts: dict[tuple, dict] = defaultdict(dict)
+    for cik, ptype, unit, end, n in db.execute(q):
+        counts[(cik, ptype, unit)][end] = n
+    if not counts:
+        return set()
+    scope = sorted({k[0] for k in counts})
+    cq = select(Company.cik, Company.fiscal_year_ends).where(Company.fiscal_year_ends.is_not(None))
+    own = {c: tuple(periods.parse_year_ends(v)) for c, v in db.execute(
+        cq.where(Company.cik.in_(scope)) if ciks else cq)}  # fmt: skip
+    rq = select(Filing.cik, Filing.report_date).where(Filing.report_date.is_not(None),
+                                                      Filing.form_type.in_(FORMS))  # fmt: skip
+    reports: dict[str, set] = defaultdict(set)
+    for c, r in db.execute(rq.where(Filing.cik.in_(scope)) if ciks else rq):
+        reports[c].add(r)
+    t_ends: dict[str, list] = {c: [x[1] for x in xs] for c, xs in transitions(db, ciks).items()}
+    out = set()
+    for (cik, ptype, unit), by_end in counts.items():
+        if not own.get(cik):
+            continue
+        skip = {e for e in by_end if any(abs((e - t).days) <= NEAR for t in t_ends.get(cik, ()))}
+        for e in periods.one_per_year_end(by_end, own[cik], reports.get(cik, set()), skip):
+            out.add((cik, ptype, unit, e))
     return out

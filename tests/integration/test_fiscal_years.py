@@ -289,3 +289,107 @@ def test_one_balance_column_per_year_end(client, auth, db):
         ("FY2017", "2017-12-31"), ("FY2018", "2019-01-01"), ("FY2019", "2019-12-31")]  # fmt: skip
     (assets,) = [r for r in bal["rows"] if r["metric"] == "total_assets"]
     assert [c["value"] for c in assets["cells"]] == [100, 120, 130]
+
+
+def test_the_marts_leave_out_an_adoption_date_balance(db):
+    """S-07b in the marts: a January 1, 2018 adoption-date balance is neither a second FY2017
+    row nor the FY2017 company year (which kept the later period end and lost its revenue), nor
+    the company's latest total assets."""
+    import json
+
+    from app.db.models import MartCompany, MartCompanyPeriod, MartFinancial
+    from app.services import marts
+
+    now = datetime.now(UTC)
+    cik = "0000000912"
+    db.add(Company(cik=cik, legal_name="ADOPTER INC", fiscal_year_end="1231",
+                   fiscal_year_ends="2016-12-31,2017-12-31", source_url="https://www.sec.gov/",
+                   first_detected_at=now, last_processed_at=now,
+                   quality_status="ok"))  # fmt: skip
+    acc = "0000000912-18-000001"
+    for metric, v, start, end in [
+        ("revenue", 500, date(2017, 1, 1), date(2017, 12, 31)),
+        ("total_assets", 900, None, date(2017, 12, 31)),
+        ("total_liabilities", 400, None, date(2017, 12, 31)),
+        ("total_assets", 905, None, date(2018, 1, 1)),  # ASC 606 opening balance
+    ]:
+        f = _fact(metric, v, start, end, "annual", acc, "10-K", date(2018, 2, 28))
+        f.cik = cik
+        if start is None:
+            f.period_type = "instant"
+        db.add(f)
+    db.commit()
+    marts.build_financial_marts(db, [cik])
+    marts.build_company_marts(db, [cik])
+    ends = {r.period_end for r in db.query(MartFinancial).filter(MartFinancial.cik == cik)}
+    assert ends == {date(2017, 12, 31)}
+    year = db.get(MartCompanyPeriod, (cik, 2017))
+    assert year.period_end == date(2017, 12, 31) and year.revenue == 500
+    assert year.total_assets == 900
+    latest = json.loads(db.get(MartCompany, cik).latest_annual)
+    assert latest["total_assets"]["period_end"] == "2017-12-31"
+
+
+def test_a_company_year_keeps_its_income_and_balance_sheet(db):
+    """S-07b in the marts, Delta Tucker-like: its 2011 durations are dated December 30 (three
+    figures) with a repeat at December 31, its balances at both (more at December 31). One end
+    is chosen per period type, and the company year holds both, not balances alone."""
+    from app.db.models import MartCompanyPeriod
+    from app.services import marts
+
+    now = datetime.now(UTC)
+    cik = "0000000913"
+    db.add(Company(cik=cik, legal_name="TUCKER", fiscal_year_end="1231",
+                   fiscal_year_ends="2010-12-31,2011-12-31", source_url="https://www.sec.gov/",
+                   first_detected_at=now, last_processed_at=now,
+                   quality_status="ok"))  # fmt: skip
+    acc = "0000000913-12-000001"
+    d30, d31 = date(2011, 12, 30), date(2011, 12, 31)
+    for metric, v, start, end in [
+        ("revenue", 370, date(2011, 1, 1), d30), ("net_income", -6, date(2011, 1, 1), d30),
+        ("operating_cash_flow", 17, date(2011, 1, 1), d30),
+        ("revenue", 370, date(2010, 12, 31), d31),
+        ("total_assets", 201, None, d30),
+        ("total_assets", 201, None, d31), ("total_liabilities", 150, None, d31),
+    ]:  # fmt: skip
+        f = _fact(metric, v, start, end, "annual", acc, "10-K", date(2012, 3, 30))
+        f.cik = cik
+        if start is None:
+            f.period_type = "instant"
+        db.add(f)
+    db.commit()
+    marts.build_financial_marts(db, [cik])
+    year = db.get(MartCompanyPeriod, (cik, 2011))
+    assert year.period_end == d31
+    assert (year.revenue, year.net_income, year.total_assets) == (370, -6, 201)
+
+
+def test_a_new_reporting_currency_keeps_its_opening_balance(db):
+    """S-07b per unit, BELLUS Health-like: Canadian dollar balances at December 31, 2018 and,
+    after the move to US dollars, a dollar opening balance at January 1, 2019. The dollar
+    company year 2018 keeps its total assets."""
+    from app.db.models import MartCompanyPeriod
+    from app.services import marts
+
+    now = datetime.now(UTC)
+    cik = "0000000914"
+    db.add(Company(cik=cik, legal_name="BIOTECH CANADA", fiscal_year_end="1231",
+                   fiscal_year_ends="2018-12-31,2019-12-31", source_url="https://www.sec.gov/",
+                   first_detected_at=now, last_processed_at=now,
+                   quality_status="ok"))  # fmt: skip
+    old, new = "0000000914-19-000001", "0000000914-20-000001"
+    for metric, v, unit, end, acc in [
+        ("total_assets", 53, "CAD", date(2018, 12, 31), old),
+        ("total_liabilities", 3, "CAD", date(2018, 12, 31), old),
+        ("cash_and_equivalents", 15, "CAD", date(2018, 12, 31), old),
+        ("total_assets", 39, "USD", date(2019, 1, 1), new),
+        ("total_liabilities", 2, "USD", date(2019, 1, 1), new),
+        ("total_assets", 120, "USD", date(2019, 12, 31), new),
+    ]:
+        f = _fact(metric, v, None, end, "annual", acc, "40-F", date(2020, 3, 1))
+        f.cik, f.unit, f.currency, f.period_type = cik, unit, unit, "instant"
+        db.add(f)
+    db.commit()
+    marts.build_financial_marts(db, [cik])
+    year = db.get(MartCompanyPeriod, (cik, 2018))
+    assert year is not None and year.total_assets == 39 and year.currency == "USD"

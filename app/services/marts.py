@@ -24,7 +24,7 @@ from app.db.models import (
     MartFilingActivity,
     MartFinancial,
 )
-from app.services import periods
+from app.services import fiscal_years, periods
 
 REGISTRATION_FORMS = ("S-1", "F-1")
 IPO_PROSPECTUS_FORMS = ("424B4",)
@@ -93,7 +93,7 @@ def build_company_marts(db: Session, ciks: list[str] | None = None) -> int:
     ipo = _first_filing(db, IPO_PROSPECTUS_FORMS, scope)
     annual_report = _latest_filing(db, ANNUAL_REPORT_FORMS, scope)
     currency = reporting_currencies(db, ciks)
-    metrics = _annual_metrics(db, scope, currency)
+    metrics = _annual_metrics(db, scope, currency, fiscal_years.left_out(db, ciks))
 
     rows = []
     for cik, name, ticker, exchange, sic, sic_desc in companies:
@@ -215,11 +215,12 @@ def _latest_filing(db: Session, forms, scope) -> dict[str, dict]:
 
 
 def _annual_metrics(
-    db: Session, scope, currency: dict[str, str]
+    db: Session, scope, currency: dict[str, str], gone: set = frozenset()
 ) -> dict[str, dict[str, list[dict]]]:
     """Up to HISTORY_YEARS reported annual values per company and metric, newest first, one per
     period (the latest-filed observation), each with the filing it came from, in the company's
-    reporting currency (D-04: a convenience translation in another currency is left out)."""
+    reporting currency (D-04: a convenience translation in another currency is left out).
+    gone: (cik, period type, unit, end) of periods that are not a fiscal year's column (S-07b)."""
     f = FinancialFact
     per_period = (
         func.row_number()
@@ -242,6 +243,7 @@ def _annual_metrics(
             f.value,
             f.unit,
             f.period_end,
+            f.period_type,
             f.form_type,
             f.filed_date,
             f.accession_number,
@@ -271,10 +273,12 @@ def _annual_metrics(
     out: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
     for r in db.execute(
         select(ranked)
-        .where(ranked.c.k <= HISTORY_YEARS)
+        .where(ranked.c.k <= 2 * HISTORY_YEARS)  # room for the periods S-07b leaves out
         .order_by(ranked.c.cik, ranked.c.metric, ranked.c.k)
     ):
-        if r.unit != currency.get(r.cik):
+        if r.unit != currency.get(r.cik) or (r.cik, r.period_type, r.unit, r.period_end) in gone:
+            continue
+        if len(out[r.cik][r.metric]) >= HISTORY_YEARS:
             continue
         out[r.cik][r.metric].append(
             {
@@ -325,8 +329,8 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
     chosen = (
         select(
             f.cik, f.metric, f.period_class, f.unit, f.period_end, f.period_start, f.value,
-            f.currency, f.form_type, f.filed_date, f.accession_number, f.source_tag, f.source_url,
-            f.quality_status, f.mapping_version, best,
+            f.period_type, f.currency, f.form_type, f.filed_date, f.accession_number,
+            f.source_tag, f.source_url, f.quality_status, f.mapping_version, best,
         )
         .where(
             f.period_class.in_(("annual", "quarterly")),
@@ -347,6 +351,7 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
             )
         )
     }
+    gone = fiscal_years.left_out(db, ciks)  # S-07b: one annual period per fiscal year end
     if ciks:
         db.execute(delete(MartFinancial).where(MartFinancial.cik.in_(ciks)))
         db.execute(delete(MartCompanyPeriod).where(MartCompanyPeriod.cik.in_(ciks)))
@@ -360,6 +365,8 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
         execution_options={"yield_per": FINANCIAL_BATCH},
     )
     for r in result:
+        if r.period_class == "annual" and (r.cik, r.period_type, r.unit, r.period_end) in gone:
+            continue
         year_end = fye.get(r.cik)
         fiscal_year = periods.fiscal_year(r.period_end, year_end, period_class=r.period_class)
         quarter = (
@@ -383,10 +390,13 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
             row = wide.setdefault(
                 (r.cik, fiscal_year), {"period_end": r.period_end, "values": {}, "sources": {}}
             )
-            # Two periods in one fiscal year (a change of year end): keep the later one.
-            if r.period_end > row["period_end"]:
+            # Two periods in one fiscal year (a change of year end): keep the later one. Ends
+            # within a week are one year's (S-07b: Delta Tucker's 2011 income at December 30,
+            # its balance sheet at December 31): both are kept, dated by the later
+            if (r.period_end - row["period_end"]).days > 7:
                 row.update(period_end=r.period_end, values={}, sources={})
-            if r.period_end == row["period_end"]:
+            if abs((r.period_end - row["period_end"]).days) <= 7:
+                row["period_end"] = max(row["period_end"], r.period_end)
                 row["values"][r.metric] = r.value
                 row["sources"][r.metric] = r.source_url
         if len(batch) >= FINANCIAL_BATCH:
