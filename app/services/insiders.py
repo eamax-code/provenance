@@ -419,8 +419,12 @@ def _chunks(items: list, size: int) -> Iterator[list]:
 
 
 def store(db: Session, parsed: Parsed, source: str) -> tuple[int, int]:
-    """Replace the given filings' owners and rows. Returns (owner rows, transaction rows)."""
+    """Replace the given filings' owners and rows, and the screener's groups of those filings
+    (Q-03f). Returns (owner rows, transaction rows)."""
+    from app.services import insider_screener
+
     accs = list(parsed.filings)
+    fresh = insider_screener.groups_fresh(db)  # only fresh groups stay stamped fresh
     for chunk in _chunks(accs, 500):
         db.execute(delete(InsiderFiling).where(InsiderFiling.accession_number.in_(chunk)))
         db.execute(delete(InsiderTransaction).where(InsiderTransaction.accession_number.in_(chunk)))
@@ -432,6 +436,7 @@ def store(db: Session, parsed: Parsed, source: str) -> tuple[int, int]:
         db.execute(insert(InsiderFiling), chunk)
     for chunk in _chunks(rows, _BATCH):
         db.execute(insert(InsiderTransaction), chunk)
+    insider_screener.refresh_groups(db, accs, stamp=fresh)
     store_texts(db, parsed, source)
     return len(owners), len(rows)
 

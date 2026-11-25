@@ -536,3 +536,66 @@ def test_a_cached_screen_equals_a_fresh_one_until_the_data_changes(client, auth,
     assert "0000000009-26-000001" not in accs(_get(client, auth, type="sell").json())
     version[0] = 2
     assert "0000000009-26-000001" in accs(_get(client, auth, type="sell").json())
+
+
+def _all_rows(db, s):
+    from app.services import insider_screener as scr
+
+    rows, counts = scr.screen(db, s)
+    return sorted(json.dumps(r, sort_keys=True, default=str) for r in rows), counts
+
+
+def test_the_stored_groups_answer_as_the_lines_do(db, trades):
+    """Q-03f: with the per-Form-4 groups built, every screen returns exactly what the lines give:
+    a window edge that cuts a Form 4's lines in two, the plan choice, value filters, one issuer,
+    4/As. A line written past the groups (not through insiders.store) falls back to the lines."""
+    from app.db.models import JobState
+    from app.services import insider_screener as scr
+
+    d = date
+    shapes = [
+        scr.Screen(codes={"P", "S"}, since=d(2026, 10, 25), until=d(2026, 11, 24)),
+        scr.Screen(codes={"S"}, since=d(2026, 11, 7), until=d(2026, 11, 24)),  # A cut in two
+        scr.Screen(codes={"S"}, since=d(2026, 11, 1), until=d(2026, 11, 6)),
+        scr.Screen(codes={"P"}, since=d(2026, 10, 1), until=d(2026, 11, 24), plan_purchase=False),
+        scr.Screen(codes={"P"}, since=d(2026, 10, 1), until=d(2026, 11, 24), plan_purchase=True),
+        scr.Screen(codes={"P", "S"}, since=d(2026, 10, 1), until=d(2026, 11, 24), min_value=200000),
+        scr.Screen(codes={"P", "S"}, since=d(2026, 10, 1), until=d(2026, 11, 24), max_value=50000),
+        scr.Screen(codes={"P", "S"}, since=d(2026, 10, 1), until=d(2026, 11, 24), cik=A),
+    ]
+    lines = [_all_rows(db, s) for s in shapes]  # no groups built: the lines
+    assert not scr.groups_fresh(db)
+    scr.refresh_groups(db)
+    db.commit()
+    assert scr.groups_fresh(db)
+    assert [_all_rows(db, s) for s in shapes] == lines
+    assert any(rows for rows, _ in lines)
+    # a line written past the groups: stale, so the lines answer (and the new line counts)
+    _filing(db, "0000000009-26-000009", A, "0000000109", "LATE SELLER", d(2026, 11, 20),
+            officer=True, title="Chief Operating Officer")  # fmt: skip
+    _line(db, "0000000009-26-000009", A, 1, "S", d(2026, 11, 19), 700, 101, 300)
+    db.commit()
+    assert not scr.groups_fresh(db)
+    rows, _ = _all_rows(db, shapes[0])
+    assert any("0000000009-26-000009" in r for r in rows)
+    assert db.get(JobState, scr.GROUPS_STATE) is not None
+
+
+def test_a_load_refreshes_the_groups(db, trades):
+    """Q-03f: a Form 4 stored by insiders.store (the tracker and the data sets) refreshes its
+    groups, so fresh groups stay fresh and show it."""
+    from pathlib import Path
+
+    from app.services import insider_screener as scr
+    from app.services import insiders
+
+    scr.refresh_groups(db)
+    db.commit()
+    xml = (Path(__file__).parents[1] / "fixtures" / "connections" / "form4_aapl.xml").read_text()
+    parsed = insiders.parse_ownership_xml(xml, "0001140361-26-000001", date(2026, 11, 12))
+    insiders.store(db, parsed, "filing")
+    db.commit()
+    assert scr.groups_fresh(db)
+    s = scr.Screen(codes={"S"}, since=date(2026, 11, 1), until=date(2026, 11, 24))
+    rows, _ = _all_rows(db, s)
+    assert any("0001140361-26-000001" in r for r in rows)

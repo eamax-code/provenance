@@ -299,6 +299,18 @@ Known limit: a plan purchase whose filing says nothing of the plan and is in who
 more (Davey Tree's quarter-end purchases, round-dollar dividend-plan purchases, director groups at one price)
 is counted as an open-market buy.
 
+### insider_form4_groups (Q-03f)
+
+The insider screener's open-market lines (codes P and S, table I, with a transaction date) added
+up per `accession_number`, `issuer_cik`, `trans_code`, `title` (the security title, "" when none)
+and `plan_bucket` (a plan or inferred plan purchase, or neither): `first_date`, `last_date`,
+`lines`, `shares`, `value` (priced lines' shares times price), `priced_shares`, `priced_lines`,
+`di_min`, `di_max`, `plan_lines`, `inferred_lines`. Built by `scripts/build_insider_groups.py`,
+refreshed for the Form 4s `insiders.store` writes and wholly by `flag_plan_purchases.py`. The
+JobState row `insider_form4_groups` records the lines' max id at the last build; when lines are
+newer, the screen adds up the lines itself. A Form 4 whose lines fall on both sides of a screen's
+dates is added up again from its lines, so a screen's answer is always the lines' own.
+
 ### insider_datasets
 
 One loaded quarter: `quarter`, `sha256` of the zip, `filings`, `rows`, `last_filing_date` (the

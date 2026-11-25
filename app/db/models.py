@@ -1527,6 +1527,34 @@ class InsiderTransaction(Base):
     plan_inferred: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
+class InsiderForm4Group(Base):
+    """Q-03f: the insider screener's open-market lines (codes P and S, table I, dated) added up per
+    Form 4, issuer, code, security class and plan bucket (plan or inferred purchase, or neither),
+    so a screen reads a few thousand groups instead of grouping up to 90,000 lines. Rebuilt for
+    the Form 4s insiders.store writes, and wholly by the plan-purchase flags; a screen falls back
+    to the lines when lines were written after the last build (see insider_screener)."""
+
+    __tablename__ = "insider_form4_groups"
+    __table_args__ = (Index("ix_insider_form4_groups_code_last", "trans_code", "last_date"),)
+
+    accession_number: Mapped[str] = mapped_column(String(25), primary_key=True)
+    issuer_cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    trans_code: Mapped[str] = mapped_column(String(4), primary_key=True)
+    title: Mapped[str] = mapped_column(Text, primary_key=True)  # security title, "" when none
+    plan_bucket: Mapped[bool] = mapped_column(Boolean, primary_key=True)
+    first_date: Mapped[date] = mapped_column(Date, nullable=False)
+    last_date: Mapped[date] = mapped_column(Date, nullable=False)
+    lines: Mapped[int] = mapped_column(Integer, nullable=False)
+    shares: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    value: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    priced_shares: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    priced_lines: Mapped[int] = mapped_column(Integer, nullable=False)
+    di_min: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    di_max: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    plan_lines: Mapped[int] = mapped_column(Integer, nullable=False)
+    inferred_lines: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class InsiderDataset(Base):
     """A quarterly insider transaction data set loaded from the SEC."""
 

@@ -122,6 +122,11 @@ def main() -> int:
             )
         )
         db.commit()
+        # Q-03f: the screener's per-Form-4 groups carry the plan bucket: rebuild them
+        from app.services import insider_screener
+
+        insider_screener.refresh_groups(db)
+        db.commit()
     print(json.dumps({**stats, "write": not args.dry_run}, indent=1))
     db.close()
     return 0

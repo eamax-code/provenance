@@ -16,11 +16,18 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import Date, and_, case, func, or_, select
+from sqlalchemy import Date, and_, case, delete, func, insert, or_, select
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
-from app.db.models import InsiderActivity, InsiderFiling, InsiderTransaction
+from app.db.models import (
+    InsiderActivity,
+    InsiderFiling,
+    InsiderForm4Group,
+    InsiderTransaction,
+    JobState,
+    utcnow,
+)
 from app.services import insiders
 from app.services.insider_activity import CLUSTER
 from app.services.sec_client import filing_index_url
@@ -177,6 +184,105 @@ def _role_keys(f: InsiderFiling) -> set[str]:
     return keys
 
 
+# -- Q-03f: per-Form-4 groups ---------------------------------------------------------------------
+
+GROUPS_STATE = "insider_form4_groups"  # JobState: the lines' max id the groups were built from
+_GROUP_COLS = ("accession_number", "issuer_cik", "trans_code", "title", "plan_bucket",
+               "first_date", "last_date", "lines", "shares", "value", "priced_shares",
+               "priced_lines", "di_min", "di_max", "plan_lines", "inferred_lines")  # fmt: skip
+
+
+def _max_line_id(db: Session) -> int:
+    return db.scalar(select(func.max(InsiderTransaction.id))) or 0
+
+
+def groups_fresh(db: Session) -> bool:
+    """The groups were built from the lines as they are (no line written since)."""
+    state = db.get(JobState, GROUPS_STATE)
+    return state is not None and state.value == str(_max_line_id(db))
+
+
+def refresh_groups(db: Session, accessions: list[str] | None = None, stamp: bool = True) -> None:
+    """Rebuild the groups, all or those of these Form 4s, from the lines (codes P and S, table I,
+    dated: what the screen reads). stamp: record the lines' max id (a full rebuild, or an
+    incremental one on groups that were fresh before the write)."""
+    t, g = InsiderTransaction, InsiderForm4Group
+    priced = and_(t.price > 0, t.shares.is_not(None))
+    # one expression object each, in the select and the grouping (PostgreSQL matches them)
+    title = func.coalesce(t.security_title, "")
+    bucket = case((or_(t.plan_purchase.is_(True), t.plan_inferred.is_(True)), True), else_=False)
+    sel = (
+        select(t.accession_number, t.issuer_cik, t.trans_code, title, bucket,
+               func.min(t.trans_date), func.max(t.trans_date), func.count(),
+               func.sum(t.shares), func.sum(case((priced, t.shares * t.price))),
+               func.sum(case((priced, t.shares))), func.count(case((priced, 1))),
+               func.min(t.direct_indirect), func.max(t.direct_indirect),
+               func.count(case((t.plan_purchase.is_(True), 1))),
+               func.count(case((t.plan_inferred.is_(True), 1))))
+        .where(t.trans_code.in_(sorted(TYPES.values())), ~t.is_derivative,
+               t.trans_date.is_not(None))
+        .group_by(t.accession_number, t.issuer_cik, t.trans_code, title, bucket)
+    )  # fmt: skip
+    if accessions is None:
+        db.execute(delete(g))
+        db.execute(insert(g).from_select(list(_GROUP_COLS), sel))
+    else:
+        for part in _chunks(sorted(set(accessions))):
+            db.execute(delete(g).where(g.accession_number.in_(part)))
+            db.execute(insert(g).from_select(list(_GROUP_COLS),
+                                             sel.where(t.accession_number.in_(part))))  # fmt: skip
+    if stamp:
+        state = db.get(JobState, GROUPS_STATE) or JobState(name=GROUPS_STATE, value="")
+        state.value, state.updated_at = str(_max_line_id(db)), utcnow()
+        db.merge(state)
+
+
+def _from_groups(db: Session, s: Screen, q) -> list:
+    """The screen's groups from insider_form4_groups: the Form 4s whose lines in the screen's
+    codes and plan choice all fall inside the dates, as stored; a Form 4 with lines on both
+    sides of a date is added up again from its lines (q), so the answer is the lines' own."""
+    g, t = InsiderForm4Group, InsiderTransaction
+    conds = [g.trans_code.in_(sorted(s.codes)), g.first_date <= s.until, g.last_date >= s.since]
+    if s.cik:
+        conds.append(g.issuer_cik == s.cik)
+    if s.allowed is not None:
+        conds.append(g.issuer_cik.in_(sorted(s.allowed)))
+    if s.plan_purchase is not None:
+        conds.append(g.plan_bucket.is_(bool(s.plan_purchase)))
+    agg = (
+        select(g.accession_number, g.issuer_cik, g.trans_code, g.title.label("title"),
+               func.sum(g.lines).label("lines"), func.sum(g.shares).label("shares"),
+               func.sum(g.value).label("value"), func.sum(g.priced_shares).label("priced_shares"),
+               func.sum(g.priced_lines).label("priced_lines"),
+               func.min(g.first_date).label("first"), func.max(g.last_date).label("last"),
+               case((func.min(g.di_min) != func.max(g.di_max), 2),
+                    (func.max(g.di_max).is_(None), 0), else_=1).label("n_di"),
+               func.max(g.di_max).label("di"), func.sum(g.plan_lines).label("plan_lines"),
+               func.sum(g.inferred_lines).label("inferred_lines"))
+        .where(*conds)
+        .group_by(g.accession_number, g.issuer_cik, g.trans_code, g.title)
+    )  # fmt: skip
+    # only the groups wholly inside the dates and within the value filters, and the ones that
+    # cross a date (redone from their lines below)
+    inside = and_(func.min(g.first_date) >= s.since, func.max(g.last_date) <= s.until)
+    value = func.sum(g.value)
+    wanted = [inside]
+    if s.min_value is not None:
+        wanted.append(value >= s.min_value)
+    if s.max_value is not None:
+        wanted.append(value <= s.max_value)
+    agg = agg.having(or_(and_(*wanted), ~inside))
+    rows = list(db.execute(agg))
+    kept = [r for r in rows if r.first >= s.since and r.last <= s.until and _in_values(r.value, s)]
+    straddle = {(r.accession_number, r.issuer_cik, r.trans_code, r.title) for r in rows
+                if not (r.first >= s.since and r.last <= s.until)}  # fmt: skip
+    for part in _chunks(sorted({k[0] for k in straddle})):
+        found = db.execute(q.where(t.accession_number.in_(part)))
+        kept += [r for r in found if (r.accession_number, r.issuer_cik, r.trans_code,
+                                      r.title) in straddle]  # fmt: skip
+    return kept
+
+
 def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
     """Every row of the screen (unpaged, unsorted; finish() completes a page) and counts for the
     notes. Lines are added up in SQL per Form 4, code and class, with the value filters there, so
@@ -218,7 +324,8 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
         # Q-03e: a year of sales groups about 90,000 lines; in memory the hash aggregate takes
         # about 110 ms, against 200 ms sorted on disk at the default 4 MB (this query only)
         db.execute(sql_text("SET LOCAL work_mem = '32MB'"))
-    groups = list(db.execute(q))
+    # Q-03f: the stored per-Form-4 groups when they are fresh; else the lines, grouped here
+    groups = _from_groups(db, s, q) if groups_fresh(db) else list(db.execute(q))
     reread: set[tuple] = set()  # groups read past the value filters (Q-03d)
     if s.min_value is not None or s.max_value is not None:
         # Q-03d: a 4/A's corrected figures and its original's can fall on either side of a

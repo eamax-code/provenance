@@ -98,6 +98,8 @@ head`, before the new code starts:
 | `a8c0e2f4b6d9` | Q-09: `filing_sections.filed_text`, `layout` | adds two nullable columns; then `scripts/locate_10k_sections.py --dry-run`, then without it (from the cached documents; no SEC requests); new 10-K reads set them |
 | `b9d1f3a5c7e0` | D-01: `mart_company.periodic_active`, `last_periodic_date`, `last_periodic_form` | adds three columns (false until the marts run); then `scripts/build_marts.py` (or `marts.build_company_marts`, about 2 minutes) sets them. Apply with the code: until the build, the screen's default lists no company |
 | `c1e3a5b7d9f2` | D-01b: `named_successors` | creates one table; then `scripts/find_named_successors.py --dry-run --out found.jsonl` (reads the stopped registrants' 8-Ks with Item 2.01 or 5.01 and the 8-K12B/8-K12G3s through SecClient, cached, stopping on 403/429), the 30-row check, then without `--dry-run`; run after the marts build (it reads `periodic_active`) |
+| `d3f5b7c9e1a4` | Q-03e: partial index on `insider_filings (filing_date)` for 4/As | built concurrently, no data step |
+| `e4a6c8b0d2f5` | Q-03f: `insider_form4_groups` (the insider screener's per-Form-4 groups) | creates one table; then `scripts/build_insider_groups.py` (about 3 s, 267,040 groups, 55 MB); `insiders.store` keeps it after that, and `flag_plan_purchases.py` rebuilds it. Until it is built, the screen reads the lines (same answers, slower) |
 | `b2c4d6e8f0a3` | Q-07: `class_title` and `amendment_number` on `schedule_13d_purposes` | adds two nullable columns; run after `f0a2b4c6d8e1`'s load: `scripts/load_13d_purposes.py` again fills them from the cache |
 | `f0a2b4c6d8e1` | Q-07: `schedule_13d_purposes` (Item 4 of structured 13Ds, as filed) | create table; then `scripts/load_13d_purposes.py --dry-run` (fetches into the document cache through SecClient, stops on 403/429), then without `--dry-run` (stores from the cache) |
 | `e9f1a3b5c7d9` | Q-04: `dividend_facts` (dividends per share, the same columns as `financial_facts`) | create table; then `scripts/load_dividend_facts.py` (dry run, then write) and `--since-bulk` (companies ingested since the bulk file, from the cache) |
@@ -643,6 +645,22 @@ DATABASE_URL=.../provenance_migration_drill alembic upgrade +1   # repeated, tim
   after `build_marts.py`; until the marts build, the screen's default lists no company (D-01).
 - Scratch database at the end: 91 MB. Not measured: full-size loader times on a restored copy,
   and the final database size (needs the full drill).
+
+## Q-03f: per-Form-4 groups for the insider screener (2026-11-25)
+
+`insider_form4_groups` holds the open-market lines added up per Form 4, issuer, code, class and
+plan bucket. A screen reads the groups wholly inside its dates from it (value filters in SQL)
+and adds up again, from the lines, the few Form 4s whose lines cross a date; it falls back to
+the lines when lines were written since the groups' last build (the lines' max id is stamped).
+Rows and counts identical to the line path on the 10 shapes. In-process, a year of sales over
+$5M outside 10b5-1 plans takes about 330 ms (about 1,000 ms cold on the lines; 512 ms before
+Q-03e); its grouping query is 49 ms. The rest of the screen now dominates: owners (about 45 ms),
+the price-outlier lines (about 45 ms), the 4/A re-reads (25 ms) and building the rows in Python.
+
+R-2 at 2 workers (scratch server, a key read from a file and revoked), load average 3-11 from
+other sessions: insider screen **cold p95 508 ms and 551 ms** on two runs (520 before), warm p95
+33 ms, the mix 19 ms (every keyed endpoint under 500, no errors). So the cold target is **not
+met** by the groups alone: the remaining work is outside the aggregation.
 
 ## Q-03e: the insider screener at 2 workers (2026-11-25 16:50 IST)
 
