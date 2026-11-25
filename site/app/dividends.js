@@ -54,12 +54,14 @@
     var rows = [row(label(data), adj ? 'Split-adjusted: each value put on today’s share basis with the reviewed splits listed below (derived)' : 'As reported: each value on the share basis of the filing it cites', function (d, c) {
       var sa = d.split_adjusted, v = adj ? sa && sa.value : d.declared_per_share, pre = !adj && sa && sa.factor > 1, f = d.filing || {};
       if (d.special && d.special.likely) flags.push(el('li', {}, [c + ': ', el('span', { class: 'dv-flag', title: d.special.basis || '', text: 'Unusually large: possibly special' })]));
-      var tip = (d.derived ? 'Derived: the fiscal year less its first three quarters. ' : '') + (adj && sa && sa.factor > 1 ? 'Split-adjusted (derived): ' + dps(d.declared_per_share, d.unit) + ' as reported, divided by ' + sa.factor + '. ' : '') + (basis(d) !== 'declared' ? 'Basis: ' + basis(d) + '. ' : '') + (f.form || 'Filing') + ' filed ' + (f.filed_date || '');
+      var sum = !q && d.derived && (d.inputs || []).length > 1;
+      var tip = (sum ? 'Derived: the sum of its four quarters as filed: ' + d.inputs.map(function (x) { return x.period_label + ' ' + dps(x.value, d.unit) + (x.accession_number ? ' (' + x.accession_number + ')' : ''); }).join(', ') + '. ' : d.derived ? 'Derived: the fiscal year less its first three quarters. ' : '') + (adj && sa && sa.factor > 1 ? 'Split-adjusted (derived): ' + dps(d.declared_per_share, d.unit) + ' as reported, divided by ' + sa.factor + '. ' : '') + (basis(d) !== 'declared' ? 'Basis: ' + basis(d) + '. ' : '') + (f.form || 'Filing') + ' filed ' + (f.filed_date || '');
       if (adj && !sa) return el('td', { class: 'n muted', title: 'Not adjusted: the split is dated only to the month around this filing', text: '—' });
-      return el('td', { class: 'n' + (pre ? ' pre' : '') + (d.derived || (adj && sa && sa.factor > 1) ? ' dv-der' : '') }, [cite(dps(v, d.unit) + (d.special && d.special.likely ? '*' : ''), d.derived && d.inputs && d.inputs[0] ? d.inputs[0] : f, tip, 'dv-v')]);
+      return el('td', { class: 'n' + (pre ? ' pre' : '') + (d.derived || (adj && sa && sa.factor > 1) ? ' dv-der' : '') }, [cite(dps(v, d.unit) + (d.special && d.special.likely ? '*' : ''), !sum && d.derived && d.inputs && d.inputs[0] ? d.inputs[0] : f, tip, 'dv-v')]);
     }, label(data) === 'Declared per share' ? null : 'dividend-basis')];
     if (!q) rows.push(row('Payout ratio', 'Derived: declared dividends per share over diluted EPS for the same fiscal year, both as reported', function (d) {
       var p = d.payout_ratio, e = p && (p.inputs || []).filter(function (x) { return x.metric === 'eps_diluted'; })[0];
+      if (!p && d.derived) return el('td', { class: 'n muted', title: 'Not worked out: the year is added up from its four quarters', text: '—' });
       if (!payable(basis(d))) return el('td', { class: 'n muted', title: NOPAY, text: '—' });
       return el('td', { class: 'n dv-der', title: p ? (p.basis || 'declared per share / diluted EPS') + (e ? ': diluted EPS ' + dps(e.value, d.unit) : '') : 'Not worked out: diluted EPS in that filing is missing, zero or negative, or in another currency, or dividends are over 10 times earnings' }, [p && p.value != null ? (Math.round(p.value * 1000) / 10).toFixed(1) + '%' : '—']);
     }));
