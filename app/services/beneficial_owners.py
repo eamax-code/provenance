@@ -10,6 +10,7 @@ reporting threshold.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from xml.etree import ElementTree
@@ -17,7 +18,7 @@ from xml.etree import ElementTree
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
-from app.db.models import BeneficialOwner, Filing, GraphSourceState, utcnow
+from app.db.models import BeneficialOwner, Filing, GraphSourceState, Schedule13DPurpose, utcnow
 from app.services import cusips
 from app.services.insiders import _find, _local, _num, safe_xml
 from app.services.sec_client import SecClient, SecClientError, normalize_cik
@@ -103,6 +104,38 @@ def parse_schedule_xml(text: str) -> dict:
     }
 
 
+def item4(text: str) -> str | None:
+    """Q-07: Item 4 (Purpose of Transaction) of a structured Schedule 13D as filed, whitespace
+    collapsed; None when the filing leaves it out."""
+    root = safe_xml(text)
+    for n in root.iter():
+        if _local(n.tag) == "transactionPurpose":
+            t = " ".join(" ".join(n.itertext()).split())
+            return t or None
+    return None
+
+
+def schedule_details(text: str) -> dict:
+    """Q-07: {class_title, amendment_number} as filed (securitiesClassTitle, amendmentNo)."""
+    root = safe_xml(text)
+    title = amendment = None
+    for n in root.iter():
+        tag = _local(n.tag)
+        if tag == "securitiesClassTitle" and title is None:
+            title = " ".join((n.text or "").split())[:300] or None
+        elif tag == "amendmentNo" and amendment is None:
+            digits = re.sub(r"\D", "", n.text or "")
+            amendment = int(digits) if digits and len(digits) < 6 else None
+    return {"class_title": title, "amendment_number": amendment}
+
+
+def store_13d(db: Session, accession: str, subject: str, url: str, text: str) -> None:
+    """Q-07: Item 4, class and amendment number of a structured 13D, as filed."""
+    db.merge(Schedule13DPurpose(accession_number=accession, subject_cik=subject,
+                                purpose=item4(text), source_url=url,
+                                **schedule_details(text)))  # fmt: skip
+
+
 def _doc_url(f: Filing) -> str | None:
     doc = (f.primary_document or "").split("/")[-1]
     if not doc.lower().endswith(".xml"):
@@ -169,6 +202,8 @@ def refresh(db: Session, client: SecClient, cik: str, limit: int = 60) -> dict:
                 for i, p in enumerate(parsed["persons"])
             ],
         )
+        if "13D" in f.form_type:  # Q-07: the purpose, class and amendment from the same XML
+            store_13d(db, f.accession_number, cik, url, text)
         read += 1
     if st is None:
         st = GraphSourceState(cik=cik, kind="holders", status="ok")

@@ -1,7 +1,7 @@
 # Q-07 Activist stakes (Schedule 13D): filers, stakes, stated purpose, amendment chains
 
-Status: **contract** (2026-11-25, for provenance-ui). Nothing is built yet; fields marked
-*provisional* may still be renamed before they are, and ui is told when they are.
+Status: **built** (2026-11-25; ui's 9 comments folded in, see "Build notes" at the end). MCP and
+chat follow.
 
 A Schedule 13D is filed by whoever acquires more than 5% of a class with a purpose beyond passive
 investment (influence over the company); a 13G is the passive form. Information about what the
@@ -35,9 +35,12 @@ The company's 13D filers, one entry per filer chain (a filer and its amendments)
   "data": [
     {
       "filer": {"name": "Starboard Value LP", "cik": "0001517137"},
-      "group": [{"name": "Starboard Value LP", "cik": "0001517137", "type": "PN"},
-                {"name": "Jeffrey C. Smith", "cik": null, "type": "IN"}],
-      "current": {"percent": 9.1, "shares": 5400000, "form": "SCHEDULE 13D/A",
+      "group": [{"name": "Starboard Value LP", "cik": "0001517137", "type": "PN",
+                 "type_label": "partnership"},
+                {"name": "Jeffrey C. Smith", "cik": null, "type": "IN",
+                 "type_label": "individual"}],
+      "current": {"percent": 9.1, "shares": 5400000, "class_label": "Class A common stock",
+                  "form": "SCHEDULE 13D/A", "amendment_number": 2,
                   "filed_date": "2026-10-02", "event_date": "2026-09-30",
                   "accession_number": "...", "source_url": "https://www.sec.gov/Archives/..."},
       "first_filed": {"form": "SCHEDULE 13D", "filed_date": "2026-03-04", "percent": 6.2,
@@ -46,14 +49,17 @@ The company's 13D filers, one entry per filer chain (a filer and its amendments)
                             "percent": 5.4, "source_url": "..."},
       "purpose": {"excerpt": "The Reporting Persons acquired the Shares ... believe the Issuer is
                   undervalued and intend to engage with management and the Board ...",
-                  "truncated": true, "accession_number": "...",
+                  "truncated": true, "form": "SCHEDULE 13D/A", "filed_date": "2026-06-02",
+                  "accession_number": "...", "carried_forward": true,
                   "source_url": "https://www.sec.gov/Archives/..."},
       "chain": [
         {"form": "SCHEDULE 13D", "filed_date": "2026-03-04", "event_date": "...",
-         "percent": 6.2, "shares": 3700000, "change_pct_points": null,
-         "accession_number": "...", "source_url": "..."},
-        {"form": "SCHEDULE 13D/A", "filed_date": "2026-10-02", "percent": 9.1,
-         "shares": 5400000, "change_pct_points": 2.9, "accession_number": "...",
+         "amendment_number": null, "percent": 6.2, "shares": 3700000,
+         "class_label": "Class A common stock", "change_pct_points": null,
+         "change_shares": null, "accession_number": "...", "source_url": "..."},
+        {"form": "SCHEDULE 13D/A", "filed_date": "2026-10-02", "amendment_number": 2,
+         "percent": 9.1, "shares": 5400000, "class_label": "Class A common stock",
+         "change_pct_points": 2.9, "change_shares": 1700000, "accession_number": "...",
          "source_url": "..."}
       ],
       "status": "current"
@@ -105,9 +111,12 @@ Across companies: "new activist stakes this month".
     {"company": {"cik": "...", "name": "...", "ticker": "..."},
      "filer": {"name": "...", "cik": "..."}, "group_size": 2,
      "kind": "new", "form": "SCHEDULE 13D", "filed_date": "2026-11-18",
-     "percent": 6.2, "shares": 3700000, "change_pct_points": null,
-     "switched_from_13g": null,
-     "purpose": {"excerpt": "...", "truncated": true, "source_url": "..."},
+     "event_date": "2026-11-14", "amendment_number": null,
+     "percent": 6.2, "shares": 3700000, "class_label": "Common stock",
+     "change_pct_points": null, "switched_from_13g": null,
+     "purpose": {"excerpt": "...", "truncated": true, "form": "SCHEDULE 13D",
+                 "filed_date": "2026-11-18", "accession_number": "...",
+                 "carried_forward": false, "source_url": "..."},
      "accession_number": "...", "source_url": "https://www.sec.gov/Archives/..."}
   ],
   "meta": {"limit": 50, "offset": 0, "has_more": false, "next_offset": null},
@@ -118,7 +127,11 @@ Across companies: "new activist stakes this month".
 
 - One row per filing (sorted by filing date, newest first); `kind` from the chain: `new` is an
   original 13D, `increased`/`decreased` an amendment whose percent moved by 0.1 points or more,
-  `exited` one that reports under 5%, `switched` an original 13D whose filer filed a 13G first.
+  `exited` one that reports under 5%, `switched` an original 13D whose filer filed a 13G first,
+  `amended` any other amendment (and a chain's first structured filing when it is a 13D/A).
+  `kind=new` returns every original 13D, switched ones included (their `kind` reads `switched`);
+  `kind=all` every filing. `switched_from_13g` is given on switched rows. The demo key: at most
+  10 rows, from showcase companies only (as the insider screener).
 
 ## Errors and access
 
@@ -142,3 +155,31 @@ Across companies: "new activist stakes this month".
   the 13G-to-13D flag; including a 13D/A chain of three or more, a group filing with several
   reporting persons, an exit amendment under 5%, and a switch from 13G.
 - R-2: p95 under 500 ms for both endpoints.
+
+## Build notes (2026-11-25)
+
+- **ui's 9 points, all in:** (1) `purpose` cites the filing that states it (`form`,
+  `filed_date`, `accession_number`, `source_url`), which may be older than `current`;
+  `carried_forward` is true then. (2) `class_label` on `current`, each chain entry and the
+  cross-company rows: the plain label of the schedule's class title as filed (the XML's
+  `securitiesClassTitle`, through the 13F class labels; an unclear title stays as filed).
+  (3) `event_date` beside `filed_date` on the cross-company rows. (4) `group[].type_label` in
+  plain words, from the API. (5) `amendment_number` on amendments, as filed (`amendmentNo`).
+  (6) `excerpt` is plain text, whitespace collapsed, the first 600 characters of Item 4's own
+  text (`transactionPurpose`, no heading), cut at a sentence end (or `; `) where one falls after
+  the first 200 characters, else at a word. (7) Order: current chains by `current.percent`,
+  largest first, then exited chains by exit `filed_date`, latest first. (8) An exited chain's
+  `current` is the exit filing (under 5%). (9) Demo rows across companies come from showcase
+  companies only.
+- **Chains:** a filing joins an earlier chain about the same company when they share the
+  filer CIK or a reporting person's CIK; an original 13D after the chain exited starts a new
+  chain. `filer` is whoever filed the chain's first structured 13D (a group member may file
+  later amendments; `group` is the latest filing's reporting persons).
+- **Unchanged:** an amendment whose Item 4 is short (400 characters or fewer) and says it is
+  unchanged or not amended does not state a purpose; the earlier statement is quoted, citing
+  its own filing.
+- **Storage:** `schedule_13d_purposes` gains `class_title` and `amendment_number` (migration
+  b2c4d6e8f0a3), filled from the cached XML by `scripts/load_13d_purposes.py` (10,463 filings;
+  10,463 with a class, 8,325 with an amendment number); new 13Ds read for the holders view store
+  them too.
+

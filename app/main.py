@@ -21,6 +21,7 @@ from starlette.middleware.gzip import GZipMiddleware
 
 from app.api import (
     routes_account,
+    routes_activists,
     routes_calendar,
     routes_changes,
     routes_chat,
@@ -300,6 +301,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_calendar.router)
     app.include_router(routes_private_raises.router)
     app.include_router(routes_insider_screener.router)
+    app.include_router(routes_activists.router)
     app.include_router(routes_managers.router)
     app.include_router(routes_watchlists.router)
     app.include_router(routes_ipos.router)

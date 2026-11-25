@@ -19,22 +19,17 @@ from collections import Counter
 from _bootstrap import bootstrap
 from sqlalchemy import select
 
-from app.db.models import Filing, Schedule13DPurpose
-from app.services.beneficial_owners import _doc_url, parse_schedule_xml
-from app.services.insiders import _local, safe_xml
+from app.db.models import Filing
+from app.services.beneficial_owners import (
+    _doc_url,
+    item4,
+    parse_schedule_xml,
+    schedule_details,
+    store_13d,
+)
 from app.services.sec_client import SecClient, SecClientError
 
 FORMS = ("SCHEDULE 13D", "SCHEDULE 13D/A")
-
-
-def item4(text: str) -> str | None:
-    """Item 4's purpose of transaction as filed, whitespace collapsed; None when absent."""
-    root = safe_xml(text)
-    for n in root.iter():
-        if _local(n.tag) == "transactionPurpose":
-            t = " ".join(" ".join(n.itertext()).split())
-            return t or None
-    return None
 
 
 def main() -> int:
@@ -83,20 +78,22 @@ def main() -> int:
             c["unparsed"] += 1
             continue
         c["item4_present" if text else "item4_empty"] += 1
+        details = schedule_details(body)
+        c["with_class_title"] += details["class_title"] is not None
+        c["with_amendment_number"] += details["amendment_number"] is not None
         if text and re.search(r"\b(no (material )?change|unchanged|not amended|remains? "
                               r"unchanged)\b", text[:300], re.I):  # fmt: skip
             c["item4_says_unchanged"] += 1
         if not args.dry_run:
             subject = parse_schedule_xml(body)["issuer_cik"] or f.cik  # the issuer, from the XML
-            db.merge(Schedule13DPurpose(accession_number=f.accession_number, subject_cik=subject,
-                                        purpose=text, source_url=url))  # fmt: skip
+            store_13d(db, f.accession_number, subject, url, body)
             c["stored"] += 1
             if c["stored"] % 1000 == 0:
                 db.commit()
         if out:
             out.write(json.dumps({"accession_number": f.accession_number, "cik": f.cik,
                                   "form": f.form_type, "filed": str(f.filing_date),
-                                  "url": url, "item4": text}) + "\n")  # fmt: skip
+                                  "url": url, "item4": text, **details}) + "\n")  # fmt: skip
         if i % 500 == 0:
             print(json.dumps({"progress": i, **c}), flush=True)
     if out:

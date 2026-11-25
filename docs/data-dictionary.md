@@ -614,6 +614,16 @@ stockholders' equity. `as_of` counts a matched figure from the release date; fac
 (last four releases each) matched 102 of 122 figures with none wrong; misses are figures a
 release does not print (JPM's balance sheet is in a separate supplement).
 
+## schedule_13d_purposes (Q-07 activist stakes)
+
+One row per structured Schedule 13D or 13D/A (December 2024 on), from its XML on Archives, as
+filed: `purpose` (Item 4, Purpose of Transaction, `transactionPurpose`, whitespace collapsed;
+null when the filing leaves it out), `class_title` (`securitiesClassTitle`), `amendment_number`
+(`amendmentNo`), `subject_cik` (the issuer named in the XML) and `source_url` (the XML). Loaded by
+`scripts/load_13d_purposes.py` from the document cache; new 13Ds read for the holders view store
+it too. Stake figures stay in `beneficial_owners`. Read by `/v1/companies/{cik}/activists` and
+`/v1/activists` (docs/contracts/activists.md), which quote Item 4 and never summarise it.
+
 ## Institutional ownership: filings_13f, holdings_13f, issuer_cusips (launch plan E-1)
 
 Source: the SEC's Form 13F data sets (sec.gov/data-research/sec-markets-data/form-13f-data-sets),

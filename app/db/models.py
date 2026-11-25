@@ -1518,6 +1518,9 @@ class Schedule13DPurpose(Base):
     subject_cik: Mapped[str] = mapped_column(String(10), nullable=False)
     purpose: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    # the class of securities (securitiesClassTitle) and "Amendment No." as filed
+    class_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    amendment_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class GraphSourceState(Base):
