@@ -93,6 +93,9 @@ A query with no searchable word (only common words or symbols) is `422 invalid_q
   no HTML. `highlights` are `[start, end)` character offsets into `snippet` for each phrase or word
   occurrence shown, so the page can mark them without parsing. A stemmed word is highlighted as the
   word that appears in the text (`tariffs`).
+- **`section_offset`** (Q-09, Items 1A and 7 only; `null` for other sections): where the hit starts in
+  the item's text as filed, the `text` that `/v1/filings/{accession}/sections/{item}` returns, so
+  `text[section_offset:]` begins with the matched phrase or word and a reader can open at it.
 - `relevance` is between 0 and 1 with `sort=relevance`, and `null` with `sort=date`. Under
   relevance, a section whose title names the query (`risk factors`) ranks higher; ties go to the
   newer filing. Relevance ranks the newest 2,000 matching sections (ranking reads each section's

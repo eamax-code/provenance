@@ -285,6 +285,10 @@ class FilingHit(BaseModel):
         description="[start, end) character offsets into snippet of each phrase or word shown"
     )
     relevance: float | None = Field(description="0 to 1 with sort=relevance, else null")
+    section_offset: int | None = Field(
+        None, description="Items 1A and 7 only: where the hit starts in the item's text as "
+        "filed (the text /v1/filings/{accession}/sections/{item} returns), so a reader opens at "
+        "it; null for other sections")  # fmt: skip
 
 
 class FilingSearchQuery(BaseModel):
@@ -407,6 +411,7 @@ def search_filings(
                              filed_date=h.row.filed, source_url=h.row.source_url),
             section=SectionRef(item=h.row.item, title=section_search.section_title(h.row.item)),
             snippet=h.snippet, highlights=h.highlights, relevance=h.relevance,
+            section_offset=h.section_offset,
         ))  # fmt: skip
     return FilingSearchResult(
         query=FilingSearchQuery(

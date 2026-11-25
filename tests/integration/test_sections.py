@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from pathlib import Path
 
 from app.db.models import FilingSection
 from app.services import tenk_sections as T
@@ -89,3 +90,44 @@ def test_mcp_filing_section_quotes_as_filed(client, auth, db):
     assert body["heading"] == "Item 1A. Risk Factors" and body["text"].startswith("Risks Related")
     held = call({"accession": ACC, "item": "7"})
     assert held["isError"] is True and "section_not_held" in held["content"][0]["text"]
+
+
+def test_the_reader_page_route_takes_only_an_accession_and_1a_or_7(client):
+    """Q-09: /filings/{accession}/{1A|7}/ is the reader page; anything else under /filings/
+    (the page's own script and stylesheet) falls through to the static mount."""
+    pages = [r for r in client.app.routes
+             if getattr(r, "path", "").startswith("/filings/{accession")]  # fmt: skip
+    assert len(pages) == 2
+    for r in pages:
+        for path in ("/filings/section.js", "/filings/section.css", "/filings/0000320193-26-000026",
+                     "/filings/0000320193-26-000026/2", "/filings/320193-26-26/1A"):  # fmt: skip
+            assert r.path_regex.match(path) is None, (r.path, path)
+    acc = "0000320193-26-000026"
+    urls = (f"/filings/{acc}/1A", f"/filings/{acc}/7/")
+    hits = [r.path_regex.match(p) for r in pages for p in urls]
+    assert {(m.group("accession"), m.group("item")) for m in hits if m} == {(acc, "1A"), (acc, "7")}
+    # the routes serve ui's reader page, and its own files still come from the static mount
+    page = (Path(__file__).parents[2] / "site" / "filings" / "section.html").read_text("utf-8")
+    for url in urls:
+        r = client.get(url)
+        assert r.status_code == 200 and r.text == page, url
+    assert '<script src="/filings/section.js"' in page
+    assert client.get("/filings/section.js").status_code == 200
+    assert client.get("/filings/section.css").status_code == 200
+    assert client.get(f"/filings/{acc}/2/").status_code == 404
+
+
+def test_a_search_hit_on_item_1a_opens_the_reader_at_the_hit(client, auth, db):
+    """Q-09: a filing-search hit on Items 1A and 7 carries section_offset; the section's text as
+    filed, from that offset, is the hit."""
+    from app.services import filing_search
+
+    _seed(db)
+    filing_search.reset_section_map()
+    r = client.get("/v1/search/filings", params={"q": "cybersecurity incidents", "cik": CIK},
+                   headers=auth)  # fmt: skip
+    assert r.status_code == 200, r.text
+    (hit,) = [h for h in r.json()["hits"] if h["section"]["item"] == "10k:1A"]
+    body = client.get(f"/v1/filings/{ACC}/sections/1A", headers=auth).json()
+    at = hit["section_offset"]
+    assert at is not None and body["text"][at:].lower().startswith("cybersecurity incidents")

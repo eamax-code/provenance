@@ -250,6 +250,34 @@ class _CikDigits(Convertor):
 register_url_convertor("cikdigits", _CikDigits())
 
 
+class _Accession(Convertor):
+    """An accession number, 0000320193-26-000026 (Q-09 reader pages)."""
+
+    regex = "[0-9]{10}-[0-9]{2}-[0-9]{6}"
+
+    def convert(self, value: str) -> str:
+        return value
+
+    def to_string(self, value: str) -> str:
+        return value
+
+
+class _TenKItem(Convertor):
+    """A 10-K item the reader shows: 1A or 7."""
+
+    regex = "1A|7"
+
+    def convert(self, value: str) -> str:
+        return value
+
+    def to_string(self, value: str) -> str:
+        return value
+
+
+register_url_convertor("accession", _Accession())
+register_url_convertor("tenkitem", _TenKItem())
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level, settings.log_json)
@@ -434,6 +462,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         def manager_page(cik: str):
             # Q-02: one page for every 13F manager; the page script reads the CIK from the path
             page = site_dir / "managers" / "manager.html"
+            if not page.is_file():
+                raise StarletteHTTPException(status_code=404)  # browsers get the 404 page
+            return HTMLResponse(page.read_text(encoding="utf-8"))
+
+        # Q-09: the section reader, /filings/{accession}/{1A|7}/; only that shape matches, so
+        # the page's own files under /filings/ fall through to the static mount
+        @app.get("/filings/{accession:accession}/{item:tenkitem}", include_in_schema=False,
+                 response_class=HTMLResponse)  # fmt: skip
+        @app.get("/filings/{accession:accession}/{item:tenkitem}/", include_in_schema=False,
+                 response_class=HTMLResponse)  # fmt: skip
+        def section_page(accession: str, item: str):
+            page = site_dir / "filings" / "section.html"
             if not page.is_file():
                 raise StarletteHTTPException(status_code=404)  # browsers get the 404 page
             return HTMLResponse(page.read_text(encoding="utf-8"))

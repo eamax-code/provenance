@@ -321,6 +321,9 @@ class Hit:
     snippet: str
     highlights: list[list[int]]
     relevance: float | None
+    # Q-09: for Items 1A and 7, where the hit starts in the section's text as filed (the text
+    # /v1/filings/{accession}/sections/{item} returns), so a reader can open at it
+    section_offset: int | None = None
 
 
 @dataclass
@@ -395,12 +398,22 @@ def search(db: Session, query: Query, filters: Filters, sort: str = "date", limi
     page = found[offset : offset + limit]
     missing = [r.id for r, t in page if t is None]
     texts = _texts(db, missing) if missing else {}
+    filed = _filed_texts(db, [r.id for r, _ in page if r.item.startswith("10k:")])
     hits = []
     for r, t in page:
         text = t if t is not None else texts.get(r.id, "")
         snippet, marks = snippet_for(query, text)
-        hits.append(Hit(r, snippet, marks, round(scores[r.id], 4) if r.id in scores else None))
+        at = hit_at(query, filed[r.id]) if filed.get(r.id) else None
+        hits.append(Hit(r, snippet, marks, round(scores[r.id], 4) if r.id in scores else None,
+                        at))  # fmt: skip
     return Result(hits, has_more=len(found) > offset + limit, truncated=truncated)
+
+
+def _filed_texts(db: Session, ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
+    if not ids:
+        return {}
+    return dict(db.execute(select(FilingSection.id, FilingSection.filed_text)
+                           .where(FilingSection.id.in_(ids))).all())  # fmt: skip
 
 
 def _pg_stems(db: Session, query: Query) -> dict[str, str]:
@@ -445,21 +458,37 @@ def _rank(db: Session, query: Query, rows: list[Row], pg: bool) -> dict[uuid.UUI
     return {k: min(1.0, float(v) * (TITLE_BOOST if k in titled else 1)) for k, v in scored.items()}
 
 
-def snippet_for(query: Query, text: str) -> tuple[str, list[list[int]]]:
-    """About SNIPPET_WORDS words around the stretch that holds the most different terms, as plain
-    text, with [start, end) offsets of each phrase or word shown."""
-    pats = [_phrase_re(t.words) if t.phrase else _word_re(t.text, query.stems)
+def _patterns(query: Query) -> list[re.Pattern]:
+    return [_phrase_re(t.words) if t.phrase else _word_re(t.text, query.stems)
             for t in query.terms]  # fmt: skip
+
+
+def _best_at(pats: list[re.Pattern], text: str) -> int | None:
+    """Where the stretch holding the most different terms starts (a term's first character), or
+    None when no term is in the text."""
     marks = sorted((m.start(), k) for k, p in enumerate(pats)
                    for m in itertools.islice(p.finditer(text), SNIPPET_MARKS))  # fmt: skip
     span = SNIPPET_WORDS * 7
-    at, best = 0, -1
+    at, best = None, -1
     for j, (pos, _) in enumerate(marks):
         inside = {k for p, k in marks[j:] if p < pos + span - 60}
         if len(inside) > best:
             best, at = len(inside), pos
         if best == len(pats):
             break
+    return at
+
+
+def hit_at(query: Query, text: str) -> int | None:
+    """Q-09: the hit's character offset in a section's text as filed (see Hit.section_offset)."""
+    return _best_at(_patterns(query), text)
+
+
+def snippet_for(query: Query, text: str) -> tuple[str, list[list[int]]]:
+    """About SNIPPET_WORDS words around the stretch that holds the most different terms, as plain
+    text, with [start, end) offsets of each phrase or word shown."""
+    pats = _patterns(query)
+    at = _best_at(pats, text) or 0
     begin = text.rfind(" ", 0, max(0, at - 60)) + 1 if at else 0
     words = text[begin:].split()
     body = " ".join(words[:SNIPPET_WORDS])
