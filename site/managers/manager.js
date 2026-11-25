@@ -95,7 +95,7 @@
           $('mg-ex-sum').textContent = ex.length + ' position' + (ex.length === 1 ? '' : 's') + ' held at ' + dmy(b.previous_quarter) + ' and not at ' + dmy(b.quarter) + '.';
           $('mg-exited').replaceChildren(el('thead', {}, [el('tr', {}, [el('th', { scope: 'col', text: 'Company' }), el('th', { scope: 'col', class: 'n', text: 'Shares before' }), el('th', { scope: 'col', class: 'n', text: 'Value before' })])]),
             el('tbody', {}, ex.map(function (x) { return el('tr', {}, [el('th', { scope: 'row' }, who(x.issuer).concat([common(x.class_label) ? null : el('span', { class: 'mg-flag', title: 'Share class', text: x.class_label })])), el('td', { class: 'n', text: int(x.shares_previous) }), el('td', { class: 'n', text: big(x.value_previous_usd) })]); })));
-          $('mg-notes').textContent = (b.notes || []).join(' ');
+          $('mg-notes').textContent = (b.notes_detail ? b.notes_detail.filter(function (n) { return n.audience === 'reader'; }).map(function (n) { return n.text; }) : b.notes || []).join(' '); // reader notes (N-01)
           var api = $('mg-api'); api.hidden = false; api.replaceChildren('The same portfolio from the API: ', el('code', { text: 'curl -H "X-API-Key: $KEY" "' + location.origin + '/v1/managers/' + CIK + '?quarter=' + b.quarter + '&sort=' + st.sort + '"' }));
         }
         var tb = $('mg-pos-b');

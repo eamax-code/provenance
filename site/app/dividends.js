@@ -5,9 +5,8 @@
    flagged as possibly special, never called special. No yield. */
 (function () {
   'use strict';
-  // the API's notes for a reader: the basis line above already says as reported and no yield, so the note restating it
-  // goes, and so do notes about fields this block doesn't show (split_adjusted, special)
-  var notes = function (b) { return (b.notes || []).filter(function (n) { return !/^As reported:|\bsplit_adjusted\b|^special\b/.test(n); }).join(' '); };
+  // the API's notes for readers (N-01 audience); those documenting fields stay in the API docs
+  var notes = function (b) { return (b.notes_detail ? b.notes_detail.filter(function (n) { return n.audience === 'reader'; }).map(function (n) { return n.text; }) : b.notes || []).join(' '); };
   var ARCHIVE = /^https:\/\/www\.sec\.gov\/Archives\//, cache = {};
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);
@@ -75,7 +74,7 @@
     var mixed = label(data) === 'Dividends per share' ? 'The basis differs by period; each value’s tooltip names it.' : null;
     var splits = (b.splits || []).map(function (s) { var src = s.source || {}; return s.ratio + ' split, ' + s.date + (src.form ? ' (' + src.form + ' filed ' + (src.filed_date || '') + ')' : ''); });
     host.replaceChildren.apply(host, [head,
-      el('p', { class: 'muted small' }, [(adj ? 'Split-adjusted' : 'As reported') + ' · ' + label(data).replace(/^./, function (c) { return c.toLowerCase(); }) + ' in ' + cur((data[0] || {}).unit) + ', never converted · no yield until prices are loaded · ', el('a', { href: '/docs/flags/#dividends-h', text: 'How to read the marks' })]),
+      el('p', { class: 'muted small' }, [(adj ? 'Split-adjusted' : 'As reported') + ' · ' + label(data).replace(/^./, function (c) { return c.toLowerCase(); }) + ' in ' + cur((data[0] || {}).unit) + ', never converted · ', el('a', { href: '/docs/flags/#dividends-h', text: 'How to read the marks' })]),
       el('div', { class: 'tw' }, [t]),
       flags.length ? el('ul', { class: 'dv-flags', 'aria-label': 'Flags' }, flags) : null,
       mixed ? el('p', { class: 'muted small', text: mixed }) : null,

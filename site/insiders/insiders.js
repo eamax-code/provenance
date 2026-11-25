@@ -17,7 +17,7 @@
     (kids || []).forEach(function (c) { if (c != null && c !== '') n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return n;
   }
-  // a mark without its own filing link explains itself: it opens its entry on /docs/flags/ (the tooltip stays for mice)
+  // a mark without a filing link opens its /docs/flags/ entry
   var fx = function (text, title, id) { return el('a', { class: 'it-flag', href: '/docs/flags/#' + id, title: title, 'aria-label': text + ': what this means', text: text }); };
   var key = function () { try { return localStorage.getItem('prv_api_key') || 'demo'; } catch (e) { return 'demo'; } };
   var dmy = function (iso, yr) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? +m[3] + ' ' + MON[+m[2] - 1] + (yr === false ? '' : ' ' + m[1]) : ''; };
@@ -27,7 +27,7 @@
   // a share price: cents, or up to four decimals under $1 so $0.098 is not read as $0.10
   var px = function (v) { return v == null ? '—' : '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(v) < 1 ? 4 : 2 }); };
   var pct = function (v) { return v == null ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + '%'; };
-  // plain common equity says nothing ("Common Stock, no par value", "Ordinary Shares", "Common units"); a class, preferred stock or anything else shows as filed
+  // plain common equity says nothing; any other class shows as filed
   var commonStock = function (t) { t = String(t || '').trim(); return !t || /^(common|ordinary)( stock| shares?| units?)?\b(?!.*\b(class|series|preferred)\b)/i.test(t); };
 
   // ---- state <-> URL ----
@@ -70,7 +70,7 @@
     st = next;
   }
   form.addEventListener('submit', function (e) { e.preventDefault(); read(); run(); });
-  // the filters open only when the screen is not one of the presets (a hand-made screen shows what made it); the presets say the rest
+  // filters open only for a screen that is not a preset
   $('it-sheet').open = !(window.matchMedia && matchMedia('(max-width: 760px)').matches) && !PRESETS.some(function (p) { return samePreset(p[1]); });
 
   // ---- rows ----
@@ -153,7 +153,7 @@
         next = m.next_offset || off + data.length; more.hidden = !m.has_more || next > MAXOFF;
         say(rows.length ? rows.length + ' trade' + (rows.length === 1 ? '' : 's') + ' shown' + (m.has_more ? ', more below' : '') + ' · ' + words(b) + '.' : 'No open-market trade matches these filters. ' + words(b) + '.');
         $('it-csv').hidden = !rows.length;
-        $('it-notes').replaceChildren.apply($('it-notes'), (b.notes || []).map(function (n) { return el('span', { text: n + ' ' }); }));
+        $('it-notes').replaceChildren.apply($('it-notes'), (b.notes_detail || []).filter(function (n) { return n.audience === 'reader'; }).map(function (n) { return el('span', { text: n.text + ' ' }); })); // reader notes (N-01)
         var api = $('it-api'); api.hidden = false;
         api.replaceChildren('The same screen from the API: ', el('code', { text: 'curl -H "X-API-Key: $KEY" "' + location.origin + '/v1/insider-transactions?' + params(0).toString() + '"' }));
       })

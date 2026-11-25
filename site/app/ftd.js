@@ -74,7 +74,7 @@
     kids.push(seg);
     var groups = (b.data || []).filter(function (g) { return (g.rows || []).length; }), all = [].concat.apply([], groups.map(function (g) { return g.rows; }));
     // notes this section already says (the disclaimer, the quantity and price labels, missing dates) are not repeated
-    var notes = (b.notes || []).filter(function (n) { return !/^(Information, not signals|quantity:|price:|A date with no row)/.test(n); }), nocusip = notes.filter(function (n) { return /CUSIP/.test(n); })[0];
+    var notes = (b.notes_detail ? b.notes_detail.filter(function (n) { return n.audience === 'reader'; }).map(function (n) { return n.text; }) : b.notes || []).filter(function (n) { return !/^(Information, not signals|quantity:|price:|A date with no row)/.test(n); }), nocusip = notes.filter(function (n) { return /CUSIP/.test(n); })[0];
     var last = all.map(function (x) { return x.settlement_date; }).sort().pop(), span = (RANGES.filter(function (x) { return x[0] === o.range; })[0] || RANGES[0])[2];
     // a company whose shares are not matched is coverage, never a zero balance
     if (!groups.length) kids.push(el('p', { class: 'muted', text: nocusip || 'No fails balance in the SEC’s files for these dates.' }));

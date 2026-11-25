@@ -69,7 +69,7 @@
             el('td', { class: 'n mg-net', text: signed(x.net_managers) }), el('td', { class: 'n', text: int(x.managers_new) }), el('td', { class: 'n', text: int(x.managers_added) }), el('td', { class: 'n', text: int(x.managers_reduced) }), el('td', { class: 'n', text: int(x.managers_exited) }),
             el('td', { class: 'n', text: int(x.holders) + ' (' + int(x.holders_previous) + ')' }), el('td', { class: 'n', text: pct(x.shares_change_pct) })]);
         })));
-      $('mg-notes').textContent = (b.notes || []).join(' ');
+      $('mg-notes').textContent = (b.notes_detail ? b.notes_detail.filter(function (n) { return n.audience === 'reader'; }).map(function (n) { return n.text; }) : b.notes || []).join(' '); // reader notes (N-01)
       var api = $('mg-api'); api.hidden = false; api.replaceChildren('The same list from the API: ', el('code', { text: 'curl -H "X-API-Key: $KEY" "' + location.origin + '/v1/managers/activity?direction=' + st.dir + '&min_holders=' + st.min + '&quarter=' + b.quarter + '"' }));
     });
   }
