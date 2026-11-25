@@ -225,6 +225,13 @@
     var pc = Object.keys(predCiks);
     box.replaceChildren(t);
     if (tab === 'income') { var dh = el('section', { class: 'dv', 'aria-label': 'Dividends' }); box.appendChild(dh); dv().then(function (D) { return D.load(P.cik, { asOf: d.as_of }).then(function (r) { if (!dh.isConnected) return; D.block(dh, r, { cols: idx.map(function (i) { return st.fiscal_years[i]; }), basis: 'as_reported', period: 'annual', newestFirst: narrow.matches }); var h = /^#([a-z][\w-]*)$/.exec(location.hash), tg = h && $(h[1]); if (tg && dh.compareDocumentPosition(tg) & 4) tg.scrollIntoView(); }); }).catch(function () {}); }
+    // K-05d: a year the successor reports keeps its own figures only; a figure it left out is blank, and the note says
+    // where the predecessor's as-filed figure is (the API's words, its name linking its page)
+    var gaps = sec.gap_notes || [];
+    if (gaps.length) t.after(el('ul', { class: 'gap-notes' }, gaps.map(function (g) {
+      var t = g.text || '', at = g.predecessor_name ? t.indexOf(g.predecessor_name) : -1, cik = parseInt(g.predecessor_cik, 10);
+      return el('li', {}, at < 0 || !cik ? [t] : [t.slice(0, at), el('a', { href: '/companies/' + cik, text: g.predecessor_name }), t.slice(at + g.predecessor_name.length)]);
+    })));
     if (pc.length) {
       var who = (d.company.predecessors || []).filter(function (p) { return pc.indexOf(String(p.cik)) > -1 || pc.indexOf(String(parseInt(p.cik, 10))) > -1; })[0];
       box.appendChild(el('p', { class: 'pred-note' }, [el('span', { class: 'pred-swatch', 'aria-hidden': 'true' }), 'Shaded figures were reported by the predecessor registrant' + (who ? ', ' + P.orgName(who.display_name || who.name) : '') + ' (CIK ' + pc.join(', ') + '), each linked to its own filing.']));

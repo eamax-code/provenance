@@ -646,8 +646,13 @@
     if (hasAdj) ctl.insertBefore(el('div', { class: 'seg-btns', role: 'group', 'aria-label': 'Share basis' }, [['filed', 'As reported'], ['split', 'Split-adjusted']].map(function (v) { return el('button', { type: 'button', 'aria-pressed': String((S.adj || 'filed') === v[0]), title: v[0] === 'split' ? 'Shares and per-share figures before a split, adjusted to the later basis (derived)' : null, text: v[1], on: { click: function () { keep({ adj: v[0] }); statementsTab(); } } }); })), ctl.children[3]);
     var dvHost = S.st === 'income' ? el('section', { class: 'dv', 'aria-label': 'Dividends' }) : null;
     if (dvHost) { var dvCik = S.cik, dvCols = cols.map(function (c) { return c.period_label || c.key; }), dvP2 = S.p; dv().then(function (D) { return D.load(dvCik, { period: dvP2, asOf: S.as_of }).then(function (r) { if (dvHost.isConnected) var lw = wrap.querySelector('th.stick'); D.block(dvHost, r, { cols: dvCols, basis: adjOn ? 'split_adjusted' : 'as_reported', period: dvP2, labelWidth: lw ? Math.round(lw.getBoundingClientRect().width) : 0 }); }); }).catch(function () {}); }
+    // K-05d: a figure a joined successor left blank says where the predecessor's as-filed one is (the API's words)
+    var gaps = (b.gap_notes || []).length ? el('ul', { class: 'st-gaps' }, b.gap_notes.map(function (g) {
+      var t = g.text || '', at = g.predecessor_name ? t.indexOf(g.predecessor_name) : -1, pc = String(parseInt(g.predecessor_cik, 10));
+      return el('li', {}, at < 0 || pc === 'NaN' ? [t] : [t.slice(0, at), el('a', { href: '/app/?c=' + pc, text: g.predecessor_name, on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(pc); } } } }), t.slice(at + g.predecessor_name.length)]);
+    })) : null;
     pane.replaceChildren.apply(pane, [ctl,
-      wrap, dvHost,
+      wrap, gaps, dvHost,
       adjOn ? el('p', { class: 'muted small', text: 'Split-adjusted values are derived (shown in italics): each opens its card with the split ratio, the evidence and the restating filing. Rows the API has not adjusted keep their reported values.' }) : null,
       el('p', { class: 'muted small', text: 'Click any value for its filing, tag and mapping; with the keyboard, the arrow keys move between values and Tab leaves the table. "—" means not reported. "!" marks a value whose quality isn\u2019t ok. Derived rows list their inputs; quarterly Q4s derived as the year less nine months are marked.' + (S.show === 'yoy' && S.p === 'quarterly' ? ' Quarterly YoY compares with the same quarter a year earlier.' : '') }),
       notes.length ? el('p', { class: 'muted small', text: notes.join(' ') }) : null].filter(Boolean));

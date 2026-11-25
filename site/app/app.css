@@ -446,6 +446,7 @@ td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }
 /* insiders: one line per person, the full role on hover */
 .ins-table th[scope="row"] { min-width: 8em; max-width: 15em; } .ins-table .ins-role { display: block; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ins-table td.n, .ins-table td:first-child { white-space: nowrap; } .ins-table td { white-space: normal; } .ins-table .tag { margin: 2px 0 0; }
+.st-gaps { list-style: none; margin: 6px 0 0; padding: 0; color: var(--muted); font-size: .85rem; line-height: 1.45; max-width: 100ch; } .st-gaps li + li { margin-top: 2px; } /* K-05d */
 .st-table thead a.st-tr { color: inherit; text-decoration-line: underline; text-decoration-color: var(--link-line); text-underline-offset: 2px; } /* a transition column's label */
 .ins-table .ins-tl, .ins-table .ins-f, .big-table .big-f { white-space: nowrap; } .big-table .ins-role { display: block; } .ins-table .ins-f { display: block; margin-top: 3px; font-size: .82rem; }
 /* phones: each holder and each trade is one stacked row (name and the main figure, then the rest), no sideways scroll */
