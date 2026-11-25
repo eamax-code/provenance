@@ -1,6 +1,6 @@
 # Q-09 Sections: a 10-K item's text as filed
 
-Status: **contract** (2026-11-25, PM go), for ui; building.
+Status: **built** (2026-11-25), for ui.
 
 A 10-K item's text as filed, cut out of the annual report's own document, with its heading, a
 link to that document on EDGAR Archives, and where in the document the text sits. The text is
@@ -114,3 +114,13 @@ The items held for one filing.
   the item's heading, and the paragraph just after `end` is the next item's heading. All six must
   match; then 30 random items of the read set are checked the same way, with at most 1 that does
   not match.
+
+## Build notes (2026-11-25)
+
+- `filed_text` and `layout` were set on all 1,152 stored items from the cached documents (1,111
+  with subheadings). The item's bounds are the same ones "What changed" reads (`_bounds`); the
+  stored "##" text was recomputed for 40 items and is unchanged.
+- Gate: AAPL (0000320193-26-000026), META (0001628280-26-003942) and BA (0001628280-26-004357),
+  both items each, re-fetched from Archives through the SEC client: 6 of 6 match exactly (the
+  slice equals `text`; the paragraph before is the item heading, the one after the next item's
+  heading). Then 30 random items: 0 misses.

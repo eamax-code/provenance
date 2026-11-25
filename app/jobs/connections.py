@@ -54,6 +54,17 @@ def run(db: Session, settings: Settings, sec: SecClient | None = None) -> dict:
             db.rollback()
             out["errors"] += 1
             log_event(logger, logging.WARNING, "insider data sets unavailable", error=str(exc))
+        try:  # Q-06: the SEC's fails-to-deliver files published since the last run
+            from app.services import fails_to_deliver
+
+            out["fails_to_deliver"] = fails_to_deliver.load_new(
+                db, sec, Path(settings.sec_bulk_dir) / "fails_to_deliver"
+            )
+        except SecClientError as exc:
+            db.rollback()
+            out["errors"] += 1
+            log_event(logger, logging.WARNING, "fails-to-deliver files unavailable",
+                      error=str(exc))  # fmt: skip
         for cik in showcase_ciks(db, settings)[0]:
             res = refresh_sources(db, sec, cik)
             out["companies"] += 1
@@ -62,8 +73,10 @@ def run(db: Session, settings: Settings, sec: SecClient | None = None) -> dict:
         if own:
             sec.close()
     log_event(logger, logging.INFO, "connections daily", **{k: v for k, v in out.items()
-                                                            if k != "datasets"},
-              datasets=len(out["datasets"]))  # fmt: skip
+                                                            if k not in ("datasets",
+                                                                         "fails_to_deliver")},
+              datasets=len(out["datasets"]),
+              ftd_files=(out.get("fails_to_deliver") or {}).get("files_to_load"))  # fmt: skip
     return out
 
 

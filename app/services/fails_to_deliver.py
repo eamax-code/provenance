@@ -156,3 +156,23 @@ def fetch(sec, name: str, url: str, folder: Path) -> tuple[bytes, date]:
     got = sec.download_file(url, folder / name)
     lm = got.get("last_modified")
     return Path(got["path"]).read_bytes(), (lm.date() if lm else date.today())
+
+
+def load_new(db: Session, sec, folder: Path, reload: bool = False, limit: int | None = None,
+             write: bool = True, on_file=None) -> dict:  # fmt: skip
+    """Every file from July 2009 not loaded yet (all with reload), through SecClient; each file
+    committed on its own, so a run stopped midway resumes. Returns counts."""
+    files = discover(sec.get_text(PAGE).data)
+    have = set(db.scalars(select(FtdFile.name)))
+    todo = [n for n in files if reload or n not in have][:limit]
+    stats = {"files_listed": len(files), "files_to_load": len(todo), "rows": 0, "matched": 0}
+    for name in todo:
+        data, published = fetch(sec, name, files[name], folder)
+        got = store(db, name, parse(data), published, write=write)
+        if write:
+            db.commit()
+        stats["rows"] += got["rows"]
+        stats["matched"] += got["matched"]
+        if on_file:
+            on_file({**got, "published": published.isoformat()})
+    return stats

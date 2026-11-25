@@ -1083,6 +1083,10 @@ class FilingSection(Base):
     extraction_status: Mapped[str | None] = mapped_column(Text, nullable=True)  # ok, failed
     extracted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Q-09 (10-K items): the item as filed (paragraphs joined by a blank line, no markers) and
+    # its layout (JSON: heading, start and end in the document's text as read, subheadings)
+    filed_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    layout: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class OfficerChange(Base):

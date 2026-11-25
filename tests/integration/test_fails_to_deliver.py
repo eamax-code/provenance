@@ -91,3 +91,69 @@ def test_one_table_per_class_never_a_cusip_and_as_of_on_publication(client, auth
 def test_unknown_company_is_404(client, auth):
     r = client.get("/v1/companies/0000000931/fails-to-deliver", headers=auth)
     assert r.status_code == 404
+
+
+def test_the_daily_load_takes_new_files_once(db, tmp_path):
+    """Q-06: the daily connections job loads the files published since its last run, each once
+    (idempotent: a second run finds nothing to load)."""
+    from types import SimpleNamespace
+
+    now = datetime.now(UTC)
+    db.add(Company(cik=CIK, legal_name="ABCD CORP", source_url="https://www.sec.gov/",
+                   first_detected_at=now, last_processed_at=now, quality_status="ok"))  # fmt: skip
+    db.add(IssuerCusip(cusip=A, cik=CIK, class_title=None, method="isin"))
+    db.commit()
+    page = '<a href="/files/data/fails-deliver-data/cnsfails202610a.zip">October</a>'
+    body = _zip(["SETTLEMENT DATE|CUSIP|SYMBOL|QUANTITY (FAILS)|DESCRIPTION|PRICE",
+                 f"20261001|{A}|ABCD|100|ABCD CORP|5.00"])  # fmt: skip
+
+    class Sec:
+        fetched = 0
+
+        def get_text(self, url):
+            return SimpleNamespace(data=page)
+
+        def download_file(self, url, dest):
+            Sec.fetched += 1
+            dest.write_bytes(body)
+            return {"path": str(dest), "last_modified": datetime(2026, 10, 31, tzinfo=UTC)}
+
+    first = ftd.load_new(db, Sec(), tmp_path)
+    again = ftd.load_new(db, Sec(), tmp_path)
+    assert (first["files_to_load"], first["matched"], again["files_to_load"]) == (1, 1, 0)
+    assert Sec.fetched == 1
+    assert db.get(FtdFile, "cnsfails202610a.zip").published == date(2026, 10, 31)
+
+
+BANNED = ("short squeeze", "squeeze", "naked short", "naked")
+SEC_SENTENCE = ("are not evidence of abusive short selling or \\u201cnaked\\u201d short "
+                "selling")
+
+
+def test_mcp_and_chat_quote_the_running_balance_and_never_squeeze_or_naked(client, auth, db):
+    """Q-06: the MCP tool carries the labels; chat answers only "fails to deliver for X", quotes
+    the running-balance label every time and never says "short squeeze" or "naked short"."""
+    _seed(db)
+    tools = {t["name"]: t for t in client.post(
+        "/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+        headers=auth).json()["result"]["tools"]}  # fmt: skip
+    desc = tools["company_fails_to_deliver"]["description"].lower()
+    assert "running balance" in desc and not any(w in desc for w in BANNED)
+    rpc = {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {
+        "name": "company_fails_to_deliver",
+        "arguments": {"cik": CIK, "since": "2026-09-01", "until": "2026-10-31"}}}  # fmt: skip
+    res = client.post("/mcp", json=rpc, headers=auth).json()["result"]
+    assert res["isError"] is False and A not in res["content"][0]["text"]
+    for message in ("fails to deliver for ABCD", "What are the fails-to-deliver?"):
+        one = client.post("/v1/chat", json={"message": message, "cik": CIK},
+                          headers=auth).json()  # fmt: skip
+        assert one["intent"] == "fails_to_deliver", one
+        # only the SEC's own sentence, quoted, may name naked short selling (PM): it is removed
+        # before the check; anything else is forbidden
+        raw = json.dumps(one).lower().replace(SEC_SENTENCE.lower(), "")
+        assert "running balance, not the day's new fails" in one["answer"]
+        assert not any(w in raw for w in BANNED), [w for w in BANNED if w in raw]
+        assert A not in raw and "cusip" not in raw.replace("no cusip of this company", "")
+    empty = client.post("/v1/chat", json={"message": "fails to deliver", "cik": "0000000930"},
+                        headers=auth).json()  # fmt: skip
+    assert "running balance" in empty["answer"]

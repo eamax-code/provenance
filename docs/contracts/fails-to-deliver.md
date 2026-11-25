@@ -99,11 +99,22 @@ necessarily the result of short selling, and are not evidence of abusive short s
 As the other company endpoints: 404 `company_not_found`; 422 on dates; readers' keys; the demo key
 covers the showcase companies. An empty `data` with a `notes` line when no CUSIP is mapped.
 
+## MCP and chat
+
+- MCP tool `company_fails_to_deliver` (cik, since, until, as_of): the endpoint above, its
+  description carrying the quantity label, the missing-dates label, "never add classes
+  together" and the disclaimer.
+- Chat answers only "fails to deliver for X" (intent `fails_to_deliver`): the latest balance per
+  class with its SEC file, a table per class, and the quantity label quoted in every answer. No
+  answer says "short squeeze" or "naked short" (a test checks every answer for "squeeze" and
+  "naked").
+
 ## Load (pv)
 
 - `scripts/load_fails_to_deliver.py`: the file list from the SEC page and each ZIP, through
   `SecClient` (8 requests per second or fewer, cached, stopping on 403 or 429); a dry run first
   (rows, companies matched, unmatched CUSIPs), then the write. The hourly job takes new files as
-  they appear.
+  they appear: the daily connections job (`app/jobs/connections.py`) loads the files published since
+  its last run, each once.
 - **Gate:** 30 stored rows matched against the file's own lines (settlement date, quantity and
   price, the symbol and the CUSIP's company), 30 of 30, plus one unmatched CUSIP shown absent.

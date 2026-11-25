@@ -12,13 +12,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import Counter
 from pathlib import Path
 
 from _bootstrap import bootstrap
-from sqlalchemy import select
 
-from app.db.models import FtdFile
 from app.services import fails_to_deliver as ftd
 from app.services.sec_client import SecClient
 
@@ -33,23 +30,17 @@ def main() -> int:
     settings, Session = bootstrap()
     db = Session()
     sec = SecClient(settings)
-    files = ftd.discover(sec.get_text(ftd.PAGE).data)
-    have = set(db.scalars(select(FtdFile.name)))
-    todo = [n for n in files if args.reload or n not in have][: args.limit]
     folder = Path(settings.sec_bulk_dir) / "fails_to_deliver"
-    stats: Counter = Counter(files_listed=len(files), files_to_load=len(todo))
     out = open(args.out, "w") if args.out else None
-    for i, name in enumerate(todo, 1):
-        data, published = ftd.fetch(sec, name, files[name], folder)
-        got = ftd.store(db, name, ftd.parse(data), published, write=not args.dry_run)
-        if not args.dry_run:
-            db.commit()
-        stats["rows"] += got["rows"]
-        stats["matched"] += got["matched"]
-        if out:
-            out.write(json.dumps({**got, "published": published.isoformat()}) + "\n")
-        if i % 25 == 0:
-            print(json.dumps({"files": i, **stats}), flush=True)
+    stats = ftd.load_new(
+        db,
+        sec,
+        folder,
+        reload=args.reload,
+        limit=args.limit,
+        write=not args.dry_run,
+        on_file=(lambda r: out.write(json.dumps(r) + "\n")) if out else None,
+    )
     if out:
         out.close()
     sec.close()

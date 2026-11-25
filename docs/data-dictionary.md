@@ -232,7 +232,9 @@ Text read once from a filing and kept, so it can be searched and re-read without
 | `item` | `pr:*` prospectus sections (`pr:risk`, `pr:use`, …), `5.02` officer changes, `ex:99.1` earnings release |
 | `status` | `ok`, `no_section`, `fetch_failed`; only `ok` rows are searched |
 | `text` | Plain text, up to 250,000 characters per section |
-| `source_url` | The filing's index page on sec.gov |
+| `source_url` | The filing's index page on sec.gov (10-K items: the primary document on Archives) |
+| `filed_text` | Q-09, 10-K items only: the item as filed, the document's paragraphs joined by a blank line, no markers |
+| `layout` | Q-09, 10-K items only: JSON with the heading as filed, `start` and `end` (characters in the document's text as read, so that text from start to end is `filed_text`), subheadings' offsets and the document's name |
 | `search_vector` | PostgreSQL only: a stored `tsvector` (English) generated from `text`, with a GIN index, used by full-text section search. Not in the ORM model. |
 
 `section_chunks` (PostgreSQL with pgvector only): each searchable section cut into chunks of
@@ -707,6 +709,18 @@ filed, `held_as` `shares` or `adr`, `ratio` 1 or null): for American depositary 
 number of shares one ADS represents is not on Form 13F, so `ratio` is null, and while ADR positions
 are counted `institutional_pct`, `pct_of_outstanding` and `shares_outstanding` are null and a note
 says why.
+
+## fails_to_deliver, ftd_files (Q-06)
+
+The SEC's fails-to-deliver half-month files (`cnsfails{YYYYMM}{a|b}.zip`, from July 2009), for CUSIPs
+mapped to a company here (`issuer_cusips`; the CUSIP is never returned). `fails_to_deliver`: one row
+per CUSIP and settlement date: `cik`, `symbol` and `description` as filed, `quantity` (the aggregate
+net balance of shares that failed to be delivered outstanding in NSCC's CNS on that date, as the
+SEC publishes it: cumulative, not the day's new fails), `price` (the previous day's close as filed;
+null for "."), `source_file`. `ftd_files`: each file loaded with `published` (its Last-Modified at
+the SEC; `as_of` filters on it), its date range, rows and matched rows. Loaded by
+`scripts/load_fails_to_deliver.py` and the daily connections job; 6,011,077 rows at 5,745 companies
+(2009-07-01 to 2026-10-30) from 23.6M rows read. Contract: `docs/contracts/fails-to-deliver.md`.
 
 ## International listings (ADR 0006)
 

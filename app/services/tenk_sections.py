@@ -115,13 +115,15 @@ def paragraphs(doc: str) -> list[tuple[str, float]]:
     return [(t, e) for t, e in p.out if not _NOISE.match(t)]
 
 
-def _region(paras: list[tuple[str, float]], item: str) -> list[tuple[str, float]]:
-    """The item's paragraphs: from the start heading that has the longest run before the next
-    item's heading (the table of contents has the shortest)."""
-    best: list[tuple[str, float]] = []
+def _bounds(paras: list[tuple[str, float]], item: str) -> tuple[int, int, int] | None:
+    """(heading, first body paragraph, end) indices of the item: from the start heading that has
+    the longest run before the next item's heading (the table of contents has the shortest);
+    end is the next item's heading (or the document's end)."""
+    best: tuple[int, int, int] | None = None
     for i, (t, _) in enumerate(paras):
         if len(t) > 160:
             continue
+        h = i
         if not _START[item].match(t):
             # "Item 1A." and "Risk Factors" in two paragraphs (Amazon's layout)
             if not (_BARE[item].match(t) and i + 1 < len(paras)
@@ -131,9 +133,36 @@ def _region(paras: list[tuple[str, float]], item: str) -> list[tuple[str, float]
         j = i + 1
         while j < len(paras) and not (len(paras[j][0]) < 200 and _END[item].match(paras[j][0])):
             j += 1
-        if j - i > len(best):
-            best = paras[i + 1 : j]
+        if best is None or j - (i + 1) >= best[2] - best[1]:  # a tie: the later, as before
+            best = (h, i + 1, j)
     return best
+
+
+def _region(paras: list[tuple[str, float]], item: str) -> list[tuple[str, float]]:
+    """The item's paragraphs (see _bounds)."""
+    b = _bounds(paras, item)
+    return paras[b[1] : b[2]] if b else []
+
+
+def located(doc: str, item: str) -> dict | None:
+    """Q-09: the item as filed in the document's text as read (its paragraphs joined by a blank
+    line): {heading, text, start, end, subheadings: [[start, end, group]]}, text being that text
+    from start to end. None when the item is not found."""
+    paras = paragraphs(doc)
+    b = _bounds(paras, item)
+    if not b or b[2] <= b[1]:
+        return None
+    h, i, j = b
+    pos, at = [], 0
+    for t, _ in paras:
+        pos.append(at)
+        at += len(t) + 2
+    start, end = pos[i], pos[j - 1] + len(paras[j - 1][0])
+    subs = [[pos[k], pos[k] + len(paras[k][0]), item == "1A" and _is_group(paras[k][0])]
+            for k in range(i, j) if _is_heading(paras[k][0], paras[k][1], item)]  # fmt: skip
+    return {"heading": " ".join(t for t, _ in paras[h:i]),
+            "text": "\n\n".join(t for t, _ in paras[i:j]), "start": start, "end": end,
+            "subheadings": subs}  # fmt: skip
 
 
 def _is_heading(text: str, emph: float, item: str = "1A") -> bool:
@@ -285,6 +314,18 @@ def _doc_url(f) -> str:
             f"{f.accession_number.replace('-', '')}/{f.primary_document}")  # fmt: skip
 
 
+def layout_of(doc: str, item: str, document: str | None) -> tuple[str | None, str | None]:
+    """Q-09: (filed_text, layout JSON) for storage, or (None, None) when not found."""
+    import json
+
+    loc = located(doc, item)
+    if loc is None:
+        return None, None
+    return loc["text"], json.dumps({"heading": loc["heading"], "start": loc["start"],
+                                    "end": loc["end"], "subheadings": loc["subheadings"],
+                                    "document": document})  # fmt: skip
+
+
 def read_filing(db, sec, f, refresh: bool = False) -> dict:
     """Fetch one annual report and store its two items (status ok or no_section). Already
     stored: nothing is fetched, unless refresh (the document then usually comes from the SEC
@@ -310,11 +351,13 @@ def read_filing(db, sec, f, refresh: bool = False) -> dict:
             continue
         text = section_text(doc, item)
         n = len(headings(text))
+        filed, layout = layout_of(doc, item, f.primary_document)
         db.add(FilingSection(
             cik=f.cik, accession_number=f.accession_number, item=key,
             status="ok" if text else "no_section", text=text, source_url=_doc_url(f),
             fetched_at=utcnow(), extractor_version=EXTRACTOR,
             extraction_status="ok" if n >= MIN_HEADINGS else "no_headings",
+            filed_text=filed, layout=layout,
         ))  # fmt: skip
         out[key] = n
     db.commit()

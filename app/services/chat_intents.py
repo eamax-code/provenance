@@ -81,6 +81,8 @@ INTENTS = (  # first match wins
             re.I,
         ),
     ),  # fmt: skip
+    # Q-06 (2026-11-25): "fails to deliver for X" only
+    ("fails_to_deliver", re.compile(r"\bfails?[- ]to[- ]deliver\b", re.I)),
     # Q-07 (2026-11-25): activist stakes (Schedule 13D chains); "13D" alone stays five_percent
     ("activists", re.compile(r"\bactivists?\b|\bactivist (?:stakes?|investors?)\b", re.I)),
     (
@@ -814,6 +816,7 @@ HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
     "changes": "changes", "calendar": "calendar", "private_raises": "private-raises",
     "comment_letters": "comment-letters", "corporate_tree": "corporate-tree",
     "dividends": "dividends", "activists": "activists",
+    "fails_to_deliver": "fails-to-deliver",
 }  # fmt: skip
 
 ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
@@ -898,8 +901,55 @@ def activists(db: Session, b: Brief, as_of: date | None) -> tuple[str, list[dict
     return text, [table]
 
 
+def fails_to_deliver(db: Session, b: Brief, as_of: date | None) -> tuple[str, list[dict]]:
+    """Q-06: the latest fails-to-deliver balance per share class from the SEC's files, always
+    with the running-balance label; never words about short squeezes or naked shorting."""
+    from app.services import fails_to_deliver as ftd
+
+    out = ftd.build(db, b.company.cik, as_of=as_of)
+    label = FTD_LABEL
+    cov = out["coverage"]
+    if not out["data"]:
+        unknown = any("No CUSIP" in n for n in out["notes"])
+        why = (" No CUSIP of this company is known here, so its fails cannot be matched."
+               if unknown else " A date with no row had no fails balance, or its file is not "
+               "yet published.")  # fmt: skip
+        span = f"{cov['from'] or 'July 2009'} to {cov['through'] or 'today'}"
+        return (f"No fails-to-deliver balance for {_name(b)} in the SEC's files loaded ({span}) "
+                f"between {out['since']} and {out['until']}.{why} {label} "
+                f"{FTD_DISCLAIMER}", [])  # fmt: skip
+    parts, tables = [], []
+    for g in out["data"]:
+        last = g["rows"][-1]
+        cls = f" ({g['class_label']})" if g["class_label"] else ""
+        parts.append(f"{g['symbol']}{cls}: {last['quantity']:,} shares on "
+                     f"{last['settlement_date']}, in the SEC's file "
+                     f"{last['source']['file']}")  # fmt: skip
+        tables.append(_table(
+            f"Fails-to-deliver, {g['symbol']}{cls}",
+            ["Settlement date", "Fails outstanding (shares)", "Price (previous close)",
+             "Value (derived)", "SEC file"],
+            [[_cell(r["settlement_date"]), _cell(f"{r['quantity']:,}"),
+              _cell(f"${r['price']:,.2f}" if r["price"] is not None else "—"),
+              _cell(f"${r['value']['value']:,.0f}" if r["value"] else "—"),
+              _cell(r["source"]["file"])] for r in reversed(g["rows"])],
+        ))  # fmt: skip
+    text = (f"The latest fails-to-deliver balance for {_name(b)}, by share class: "
+            f"{'; '.join(parts)}. {label} {FTD_DISCLAIMER}")  # fmt: skip
+    return text, tables
+
+
+FTD_LABEL = ("This is the balance of shares that had failed to settle and were still outstanding "
+             "on that settlement date, across all clearing members (NSCC), as the SEC publishes "
+             "it. It is a running balance, not the day's new fails, and it does not show how old "
+             "the fails are.")  # fmt: skip
+FTD_DISCLAIMER = ("Fails-to-deliver can occur for many reasons on both purchases and sales and "
+                  "are not evidence of improper trading. Information, not signals. Not "
+                  "investment advice.")  # fmt: skip
+
+
 TABLED = {"comment_letters": comment_letters, "corporate_tree": corporate_tree,
-          "activists": activists,
+          "activists": activists, "fails_to_deliver": fails_to_deliver,
           "dividends": dividends}  # fmt: skip
 
 

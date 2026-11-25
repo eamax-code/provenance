@@ -290,6 +290,9 @@ def test_daily_job_loads_new_quarters_and_refreshes_the_showcase(db, settings, s
                     "RPTOWNER_RELATIONSHIP\tRPTOWNER_TITLE\tRPTOWNER_TXT\n"
                     "0009-26-000001\t0000000900\tNEWCOMER ANN\tDirector\t\t\n")  # fmt: skip
     connected.add(insiders.DATASETS_PAGE, '<a href="/files/x/2026q3_form345.zip">2026 Q3</a>')
+    from app.services import fails_to_deliver
+
+    connected.add(fails_to_deliver.PAGE, "<p>no new files</p>")  # Q-06: none published
 
     def handler(request):  # the zip is binary, so it is served here rather than by FakeSEC
         if str(request.url).endswith("2026q3_form345.zip"):
@@ -299,7 +302,7 @@ def test_daily_job_loads_new_quarters_and_refreshes_the_showcase(db, settings, s
     sec_client.http = httpx.Client(transport=httpx.MockTransport(handler))
     out = job.run(db, settings, sec_client)
     assert [d["quarter"] for d in out["datasets"]] == ["2026q3"] and out["errors"] == 0
-    assert out["companies"] >= 1
+    assert out["companies"] >= 1 and out["fails_to_deliver"]["files_to_load"] == 0
     assert db.get(InsiderDataset, "2026q3").filings == 1
     newcomer = select(InsiderFiling.owner_name).where(InsiderFiling.owner_cik == "0000000900")
     assert db.scalar(newcomer) == "NEWCOMER ANN"

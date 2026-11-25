@@ -215,6 +215,26 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik"],
         },
     },
+    "company_fails_to_deliver": {
+        "title": "Company fails-to-deliver",
+        "description": "The SEC's fails-to-deliver for the company's shares, one table per "
+        "symbol and share class (never add classes together), by settlement date, from July "
+        "2009. quantity is the balance of shares that had failed to settle and were still "
+        "outstanding on that settlement date, across all clearing members (NSCC), as the SEC "
+        "publishes it: a running balance, not the day's new fails, and it does not show how old "
+        "the fails are; say so whenever you quote it. A date with no row had no fails balance, "
+        "or its file is not yet published. price is the previous day's close as filed; value is "
+        "derived. Name the SEC file (source.file). Fails-to-deliver can occur for many reasons on "
+        "both purchases and sales and are not evidence of improper short selling; never "
+        "describe them as such. Information, not signals; not investment advice.",
+        "path": "/v1/companies/{cik}/fails-to-deliver",
+        "params": {"since": "since", "until": "until", "as_of": "as_of"},
+        "schema": {
+            "type": "object",
+            "properties": {"cik": _CIK, "since": _DATE, "until": _DATE, "as_of": _DATE},
+            "required": ["cik"],
+        },
+    },
     "activist_stakes": {
         "title": "Activist stakes across companies",
         "description": "Schedule 13D and 13D/A filings across companies in a window (at most "
@@ -319,6 +339,25 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },  # fmt: skip
+    "filing_section": {
+        "title": "10-K item as filed",
+        "description": "One 10-K item's text as filed (item 1A Risk Factors or 7 MD&A), with its "
+        "heading, the primary document on EDGAR Archives (document.url) and where the text sits "
+        "in the document's text as read (offsets). Quote text only as filed, with document.url; "
+        "never summarise it as the filing's own words. Items 1A and 7 of the latest two 10-Ks for "
+        "the companies read are held; other items are not read yet (section_not_held).",
+        "path": "/v1/filings/{accession}/sections/{item}",
+        "params": {},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "accession": {"type": "string", "pattern": r"^\d{10}-\d{2}-\d{6}$",
+                              "description": "One 10-K, e.g. 0000320193-26-000026"},
+                "item": {"type": "string", "enum": ["1A", "7"]},
+            },
+            "required": ["accession", "item"],
+        },
+    },
     "company_calendar": {
         "title": "Company calendar",
         "description": "Dated items for one company: filing deadlines (derived from the filer "
@@ -821,6 +860,14 @@ async def call_tool(request: Request, name: str, args: dict[str, Any]) -> dict[s
         if not cik.isdigit() or len(cik) > 10:
             raise ValueError("cik must be digits, e.g. 320193")
         path = path.replace("{cik}", cik)
+    if "{accession}" in path:  # Q-09
+        acc = str(args["accession"]).strip()
+        if not re.fullmatch(r"\d{10}-\d{2}-\d{6}", acc):
+            raise ValueError("accession must look like 0000320193-26-000026")
+        item = str(args["item"]).strip().upper()
+        if item not in ("1A", "7"):
+            raise ValueError("item must be 1A or 7")
+        path = path.replace("{accession}", acc).replace("{item}", item)
     if "{statement}" in path:
         statement = str(args["statement"])
         if statement not in ("income", "balance", "cash_flow"):

@@ -63,6 +63,8 @@ BUDGETS = {
     "activists module": (["app/activists.js"], 5_000),
     "activists": (["activists/index.html", "activists/activists.css", "activists/activists.js",
                    "app/activists.js"], 14_000),
+    # Q-06 fails-to-deliver (25 Nov, PM-approved): the Explorer's lazy module, 4.4 KB gzipped
+    "fails module": (["app/ftd.js"], 5_000),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
     # the public pages' shared stylesheet (B-G1): 1.7 KB
     "public.css": (["public.css"], 2_000),
