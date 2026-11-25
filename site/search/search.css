@@ -29,8 +29,9 @@
 .fs-sec { font-weight: 500; }
 .fs-meta { margin: 0 0 6px; font-size: .82rem; color: var(--soft); }
 .fs-meta .mono { font-family: var(--mono); }
-.fs-meta a { color: var(--accent-text); text-decoration-line: underline; text-decoration-color: var(--link-line); }
+.fs-meta a, .fs-read a { color: var(--accent-text); text-decoration-line: underline; text-decoration-color: var(--link-line); }
 .fs-snip { margin: 0; max-width: 92ch; line-height: 1.55; }
+.fs-read { margin: 4px 0 0; font-size: .9rem; }
 .fs-m { font-weight: 700; text-decoration: underline 2px var(--accent-hi); text-underline-offset: 3px; }
 .fs-more { margin: 16px 0 0; }
 .fs .btn { min-height: 40px; padding: 0 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: 600 .9rem var(--face); cursor: pointer; }

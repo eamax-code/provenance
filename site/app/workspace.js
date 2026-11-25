@@ -704,6 +704,9 @@
       return el('li', { class: 'tl-' + i.type + (i.upcoming ? ' upcoming' : '') }, [el('time', { datetime: i.date, text: day(i.date) }), el('span', { class: 'tag', text: i.upcoming ? 'upcoming' : kind }),
         el('span', { class: 'tl-t' }, [String(i.title || '').replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) { return day(m); }), sub ? el('span', { class: 'muted small', text: ' · ' + sub }) : null]),
         el('span', { class: 'tl-acts' }, [i.changes_available && i.accession_number ? el('button', { type: 'button', class: 'linkish small', text: 'What changed', title: 'Risk factors and MD&A against the previous annual report', on: { click: function () { S.acc = i.accession_number; S.chs = 'risk_factors'; S.cho = null; S.sec = null; go('filings'); } } }) : null,
+          // a held 10-K (the same ones What changed reads) opens its items in the reader (Q-09)
+          i.changes_available && i.accession_number ? el('a', { class: 'small', href: '/filings/section.html?a=' + i.accession_number + '&i=1A', text: 'Risk factors' }) : null,
+          i.changes_available && i.accession_number ? el('a', { class: 'small', href: '/filings/section.html?a=' + i.accession_number + '&i=7', text: 'MD&A' }) : null,
           ARCHIVE.test(i.filing_url || '') ? el('a', { href: i.filing_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + ' ↗' }) : null])]);
     }));
     var more = tl.more ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { tlLoad(); } } }) : null;

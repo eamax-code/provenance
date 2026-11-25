@@ -49,6 +49,7 @@ PAGES = (
     "insiders/index.html",
     "managers/index.html",
     "managers/manager.html",
+    "filings/section.html",
     "activists/index.html",
     "docs/flags/index.html",
     "legal/terms/index.html",
