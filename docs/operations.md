@@ -596,6 +596,48 @@ volume), `pg_restore -j 4 --no-owner` the newest dump that `pg_restore --list` r
 `alembic upgrade head` (the schema guard refuses jobs until it matches), rebuild marts if the
 dump predates a mart change, then start the processes.
 
+## Migration drill (deploy rehearsal, schema and sample), 2026-11-25
+
+The newest dump `provenance-2026-11-24T2245Z.dump` (5.2 GB, alembic at `a1b3c5d7e9f2`) into a
+scratch database, schema only plus five small tables (`alembic_version`, `companies`,
+`registrant_successions`, `company_aliases`, `issuer_cusips`), then every migration since, then the
+loaders in this file's order on that sample; the scratch database was dropped afterwards. A full
+restore was not run: the Mac had 14 GiB free (97% used) and a full drill needs about 31 GB
+beside the live database (the restore drill above); it waits on the owner freeing space.
+
+```
+docker exec provenance-local-pg psql -U provenance -d postgres -c "CREATE DATABASE provenance_migration_drill"
+docker exec -i provenance-local-pg pg_restore -U provenance -d provenance_migration_drill --schema-only --no-owner < DUMP
+docker exec -i provenance-local-pg pg_restore -U provenance -d provenance_migration_drill --data-only --no-owner \
+  -t alembic_version -t companies -t registrant_successions -t company_aliases -t issuer_cusips < DUMP
+DATABASE_URL=.../provenance_migration_drill alembic upgrade +1   # repeated, timed
+```
+
+- Restore: schema 0.3 s, the five tables 31 s (streamed on stdin, so the dump is read through).
+- **Migrations, in order, each applied cleanly** (about 0.4 s each, mostly alembic's start-up):
+  `a1b3c5d7e9f2` → `b2c4d6e8f0a3` (Q-07) → `c3d5e7f9a1b4` (S-07) → `d4e6f8a0b2c5` (F-03f) →
+  `e5f7a9b1c3d6` (F-03g) → `f6a8b0c2d4e7` (Q-06) → `a8c0e2f4b6d9` (Q-09) → `b9d1f3a5c7e0`
+  (D-01) → `c1e3a5b7d9f2` (D-01b). Each adds nullable columns, a column with a constant default
+  (metadata only in PostgreSQL 11+) or a new table, so full size should take about as long; the
+  risk is waiting for a lock: apply with `PGOPTIONS="-c lock_timeout=5000"` and retry.
+- **Loaders, in deploy order, all exit 0 on the sample, no manual step:**
+
+| Step | Sample time | At full size (measured on the live database, 2026-11-25) |
+|---|---|---|
+| `load_13d_purposes.py` (after `b2c4d6e8f0a3`) | 0.6 s | from the cache, no SEC requests |
+| `set_fiscal_year_ends.py` (after `c3d5e7f9a1b4`) | 0.9 s | then the marts build |
+| `flag_plan_purchases.py` (after `d4e6f8a0b2c5`, `e5f7a9b1c3d6`) | 9.2 s | data sets and cached XML |
+| `correct_insider_activity.py --change f03f --no-add --write`, then `f03g` | 0.6 s, 0.5 s | retracts, never deletes |
+| `load_fails_to_deliver.py` (after `f6a8b0c2d4e7`) | 8.5 s for 2 files (24,536 rows) | 414 files through SecClient (cached here) |
+| `locate_10k_sections.py` (after `a8c0e2f4b6d9`) | 0.7 s | from the cached documents |
+| `build_marts.py` (sets `periodic_active`, after `b9d1f3a5c7e0`) | 74.6 s | about 28 min (company marts alone about 2 min) |
+| `find_named_successors.py` (after `c1e3a5b7d9f2` and the marts) | 0.6 s | 6,867 documents: minutes from the cache (not timed exactly); at 8 requests a second, about 15 min, for documents not cached |
+
+- Order dependencies: `find_named_successors.py` reads `mart_company.periodic_active`, so it runs
+  after `build_marts.py`; until the marts build, the screen's default lists no company (D-01).
+- Scratch database at the end: 91 MB. Not measured: full-size loader times on a restored copy,
+  and the final database size (needs the full drill).
+
 ## R-2 for the 24 Nov endpoints (2026-11-24 03:57 IST)
 
 `scripts/load_smoke.py --rps 25 --seconds 180` against a scratch server on HEAD fe50312 (one
