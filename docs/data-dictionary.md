@@ -604,11 +604,29 @@ reviewed in `app/data/successions_reviewed.csv`, with the sentence that shows it
 holding company reorganisation or redomicile, `accounting_predecessor` (medium) when a merger's
 report names the predecessor as the accounting acquirer; a merger whose accounting acquirer was
 another company is rejected (Six Flags 2024: Cedar Fair; Baker Hughes 2017: GE Oil & Gas). Of
-23 pairs found in ten years, 12 are stored. Facts stay under the CIK that filed
+23 pairs found in ten years, 12 are stored. **K-05c (2026-11-25):** pairs the name rule cannot
+find, from D-01b's named successors, are joined only where the successor's own filing states the
+continuity (its 8-K12B, first 10-Q or 10-K: predecessor registrant, accounting acquirer,
+holding-company reorganisation, redomicile or conversion), quoted with its link in the reviewed
+file (`successions.pairs_from_reviewed`; the evidence is the successor's 8-K12B within 60 days
+where there is one). 45 of 60 candidates were joined; the rest stay display-only (no such
+statement found, or an acquisition). The reviewed file gains a `note` column (Cardtronics 2016:
+an earlier reject reversed on the plc's 10-Q). Facts stay under the CIK that filed
 them. The overview joins the predecessors' annual figures at query time: every statement cell and
 year carries `registrant_cik` and `predecessor` (with `registrant_label`, "Reported by predecessor
-registrant (CIK 34088)", on a predecessor's rows); the company's own filing wins for a fiscal year
-both report. `company.predecessors` and `company.successor` link the two pages with the evidence
+registrant (CIK 34088)", on a predecessor's rows). **K-05d (2026-11-25): the source is chosen per
+statement section and fiscal year, never per figure.** Where the successor reports any figure of
+a section (income, balance sheet, cash flow) for a year, that section-year is the successor's
+figures only (its restated comparatives); a figure it does not report there stays blank, with a
+section `gap_notes` entry ("Not reported in the successor's restated figures for FY2017; the
+predecessor's as-filed figures are on Xerox Corp's page", `predecessor_cik`, `metrics`), never
+filled from the predecessor. A predecessor's figures fill only the section-years the successor
+does not report. A ratio whose two inputs would come from different registrants is blank. The
+predecessor's own page keeps its as-filed figures. One helper (`statements.own_section_periods`)
+makes the choice for the overview's statements and key figures and for
+`/v1/companies/{cik}/statements/{statement}`; the overview's years table (from the marts) takes
+whole years, so it never mixes either. Before K-05d a year could show a successor's restated
+revenue beside a predecessor's original costs (Xerox 2017, Alphabet 2013-14 and 3 others). `company.predecessors` and `company.successor` link the two pages with the evidence
 filing. Point in time: rows count by their own filing date, so before the change the
 predecessor's rows are the ones shown. Filled by `scripts/detect_successions.py`.
 

@@ -675,7 +675,14 @@ def statement(
     )  # fmt: skip
     if as_of:
         stmt = known_by(stmt, as_of)
-    chosen = _select_latest(db.scalars(stmt).all())
+    from app.services import periods as periods_service
+
+    conv = periods_service.convention(company)
+    # K-05d: a section-period the company reports is its own figures only, as the overview
+    rows, _ = statements_service.own_section_periods(
+        db.scalars(stmt).all(), cik,
+        lambda r: periods_service.label(r.period_end, period, conv))  # fmt: skip
+    chosen = _select_latest(rows)
     if include_derived and period == "quarterly":
         base = select(FinancialFact).where(
             FinancialFact.cik.in_(ciks), FinancialFact.derived.is_(False),

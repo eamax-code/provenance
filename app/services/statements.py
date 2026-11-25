@@ -60,8 +60,34 @@ def _cell(f: FinancialFact, fiscal_label: str, own: str | None = None) -> dict:
     }
 
 
+def section_of(metric: str) -> str:
+    return CONCEPT_MAP[metric]["statement"] if metric in CONCEPT_MAP else metric
+
+
+def own_section_periods(rows: list, own: str, key) -> tuple[list, dict[tuple, set[str]]]:
+    """K-05d: a successor's statement never mixes its figures with a predecessor's in one section
+    and period. Where the successor reports any figure of a section (income, balance, cash flow)
+    for a period, the whole section-period is its own (restated) figures and gaps stay blank;
+    a predecessor's figures fill only the section-periods the successor does not report.
+    Returns the rows kept and {(section, period): {(metric, predecessor cik)}} dropped, for the
+    gap notes."""
+    owned = {(section_of(r.metric), key(r)) for r in rows if r.cik == own}
+    kept, dropped = [], {}
+    for r in rows:
+        k = (section_of(r.metric), key(r))
+        if r.cik == own or k not in owned:
+            kept.append(r)
+        else:
+            dropped.setdefault(k, set()).add((r.metric, r.cik))
+    return kept, dropped
+
+
 def annual_cells(
-    db: Session, company: Company, as_of: date | None = None, metrics: tuple[str, ...] | None = None
+    db: Session,
+    company: Company,
+    as_of: date | None = None,
+    metrics: tuple[str, ...] | None = None,
+    gaps: dict | None = None,
 ) -> tuple[dict[str, dict[str, FinancialFact]], dict[str, str], dict[str, date]]:
     """({metric: {fiscal_label: fact}}, {metric: unit}, {fiscal_label: period_end}). A successor
     registrant's figures continue with its predecessors' (K-05), each fact under its own CIK."""
@@ -78,6 +104,12 @@ def annual_cells(
     if as_of:
         stmt = known_by(stmt, as_of)
     rows = db.scalars(stmt).all()
+    conv = periods.convention(company)
+    rows, dropped = own_section_periods(
+        rows, company.cik, lambda r: periods.label(r.period_end, "annual", conv)
+    )
+    if gaps is not None:
+        gaps.update(dropped)
     # one unit per metric: the one with the most fiscal years (the reporting currency; IFRS
     # filers add a USD convenience translation for the latest year only), USD on a tie
     units: dict[str, str] = {}
@@ -109,8 +141,31 @@ def annual_cells(
     return by_label, units, ends
 
 
+GAP_NOTE = (
+    "Not reported in the successor's restated figures for {year}; the predecessor's "
+    "as-filed figures are on {name}'s page."
+)
+
+
+def _gap_notes(db: Session, key: str, labels: list[str], rows: list[dict], gaps: dict) -> list:
+    """K-05d: a blank in a section-year the successor reports, where a predecessor filed the
+    figure: said, with the predecessor's page, never filled from it."""
+    out = []
+    for i, lab in enumerate(labels):
+        blank = {r["metric"] for r in rows if r["cells"][i] is None}
+        dropped = {(m, c) for m, c in gaps.get((key, lab), set()) if m in blank or m not in
+                   {r["metric"] for r in rows}}  # fmt: skip
+        for cik in sorted({c for _, c in dropped}):
+            name = db.scalar(select(Company.legal_name).where(Company.cik == cik)) or cik
+            out.append({"fiscal_label": lab, "predecessor_cik": cik, "predecessor_name": name,
+                        "metrics": sorted(m for m, c in dropped if c == cik),
+                        "text": GAP_NOTE.format(year=lab, name=name)})  # fmt: skip
+    return out
+
+
 def build(db: Session, company: Company, as_of: date | None = None, years: int = 5) -> dict:
-    cells, units, ends = annual_cells(db, company, as_of)
+    gaps: dict = {}
+    cells, units, ends = annual_cells(db, company, as_of, gaps=gaps)
     flows = [lab for m, per in cells.items() if CONCEPT_MAP[m]["statement"] != "balance"
              for lab in per]  # fmt: skip
     labels = sorted(set(flows) or set(ends), key=lambda lab: ends[lab])[-years:]
@@ -128,7 +183,10 @@ def build(db: Session, company: Company, as_of: date | None = None, years: int =
                          "currency": currency_from_unit(units[m]), "derived": False,
                          "cells": row_cells})  # fmt: skip
         if rows:
-            sections.append({"key": key, "title": title, "rows": rows})
+            section = {"key": key, "title": title, "rows": rows}
+            if notes := _gap_notes(db, key, labels, rows, gaps):
+                section["gap_notes"] = notes
+            sections.append(section)
     ratio_rows = []
     for name, r in ratios.RATIOS.items():
         num, den = cells.get(r.numerator, {}), cells.get(r.denominator, {})
@@ -137,6 +195,8 @@ def build(db: Session, company: Company, as_of: date | None = None, years: int =
         row_cells = []
         for lab in labels:
             n, d = num.get(lab), den.get(lab)
+            if n and d and n.cik != d.cik:
+                n = d = None  # K-05d: never a successor's restated input over a predecessor's
             value = ratios.compute(r, float(n.value) if n else None, float(d.value) if d else None)
             row_cells.append(None if value is None else {
                 "fiscal_label": lab, "period_end": ends[lab].isoformat(), "value": value,

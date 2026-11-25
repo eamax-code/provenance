@@ -31,6 +31,10 @@ def main() -> int:
     db = Session()
     since = date.today() - timedelta(days=int(args.years * 365)) if args.years else None
     pairs = successions.detect(db, since)
+    # K-05c: reviewed pairs the name rule cannot find (D-01b named successors, quoted)
+    pairs += successions.pairs_from_reviewed(
+        db, known={(p["predecessor_cik"], p["successor_cik"]) for p in pairs}
+    )
     revenue = dict(db.execute(select(MartCompany.cik, MartCompany.latest_revenue)).all())
 
     def rev(p):

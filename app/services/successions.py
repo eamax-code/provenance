@@ -118,6 +118,42 @@ def detect(db: Session, since: date | None = None) -> list[dict]:
     return found
 
 
+def pairs_from_reviewed(db: Session, reviews: dict | None = None,
+                        known: set[tuple[str, str]] | None = None) -> list[dict]:  # fmt: skip
+    """K-05c: reviewed pairs the rules above do not find (the D-01b named successors joined on
+    the successor's own filing, quoted in the review), with the same evidence fields: the
+    successor's first 8-K12B/8-K12G3 within 60 days of the named successor's filing (else that
+    filing), and the predecessor's exit filing nearest to it, if any."""
+    from app.db.models import NamedSuccessor
+
+    reviews = reviewed() if reviews is None else reviews
+    known = known or set()
+    out = []
+    for (pred, succ), r in reviews.items():
+        if r["decision"] != "store" or (pred, succ) in known:
+            continue
+        named = db.get(NamedSuccessor, pred)
+        if named is None or named.successor_cik != succ:
+            continue  # only pairs D-01b links; others come from detect()
+        day = named.evidence_date
+        f12 = db.scalars(select(Filing).where(
+            Filing.cik == succ, Filing.form_type.in_(SUCCESSOR_FORMS),
+            Filing.filing_date >= day - timedelta(days=60),
+            Filing.filing_date <= day + timedelta(days=60))
+            .order_by(Filing.filing_date)).first()  # fmt: skip
+        ev_day = f12.filing_date if f12 else day
+        exit_ = _exits(db, ev_day).get(pred)
+        out.append({
+            "predecessor_cik": pred, "successor_cik": succ, "effective_date": ev_day,
+            "evidence_accession": f12.accession_number if f12 else named.evidence_accession,
+            "evidence_form": f12.form_type if f12 else named.evidence_form,
+            "predecessor_accession": exit_.accession_number if exit_ else None,
+            "predecessor_form": exit_.form_type if exit_ else None,
+            "match_method": r["match_method"], "confidence": r["confidence"],
+        })  # fmt: skip
+    return out
+
+
 def store(db: Session, pairs: list[dict], reviews: dict | None = None) -> dict:
     """Store the reviewed pairs ("store"); report the rejected and the not yet reviewed."""
     reviews = reviewed() if reviews is None else reviews
