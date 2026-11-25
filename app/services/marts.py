@@ -220,7 +220,7 @@ def _annual_metrics(
     """Up to HISTORY_YEARS reported annual values per company and metric, newest first, one per
     period (the latest-filed observation), each with the filing it came from, in the company's
     reporting currency (D-04: a convenience translation in another currency is left out).
-    gone: (cik, period type, unit, end) of periods that are not a fiscal year's column (S-07b)."""
+    gone: (cik, period type, unit, end, metric) of figures not in a fiscal year's column (S-07b)."""
     f = FinancialFact
     per_period = (
         func.row_number()
@@ -276,7 +276,8 @@ def _annual_metrics(
         .where(ranked.c.k <= 2 * HISTORY_YEARS)  # room for the periods S-07b leaves out
         .order_by(ranked.c.cik, ranked.c.metric, ranked.c.k)
     ):
-        if r.unit != currency.get(r.cik) or (r.cik, r.period_type, r.unit, r.period_end) in gone:
+        figure = (r.cik, r.period_type, r.unit, r.period_end, r.metric)
+        if r.unit != currency.get(r.cik) or figure in gone:
             continue
         if len(out[r.cik][r.metric]) >= HISTORY_YEARS:
             continue
@@ -365,7 +366,8 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
         execution_options={"yield_per": FINANCIAL_BATCH},
     )
     for r in result:
-        if r.period_class == "annual" and (r.cik, r.period_type, r.unit, r.period_end) in gone:
+        figure = (r.cik, r.period_type, r.unit, r.period_end, r.metric)
+        if r.period_class == "annual" and figure in gone:
             continue
         year_end = fye.get(r.cik)
         fiscal_year = periods.fiscal_year(r.period_end, year_end, period_class=r.period_class)

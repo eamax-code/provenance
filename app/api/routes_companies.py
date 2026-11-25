@@ -730,8 +730,12 @@ def statement(
             Filing.report_date.is_not(None))))  # fmt: skip
         skip = {e for e in counts if any(abs((e - t).days) <= 7 for t in t_ends)}
         drop = periods.one_per_year_end(counts, own_ends, reports, skip)
-        for k in [k for k in by_key if k[1] in drop]:
-            by_key.pop(k)
+        # a figure the year has at no other date (Superior's 2015 revenue at December 31 beside
+        # its balance sheet at December 27) is kept in the year's column, with its own date
+        for k in sorted((k for k in by_key if k[1] in drop),
+                        key=lambda k: abs((k[1] - drop[k[1]]).days)):  # fmt: skip
+            f = by_key.pop(k)
+            by_key.setdefault((k[0], drop[k[1]]), f)
         spans = {(x[0], x[1]): x[2] for x in found}
         span_form = {x[1]: x[3] for x in found}  # the cover's form: 10-KT, or 10-K or 20-F
         if spans:

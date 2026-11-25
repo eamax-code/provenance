@@ -154,8 +154,10 @@ def transitions(db: Session, ciks: list[str] | None = None,
 
 
 def left_out(db: Session, ciks: list[str] | None = None) -> set[tuple]:
-    """S-07b: {(cik, period type, unit, period end)} of the annual periods that are not a fiscal
-    year's column, such as an adoption-date balance at January 1, 2018; the marts leave them out
+    """S-07b: {(cik, period type, unit, period end, metric)} of the annual figures that are not
+    in a fiscal year's column, such as an adoption-date balance at January 1, 2018, whose metric
+    the column's own date has (a figure the year has at no other date stays: Superior
+    Industries' 2015 revenue at December 31 beside its December 27 year); the marts leave them out
     as the statements do, choosing per period type (periods.one_per_year_end): balances apart
     from durations, as the balance sheet is apart from the income statement; and per unit, so a
     company that moved to US dollars keeps its dollar opening balance beside the year end in
@@ -184,11 +186,24 @@ def left_out(db: Session, ciks: list[str] | None = None) -> set[tuple]:
     for c, r in db.execute(rq.where(Filing.cik.in_(scope)) if ciks else rq):
         reports[c].add(r)
     t_ends: dict[str, list] = {c: [x[1] for x in xs] for c, xs in transitions(db, ciks).items()}
-    out = set()
+    dropped = {}  # (cik, period type, unit, end left out) -> the end chosen in its place
     for (cik, ptype, unit), by_end in counts.items():
         if not own.get(cik):
             continue
         skip = {e for e in by_end if any(abs((e - t).days) <= NEAR for t in t_ends.get(cik, ()))}
-        for e in periods.one_per_year_end(by_end, own[cik], reports.get(cik, set()), skip):
-            out.add((cik, ptype, unit, e))
-    return out
+        for e, best in periods.one_per_year_end(by_end, own[cik], reports.get(cik, set()),
+                                                skip).items():  # fmt: skip
+            dropped[(cik, ptype, unit, e)] = best
+    if not dropped:
+        return set()
+    hit = sorted({k[0] for k in dropped})
+    mq = (select(f.cik, f.period_type, f.unit, f.period_end, f.metric)
+          .where(f.period_class == "annual", f.derived.is_(False), f.value.is_not(None),
+                 f.quality_status.in_(("ok", "partial")), f.cik.in_(hit))
+          .distinct())  # fmt: skip
+    have = {tuple(r) for r in db.execute(mq)}
+    return {
+        (c, p, u, e, m)
+        for c, p, u, e, m in have
+        if (c, p, u, e) in dropped and (c, p, u, dropped[(c, p, u, e)], m) in have
+    }

@@ -157,8 +157,9 @@ def year_end_anchor(end: date, year_ends: tuple, near: int = 7) -> date | None:
 
 
 def one_per_year_end(counts: dict, year_ends: tuple, report_dates=frozenset(),
-                     skip=frozenset(), near: int = 7) -> set:  # fmt: skip
-    """S-07b: the period ends to leave out of annual columns, one column per fiscal year end.
+                     skip=frozenset(), near: int = 7) -> dict:  # fmt: skip
+    """S-07b: {period end left out of annual columns: the end chosen in its place}, one column
+    per fiscal year end.
     counts: {period end: figures dated there}. Among ends within a week of one year end (an
     adoption-date balance beside the year end: LATAM's January 1, 2 and 4, 2018), the column is
     the end with the most figures (the full balance sheet: Avino's restated one at January 1,
@@ -170,12 +171,12 @@ def one_per_year_end(counts: dict, year_ends: tuple, report_dates=frozenset(),
             a = year_end_anchor(e, year_ends, near)
             if a is not None:
                 groups.setdefault(a, []).append(e)
-    out = set()
+    out = {}
     for a, es in groups.items():
         if len(es) > 1:
             best = min(es, key=lambda e: (-counts[e], e not in report_dates,
                                           abs((e - a).days), e))  # fmt: skip
-            out.update(e for e in es if e != best)
+            out.update((e, best) for e in es if e != best)
     return out
 
 

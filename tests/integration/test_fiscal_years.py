@@ -393,3 +393,40 @@ def test_a_new_reporting_currency_keeps_its_opening_balance(db):
     marts.build_financial_marts(db, [cik])
     year = db.get(MartCompanyPeriod, (cik, 2018))
     assert year is not None and year.total_assets == 39 and year.currency == "USD"
+
+
+def test_a_figure_the_year_has_at_no_other_date_is_kept(client, auth, db):
+    """S-07b, Superior Industries-like: its 2015 income is dated December 27 (more figures) and
+    again December 31, where alone its revenue is. The year's column is December 27, and the
+    revenue stays in it, in the statements and the company year, with its own date."""
+    from app.db.models import MartCompanyPeriod
+    from app.services import marts
+
+    now = datetime.now(UTC)
+    cik = "0000000915"
+    db.add(Company(cik=cik, legal_name="WHEELS INC", fiscal_year_end="1231",
+                   fiscal_year_ends="2014-12-31,2015-12-31", source_url="https://www.sec.gov/",
+                   first_detected_at=now, last_processed_at=now,
+                   quality_status="ok"))  # fmt: skip
+    acc = "0000000915-16-000001"
+    d27, d31 = date(2015, 12, 27), date(2015, 12, 31)
+    for metric, v, start, end in [
+        ("net_income", 40, date(2014, 12, 29), d27), ("sga", 30, date(2014, 12, 29), d27),
+        ("operating_income", 60, date(2014, 12, 29), d27),
+        ("cost_of_revenue", 600, date(2014, 12, 29), d27),
+        ("revenue", 728, date(2015, 1, 1), d31), ("net_income", 41, date(2015, 1, 1), d31),
+        ("operating_income", 61, date(2015, 1, 1), d31),
+    ]:  # fmt: skip
+        f = _fact(metric, v, start, end, "annual", acc, "10-K", date(2016, 3, 1))
+        f.cik = cik
+        db.add(f)
+    db.commit()
+    marts.build_financial_marts(db, [cik])
+    year = db.get(MartCompanyPeriod, (cik, 2015))
+    assert (year.revenue, year.net_income) == (728, 40)
+    inc = client.get(f"/v1/companies/{cik}/statements/income?period=annual",
+                     headers=auth).json()  # fmt: skip
+    assert [c["period_end"] for c in inc["columns"]] == ["2015-12-27"]
+    cells = {r["metric"]: r["cells"][0] for r in inc["rows"] if r["cells"][0]}
+    assert cells["revenue"]["value"] == 728 and cells["revenue"]["period_end"] == "2015-12-31"
+    assert cells["net_income"]["value"] == 40
