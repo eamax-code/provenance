@@ -79,6 +79,9 @@ class Query:
     groups: list[list[Term]]  # every group must hold; one term of a group is enough
     excluded: list[Term] = field(default_factory=list)
     stems: dict[str, str] = field(default_factory=dict)  # PostgreSQL's English stem of each word
+    # the forms of each word in the texts shown whose PostgreSQL stem is the word's own ("going"
+    # finds "go", "goes", "going", never "goods" or "governance"); None until a page is read
+    forms: dict[str, set[str]] | None = None
 
     @property
     def terms(self) -> list[Term]:
@@ -140,7 +143,27 @@ def _stem(word: str) -> str:
     return word if len(word) <= 5 else word[: max(5, len(word) - 2)]
 
 
-def _word_re(word: str, stems: dict[str, str] | None = None) -> re.Pattern:
+_NEVER = re.compile(r"(?!x)x")
+
+
+def _word_re(word: str, stems: dict[str, str] | None = None,
+             forms: dict[str, set[str]] | None = None) -> re.Pattern:  # fmt: skip
+    """A word in raw text by its stem, never by prefix: with the forms PostgreSQL stems to the
+    word's stem (search reads them for the page shown), exactly those; else by a stem prefix of
+    four letters or more, or the word as written when the stem is shorter ("go" for "going")."""
+    if forms is not None and word in forms:
+        got = sorted(forms[word], key=len, reverse=True)
+        if not got:
+            return _NEVER
+        return re.compile(r"\b(?:" + "|".join(re.escape(f) for f in got) + r")\b", re.IGNORECASE)
+    pre = _prefix(word, stems)
+    if stems and stems.get(word) and len(pre) < 4:
+        return re.compile(r"\b" + re.escape(word) + r"\b", re.IGNORECASE)
+    return re.compile(r"\b" + re.escape(pre) + r"\w*", re.IGNORECASE)
+
+
+def _prefix(word: str, stems: dict[str, str] | None = None) -> str:
+    """The part of the word its stem shares, to find candidate forms in raw text."""
     stem = (stems or {}).get(word)
     # PostgreSQL's stem is not always a prefix of the word or its forms ("fiduciary" is
     # "fiduciari", "diversify" is "diversifi"): without the y-turned-i, the part the stem and the
@@ -150,11 +173,12 @@ def _word_re(word: str, stems: dict[str, str] | None = None) -> re.Pattern:
     stem = os.path.commonprefix([stem, word]) if stem else _stem(word)
     if len(stem) < 3:
         stem = (stems or {}).get(word) or _stem(word)
-    return re.compile(r"\b" + re.escape(stem) + r"\w*", re.IGNORECASE)
+    return stem
 
 
-def _holds(term: Term, text: str, stems: dict[str, str] | None = None) -> bool:
-    pat = _phrase_re(term.words) if term.phrase else _word_re(term.text, stems)
+def _holds(term: Term, text: str, stems: dict[str, str] | None = None,
+           forms: dict[str, set[str]] | None = None) -> bool:  # fmt: skip
+    pat = _phrase_re(term.words) if term.phrase else _word_re(term.text, stems, forms)
     return bool(pat.search(text))
 
 
@@ -164,9 +188,9 @@ def verify(query: Query, text: str, trust_words: bool) -> bool:
     for g in query.groups:
         if trust_words and not any(t.phrase for t in g):
             continue
-        if not any(_holds(t, text, query.stems) for t in g):
+        if not any(_holds(t, text, query.stems, query.forms) for t in g):
             return False
-    if not trust_words and any(_holds(t, text, query.stems) for t in query.excluded):
+    if not trust_words and any(_holds(t, text, query.stems, query.forms) for t in query.excluded):
         return False
     return True
 
@@ -399,6 +423,9 @@ def search(db: Session, query: Query, filters: Filters, sort: str = "date", limi
     missing = [r.id for r, t in page if t is None]
     texts = _texts(db, missing) if missing else {}
     filed = _filed_texts(db, [r.id for r, _ in page if r.item.startswith("10k:")])
+    if pg and query.words:
+        shown = [t if t is not None else texts.get(r.id, "") for r, t in page]
+        query.forms = _pg_forms(db, query, shown + [v for v in filed.values() if v])
     hits = []
     for r, t in page:
         text = t if t is not None else texts.get(r.id, "")
@@ -428,6 +455,23 @@ def _pg_stems(db: Session, query: Query) -> dict[str, str]:
     return {w: g.split()[0] for w, g in zip(words, got, strict=True) if g}
 
 
+def _pg_forms(db: Session, query: Query, texts: list[str]) -> dict[str, set[str]]:
+    """Each query word's forms in these texts that PostgreSQL stems to the word's own stem: the
+    words sharing the stem's prefix are stemmed in one query and kept only on an exact match."""
+    seen: dict[str, set[str]] = {}
+    for w in query.words:
+        pat = re.compile(r"\b" + re.escape(_prefix(w, query.stems)) + r"\w*", re.IGNORECASE)
+        seen[w] = {m.group(0).lower() for t in texts for m in pat.finditer(t)} | {w.lower()}
+    tokens = sorted(set().union(*seen.values())) if seen else []
+    if not tokens:
+        return {}
+    got = dict(db.execute(sql_text(
+        "select w, array_to_string(tsvector_to_array(to_tsvector('english', w)), ' ') "
+        "from unnest(cast(:ws as text[])) as w"), {"ws": tokens}).all())  # fmt: skip
+    return {w: {f for f in seen[w] if got.get(f) and got[f] == query.stems.get(w)}
+            for w in seen}  # fmt: skip
+
+
 def _texts(db: Session, ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
     if not ids:
         return {}
@@ -452,14 +496,14 @@ def _rank(db: Session, query: Query, rows: list[Row], pg: bool) -> dict[uuid.UUI
             t = texts.get(r.id) or ""
             if not verify(query, t, trust_words=False):
                 continue
-            n = sum(len(_word_re(w, query.stems).findall(t)) for w in query.words)
+            n = sum(len(_word_re(w, query.stems, query.forms).findall(t)) for w in query.words)
             n += sum(len(_phrase_re(p.split()).findall(t)) for p in query.phrases)
             scored[r.id] = n / (n + len(t.split()) / 50 + 1)
     return {k: min(1.0, float(v) * (TITLE_BOOST if k in titled else 1)) for k, v in scored.items()}
 
 
 def _patterns(query: Query) -> list[re.Pattern]:
-    return [_phrase_re(t.words) if t.phrase else _word_re(t.text, query.stems)
+    return [_phrase_re(t.words) if t.phrase else _word_re(t.text, query.stems, query.forms)
             for t in query.terms]  # fmt: skip
 
 

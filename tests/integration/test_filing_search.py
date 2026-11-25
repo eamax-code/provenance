@@ -195,3 +195,22 @@ def test_chat_which_filings_mention(client, auth, db, stored):
     none = client.post("/v1/chat", json={"message": "Which filings mention zeppelins?"},
                        headers=auth).json()  # fmt: skip
     assert none["intent"] == "filing_search" and "covers only" in none["answer"]
+
+
+def test_a_short_stem_never_matches_by_prefix():
+    """'going' stems to 'go' in PostgreSQL: highlights and the reader's offset must land on
+    'going' (or a form PostgreSQL stems to 'go'), never on 'goods', 'governance' or 'government'."""
+    text = ("We sell goods under strict governance rules set by the government. "
+            "Our auditors raised substantial doubt about our ability to continue as a going "
+            "concern.")  # fmt: skip
+    q = fs.parse("going concern")
+    q.stems = {"going": "go", "concern": "concern"}  # as PostgreSQL gives them
+    snippet, marks = fs.snippet_for(q, text)
+    shown = [snippet[a:b].lower() for a, b in marks]
+    assert shown == ["going", "concern"], shown
+    assert text[fs.hit_at(q, text):].startswith("going concern")
+    # with the page's forms read from PostgreSQL: exactly those forms
+    q.forms = {"going": {"go", "going"}, "concern": {"concern", "concerns"}}
+    assert text[fs.hit_at(q, text):].startswith("going concern")
+    assert not fs._word_re("going", q.stems, q.forms).search("goods and governance")
+    assert fs._word_re("going", q.stems, q.forms).search("as we go forward")  # a form, not prefix

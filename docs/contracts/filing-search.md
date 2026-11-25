@@ -92,7 +92,11 @@ A query with no searchable word (only common words or symbols) is `422 invalid_q
 - `snippet` is plain text, about 35 words, cut around the place where most query terms meet. It has
   no HTML. `highlights` are `[start, end)` character offsets into `snippet` for each phrase or word
   occurrence shown, so the page can mark them without parsing. A stemmed word is highlighted as the
-  word that appears in the text (`tariffs`).
+  word that appears in the text (`tariffs`). Only words PostgreSQL stems to the query word's own
+  stem are highlighted, never words that merely start the same way: `going` (stem `go`) marks
+  `going` and `go`, never `goods`, `governance` or `government` (fixed 2026-11-25; before,
+  snippets and `section_offset` could sit on such words). Unquoted words match anywhere in the
+  section, so `going concern` without quotes may show `concerns` alone; quote it for the phrase.
 - **`section_offset`** (Q-09, Items 1A and 7 only; `null` for other sections): where the hit starts in
   the item's text as filed, the `text` that `/v1/filings/{accession}/sections/{item}` returns, so
   `text[section_offset:]` begins with the matched phrase or word and a reader can open at it.
