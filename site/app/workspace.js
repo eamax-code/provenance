@@ -593,8 +593,10 @@
         else if (S.show === 'common') { var bc = baseRow && at(baseRow, i); txt = ratio || !bc || !bc.value ? '—' : pct(100 * c.value / bc.value); }
         else txt = c.unit === 'ratio' ? pct(100 * c.value) : fmtv(c.value, c.unit, cur);
         var info = Object.assign({ label: r.label, metric: r.metric, currency: cur, fiscal_label: col.period_label || col.key, formula: r.formula }, c);
-        var flag = c.quality_status && c.quality_status !== 'ok';
-        return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') + (c.adj ? ' adj' : '') + sbc }, [door(txt, info, flag ? 'flag' : ''), flag ? el('span', { class: 'qf', title: c.quality_status.replace(/_/g, ' '), text: '!' }) : null]);
+        // a quality status other than ok, or a quality_note (S-06: EPS that does not reconcile, and the shares cell it was
+        // checked against): a mark on the cell and the reason in its tooltip; the value stays as filed
+        var bad = c.quality_status && c.quality_status !== 'ok', flag = bad || c.quality_note;
+        return el('td', { class: 'n' + (c.predecessor ? ' pred' : '') + (c.adj ? ' adj' : '') + sbc }, [door(txt, info, flag ? 'flag' : ''), flag ? el('span', { class: 'qf', title: (bad ? c.quality_status.replace(/_/g, ' ') + (c.quality_note ? ': ' : '') : '') + (c.quality_note || ''), text: '!' }) : null]);
       })));
     });
     var csvRows = function () { return [['line_item'].concat(cols.map(function (c) { return c.key; })).join(',')].concat(rows.map(function (r) { return ['"' + r.label.replace(/"/g, '""') + '"'].concat(cols.map(function (c, i) { var x = at(r, i); return x ? x.value : ''; })).join(','); })); };
