@@ -23,7 +23,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-MAPPING_VERSION = "1.5.0"
+MAPPING_VERSION = "1.6.0"
 # 1.2.0: twelve months in a quarterly report is "ttm", not annual.
 # 1.3.0: thirty metrics across the income statement, balance sheet and cash flow; industry
 #        fallback tags (banks, utilities, REITs); each metric's unit kind is checked; cover-page
@@ -39,6 +39,11 @@ MAPPING_VERSION = "1.5.0"
 #        when it shows exactly one revenue line labelled as a total (rules_1_5_0); banks (SIC
 #        6000-6199) reporting in IFRS take the income statement's total income line as revenue,
 #        under a total-income label guard. Filings before 2021 are unchanged.
+# 1.6.0: profit_loss (S-08), net income including noncontrolling interests (ProfitLoss), its own
+#        metric and statement row as filed, never a candidate for net_income (which stays the
+#        parent's share: ProfitLoss includes noncontrolling interests, and their absence cannot be
+#        proven from tags); dividends per share (DIVIDEND_CONCEPTS, stored in dividend_facts) are
+#        part of the versioned mapping from this version.
 
 EDGAR_START = date(1993, 1, 1)
 
@@ -158,6 +163,14 @@ CONCEPT_MAP: dict[str, dict[str, Any]] = {
     # NetIncomeLoss is the only candidate on purpose: attributable-to-parent and
     # available-to-common variants are different concepts and are not substituted.
     "net_income": _m("Net income", "income", "duration", "currency", ["NetIncomeLoss"]),
+    # 1.6.0 (S-08): as filed, never a substitute for net_income
+    "profit_loss": _m(
+        "Net income including noncontrolling interests",
+        "income",
+        "duration",
+        "currency",
+        ["ProfitLoss"],
+    ),  # fmt: skip
     "eps_basic": _m(
         "EPS, basic",
         "income",
@@ -313,6 +326,7 @@ IFRS_MAP: dict[str, tuple[list[str], list[str]]] = {
     "pretax_income": (["ProfitLossBeforeTax"], []),
     "income_tax": (["IncomeTaxExpenseContinuingOperations"], []),
     "net_income": (["ProfitLossAttributableToOwnersOfParent"], []),
+    "profit_loss": (["ProfitLoss"], []),  # 1.6.0
     "eps_basic": (["BasicEarningsLossPerShare"], []),
     "eps_diluted": (["DilutedEarningsLossPerShare"], []),
     "shares_basic_weighted": (["WeightedAverageShares"], []),
@@ -337,8 +351,8 @@ IFRS_MAP: dict[str, tuple[list[str], list[str]]] = {
     "sbc": (["AdjustmentsForSharebasedPayments"], []),
 }
 
-# Q-04: dividends declared per share, normalized by this same code into dividend_facts (a known
-# exception kept out of CONCEPT_MAP so it needed no mapping bump; mapping 1.6.0 can fold it in).
+# Q-04: dividends declared per share, normalized by this same code into dividend_facts (kept out of
+# CONCEPT_MAP: its own table); part of the versioned mapping from 1.6.0.
 DIVIDEND_CONCEPTS = {
     "dividends_per_share": _m(
         "Dividends declared per share", "dividends", "duration", "per_share",

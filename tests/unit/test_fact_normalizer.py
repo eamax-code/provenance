@@ -304,8 +304,8 @@ def _payload(tags):
 
 
 def test_thirty_metrics_each_with_label_unit_and_statement():
-    # thirty statement metrics plus two cover-page facts (D-02)
-    assert len(SUPPORTED_METRICS) == 32 and MAPPING_VERSION == "1.5.0"
+    # thirty-one statement metrics (S-08: profit_loss) plus two cover-page facts (D-02)
+    assert len(SUPPORTED_METRICS) == 33 and MAPPING_VERSION == "1.6.0"
     statements = [spec["statement"] for spec in CONCEPT_MAP.values()]
     assert statements.count("cover") == 2
     for metric, spec in CONCEPT_MAP.items():
@@ -574,3 +574,17 @@ def test_dividends_per_share_derive_a_quarter_eps_never_does():
     assert [(d.metric, d.value) for d in derive_quarters(facts)] == [
         ("dividends_per_share", Decimal("0.26"))]  # fmt: skip
     assert ADDITIVE_PER_SHARE == frozenset({"dividends_per_share"})
+
+
+def test_profit_loss_is_its_own_metric_never_net_income():
+    """S-08 (mapping 1.6.0): ProfitLoss, net income including noncontrolling interests, is
+    profit_loss as filed; net_income stays NetIncomeLoss (the parent's share) and is never taken
+    from ProfitLoss, even when NetIncomeLoss is missing."""
+    usd = lambda v: {"USD": [_obs(v, "2025-06-30", "2024-07-01")]}  # noqa: E731
+    facts = normalize_company_facts(_payload({"ProfitLoss": usd(120), "NetIncomeLoss": usd(100)}),
+                                    "0000320193")  # fmt: skip
+    got = {(f.metric, f.value) for f in facts}
+    assert ("profit_loss", Decimal("120")) in got and ("net_income", Decimal("100")) in got
+    alone = normalize_company_facts(_payload({"ProfitLoss": usd(120)}), "0000320193")
+    assert {f.metric for f in alone} == {"profit_loss"}
+    assert METRIC_LABELS["profit_loss"] == "Net income including noncontrolling interests"

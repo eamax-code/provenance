@@ -614,7 +614,7 @@ def _derived_out(cik: str, d, source_rows: list[FinancialFact]) -> FactOut:
 STATEMENT_ROWS = {
     "income": ("revenue", "cost_of_revenue", "gross_profit", "r_and_d", "sga", "operating_income",
                "interest_expense", "net_interest_income", "pretax_income", "income_tax",
-               "net_income", "eps_basic", "eps_diluted", "shares_basic_weighted",
+               "net_income", "profit_loss", "eps_basic", "eps_diluted", "shares_basic_weighted",
                "shares_diluted_weighted"),
     "balance": ("cash_and_equivalents", "current_assets", "total_assets", "current_liabilities",
                 "long_term_debt_current", "long_term_debt", "total_liabilities",

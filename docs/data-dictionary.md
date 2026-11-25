@@ -96,6 +96,16 @@ from later filings are additional rows, never overwrites.
 
 ### Concept mapping 1.4.1 (thirty metrics and two cover-page facts)
 
+**1.6.0 (S-08, 2026-11-25).** `profit_loss`, "Net income including noncontrolling interests", is the
+filing's `ProfitLoss` as filed: its own metric and income-statement row after net income, never a
+candidate or substitute for `net_income`, which stays the parent's share (`NetIncomeLoss`;
+`ProfitLoss` includes noncontrolling interests, whose absence cannot be proven from tags). Loaded from
+the bulk company facts (`scripts/load_profit_loss.py`): 636,676 facts at 10,863 companies; of 30 annual
+figures checked, 27 equal net income plus the noncontrolling interests in the same filing (or net
+income where none is tagged), 2 differ by rounding or an untagged noncontrolling share, 1 is
+unexplained by the tags (YXT.COM 2025). Dividends per share (`dividend_facts`) are part of the
+versioned mapping from 1.6.0. Facts stored before keep their own `mapping_version`.
+
 Generated from `CONCEPT_MAP` in `app/services/fact_normalizer.py`. 1.0.0 to 1.2.0 had the first
 five metrics; 1.3.0 (2026-11-22, launch plan D-01) added the rest, industry fallback tags, the
 unit check, cover-page facts and IFRS; 1.4.0 (2026-11-22): total-first revenue, in-filing
@@ -132,6 +142,7 @@ precedence, contract revenue as a component; 1.4.1 (2026-11-22): the notes below
 | `pretax_income` | Income statement | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` | USD (as reported) | duration |
 | `income_tax` | Income statement | `IncomeTaxExpenseBenefit` | none | USD (as reported) | duration |
 | `net_income` | Income statement | `NetIncomeLoss` | none | USD (as reported) | duration |
+| `profit_loss` | Income statement | `ProfitLoss` (IFRS: `ProfitLoss`) | none | USD (as reported) | duration |
 | `eps_basic` | Income statement | `EarningsPerShareBasic` | `EarningsPerShareBasicAndDiluted` | USD/shares | duration |
 | `eps_diluted` | Income statement | `EarningsPerShareDiluted` | `EarningsPerShareBasicAndDiluted` | USD/shares | duration |
 | `shares_basic_weighted` | Income statement | `WeightedAverageNumberOfSharesOutstandingBasic` | `WeightedAverageNumberOfShareOutstandingBasicAndDiluted` | shares | duration |
