@@ -1446,6 +1446,10 @@ class InsiderTransaction(Base):
     underlying_title: Mapped[str | None] = mapped_column(Text, nullable=True)
     underlying_shares: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
     exercise_price: Mapped[Decimal | None] = mapped_column(Numeric(24, 6), nullable=True)
+    # F-03f: a code-P line bought under an employee or director stock purchase plan, a plan
+    # trust or dividend reinvestment, as its ownership text or its own footnotes say; null on
+    # other codes and rows
+    plan_purchase: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class InsiderDataset(Base):

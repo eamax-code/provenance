@@ -438,3 +438,28 @@ def test_a_retracted_cluster_event_marks_no_row(client, auth, db, trades):
     db.execute(update(InsiderActivity).where(InsiderActivity.cik == B).values(**retract))
     db.commit()
     assert not any(r["cluster"] for r in _get(client, auth, cik=B).json()["data"])
+
+
+def test_plan_purchases_are_marked_and_left_out_of_buys(client, auth, db, trades):
+    """F-03f: a purchase by an ESPP trust is marked plan_purchase and left out of type=buy unless
+    asked for (a note says so); open-market buys carry plan_purchase false, sales null."""
+    _filing(db, "0000000002-26-000009", B, "0000000204", "TAN LEE", date(2026, 11, 9),
+            officer=True, title="CFO")  # fmt: skip
+    _line(db, "0000000002-26-000009", B, 1, "P", date(2026, 11, 7), 48, 76, 300)
+    db.commit()
+    db.query(InsiderTransaction).filter(
+        InsiderTransaction.accession_number == "0000000002-26-000009").update(
+        {"plan_purchase": True})  # fmt: skip
+    db.commit()
+    buys = _get(client, auth, type="buy", cik=B).json()
+    accs = {r["filing"]["accession_number"] for r in buys["data"]}
+    assert "0000000002-26-000009" not in accs and accs
+    assert all(r["plan_purchase"] is False for r in buys["data"])
+    assert any("stock purchase plan" in n for n in buys["notes"])
+    plan = _get(client, auth, type="buy", cik=B, plan_purchase="true").json()["data"]
+    assert [(r["filing"]["accession_number"], r["plan_purchase"]) for r in plan] == [
+        ("0000000002-26-000009", True)]  # fmt: skip
+    every = _get(client, auth, cik=B).json()["data"]
+    assert "0000000002-26-000009" in {r["filing"]["accession_number"] for r in every}
+    sells = _get(client, auth, type="sell", cik=A).json()["data"]
+    assert sells and all(r["plan_purchase"] is None for r in sells)

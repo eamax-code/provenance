@@ -3,6 +3,8 @@ did, never a recommendation: the words are "activity", not "buy signals".
 
 - sec.insider_cluster_buy: three or more insiders bought shares in the open market (code P)
   within 30 days. One event per cluster, at the filing of the third insider's purchase.
+  F-03f: a purchase under an employee or director stock purchase plan, a plan trust or dividend
+  reinvestment (plan_purchase) is not an open-market buy: never in a cluster or a first buy.
 - sec.insider_first_buy: an insider's first open-market purchase at the company in two years
   or more (only where the data reaches two years back before the purchase).
 - sec.insider_large_sale: an officer or director sold $1 million or more in one filing,
@@ -74,7 +76,7 @@ def _role(f: InsiderFiling) -> str:
     return f.other_text or "Insider"
 
 
-def _trades(db: Session, cik: str, amended: bool = True) -> list[Trade]:
+def _trades(db: Session, cik: str, amended: bool = True, plan: bool = True) -> list[Trade]:
     filings: dict[str, list[InsiderFiling]] = {}
     for f in db.scalars(select(InsiderFiling).where(InsiderFiling.issuer_cik == cik)):
         filings.setdefault(f.accession_number, []).append(f)
@@ -92,6 +94,8 @@ def _trades(db: Session, cik: str, amended: bool = True) -> list[Trade]:
         owners = filings.get(r.accession_number)
         if not owners:
             continue
+        if plan and r.trans_code == "P" and r.plan_purchase:
+            continue  # F-03f: bought under a plan, not in the open market
         key = (r.accession_number, r.trans_code)
         value = (r.shares or 0) * (r.price or 0)
         t = by_key.get(key)
@@ -334,11 +338,12 @@ def buyers(trades: list[Trade], extra: list[tuple[str, str]] | None = None) -> d
 
 def detect(db: Session, cik: str, coverage_start: date | None = None,
            amended: bool = True, joint_as_one: bool = True,
-           affiliated: bool = True) -> list[dict]:  # fmt: skip
+           affiliated: bool = True, plan: bool = True) -> list[dict]:  # fmt: skip
     """Every activity the rules find for one issuer, oldest first (not stored). amended=False
-    reads trades as before Q-03d (each filing on its own) and joint_as_one=False counts every
-    reporting owner as a buyer (before F-03b), for the corrections of stored events."""
-    trades = _trades(db, cik, amended)
+    reads trades as before Q-03d (each filing on its own), joint_as_one=False counts every
+    reporting owner as a buyer (before F-03b) and plan=False counts plan purchases as buys
+    (before F-03f), for the corrections of stored events."""
+    trades = _trades(db, cik, amended, plan)
     buys = [t for t in trades if t.code == "P"]
     out: list[dict] = []
     extra = affiliates(db, cik) if joint_as_one and affiliated else None

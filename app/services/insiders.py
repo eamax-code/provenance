@@ -121,7 +121,41 @@ def _owner_row(acc: str, cik: str, name: str, rel: Iterable[str], title, other) 
     }
 
 
-def _tx_row(acc: str, kind: str, derivative: bool, key: str, r: dict) -> dict:
+# F-03f: a purchase under a plan, not in the open market: an employee or director stock purchase
+# plan, a plan trust or dividend reinvestment, named by the line's ownership text or by a footnote
+# on the line itself (not one on the shares held after it, which often lists plan holdings). A
+# footnote that says "includes" (other shares, as Gould Investors' and the dividend-reinvestment
+# shares "included" in a total) or names a Rule 10b5-1 plan (a trading plan for open-market buys:
+# "a Rule 10b5-1 stock purchase plan") does not make it one; nor does one that says "open market",
+# unless it names an employee stock purchase plan or a plan trust (Kingsway's ESPP administrator
+# buys in the open market)
+PLAN_STRONG = re.compile(r"employee (?:stock|share) purchase|\bESPP\b|plan trust", re.I)
+PLAN_WORDS = re.compile(r"employee (?:stock|share) purchase|stock purchase plan|\bESPP\b"
+                        r"|dividend reinvest|\bDRIP\b|plan trust", re.I)  # fmt: skip
+NOT_PLAN = re.compile(r"\bincludes?\b|\bincluding\b|10b5", re.I)
+OPEN_MARKET_WORDS = re.compile(r"open[- ]market", re.I)
+LINE_FN = ("SECURITY_TITLE_FN", "TRANS_DATE_FN", "DEEMED_EXECUTION_DATE_FN", "TRANS_CODE_FN",
+           "TRANS_TIMELINESS_FN", "TRANS_SHARES_FN", "TRANS_PRICEPERSHARE_FN",
+           "TRANS_ACQUIRED_DISP_CD_FN", "DIRECT_INDIRECT_OWNERSHIP_FN",
+           "NATURE_OF_OWNERSHIP_FN")  # fmt: skip
+
+
+def _plan_note(n: str) -> bool:
+    if not PLAN_WORDS.search(n) or NOT_PLAN.search(n):
+        return False
+    return bool(PLAN_STRONG.search(n)) or not OPEN_MARKET_WORDS.search(n)
+
+
+def plan_purchase(code: str | None, nature: str | None, notes: Iterable[str]) -> bool | None:
+    """F-03f: True for a code-P line bought under a plan, False for one in the open market,
+    None for any other code."""
+    if (code or "").strip() != "P":
+        return None
+    return bool(PLAN_WORDS.search(nature or "")) or any(_plan_note(n) for n in notes)
+
+
+def _tx_row(acc: str, kind: str, derivative: bool, key: str, r: dict,
+            notes: Iterable[str] = ()) -> dict:  # fmt: skip
     return {
         "accession_number": acc,
         "row_kind": kind,
@@ -139,6 +173,9 @@ def _tx_row(acc: str, kind: str, derivative: bool, key: str, r: dict) -> dict:
         "underlying_title": _text(r.get("UNDLYNG_SEC_TITLE"), 200),
         "underlying_shares": _num(r.get("UNDLYNG_SEC_SHARES")),
         "exercise_price": _num(r.get("CONV_EXERCISE_PRICE")),
+        "plan_purchase": None
+        if derivative or kind != "transaction"
+        else plan_purchase(r.get("TRANS_CODE"), r.get("NATURE_OF_OWNERSHIP"), notes),  # fmt: skip
     }
 
 
@@ -205,6 +242,13 @@ def parse_dataset(path: Path, issuers: set[str] | None = None) -> Parsed:
                     r.get("RPTOWNER_TXT"),
                 )  # fmt: skip
             )
+        from app.services.insider_screener import unquote
+
+        notes: dict[tuple, str] = {}  # F-03f: (accession, footnote id) -> text
+        for r in _tsv(zf, "FOOTNOTES.TSV"):
+            acc = r["ACCESSION_NUMBER"].strip()
+            if acc in out.filings and r.get("FOOTNOTE_TXT"):
+                notes[(acc, (r.get("FOOTNOTE_ID") or "").strip())] = unquote(r["FOOTNOTE_TXT"])
         for name, kind, deriv in (
             ("NONDERIV_TRANS.TSV", "transaction", False),
             ("NONDERIV_HOLDING.TSV", "holding", False),
@@ -215,7 +259,10 @@ def parse_dataset(path: Path, issuers: set[str] | None = None) -> Parsed:
             for r in _tsv(zf, name):
                 acc = r["ACCESSION_NUMBER"].strip()
                 if acc in out.filings:
-                    out.rows.append(_tx_row(acc, kind, deriv, (r.get(sk) or "").strip(), r))
+                    mine = [notes.get((acc, i.strip()), "") for f in LINE_FN
+                            for i in (r.get(f) or "").split(",") if i.strip()]  # fmt: skip
+                    out.rows.append(_tx_row(acc, kind, deriv, (r.get(sk) or "").strip(), r,
+                                            mine))  # fmt: skip
     return out
 
 
@@ -291,6 +338,20 @@ def parse_ownership_xml(text: str, accession: str, filing_date: date) -> Parsed:
         ("derivativeTable", "derivativeTransaction", "transaction", True),
         ("derivativeTable", "derivativeHolding", "holding", True),
     )
+    notes = {n.get("id"): " ".join(" ".join(n.itertext()).split())
+             for n in root.iter() if _local(n.tag) == "footnote"}  # fmt: skip
+
+    def line_ids(node) -> list[str]:
+        """F-03f: the footnotes on a line, not those on the shares held after it."""
+        out_ids = []
+        for c in node:
+            if _local(c.tag) == "postTransactionAmounts":
+                continue
+            if _local(c.tag) == "footnoteId" and c.get("id"):
+                out_ids.append(c.get("id"))
+            out_ids += line_ids(c)
+        return out_ids
+
     for table, tag, kind, deriv in tables:
         t = next((c for c in root if _local(c.tag) == table), None)
         if t is None:
@@ -314,7 +375,8 @@ def parse_ownership_xml(text: str, accession: str, filing_date: date) -> Parsed:
                 "UNDLYNG_SEC_SHARES": _find(n, "underlyingSecurity/underlyingSecurityShares"),
                 "CONV_EXERCISE_PRICE": _find(n, "conversionOrExercisePrice"),
             }
-            out.rows.append(_tx_row(accession, kind, deriv, f"x{i}", r))
+            out.rows.append(_tx_row(accession, kind, deriv, f"x{i}", r,
+                                    [notes.get(x, "") for x in line_ids(n)]))  # fmt: skip
 
     def flat(node) -> str:
         return " ".join(" ".join(node.itertext()).split())

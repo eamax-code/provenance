@@ -363,3 +363,87 @@ def test_a_new_entity_form4_stores_its_text(db):
     assert json.loads(t.signatures) == [
         "/s/ Sam Whittington, Attorney-in-Fact for Jennifer Newstead"]  # fmt: skip
     assert json.loads(t.footnotes)[0].startswith("This transaction was made pursuant to a Rule")
+
+
+def test_a_plan_purchase_is_never_in_a_cluster_or_a_first_buy(db):
+    """F-03f: shares bought by an ESPP trust or through dividend reinvestment are not open-market
+    buys (TSMC's 6 Nov: 48 and 57 shares 'By ESPP Trust' made a cluster): never a cluster's buyer
+    or a first buy. A stored cluster that counted them is retracted with its reason."""
+    import json
+
+    _company(db)
+    start = D0 - timedelta(days=900)
+    _trade(db, 1, 1, D0, "P", 48, 76)
+    _trade(db, 2, 2, D0 + timedelta(days=1), "P", 57, 76)
+    _trade(db, 3, 3, D0 + timedelta(days=2), "P", 5000, 75)  # the one open-market buy
+    db.commit()
+    for n in (1, 2):
+        db.scalar(select(InsiderTransaction).where(
+            InsiderTransaction.row_key == f"{n}")).plan_purchase = True  # fmt: skip
+    db.commit()
+    kinds = [(a["type"], a["trade"].accession) for a in insider_activity.detect(db, CIK, start)]
+    assert insider_activity.CLUSTER not in {k for k, _ in kinds}
+    assert {a for k, a in kinds if k == insider_activity.FIRST_BUY} == {"0001-26-000003"}
+    before = insider_activity.detect(db, CIK, start, plan=False)  # as stored before F-03f
+    now = utcnow()
+    for a in before:
+        t = a["trade"]
+        db.add(InsiderActivity(cik=CIK, activity_type=a["type"], activity_date=t.trans_date,
+                               filing_date=t.filing_date, accession_number=t.accession,
+                               owners=json.dumps(a["owners"]), detail=json.dumps(a["detail"]),
+                               source_url="https://www.sec.gov/Archives/x",
+                               stream_status="published", stream_at=now))  # fmt: skip
+    db.commit()
+    n = db.scalar(select(func.count()).select_from(InsiderActivity))
+    acts = insider_activity.reconcile(db, CIK, start, write=True, now=now,
+                                      before_rules={"plan": False},
+                                      reason="a plan purchase")  # fmt: skip
+    db.commit()
+    assert {(a["action"], a["key"][0]) for a in acts} >= {("retract", insider_activity.CLUSTER)}
+    assert db.scalar(select(func.count()).select_from(InsiderActivity)) == n  # nothing deleted
+    cl = db.scalar(select(InsiderActivity).where(
+        InsiderActivity.activity_type == insider_activity.CLUSTER))  # fmt: skip
+    assert cl.status == "retracted" and cl.retraction_reason == "a plan purchase"
+
+
+def test_plan_purchases_are_read_from_ownership_text_and_the_lines_own_footnotes():
+    """F-03f detection, as filed: an ESPP trust, an ESPP administrator buying in the open market
+    (Kingsway), a broker's dividend reinvestment; not a 10b5-1 'stock purchase plan', a note
+    that 'includes' other plan shares, a 401(k) account, or a footnote on the holding after."""
+    from app.services import insiders
+
+    p = insiders.plan_purchase
+    assert p("P", "By ESPP Trust", []) and p("S", "By ESPP Trust", []) is None
+    assert p("P", None, ["Acquired pursuant to the Kingsway America Inc. Employee Share Purchase "
+                         "Plan; the administrator buys shares in the open market."])  # fmt: skip
+    assert p("P", None, ["Shares purchased pursuant to a broker-sponsored dividend reinvestment "
+                         "program."])  # fmt: skip
+    assert not p("P", None, ["Made pursuant to a previously-disclosed Rule 10b5-1 stock purchase "
+                             "plan adopted by the reporting person."])  # fmt: skip
+    assert not p("P", None, ["Includes 945 shares acquired through dividend reinvestment."])
+    assert not p("P", "By 401(k)", [])
+    xml = """<ownershipDocument><documentType>4</documentType>
+      <issuer><issuerCik>0001046179</issuerCik></issuer><periodOfReport>2026-11-06</periodOfReport>
+      <reportingOwner><reportingOwnerId><rptOwnerCik>0000000001</rptOwnerCik>
+        <rptOwnerName>A</rptOwnerName></reportingOwnerId></reportingOwner>
+      <nonDerivativeTable>
+        <nonDerivativeTransaction><securityTitle><value>Common</value></securityTitle>
+          <transactionDate><value>2026-11-06</value></transactionDate>
+          <transactionCoding><transactionCode>P</transactionCode><footnoteId id="F1"/>
+          </transactionCoding>
+          <transactionAmounts><transactionShares><value>48</value></transactionShares>
+          </transactionAmounts></nonDerivativeTransaction>
+        <nonDerivativeTransaction><securityTitle><value>Common</value></securityTitle>
+          <transactionDate><value>2026-11-06</value></transactionDate>
+          <transactionCoding><transactionCode>P</transactionCode></transactionCoding>
+          <transactionAmounts><transactionShares><value>5000</value></transactionShares>
+          </transactionAmounts>
+          <postTransactionAmounts><sharesOwnedFollowingTransaction><value>9000</value>
+            <footnoteId id="F2"/></sharesOwnedFollowingTransaction></postTransactionAmounts>
+        </nonDerivativeTransaction>
+      </nonDerivativeTable>
+      <footnotes><footnote id="F1">Purchased by the administrator of the issuer's Employee Stock
+        Purchase Plan.</footnote><footnote id="F2">300 of these shares are held in the
+        reporting person's ESPP account.</footnote></footnotes></ownershipDocument>"""
+    rows = insiders.parse_ownership_xml(xml, "0001046179-26-000001", date(2026, 11, 7)).rows
+    assert [r["plan_purchase"] for r in rows] == [True, False]

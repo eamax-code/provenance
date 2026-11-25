@@ -55,6 +55,12 @@ def insider_screener(
     owner_cik: str | None = Query(None, max_length=13, description="One reporting person"),
     plan_10b5_1: bool | None = Query(None, description="The Form 4's Rule 10b5-1 box"),
     cluster: bool | None = Query(None, description="true: only purchases in an F-03 cluster"),
+    plan_purchase: bool | None = Query(
+        None,
+        description="F-03f: true, only purchases under an employee or director stock "
+        "purchase plan, a plan trust or dividend reinvestment; false, none of them. Purchases "
+        "(type=buy) leave them out unless set",
+    ),  # fmt: skip
     sort: str = Query("date", pattern="^(date|value|filed)$"),
     limit: int = Query(50, ge=1, le=scr.MAX_LIMIT),
     offset: int = Query(0, ge=0, le=scr.MAX_OFFSET),
@@ -96,7 +102,13 @@ def insider_screener(
     s = scr.Screen(codes=codes, since=since, until=until, as_of=as_of, min_value=min_value,
                    max_value=max_value, roles=roles, titles=titles,
                    cik=cik, owner_cik=owner_cik, plan_10b5_1=plan_10b5_1,
+                   plan_purchase=False if plan_purchase is None and type == "buy"
+                   else plan_purchase,
                    cluster=bool(cluster), allowed=allowed)  # fmt: skip
+    if plan_purchase is None and type == "buy":
+        notes.append("Purchases under an employee or director stock purchase plan, a plan trust "
+                     "or dividend reinvestment are left out (plan_purchase=true lists them): "
+                     "they are not open-market buys.")  # fmt: skip
     rows, counts = scr.screen(db, s)
     rows = scr.sort_rows(rows, sort)
     page, more = rows[offset : offset + limit], len(rows) > offset + limit

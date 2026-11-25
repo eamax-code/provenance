@@ -263,6 +263,15 @@ holding), `security_title`, `trans_date`, `trans_code` (P purchase, S sale, A aw
 F tax withholding, G gift...), `shares`, `price`, `acquired_disposed` (A or D), `shares_after`,
 `direct_indirect` (D or I), `nature_of_ownership`, `underlying_title`, `underlying_shares`,
 `exercise_price`. Rows belong to the filing; a joint filing's rows count for each owner.
+`plan_purchase` (F-03f, code-P lines of table I): `true` when the line was bought under an employee or
+director stock purchase plan, a plan trust or dividend reinvestment, as its `nature_of_ownership` or a
+footnote on the line itself says (TSMC's "By ESPP Trust", Kingsway's ESPP, a broker's dividend
+reinvestment); `false` otherwise; `null` on other codes and the 45 lines of 30 filings not cached. A footnote
+on the holding after the line, one that says "includes" (other shares in a total) or names a Rule 10b5-1
+plan, and a 401(k), savings or deferred-compensation account do not make one. Plan purchases are never part
+of cluster buying or a first buy, and `/v1/insider-transactions?type=buy` leaves them out unless asked.
+Known limit: a plan purchase whose filing says nothing of the plan (Davey Tree's quarter-end purchases)
+is counted as an open-market buy.
 
 ### insider_datasets
 

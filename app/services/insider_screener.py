@@ -16,7 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import Date, and_, case, func, select
+from sqlalchemy import Date, and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import InsiderActivity, InsiderFiling, InsiderTransaction
@@ -51,6 +51,9 @@ class Screen:
     cik: str | None = None
     owner_cik: str | None = None
     plan_10b5_1: bool | None = None
+    # F-03f: False leaves out purchases under an employee or director stock purchase plan, a
+    # plan trust or dividend reinvestment; True keeps only those; None keeps both
+    plan_purchase: bool | None = None
     cluster: bool = False
     allowed: set[str] | None = None  # the demo key's showcase companies
 
@@ -190,13 +193,15 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
                func.min(t.trans_date, type_=Date).label("first"),
                func.max(t.trans_date, type_=Date).label("last"),
                func.count(func.distinct(t.direct_indirect)).label("n_di"),
-               func.max(t.direct_indirect).label("di"))
+               func.max(t.direct_indirect).label("di"),
+               func.count(case((t.plan_purchase.is_(True), 1))).label("plan_lines"))
         .where(t.trans_code.in_(sorted(s.codes)), t.is_derivative.is_(False),
                t.trans_date >= s.since, t.trans_date <= s.until)
         .group_by(t.accession_number, t.issuer_cik, t.trans_code, title)
     )  # fmt: skip
     if s.cik:
         q = q.where(t.issuer_cik == s.cik)
+    q = _plan_filter(q, s)
     if s.allowed is not None:
         q = q.where(t.issuer_cik.in_(sorted(s.allowed)))
     base = q  # before the value filters
@@ -304,13 +309,25 @@ def _in_values(value, s: Screen) -> bool:
     return not (s.max_value is not None and (v is None or v > s.max_value))
 
 
+def _plan_filter(q, s: Screen | None):
+    """F-03f: the screen's plan-purchase choice, on lines."""
+    t = InsiderTransaction
+    if s is None or s.plan_purchase is None:
+        return q
+    if s.plan_purchase:
+        return q.where(t.plan_purchase.is_(True))
+    return q.where(or_(t.plan_purchase.is_(None), t.plan_purchase.is_(False)))
+
+
 def _lines(db: Session, acc: str, issuer: str, code: str, title: str, s: Screen | None = None):
     t = InsiderTransaction
-    q = select(t.trans_date, t.shares, t.price, t.shares_after, t.direct_indirect, t.row_key).where(
+    q = select(t.trans_date, t.shares, t.price, t.shares_after, t.direct_indirect, t.row_key,
+               t.plan_purchase).where(
         t.accession_number == acc, t.issuer_cik == issuer, t.trans_code == code,
         t.is_derivative.is_(False), func.coalesce(t.security_title, "") == title)  # fmt: skip
     if s is not None:
         q = q.where(t.trans_date >= s.since, t.trans_date <= s.until)
+    q = _plan_filter(q, s)
     return sorted(db.execute(q), key=lambda x: (x.trans_date, x.row_key))
 
 
@@ -331,6 +348,7 @@ def _regroup(db: Session, g, filed: date, stale: date, s: Screen) -> tuple[dict 
         "priced_shares": sum(float(x.shares) for x in pr), "priced_lines": len(pr),
         "first": keep[0].trans_date, "last": keep[-1].trans_date, "n_di": len(di),
         "di": next(iter(di)) if di else None,
+        "plan_lines": sum(1 for x in keep if x.plan_purchase),
     }, len(ls) - len(keep)  # fmt: skip
 
 
@@ -432,6 +450,9 @@ def _row(g: dict, fs: list) -> dict:
         "holdings_change_pct": None,
         "direct_indirect": "mixed" if g["n_di"] > 1 else g["di"],
         "plan_10b5_1": f0.plan_10b5_1,
+        # F-03f: every line bought under a plan (ESPP, plan trust, dividend reinvestment), not in
+        # the open market; null on sales
+        "plan_purchase": (g.get("plan_lines", 0) == g["lines"] > 0) if code == "P" else None,
         "cluster": None,
         "amended_by": [],
         "amended": False,

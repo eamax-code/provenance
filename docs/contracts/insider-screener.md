@@ -1,6 +1,6 @@
 # Q-03 Insider screener (open-market buys and sales across companies)
 
-`GET /v1/insider-transactions?type=&since=&until=&as_of=&min_value=&max_value=&role=&title=&cik=&owner_cik=&plan_10b5_1=&cluster=&sort=&limit=&offset=`
+`GET /v1/insider-transactions?type=&since=&until=&as_of=&min_value=&max_value=&role=&title=&cik=&owner_cik=&plan_10b5_1=&plan_purchase=&cluster=&sort=&limit=&offset=`
 
 Open-market purchases (Form 4 code `P`) and sales (code `S`) across every company, one row per
 Form 4, code and security class: those lines are added up, with the weighted average price. Built from the Form
@@ -18,6 +18,7 @@ the newest weeks). Information about what insiders reported, not signals.
 | `cik` | one issuer CIK | none |
 | `owner_cik` | one reporting person's CIK | none |
 | `plan_10b5_1` | `true` (the Form 4 ticks the Rule 10b5-1 box) or `false` (it does not) | none |
+| `plan_purchase` | F-03f: `true`, only purchases under an employee or director stock purchase plan, a plan trust or dividend reinvestment; `false`, none of them | `false` for `type=buy` (a note says so); none otherwise |
 | `cluster` | `true`: only purchases counted in an F-03 cluster-buying event | none |
 | `sort` | `date` (newest transaction first), `value` (largest first) or `filed` (newest filing first) | `date` |
 | `limit` | 1-100 | 50 |
@@ -150,6 +151,14 @@ listed first in `owners`.
   `mixed`.
 - `plan_10b5_1` is the Form 4's own checkbox: `true`, `false`, or `null` for Form 4s filed before
   the checkbox existed (April 2023).
+- `plan_purchase` (F-03f): on a purchase, `true` when every line was bought under an employee or
+  director stock purchase plan, a plan trust or dividend reinvestment (TSMC's "By ESPP Trust",
+  Con Edison's Stock Purchase Plan, a broker's dividend reinvestment), as the line's ownership
+  text or its own footnotes say, else `false`; `null` on sales. Such purchases are not
+  open-market buys: never part of cluster buying or a first buy, and left out of `type=buy`
+  unless asked for. A footnote on the shares held after a purchase, or one that says "open
+  market" or "includes" (other shares counted in a total), does not make it one; nor does a
+  401(k), savings or deferred-compensation account (often a buy the insider chose).
 - `owners` lists every reporting owner of a joint Form 4 (a fund and its general partner, say).
   The shares are the filing's, counted once, not once per owner. `role` is the same label the
   company pages use.
