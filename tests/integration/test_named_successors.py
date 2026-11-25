@@ -354,3 +354,26 @@ def test_a_reviewed_override_sets_the_kind_after_the_rule(tmp_path):
     # the shipped file: every row a known kind, with a quote and a reason
     rows = list(N.reviewed_overrides().values())
     assert rows and all(r["kind"] in N.KINDS and r["quote"] and r["reason"] for r in rows)
+
+
+def test_a_name_resolves_to_the_company_holding_it_on_the_date(db):
+    """D-01e: "WestRock Company" in 2015 was today's WRKCo (it took that name in 2018); the
+    holding company that took the name in 2018 is the match only after it did."""
+    from app.db.models import CompanyAlias
+
+    names = _companies(db)  # noqa: F841 (the fixture companies)
+    now = datetime.now(UTC)
+    old, new = "0000000961", "0000000962"
+    for cik, name in ((old, "WRKCo Inc."), (new, "WestRock Co")):
+        db.add(Company(cik=cik, legal_name=name, source_url="https://www.sec.gov/",
+                       first_detected_at=now, last_processed_at=now,
+                       quality_status="ok"))  # fmt: skip
+    db.add(CompanyAlias(cik=old, alias="WestRock Co", kind="former", valid_to=date(2018, 11, 2)))
+    db.add(CompanyAlias(cik=new, alias="WRK Holdco", kind="former", valid_to=date(2018, 3, 1)))
+    db.commit()
+    names = N.Names(db)
+    assert names.find("WestRock Company", date(2015, 7, 2), exclude="x") == old
+    assert names.find("WestRock Company", date(2019, 6, 1), exclude="x") == new
+    # a lone current holder is kept whatever the date: EDGAR's former names include formatting
+    # variants of one company's name, dated when EDGAR changed them ("LILLY ELI & CO")
+    assert names.find("WRKCo Inc.", date(2015, 7, 2), exclude="x") == old

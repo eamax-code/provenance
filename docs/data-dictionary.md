@@ -681,6 +681,13 @@ Archives).
   merged, OfficeMax and Palomar to acquired, TechTarget and United Financial to succeeded,
   Motricity's quote. Check: all 66 `succeeded` rows and 10 random others; 1 debatable
   (United Financial: "Legacy United merged with and into the Company"), 0 wrong otherwise.
+- **Names on the date (D-01e, 2026-11-25).** When one company holds a name today and another
+  held it on the evidence date (a former name still in force then), the one holding it on the
+  date is linked: "WestRock Company" in 2015 is CIK 1636023 (now WRKCo), not the 2018 holding
+  company. The date decides only between two companies; a lone current holder is kept, since
+  EDGAR's former names also record formatting variants of one name, dated when EDGAR changed
+  them. Corrected in place: 6 links (STERIS Corp, MeadWestvaco, Multi Packaging, Heelys, Dollar
+  Thrifty, Ameristar), each checked against the companies' name histories.
 - **Reviewed overrides.** `app/data/named_successors_reviewed.csv` (predecessor, successor, kind,
   quote, reason) sets a kind after the rule, where a reviewer read the filing differently; an
   override whose link changed is reported, not applied. One row: United Financial 2014, a merger

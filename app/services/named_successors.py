@@ -196,27 +196,54 @@ def _tail_names(chunk: str, terms: dict[str, str]) -> list[str]:
 
 
 class Names:
-    """Exact-name lookup over the companies held here (current names; a former name counts only
-    when no current name matches and the name was in force at the evidence date)."""
+    """Exact-name lookup over the companies held here, as named on the evidence date (D-01e): a
+    company's name on a date is its earliest former name still in force then, else its current
+    name, so "WestRock Company" in 2015 is the WestRock of 2015 (CIK 1636023, now WRKCo), not
+    the holding company that took the name in 2018."""
 
     def __init__(self, db: Session):
         self.current: dict[str, set[str]] = {}
+        self.names: dict[str, str] = {}
         for cik, name in db.execute(select(Company.cik, Company.legal_name)):
             self.current.setdefault(norm(name), set()).add(cik)
-        self.former: dict[str, list[tuple[str, date | None]]] = {}
+            self.names[cik] = norm(name)
+        self.former: dict[str, set[str]] = {}
+        self.former_dates: dict[str, list[tuple[str, date | None]]] = {}
+        self.history: dict[str, list[tuple[date, str]]] = {}
         rows = db.execute(select(CompanyAlias.cik, CompanyAlias.alias, CompanyAlias.valid_to)
                           .where(CompanyAlias.kind == "former"))  # fmt: skip
         for cik, alias, to in rows:
-            self.former.setdefault(norm(alias), []).append((cik, to))
+            self.former.setdefault(norm(alias), set()).add(cik)
+            self.former_dates.setdefault(norm(alias), []).append((cik, to))
+            if to is not None:
+                self.history.setdefault(cik, []).append((to, norm(alias)))
+        for h in self.history.values():
+            h.sort()
+
+    def name_on(self, cik: str, on: date) -> str | None:
+        """The company's name in force on a date: its earliest former name ending on or after
+        it, else its current name."""
+        for to, alias in self.history.get(cik, []):
+            if to >= on:
+                return alias
+        return self.names.get(cik)
 
     def find(self, name: str, on: date, exclude: str) -> str | None:
+        """The current holder of the name; when another company held it on the date (a former
+        name still in force then), that company. EDGAR's former names also record formatting
+        variants of one company's name ("LILLY ELI & CO"), dated when EDGAR changed them, so
+        the date decides only between two companies, never against a lone current holder."""
         key = norm(name)
         if len(key) < 4:
             return None
-        got = self.current.get(key, set()) - {exclude}
-        if not got:
-            got = {c for c, to in self.former.get(key, [])
-                   if c != exclude and (to is None or to >= on)}  # fmt: skip
+        current = self.current.get(key, set()) - {exclude}
+        if not current:  # a former name still in force on the date (as before D-01e)
+            got = {c for c, to in self.former_dates.get(key, []) if c != exclude
+                   and (to is None or to >= on)}  # fmt: skip
+            return next(iter(got)) if len(got) == 1 else None
+        then = {c for c in self.former.get(key, set()) - {exclude} - current
+                if self.name_on(c, on) == key}  # fmt: skip
+        got = then or current
         return next(iter(got)) if len(got) == 1 else None
 
 
