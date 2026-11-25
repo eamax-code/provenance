@@ -18,6 +18,7 @@ from app.schemas.public import LatestRevenueCard
 from app.services import ratios
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS, default_unit
 from app.services.intel import ANNUAL_FORMS
+from app.services.notes import detail, dev
 from app.services.point_in_time import as_of_note, known_by
 
 router = APIRouter(prefix="/v1/facts", tags=["facts"])
@@ -61,6 +62,9 @@ class ScreenResult(BaseModel):
     data: list[ScreenRow]
     meta: PageMeta
     notes: list[str]
+    notes_detail: list[dict] = Field(
+        default=[], description="N-01: the notes in order, each {text, audience: reader|developer}"
+    )
 
 
 QUARTER_FOUR_NOTE = (
@@ -516,12 +520,18 @@ def _result(metric, year, period, quarter, unit, as_of, out, limit, offset, tota
     has_more = offset + limit < total
     span = "calendar year" if quarter is None else f"calendar quarter Q{quarter}"
     notes = [
-        "One row per company: the latest reported period whose period_end falls in the "
-        f"requested {span}, using the latest-filed preferred observation.",
-        "Fiscal years differ between companies; compare period_start and period_end before "
-        "treating rows as the same period.",
-        "Only companies this deployment has ingested appear. ambiguous_mapping and "
-        "invalid_source_value observations are excluded; values in other units are excluded.",
+        dev(
+            "One row per company: the latest reported period whose period_end falls in the "
+            f"requested {span}, using the latest-filed preferred observation."
+        ),
+        dev(
+            "Fiscal years differ between companies; compare period_start and period_end before "
+            "treating rows as the same period."
+        ),
+        dev(
+            "Only companies this deployment has ingested appear. ambiguous_mapping and "
+            "invalid_source_value observations are excluded; values in other units are excluded."
+        ),
     ]
     if quarter == 4:
         notes.append(QUARTER_FOUR_NOTE)
@@ -546,4 +556,5 @@ def _result(metric, year, period, quarter, unit, as_of, out, limit, offset, tota
             total_matched=total,
         ),
         notes=notes,
+        notes_detail=detail(notes),
     )

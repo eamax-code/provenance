@@ -26,6 +26,14 @@ Common to all, as for the Explorer endpoints (`docs/api-contracts-explorer.md`):
   every endpoint, never refused (no `403 demo_limit` any more): the first page only, `has_more`
   false, `next_offset` null, `meta.limit` the cap. Every chat table for the demo key shows at most 10 rows, with `total` counting every row and
   a note ("Showing 10 of N. … The demo key shows at most 10 rows.").
+- **`notes_detail` (N-01, 2026-11-25).** Beside `notes` (unchanged: a list of strings) on
+  dividends, fails-to-deliver, `/v1/facts/screen`, the insider screener, managers (all three)
+  and sections: the same notes in the same order, each `{"text", "audience"}`. `reader`:
+  for people reading the figures (coverage, caveats, disclaimers, why a figure is missing);
+  `developer`: documents fields or parameters (what a field holds, when it is null, how rows
+  are chosen). Show `reader` notes; leave `developer` notes to the API docs. The audience is
+  set where each note is written, never read from its wording. Other endpoints' notes are
+  all for readers until they gain `notes_detail`.
 - Errors use the standard envelope: `404 company_not_found`, `422 invalid_parameter`, and `429`
   with `Retry-After`.
 - `as_of` (an ISO date) is accepted wherever it is listed. Only data filed by that date is used,

@@ -16,6 +16,7 @@ from app.core.errors import APIError
 from app.db.models import Company, InsiderFiling
 from app.services import insider_screener as scr
 from app.services import insiders
+from app.services.notes import detail, dev
 from app.services.public import showcase_ciks
 
 router = APIRouter(tags=["connections"])  # beside each company's insider-transactions
@@ -127,7 +128,7 @@ def insider_screener(
         "Open-market purchases (Form 4 code P) and sales (code S) only, one row per Form 4, "
         "code and security class; grants, exercises, gifts, tax withholding and derivative "
         "rows are on each company's insider-transactions.",
-        "Amendments (Form 4/A) never make a row: an original lists the 4/As for the same "
+        dev("Amendments (Form 4/A) never make a row: an original lists the 4/As for the same "
         "issuer, owner and period in amended_by. When a 4/A reports the row's code and class "
         "again with different figures (and at least as many lines), the row shows the 4/A's "
         "figures with amended: true, the 4/A as its filing, and the original's in first_filed; "
@@ -137,7 +138,7 @@ def insider_screener(
         + (f" {counts['unpaired_amendments']} amended filing"
            f"{'s' if counts['unpaired_amendments'] != 1 else ''} in this screen "
            "with no stored original Form 4 are not shown."
-           if counts["unpaired_amendments"] else ""),
+           if counts["unpaired_amendments"] else "")),
     ]  # fmt: skip
     if counts["duplicates"]:
         n = counts["duplicates"]
@@ -160,6 +161,7 @@ def insider_screener(
         "datasets_through": datasets,
         "labels": {"disclaimer": scr.DISCLAIMER},
         "notes": notes,
+        "notes_detail": detail(notes),
     }  # fmt: skip
 
 

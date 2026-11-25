@@ -22,6 +22,7 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session
 
 from app.db.models import FailsToDeliver, FtdFile, IssuerCusip
+from app.services.notes import dev
 
 PAGE = "https://www.sec.gov/data-research/sec-markets-data/fails-deliver-data"
 BASE = "https://www.sec.gov"
@@ -35,7 +36,9 @@ NOTES = [
     "settlement date, across all clearing members (NSCC), as the SEC publishes it. It is a running "
     "balance, not the day's new fails, and it does not show how old the fails are.",
     "A date with no row had no fails balance, or its file is not yet published.",
-    "price: the previous day's close as filed; value is derived (the balance times the price).",
+    dev(
+        "price: the previous day's close as filed; value is derived (the balance times the price)."
+    ),
 ]
 
 

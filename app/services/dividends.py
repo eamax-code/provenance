@@ -24,6 +24,7 @@ from app.services.fact_normalizer import (
     currency_from_unit,
     derive_quarters,
 )
+from app.services.notes import dev
 from app.services.point_in_time import known_by
 
 METRIC = "dividends_per_share"
@@ -31,8 +32,8 @@ METRIC = "dividends_per_share"
 # two random samples of 30 companies (cuts, first years and reverse splits look like spikes), so
 # it is not given until a better source exists; the code stays for that check
 SPECIAL_ENABLED = False
-SPECIAL_NOTE = ("special is not given yet: read from the amounts alone it was right on 1 of 7 "
-                "flags in a check against the filings; it is null on every row.")  # fmt: skip
+SPECIAL_NOTE = dev("special is not given yet: read from the amounts alone it was right on 1 of 7 "
+                   "flags in a check against the filings; it is null on every row.")  # fmt: skip
 SPECIAL_RATIO = 2.5  # a quarter this many times the median of the others nearby
 SPECIAL_MIN_OTHERS = 4
 SPECIAL_DAYS = 365  # "the two years around it": a year either side
@@ -329,9 +330,10 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
         notes.append(FROM_QUARTERS_NOTE)
     if not SPECIAL_ENABLED:
         notes.append(SPECIAL_NOTE)
-    notes.insert(0, "As reported: each value in the share basis of the filing it cites; "
-                    "split_adjusted puts it on today's basis using reviewed splits only. "
-                    "No yield: prices are not loaded.")  # fmt: skip
+    notes[0:0] = ["As reported: each value in the share basis of the filing it cites. "
+                  "No yield: prices are not loaded.",
+                  dev("split_adjusted puts each value on today's share basis using reviewed "
+                      "splits only.")]  # fmt: skip
     return {"currency": currency, "data": data, "splits": splits, "notes": notes}
 
 

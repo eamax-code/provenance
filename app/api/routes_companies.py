@@ -1152,6 +1152,9 @@ def dividends(
         out["notes"].append("The demo key shows at most 10 periods; this list was trimmed.")
     if as_of:
         out["notes"].append(as_of_note(as_of))
+    from app.services.notes import detail
+
     return {"cik": cik, "period": period, "as_of": as_of.isoformat() if as_of else None,
-            **out, "labels": {"basis_note": "As reported: each value in the share basis of "
-                              "the filing it cites."}}  # fmt: skip
+            **out, "notes_detail": detail(out["notes"]),
+            "labels": {"basis_note": "As reported: each value in the share basis of "
+                       "the filing it cites."}}  # fmt: skip

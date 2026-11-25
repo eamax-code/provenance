@@ -11,6 +11,7 @@ from app.api.routes_companies import _ERRORS
 from app.core.errors import APIError
 from app.db.models import Filing
 from app.services import sections
+from app.services.notes import with_detail
 
 router = APIRouter(tags=["companies"])  # beside /v1/filings/{accession}/changes
 _ACC = Path(pattern=r"^\d{10}-\d{2}-\d{6}$", description="e.g. 0000320193-26-000026")
@@ -60,4 +61,4 @@ def filing_section(
             "section_not_held",
             f"Item {item} is not held for this filing (held: {which}). {sections.coverage(db)}",
         )
-    return out
+    return with_detail(out)

@@ -12,6 +12,7 @@ from app.api.dependencies import db_session, require_reader
 from app.api.routes_companies import _ERRORS, _parse_cik_param, _require_company
 from app.core.errors import APIError
 from app.services import fails_to_deliver
+from app.services.notes import with_detail
 
 router = APIRouter(tags=["connections"])  # beside the holders, on the Ownership tab
 MAX_DAYS = 366
@@ -43,4 +44,4 @@ def company_fails_to_deliver(
         raise APIError(422, "invalid_parameter", f"At most {MAX_DAYS} days from since to until.")
     out = fails_to_deliver.build(db, cik, since, until, as_of)
     out["as_of"] = as_of.isoformat() if as_of else None
-    return out
+    return with_detail(out)

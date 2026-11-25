@@ -16,6 +16,7 @@ from app.core.errors import APIError
 from app.db.models import Filing13F
 from app.services import fund_managers as fm
 from app.services import thirteenf
+from app.services.notes import with_detail
 from app.services.public import showcase_ciks
 
 router = APIRouter(tags=["connections"])  # beside each company's institutional holders
@@ -55,8 +56,8 @@ def search_managers(
         limit = DEMO_ROWS
         notes.append(f"The demo key shows at most {DEMO_ROWS} rows.")
     rows, more = fm.search(db, q, limit)
-    return {"data": rows, "meta": {"limit": limit, "has_more": more},
-            "value_basis": "usd", "reporting_lag": fm.LAG, "notes": notes}  # fmt: skip
+    return with_detail({"data": rows, "meta": {"limit": limit, "has_more": more},
+                        "value_basis": "usd", "reporting_lag": fm.LAG, "notes": notes})  # fmt: skip
 
 
 @router.get("/v1/managers/activity", responses=_ERRORS,
@@ -91,9 +92,9 @@ def fund_activity(
                      "than doubled or fell by more than half (a merger, takeover, listing, "
                      "reorganisation, stock split or a change of security), which is not funds "
                      f"buying or selling. The most widely held of them: {named}.")  # fmt: skip
-    return {"quarter": q, "previous_quarter": thirteenf.previous_quarter(q),
+    return with_detail({"quarter": q, "previous_quarter": thirteenf.previous_quarter(q),
             "direction": direction, "value_basis": "usd", "reporting_lag": fm.LAG, "data": rows,
-            "labels": {"disclaimer": fm.DISCLAIMER}, "notes": notes}  # fmt: skip
+            "labels": {"disclaimer": fm.DISCLAIMER}, "notes": notes})  # fmt: skip
 
 
 @router.get("/v1/managers/{cik}", responses=_ERRORS,
@@ -121,13 +122,13 @@ def manager_portfolio(
         if nt is None:
             raise APIError(404, "not_found", f"No Form 13F holdings of this manager for "
                            f"{q.isoformat()}.")  # fmt: skip
-        return {**nt, "previous_quarter": thirteenf.previous_quarter(q), "value_basis": "usd",
-                "reporting_lag": fm.LAG, "positions": [], "exited": [],
+        return with_detail({**nt, "previous_quarter": thirteenf.previous_quarter(q),
+                "value_basis": "usd", "reporting_lag": fm.LAG, "positions": [], "exited": [],
                 "history": fm.history(db, cik, as_of), "coverage": fm.coverage(db),
                 "meta": {"limit": limit, "offset": 0, "has_more": False, "next_offset": None},
                 "labels": {"disclaimer": fm.DISCLAIMER},
                 "notes": ["This manager filed a 13F notice for the quarter: its holdings are "
-                          "reported by the managers in reported_by."]}  # fmt: skip
+                          "reported by the managers in reported_by."]})  # fmt: skip
     p = {k: v for k, v in cached.items() if k not in ("notes", "positions")}
     notes = list(cached["notes"]) + ([fm.STALE_NOTE] if fm.stale(db) else [])
     positions = list(cached["positions"])  # sorted here, never in the cache
@@ -143,9 +144,9 @@ def manager_portfolio(
         notes.append(f"The demo key shows at most {DEMO_ROWS} positions.")
     page = [{k: v for k, v in x.items() if k != "key"} for x in positions[offset : offset + limit]]
     more = len(positions) > offset + limit
-    return {**p, "notice_only": False, "reported_by": [], "value_basis": "usd",
+    return with_detail({**p, "notice_only": False, "reported_by": [], "value_basis": "usd",
             "reporting_lag": fm.LAG, "positions": page,
             "history": hist, "coverage": fm.coverage(db),
             "meta": {"limit": limit, "offset": offset, "has_more": more,
                      "next_offset": offset + limit if more else None},
-            "labels": {"disclaimer": fm.DISCLAIMER}, "notes": notes}  # fmt: skip
+            "labels": {"disclaimer": fm.DISCLAIMER}, "notes": notes})  # fmt: skip
