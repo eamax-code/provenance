@@ -270,7 +270,13 @@ reinvestment); `false` otherwise; `null` on other codes and the 45 lines of 30 f
 on the holding after the line, one that says "includes" (other shares in a total) or names a Rule 10b5-1
 plan, and a 401(k), savings or deferred-compensation account do not make one. Plan purchases are never part
 of cluster buying or a first buy, and `/v1/insider-transactions?type=buy` leaves them out unless asked.
-Known limit: a plan purchase whose filing says nothing of the plan (Davey Tree's quarter-end purchases)
+`plan_inferred` (F-03g): `true` on a code-P line not stated as a plan purchase whose shares are a fraction
+under 100 (in a check of 30: dividend reinvestment, employee and director plans, fund subscriptions; one
+wrong, an adult son's fractional buys through a broker). Never `plan_purchase`, which means stated; treated
+the same way (never in cluster buying or a first buy, left out of `type=buy`). Checked and not used: three or
+more insiders buying on one date at one price (half were one purchase reported by related filers).
+Known limit: a plan purchase whose filing says nothing of the plan and is in whole shares, or 100 shares or
+more (Davey Tree's quarter-end purchases, round-dollar dividend-plan purchases, director groups at one price)
 is counted as an open-market buy.
 
 ### insider_datasets

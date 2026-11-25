@@ -1450,6 +1450,9 @@ class InsiderTransaction(Base):
     # trust or dividend reinvestment, as its ownership text or its own footnotes say; null on
     # other codes and rows
     plan_purchase: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # F-03g: a code-P line not stated as a plan purchase whose shares are a fraction under 100,
+    # likely dividend reinvestment, a plan or a fund subscription; null on other codes and rows
+    plan_inferred: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class InsiderDataset(Base):

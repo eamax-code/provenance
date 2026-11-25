@@ -7,8 +7,9 @@
 
 --change f03d: affiliates that file apart (F-03d) are one buyer. --change f03f: a purchase
 under an employee or director stock purchase plan, a plan trust or dividend reinvestment is not
-an open-market buy (only issuers with such a line can change). --change f03c (default): the
-4/A-aware rules (049fef3); only issuers with a Form 4/A carrying
+an open-market buy (only issuers with such a line can change). --change f03g: nor is one likely
+under a plan though not stated (a fraction of a share under 100 shares). --change f03c
+(default): the 4/A-aware rules (049fef3); only issuers with a Form 4/A carrying
 open-market lines can change. --change f03b: joint filers count as one buyer for cluster buying;
 only issuers with a stored cluster event can change. Events are never deleted:
 retracted ones keep a reason, corrected ones what they said before (previous_values), new ones
@@ -40,6 +41,9 @@ AFFILIATES = (
 )
 
 
+INFERRED = "inferred plan purchase (a fractional purchase under 100 shares)"
+
+
 PLAN = (
     "a plan purchase counted as an open-market buy: shares bought under an employee or "
     "director stock purchase plan, a plan trust or dividend reinvestment"
@@ -50,15 +54,19 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--out", default=None, help="the actions as JSONL")
-    ap.add_argument("--change", choices=("f03c", "f03b", "f03d", "f03f"), default="f03c")
+    ap.add_argument("--change", choices=("f03c", "f03b", "f03d", "f03f", "f03g"),
+                    default="f03c")  # fmt: skip
     ap.add_argument("--no-add", action="store_true", help="retract and update only (F-03b)")
     args = ap.parse_args()
     _, Session = bootstrap()
     db = Session()
     rules = {"f03c": None, "f03b": {"joint_as_one": False},
-             "f03d": {"affiliated": False}, "f03f": {"plan": False}}[args.change]  # fmt: skip
+             "f03d": {"affiliated": False}, "f03f": {"plan": False},
+             "f03g": {"inferred": False}}[args.change]  # fmt: skip
     ciks = sorted(set(db.scalars(select(InsiderTransaction.issuer_cik).where(
         InsiderTransaction.plan_purchase.is_(True))))) if args.change == "f03f" else \
+        sorted(set(db.scalars(select(InsiderTransaction.issuer_cik).where(
+            InsiderTransaction.plan_inferred.is_(True))))) if args.change == "f03g" else \
         sorted(set(db.scalars(select(InsiderActivity.cik).where(
         InsiderActivity.activity_type == insider_activity.CLUSTER)))) if rules else \
         sorted(set(db.scalars(
@@ -77,7 +85,9 @@ def main() -> int:
             start,
             write=args.write,
             before_rules=rules,
-            reason={"f03b": JOINT, "f03d": AFFILIATES, "f03f": PLAN}.get(args.change),
+            reason={"f03b": JOINT, "f03d": AFFILIATES, "f03f": PLAN, "f03g": INFERRED}.get(
+                args.change
+            ),  # fmt: skip
             adds=not args.no_add,
         ):
             counts[(a["action"], a["key"][0].split(".")[-1], a.get("reason", ""))] += 1

@@ -7,8 +7,9 @@ requests; a filing not cached is counted and left null).
   python scripts/flag_plan_purchases.py --dry-run --out plan.jsonl   # count, store nothing
   python scripts/flag_plan_purchases.py                              # store
 
-Then scripts/correct_insider_activity.py --change f03f retracts the cluster and first-buy events
-that counted them (never deleted).
+Also sets plan_inferred (F-03g): a code-P line not stated as one whose shares are a fraction under
+100. Then scripts/correct_insider_activity.py --change f03f, then --change f03g, retracts the
+cluster and first-buy events that counted them (never deleted).
 """
 
 from __future__ import annotations
@@ -106,6 +107,20 @@ def main() -> int:
             where t.accession_number = f.a and t.row_key = f.k and t.trans_code = 'P'
               and t.row_kind = 'transaction' and not t.is_derivative""")
         ).rowcount
+        db.commit()
+    # F-03g: a code-P line not stated as a plan purchase whose shares are a fraction under 100
+    inferred = """not coalesce(plan_purchase, false) and shares < 100 and shares <> trunc(shares)"""
+    where = "trans_code = 'P' and row_kind = 'transaction' and not is_derivative"
+    stats["inferred (fractional under 100 shares)"] = db.execute(
+        text(f"select count(*) from insider_transactions where {where} and {inferred}")
+    ).scalar()
+    if not args.dry_run:
+        db.execute(
+            text(
+                f"update insider_transactions set plan_inferred = coalesce({inferred}, "
+                f"false) where {where}"
+            )
+        )
         db.commit()
     print(json.dumps({**stats, "write": not args.dry_run}, indent=1))
     db.close()

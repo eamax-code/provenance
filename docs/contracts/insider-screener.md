@@ -159,6 +159,10 @@ listed first in `owners`.
   unless asked for. A footnote on the shares held after a purchase, or one that says "open
   market" or "includes" (other shares counted in a total), does not make it one; nor does a
   401(k), savings or deferred-compensation account (often a buy the insider chose).
+- `plan_inferred` (F-03g): on a purchase, `true` when every line is likely a plan purchase though
+  the filing does not say so: a fraction of a share under 100 shares (dividend reinvestment, a plan
+  or a fund subscription); shown as "Likely plan purchase (not stated)". Treated like
+  `plan_purchase`: left out of `type=buy` unless `plan_purchase=true`, which lists both.
 - `owners` lists every reporting owner of a joint Form 4 (a fund and its general partner, say).
   The shares are the filing's, counted once, not once per owner. `role` is the same label the
   company pages use.

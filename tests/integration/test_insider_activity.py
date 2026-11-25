@@ -447,3 +447,46 @@ def test_plan_purchases_are_read_from_ownership_text_and_the_lines_own_footnotes
         reporting person's ESPP account.</footnote></footnotes></ownershipDocument>"""
     rows = insiders.parse_ownership_xml(xml, "0001046179-26-000001", date(2026, 11, 7)).rows
     assert [r["plan_purchase"] for r in rows] == [True, False]
+
+
+def test_an_inferred_plan_purchase_is_never_in_a_cluster_or_a_first_buy(db):
+    """F-03g: a purchase of a fraction of a share under 100 shares, with no plan stated, is
+    likely dividend reinvestment or a plan (inferred, never plan_purchase): never a cluster's
+    buyer or a first buy. A cluster that counted one is retracted with its reason."""
+    import json
+
+    from app.services import insiders
+
+    assert insiders.plan_inferred("P", Decimal("22.22"), False) is True
+    assert insiders.plan_inferred("P", Decimal("22.22"), True) is False  # stated already
+    assert insiders.plan_inferred("P", Decimal("183.53"), False) is False  # 100 or more
+    assert insiders.plan_inferred("P", Decimal("48"), False) is False  # whole shares
+    assert insiders.plan_inferred("S", Decimal("2.5"), False) is None
+    _company(db)
+    start = D0 - timedelta(days=900)
+    _trade(db, 1, 1, D0, "P", 5000, 30)
+    _trade(db, 2, 2, D0 + timedelta(days=1), "P", 2000, 30)
+    _trade(db, 3, 3, D0 + timedelta(days=2), "P", "22.22", 30)  # a reinvested dividend
+    db.commit()
+    db.scalar(select(InsiderTransaction).where(
+        InsiderTransaction.row_key == "3")).plan_inferred = True  # fmt: skip
+    db.commit()
+    kinds = {a["type"] for a in insider_activity.detect(db, CIK, start)}
+    assert insider_activity.CLUSTER not in kinds
+    assert insider_activity.CLUSTER in {
+        a["type"] for a in insider_activity.detect(db, CIK, start, inferred=False)
+    }
+    for a in insider_activity.detect(db, CIK, start, inferred=False):
+        t = a["trade"]
+        db.add(InsiderActivity(cik=CIK, activity_type=a["type"], activity_date=t.trans_date,
+                               filing_date=t.filing_date, accession_number=t.accession,
+                               owners=json.dumps(a["owners"]), detail=json.dumps(a["detail"]),
+                               source_url="https://www.sec.gov/Archives/x",
+                               stream_status="published", stream_at=utcnow()))  # fmt: skip
+    db.commit()
+    insider_activity.reconcile(db, CIK, start, write=True, before_rules={"inferred": False},
+                               reason="inferred plan purchase")  # fmt: skip
+    db.commit()
+    cl = db.scalar(select(InsiderActivity).where(
+        InsiderActivity.activity_type == insider_activity.CLUSTER))  # fmt: skip
+    assert cl.status == "retracted" and cl.retraction_reason == "inferred plan purchase"

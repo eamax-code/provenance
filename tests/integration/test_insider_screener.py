@@ -463,3 +463,22 @@ def test_plan_purchases_are_marked_and_left_out_of_buys(client, auth, db, trades
     assert "0000000002-26-000009" in {r["filing"]["accession_number"] for r in every}
     sells = _get(client, auth, type="sell", cik=A).json()["data"]
     assert sells and all(r["plan_purchase"] is None for r in sells)
+
+
+def test_inferred_plan_purchases_are_marked_and_left_out_of_buys(client, auth, db, trades):
+    """F-03g: a fractional purchase under 100 shares with no plan stated is plan_inferred (shown
+    as "Likely plan purchase (not stated)"), left out of type=buy like a stated one."""
+    _filing(db, "0000000002-26-000010", B, "0000000205", "ORR KIM", date(2026, 11, 9),
+            director=True)  # fmt: skip
+    _line(db, "0000000002-26-000010", B, 1, "P", date(2026, 11, 8), 22.22, 15, 900)
+    db.commit()
+    db.query(InsiderTransaction).filter(
+        InsiderTransaction.accession_number == "0000000002-26-000010").update(
+        {"plan_inferred": True, "plan_purchase": False})  # fmt: skip
+    db.commit()
+    buys = _get(client, auth, type="buy", cik=B).json()["data"]
+    assert "0000000002-26-000010" not in {r["filing"]["accession_number"] for r in buys}
+    assert all(r["plan_inferred"] is False for r in buys)
+    plan = _get(client, auth, type="buy", cik=B, plan_purchase="true").json()["data"]
+    (row,) = [r for r in plan if r["filing"]["accession_number"] == "0000000002-26-000010"]
+    assert row["plan_inferred"] is True and row["plan_purchase"] is False

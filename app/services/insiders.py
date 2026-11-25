@@ -154,9 +154,23 @@ def plan_purchase(code: str | None, nature: str | None, notes: Iterable[str]) ->
     return bool(PLAN_WORDS.search(nature or "")) or any(_plan_note(n) for n in notes)
 
 
+def plan_inferred(code: str | None, shares, stated: bool | None) -> bool | None:
+    """F-03g: a code-P line whose filing states no plan but whose shares are a fraction under 100
+    (in a check of 30: dividend reinvestment, director and employee plans, fund subscriptions;
+    1 wrong, an adult son's fractional buys through a broker). Three insiders buying on one
+    date at one price was checked too and is not a rule: half were one purchase reported by
+    related filers (BRT's Gould Investors, ICONIQ, Endeavor)."""
+    if (code or "").strip() != "P":
+        return None
+    if stated or shares is None:
+        return False
+    v = Decimal(str(shares))
+    return v < 100 and v != v.to_integral_value()
+
+
 def _tx_row(acc: str, kind: str, derivative: bool, key: str, r: dict,
             notes: Iterable[str] = ()) -> dict:  # fmt: skip
-    return {
+    out = {
         "accession_number": acc,
         "row_kind": kind,
         "is_derivative": derivative,
@@ -177,6 +191,12 @@ def _tx_row(acc: str, kind: str, derivative: bool, key: str, r: dict,
         if derivative or kind != "transaction"
         else plan_purchase(r.get("TRANS_CODE"), r.get("NATURE_OF_OWNERSHIP"), notes),  # fmt: skip
     }
+    if not derivative and kind == "transaction":  # F-03g
+        out["plan_inferred"] = plan_inferred(r.get("TRANS_CODE"), out["shares"],
+                                             out["plan_purchase"])  # fmt: skip
+    else:
+        out["plan_inferred"] = None
+    return out
 
 
 @dataclass

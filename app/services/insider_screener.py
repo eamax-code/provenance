@@ -194,7 +194,8 @@ def screen(db: Session, s: Screen) -> tuple[list[dict], dict]:
                func.max(t.trans_date, type_=Date).label("last"),
                func.count(func.distinct(t.direct_indirect)).label("n_di"),
                func.max(t.direct_indirect).label("di"),
-               func.count(case((t.plan_purchase.is_(True), 1))).label("plan_lines"))
+               func.count(case((t.plan_purchase.is_(True), 1))).label("plan_lines"),
+               func.count(case((t.plan_inferred.is_(True), 1))).label("inferred_lines"))
         .where(t.trans_code.in_(sorted(s.codes)), t.is_derivative.is_(False),
                t.trans_date >= s.since, t.trans_date <= s.until)
         .group_by(t.accession_number, t.issuer_cik, t.trans_code, title)
@@ -310,19 +311,20 @@ def _in_values(value, s: Screen) -> bool:
 
 
 def _plan_filter(q, s: Screen | None):
-    """F-03f: the screen's plan-purchase choice, on lines."""
+    """F-03f: the screen's plan-purchase choice, on lines; F-03g: inferred ones with them."""
     t = InsiderTransaction
     if s is None or s.plan_purchase is None:
         return q
     if s.plan_purchase:
-        return q.where(t.plan_purchase.is_(True))
-    return q.where(or_(t.plan_purchase.is_(None), t.plan_purchase.is_(False)))
+        return q.where(or_(t.plan_purchase.is_(True), t.plan_inferred.is_(True)))
+    return q.where(or_(t.plan_purchase.is_(None), t.plan_purchase.is_(False)),
+                   or_(t.plan_inferred.is_(None), t.plan_inferred.is_(False)))  # fmt: skip
 
 
 def _lines(db: Session, acc: str, issuer: str, code: str, title: str, s: Screen | None = None):
     t = InsiderTransaction
     q = select(t.trans_date, t.shares, t.price, t.shares_after, t.direct_indirect, t.row_key,
-               t.plan_purchase).where(
+               t.plan_purchase, t.plan_inferred).where(
         t.accession_number == acc, t.issuer_cik == issuer, t.trans_code == code,
         t.is_derivative.is_(False), func.coalesce(t.security_title, "") == title)  # fmt: skip
     if s is not None:
@@ -349,6 +351,7 @@ def _regroup(db: Session, g, filed: date, stale: date, s: Screen) -> tuple[dict 
         "first": keep[0].trans_date, "last": keep[-1].trans_date, "n_di": len(di),
         "di": next(iter(di)) if di else None,
         "plan_lines": sum(1 for x in keep if x.plan_purchase),
+        "inferred_lines": sum(1 for x in keep if x.plan_inferred),
     }, len(ls) - len(keep)  # fmt: skip
 
 
@@ -453,6 +456,9 @@ def _row(g: dict, fs: list) -> dict:
         # F-03f: every line bought under a plan (ESPP, plan trust, dividend reinvestment), not in
         # the open market; null on sales
         "plan_purchase": (g.get("plan_lines", 0) == g["lines"] > 0) if code == "P" else None,
+        # F-03g: every line likely bought under a plan, though the filing does not say so (a
+        # fraction of a share under 100 shares); shown as "Likely plan purchase (not stated)"
+        "plan_inferred": (g.get("inferred_lines", 0) == g["lines"] > 0) if code == "P" else None,
         "cluster": None,
         "amended_by": [],
         "amended": False,
