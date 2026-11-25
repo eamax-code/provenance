@@ -620,7 +620,8 @@ a section (income, balance sheet, cash flow) for a year, that section-year is th
 figures only (its restated comparatives); a figure it does not report there stays blank, with a
 section `gap_notes` entry ("Not reported in the successor's restated figures for FY2017; the
 predecessor's as-filed figures are on Xerox Corp's page", `predecessor_cik`, `metrics`), never
-filled from the predecessor. A predecessor's figures fill only the section-years the successor
+filled from the predecessor (`/v1/companies/{cik}/statements/{statement}` carries the same
+`gap_notes`). A predecessor's figures fill only the section-years the successor
 does not report. A ratio whose two inputs would come from different registrants is blank. The
 predecessor's own page keeps its as-filed figures. One helper (`statements.own_section_periods`)
 makes the choice for the overview's statements and key figures and for

@@ -147,20 +147,26 @@ GAP_NOTE = (
 )
 
 
-def _gap_notes(db: Session, key: str, labels: list[str], rows: list[dict], gaps: dict) -> list:
+def gap_notes(db: Session, key: str, labels: list[str], shown: set[tuple[str, str]],
+              gaps: dict) -> list[dict]:  # fmt: skip
     """K-05d: a blank in a section-year the successor reports, where a predecessor filed the
-    figure: said, with the predecessor's page, never filled from it."""
+    figure: said, with the predecessor's page, never filled from it. `shown`: the (metric,
+    period label) pairs the statement shows; `gaps`: own_section_periods' dropped figures."""
     out = []
-    for i, lab in enumerate(labels):
-        blank = {r["metric"] for r in rows if r["cells"][i] is None}
-        dropped = {(m, c) for m, c in gaps.get((key, lab), set()) if m in blank or m not in
-                   {r["metric"] for r in rows}}  # fmt: skip
+    for lab in labels:
+        dropped = {(m, c) for m, c in gaps.get((key, lab), set()) if (m, lab) not in shown}
         for cik in sorted({c for _, c in dropped}):
             name = db.scalar(select(Company.legal_name).where(Company.cik == cik)) or cik
             out.append({"fiscal_label": lab, "predecessor_cik": cik, "predecessor_name": name,
                         "metrics": sorted(m for m, c in dropped if c == cik),
                         "text": GAP_NOTE.format(year=lab, name=name)})  # fmt: skip
     return out
+
+
+def _gap_notes(db: Session, key: str, labels: list[str], rows: list[dict], gaps: dict) -> list:
+    shown = {(r["metric"], lab) for r in rows for lab, c in zip(labels, r["cells"], strict=True)
+             if c is not None}  # fmt: skip
+    return gap_notes(db, key, labels, shown, gaps)
 
 
 def build(db: Session, company: Company, as_of: date | None = None, years: int = 5) -> dict:

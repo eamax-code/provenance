@@ -99,3 +99,8 @@ class StatementOut(BaseModel):
     columns: list[StatementColumn]
     rows: list[StatementRow]
     notes: list[str]
+    gap_notes: list[dict] = Field(
+        default=[], description="K-05d: a blank in a year the successor reports where a "
+        "predecessor registrant filed the figure: {fiscal_label, predecessor_cik, "
+        "predecessor_name, metrics, text}; never filled from the predecessor.",
+    )

@@ -200,3 +200,6 @@ def test_a_successor_section_year_never_mixes_with_the_predecessors(db, client, 
              if c and c.get("period_end") == end.isoformat()]  # fmt: skip
     reported = [c for c in cells if not c.get("derived")]  # margins computed from these
     assert reported and {c["registrant_cik"] for c in reported} == {NEW}
+    gap = next(n for n in body["gap_notes"] if n["fiscal_label"] == year)
+    assert gap["predecessor_cik"] == OLD and "operating_income" in gap["metrics"]
+    assert "revenue" not in gap["metrics"] and "Apple" in gap["text"]

@@ -679,7 +679,7 @@ def statement(
 
     conv = periods_service.convention(company)
     # K-05d: a section-period the company reports is its own figures only, as the overview
-    rows, _ = statements_service.own_section_periods(
+    rows, dropped = statements_service.own_section_periods(
         db.scalars(stmt).all(), cik,
         lambda r: periods_service.label(r.period_end, period, conv))  # fmt: skip
     chosen = _select_latest(rows)
@@ -1079,12 +1079,15 @@ def statement(
             r.split_adjusted = adjusted.get(r.metric)
     if as_of:
         notes.append(as_of_note(as_of))
+    shown = {(r.metric, c.column) for r in rows for c in r.cells if c is not None}
+    labels = [c.period_label for c in columns if c.period_label and not c.transition]
     return StatementOut(
         cik=cik, statement=statement, period=period,
         as_of=as_of.isoformat() if as_of else None, reporting_currency=currency,
         mapping_version=MAPPING_VERSION, fiscal_year_end=company.fiscal_year_end,
         label_basis=periods.label_basis(periods.convention(company)),
         columns=columns, rows=rows, notes=notes,
+        gap_notes=statements_service.gap_notes(db, statement, labels, shown, dropped),
     )  # fmt: skip
 
 
