@@ -353,6 +353,8 @@ information about what insiders did, never a recommendation.
 | `sec.insider_first_buy` | an insider's first open-market purchase at the company in two years or more, only where the loaded data reaches two years back |
 | `sec.insider_large_sale` | an officer or director sold $1 million or more in one filing, and the filing says it was not under a Rule 10b5-1 plan (filings without the checkbox are not judged) |
 
+Known limit (F-03f, F-03g): purchases under plans the filing does not name can still count toward clusters and first buys, mostly at small banks and utilities (director groups buying at one price, round-dollar dividend-plan purchases, whole-share or 100-plus fractional plan purchases). Stated plan purchases (`plan_purchase`) and fractional ones under 100 shares (`plan_inferred`) never count.
+
 `owners` and `detail` are JSON (insiders, values, the previous purchase). Backfill
 (`scripts/detect_insider_activity.py`, or a company first seen by the tracker) is stored with
 `stream_status=skipped`; activity in Forms 4 the hourly tracker loads later is published to the

@@ -171,6 +171,8 @@ listed first in `owners`.
   The rule: same issuer, this owner among the event's insiders, and the trade dated from the
   event's first trade to the event's date. Events are three or more insiders buying in the open
   market within 30 days.
+  Known limit: purchases under plans the filing does not name can still count toward clusters
+  and first buys, mostly at small banks and utilities.
 - `issuer.name` is the company's display name; `ticker` is its primary ticker or `null`.
 - `filing.source_url` is the Form 4's sec.gov/Archives folder. No other link is given. No API
   URLs, no fetch or detection times, no CUSIPs.
