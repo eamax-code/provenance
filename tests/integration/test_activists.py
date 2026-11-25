@@ -110,6 +110,10 @@ def seeded(db):
     _filing(db, OTHER, "0001900011-26-000002", "SCHEDULE 13D/A", date(2026, 5, 1),
             [("Owner One", "0001900011", "IN", 105, 1.95), g2], filer="0001900011",
             amend=1)  # fmt: skip
+    # then every member reports nothing: the merger closed (FONAR's 13D/A No. 3)
+    _filing(db, OTHER, "0001900011-26-000003", "SCHEDULE 13D/A", date(2026, 6, 3),
+            [("Owner One", "0001900011", "IN", 0, 0), ("Owner Two", "0001900012", "IN", 0, 0)],
+            filer="0001900011", purpose="Not Applicable.", amend=3)  # fmt: skip
     # 18.1 to 18.2 is an increase of 0.1 points (Bitdeer)
     _filing(
         db,
@@ -181,6 +185,7 @@ def test_across_companies_kinds_and_filters(client, auth, seeded):
                      "0001900001-26-000002": "exited", "0001900001-26-000009": "new",
                      "0001900001-26-000004": "new",
                      "0001900011-26-000001": "new", "0001900011-26-000002": "amended",
+                     "0001900011-26-000003": "exited",
                      "0001900021-26-000001": "new",
                      "0001900021-26-000002": "increased"}  # fmt: skip
     new = client.get(f"/v1/activists?{q}", headers=auth).json()["data"]
@@ -194,10 +199,17 @@ def test_across_companies_kinds_and_filters(client, auth, seeded):
     assert wide.status_code == 422 and wide.json()["error"]["code"] == "invalid_parameter"
 
 
-def test_a_chain_never_at_5_percent_is_not_exited(client, auth, seeded):
-    body = client.get(f"/v1/companies/{OTHER}/activists?status=all", headers=auth).json()
-    group = next(d for d in body["data"] if d["filer"]["cik"] == "0001900011")
+def test_a_chain_never_at_5_percent_exits_only_when_nothing_is_held(client, auth, seeded):
+    before = client.get(f"/v1/companies/{OTHER}/activists?as_of=2026-05-31",
+                        headers=auth).json()  # fmt: skip
+    group = next(d for d in before["data"] if d["filer"]["cik"] == "0001900011")
     assert group["status"] == "current" and group["current"]["percent"] == 1.95
+    assert group["percent_basis"] == "largest single reporting person; no group total filed"
+    after = client.get(f"/v1/companies/{OTHER}/activists?status=all", headers=auth).json()
+    group = next(d for d in after["data"] if d["filer"]["cik"] == "0001900011")
+    assert group["status"] == "exited" and group["current"]["percent"] == 0
+    # "Not Applicable." is no statement: the original's Item 4, citing it
+    assert group["purpose"]["excerpt"] == "Going private." and group["purpose"]["carried_forward"]
 
 
 def test_errors_and_the_demo_key(client, auth, seeded, settings, monkeypatch):

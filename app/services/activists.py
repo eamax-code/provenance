@@ -33,7 +33,8 @@ COVERAGE = {"from": "2024-12-18", "note": "Structured Schedules 13D since Decemb
 DISCLAIMER = "Information, not signals. Not investment advice."
 # an amendment's Item 4 that only says it is unchanged carries the earlier statement
 _UNCHANGED = re.compile(r"\b(no (material )?changes?|unchanged|not (been )?amended|remains? "
-                        r"unchanged)\b", re.I)  # fmt: skip
+                        r"unchanged|not applicable|n/a)\b", re.I)  # fmt: skip
+NO_GROUP_TOTAL = "largest single reporting person; no group total filed"
 
 
 @dataclass
@@ -83,11 +84,28 @@ def _below(f: Filing13) -> bool:
     return f.percent is not None and f.percent < THRESHOLD
 
 
+def _zero(f: Filing13) -> bool:
+    """Every reporting person reports no shares (FONAR's 13D/A No. 3 after its going-private
+    merger closed: 57 persons at 0)."""
+
+    def nothing(p) -> bool:
+        return (p.percent is not None and p.percent == 0) or (
+            p.shares is not None and p.shares == 0
+        )
+
+    return all(nothing(p) for p in f.persons)
+
+
+def _ever_5(chain: list[Filing13]) -> bool:
+    return any(f.percent is not None and not _below(f) for f in chain)
+
+
 def _exited(chain: list[Filing13]) -> bool:
-    """The chain's latest filing reports under 5% after an earlier one at 5% or more (a group
-    whose members each report only their own shares can file under 5% throughout: FONAR)."""
-    return _below(chain[-1]) and any(not _below(f) and f.percent is not None
-                                     for f in chain[:-1])  # fmt: skip
+    """The chain's latest filing reports nothing held, or under 5% after an earlier filing at 5%
+    or more (a group whose members each report only their own shares files under 5% while it
+    holds its stake: FONAR's 1.9%)."""
+    last = chain[-1]
+    return _zero(last) or (_below(last) and _ever_5(chain[:-1]))
 
 
 def _f(v: Decimal | None) -> float | None:
@@ -195,8 +213,8 @@ def _entry(f: Filing13, prev: Filing13 | None, purposes: dict) -> dict:
 def _kind(i: int, chain: list[Filing13], switched: bool) -> str:
     f = chain[i]
     earlier = [x for x in chain[:i] if x.percent is not None]
-    if _below(f) and earlier and not _below(earlier[-1]):
-        return "exited"  # crossed under 5%
+    if (_zero(f) and i > 0) or (_below(f) and earlier and not _below(earlier[-1])):
+        return "exited"  # crossed under 5%, or nothing held
     if i == 0:
         if f.form == "SCHEDULE 13D":
             return "switched" if switched else "new"
@@ -250,6 +268,8 @@ def _chain_view(chain: list[Filing13], g_filings: list, purposes: dict) -> dict:
         "purpose": _purpose(chain, purposes),
         "chain": [_entry(f, chain[i - 1] if i else None, purposes) for i, f in enumerate(chain)],
         "status": "exited" if _exited(chain) else "current",
+        # a chain never at 5%: each member reports only its own shares, the group total unfiled
+        "percent_basis": None if _ever_5(chain) else NO_GROUP_TOTAL,
     }
 
 
