@@ -1183,6 +1183,13 @@ class MartCompany(Base):
     latest_filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     filings_last_12_months: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # D-01: a 10-K, 10-Q, 20-F or 40-F (or amendment, or 10-KT) filed under the company's own CIK
+    # within 18 months; "largest" lists leave the others out by default. active above counts
+    # any filing (a debt-issuing subsidiary filing 424Bs is active, not periodic_active)
+    periodic_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False,
+                                                  server_default="false")  # fmt: skip
+    last_periodic_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_periodic_form: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Going public: the first registration statement (S-1/F-1) and final prospectus (424B4).
     first_registration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     first_registration_form: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -85,7 +85,8 @@ def _rank(f: FinancialFact) -> tuple:
     )
 
 
-def _screen_from_mart(db, metric, year, period, quarter, unit, order, limit, offset, start, stop):
+def _screen_from_mart(db, metric, year, period, quarter, unit, order, limit, offset, start, stop,
+                      only=None):  # fmt: skip
     """The screen from mart_financials: each company's latest period in the window, ranked and
     paged in SQL, so only the rows shown are read."""
     m = MartFinancial
@@ -99,6 +100,7 @@ def _screen_from_mart(db, metric, year, period, quarter, unit, order, limit, off
             m.unit == unit,
             m.period_end >= start,
             m.period_end < stop,
+            *([only(m.cik)] if only else []),  # D-01
         )
         .subquery()
     )
@@ -327,9 +329,17 @@ def screen(
     as_of: date | None = Query(
         None, description="Point in time: use only observations filed on or before this date"
     ),
+    include_inactive: bool = Query(
+        False,
+        description="D-01: also companies with no 10-K, 10-Q, 20-F or 40-F of their own "
+        "in 18 months (left out by default)",
+    ),  # fmt: skip
     db: Session = Depends(db_session),
     _key=Depends(require_reader),
 ):
+    from app.services.marts import periodic_only
+
+    only = None if include_inactive else (lambda col: periodic_only(col, as_of, db))
     ratio = ratios.RATIOS.get(metric)
     if metric not in SUPPORTED_METRICS and ratio is None:
         raise APIError(
@@ -358,15 +368,18 @@ def screen(
             start,
             stop,
             as_of,
+            only,
         )
     if as_of is None and _marts_ready(db):
         return _screen_from_mart(
-            db, metric, year, period, quarter, unit, order, limit, offset, start, stop
+            db, metric, year, period, quarter, unit, order, limit, offset, start, stop, only
         )
     # Point in time reads every observation, to keep only what was filed by the date.
     stmt = _usable(metric, period, unit).where(
         FinancialFact.period_end >= start, FinancialFact.period_end < stop
     )
+    if only:
+        stmt = stmt.where(only(FinancialFact.cik))
     if as_of:
         stmt = known_by(stmt, as_of)
     rows = db.scalars(stmt).all()
@@ -423,7 +436,20 @@ def _best(rows: list[FinancialFact]) -> dict[str, FinancialFact]:
 
 
 def _screen_derived(
-    db, metric, ratio, year, period, quarter, unit, order, limit, offset, start, stop, as_of
+    db,
+    metric,
+    ratio,
+    year,
+    period,
+    quarter,
+    unit,
+    order,
+    limit,
+    offset,
+    start,
+    stop,
+    as_of,
+    only=None,
 ):
     """A derived figure (D-03) across companies: each company's latest period in the window,
     paired with the denominator of the same period (or, per share, of the same filing)."""
@@ -438,6 +464,8 @@ def _screen_derived(
         )
     if as_of:
         num_stmt, den_stmt = known_by(num_stmt, as_of), known_by(den_stmt, as_of)
+    if only:
+        num_stmt = num_stmt.where(only(FinancialFact.cik))
     best = _best(db.scalars(num_stmt).all())
     if not best:
         return _result(metric, year, period, quarter, ratios.unit_of(ratio, unit), as_of, [],
@@ -487,6 +515,9 @@ def _result(metric, year, period, quarter, unit, as_of, out, limit, offset, tota
     ]
     if quarter == 4:
         notes.append(QUARTER_FOUR_NOTE)
+    from app.services.marts import INACTIVE_NOTE
+
+    notes.append(INACTIVE_NOTE)
     if as_of:
         notes.append(as_of_note(as_of))
     return ScreenResult(

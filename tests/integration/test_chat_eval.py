@@ -119,6 +119,10 @@ def eval_db(db, items_aapl, sec_client, tmp_path):
         db.flush()
         db.add(_filing(cik, 1, "S-1", today - timedelta(days=70)))
         db.add(_filing(cik, 2, "424B4", today - timedelta(days=ipo_days)))
+    # D-01: the US filers still file their own periodic reports beside these recent filings, so
+    # they stay in "largest" lists (their fixture 10-Ks are from 2024 and 2025)
+    for n, cik in enumerate(("0000320193", "0000789019", "0009100002"), 90):
+        db.add(_filing(cik, n, "10-Q", today - timedelta(days=30)))
     db.commit()
     _c06_data(db, tmp_path)
     marts.build_company_marts(db)

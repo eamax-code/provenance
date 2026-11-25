@@ -31,6 +31,10 @@ IPO_PROSPECTUS_FORMS = ("424B4",)
 ANNUAL_REPORT_FORMS = ("10-K", "20-F", "40-F", "10-KT")
 MART_METRICS = ("revenue", "net_income", "total_assets", "operating_income", "operating_cash_flow")
 HISTORY_YEARS = 5
+# D-01: a periodic report under the company's own CIK within 18 months makes it periodic_active
+PERIODIC_FORMS = ("10-K", "10-K/A", "10-KT", "10-KT/A", "10-Q", "10-Q/A", "20-F", "20-F/A",
+                  "40-F", "40-F/A")  # fmt: skip
+PERIODIC_DAYS = 548
 ACTIVITY_SINCE = date(2001, 1, 1)
 BATCH = 2000
 
@@ -89,6 +93,11 @@ def build_company_marts(db: Session, ciks: list[str] | None = None) -> int:
             .group_by(Filing.cik)
         )
     }
+    periodic = _latest_filing(db, PERIODIC_FORMS, scope)  # D-01
+    # measured back from the newest filing held (today, on a live deployment), so the status
+    # follows the data rather than the clock
+    newest = db.scalar(select(func.max(Filing.filing_date))) or now.date()
+    since = newest - timedelta(days=PERIODIC_DAYS)
     registration = _first_filing(db, REGISTRATION_FORMS, scope)
     ipo = _first_filing(db, IPO_PROSPECTUS_FORMS, scope)
     annual_report = _latest_filing(db, ANNUAL_REPORT_FORMS, scope)
@@ -114,6 +123,10 @@ def build_company_marts(db: Session, ciks: list[str] | None = None) -> int:
                 "latest_filing_date": latest,
                 "filings_last_12_months": recent,
                 "active": recent > 0,
+                "periodic_active": bool(periodic.get(cik))
+                and periodic[cik]["filing_date"] >= since,
+                "last_periodic_date": periodic[cik]["filing_date"] if periodic.get(cik) else None,
+                "last_periodic_form": periodic[cik]["form_type"] if periodic.get(cik) else None,
                 "first_registration_date": reg["filing_date"] if reg else None,
                 "first_registration_form": reg["form_type"] if reg else None,
                 "ipo_prospectus_date": prospectus["filing_date"] if prospectus else None,
@@ -430,3 +443,23 @@ def _flush(db: Session, model, batch: list[dict]) -> int:
     n = len(batch)
     batch.clear()
     return n
+
+
+INACTIVE_NOTE = ("By default, companies with no 10-K, 10-Q, 20-F or 40-F of their own in 18 "
+                 "months are left out (registrants that no longer file, and subsidiaries that "
+                 "file only debt offerings while carrying their parent's figures); "
+                 "include_inactive=true lists them.")  # fmt: skip
+
+
+def periodic_only(col, as_of: date | None = None, db: Session | None = None):
+    """D-01: a condition on a CIK column keeping companies with a periodic report of their own
+    within 18 months (today: mart_company.periodic_active; as_of: filings up to that date,
+    measured back from as_of, or from the newest filing held when that is earlier, as the build
+    does)."""
+    if as_of is None:
+        return col.not_in(select(MartCompany.cik).where(MartCompany.periodic_active.is_(False)))
+    newest = db.scalar(select(func.max(Filing.filing_date))) if db is not None else None
+    since = min(as_of, newest or as_of) - timedelta(days=PERIODIC_DAYS)
+    return col.in_(select(Filing.cik).where(
+        Filing.form_type.in_(PERIODIC_FORMS), Filing.filing_date <= as_of,
+        Filing.filing_date > since))  # fmt: skip

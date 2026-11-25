@@ -863,6 +863,7 @@ def _rank(db: Session, p: Plan) -> DataAnswer:
                 MartCompany.latest_revenue.is_not(None),
                 MartCompany.latest_revenue > 0,
                 MartCompany.reporting_currency == "USD",
+                MartCompany.periodic_active.is_(True),  # D-01: still filing its own reports
             )  # sizes compare in one currency
             .order_by(order)
             .limit(p.limit)
@@ -872,7 +873,8 @@ def _rank(db: Session, p: Plan) -> DataAnswer:
         # Other metrics live in the JSON column; rank the companies with revenue first.
         usd = MartCompany.reporting_currency == "USD"  # sizes compare in one currency
         has = MartCompany.latest_annual.is_not(None)
-        pool = db.scalars(select(MartCompany).where(has, usd)).all()
+        live = MartCompany.periodic_active.is_(True)  # D-01: still filing its own reports
+        pool = db.scalars(select(MartCompany).where(has, usd, live)).all()
         scored = [(r, (loads(r.latest_annual) or {}).get(p.metric)) for r in pool]
         scored = [(r, v) for r, v in scored if v and v.get("value") is not None]
         scored.sort(key=lambda x: x[1]["value"], reverse=p.order != "asc")

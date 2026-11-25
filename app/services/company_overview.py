@@ -96,6 +96,12 @@ def _identity(db: Session, company: Company) -> dict:
                                       company.registrant_name)  # fmt: skip
     mart = db.get(MartCompany, company.cik)
     out["reporting_currency"] = mart.reporting_currency if mart else None  # D-04
+    # D-01: whether the company still files its own periodic reports (10-K, 10-Q, 20-F, 40-F)
+    # within 18 months; the page says "No periodic report since {date}" when it does not
+    out["periodic_active"] = bool(mart.periodic_active) if mart else None
+    out["last_periodic_report"] = ({"form": mart.last_periodic_form,
+                                    "filed_date": mart.last_periodic_date.isoformat()}
+                                   if mart and mart.last_periodic_date else None)  # fmt: skip
     from app.services.ticker_history import legal_name_as_filed
 
     out["legal_name_as_filed"] = legal_name_as_filed(company)  # K-06

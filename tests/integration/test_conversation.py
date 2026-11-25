@@ -63,6 +63,9 @@ def new_listings(db, ingested_aapl):
         db.add(_filing(cik, 1, "S-1", TODAY - timedelta(days=70)))
         if ipo_days:
             db.add(_filing(cik, 2, "424B4", TODAY - timedelta(days=ipo_days)))
+    # D-01: Apple still files its own periodic reports beside these recent filings, so it stays
+    # in "largest" lists (the fixture's own 10-Ks are from 2024)
+    db.add(_filing("0000320193", 9, "10-Q", TODAY - timedelta(days=30)))
     db.commit()
     marts.build_company_marts(db)
     marts.build_filing_activity(db)

@@ -214,6 +214,13 @@ currencies are never combined; a divisor that is not positive gives no value. Ev
 another kind (EPS tagged in `USD`) is `ambiguous_mapping`. `currency` is also set for per-share
 units (`USD/shares` gives `USD`). The screen's default `unit` is the metric's own.
 
+**Inactive registrants (D-01).** `/v1/facts/screen` leaves out, by default, companies with no 10-K,
+10-Q, 20-F or 40-F of their own in the 18 months before the newest filing loaded
+(`mart_company.periodic_active`); with `as_of`, the 18 months count back from `as_of` (or the
+newest filing, if earlier), from the filings themselves, so there is no look-ahead.
+`include_inactive=true` lists them, and the response's `notes` say so. Chat's revenue rankings
+apply the same rule. Search and the company pages still show these companies.
+
 Precedence rule: for each (unit, period), the first tag in the list that has observations is
 *preferred*. Preferred observations are `ok`; alternates are `ambiguous_mapping`. If the
 latest-filed values of two tags disagree, the preferred one is also `ambiguous_mapping`.
@@ -482,6 +489,7 @@ chat rank answers and the $1B cohorts use USD reporters; nothing is converted.
 | `first_registration_date`, `first_registration_form` | First S-1 or F-1 loaded for the company |
 | `ipo_prospectus_date`, `_accession`, `_url` | First final prospectus (424B4). With a registration in the two years before it, the chat counts the company as having gone public then |
 | `latest_annual_report_date`, `_form` | Latest 10-K, 20-F, 40-F or 10-KT |
+| `periodic_active`, `last_periodic_date`, `last_periodic_form` | D-01: the company's own latest 10-K, 10-Q, 20-F or 40-F (amendments and 10-KT included), and whether it was filed within 548 days (18 months) of the newest filing loaded here. Anchored on the newest filing, not today, so a pause in loading never marks everyone stale. False for registrants that stopped filing (taken private, merged, renamed under a new CIK) and for subsidiaries that file only debt offerings while carrying their parent's figures (JPMorgan Chase Financial Co. LLC). Rankings and the screen leave them out by default (`include_inactive=true` lists them); search and the company pages still show them |
 | `latest_revenue`, `latest_revenue_period_end` | Latest reported annual revenue in USD (indexed for rankings) |
 | `latest_annual` | JSON: the latest annual value of each of the five metrics, with its filing |
 | `revenue_history` | JSON: up to five fiscal years of revenue, newest first, each with its filing |
