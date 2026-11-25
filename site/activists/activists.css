@@ -1,0 +1,39 @@
+/* Activist stakes across companies. One filing per row: the date in its own column, then the company, the filer,
+   the stake in words and numbers, and the purpose quoted as filed (styles shared with the Explorer come from
+   /app/activists.js). Changes in words, never green and red; shell tokens only. */
+.ac { max-width: 1240px; margin: 0 auto; padding: 24px var(--m) 56px; font: 400 1rem/1.5 var(--face); color: var(--ink); }
+.ac h1 { font: var(--display-weight) clamp(1.8rem, 1.2rem + 1.8vw, 2.6rem)/1.05 var(--display); letter-spacing: -0.03em; margin: 8px 0 6px; }
+.ac-lede { margin: 0 0 10px; max-width: 80ch; color: var(--soft); }
+.ac .ac-disc { margin: 0 0 2px; }
+.ac > .ac-cov { margin: 0 0 18px; }
+.ac-tabs { display: flex; flex-wrap: wrap; gap: 4px 18px; border-bottom: 1px solid var(--line); margin: 8px 0 12px; }
+.ac-tabs button { min-height: 42px; padding: 0; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; color: var(--soft); font: 700 1.05rem var(--face); cursor: pointer; }
+.ac-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent-hi); }
+.ac-tabs button:focus-visible, .ac-ctl select:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+.ac-ctl { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0 0 10px; }
+.ac-ctl label { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--soft); }
+.ac-ctl select { min-height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); font: inherit; font-size: .9rem; }
+.ac-sum { margin: 0 0 4px; color: var(--soft); max-width: 110ch; }
+.ac-rows { list-style: none; margin: 0; padding: 0; max-width: 980px; }
+.ac-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 0 16px; padding: 16px 0; border-bottom: 1px solid var(--line-soft); }
+.ac-when { margin: 2px 0 0; color: var(--soft); font-size: .9rem; white-space: nowrap; }
+.ac-body p { margin: 0; }
+.ac-co { font-size: 1.05rem; font-weight: 700; }
+.ac-co a { text-decoration-thickness: 1px; }
+.ac-row .ac-who { margin-top: 2px; }
+.ac-row .ac-stake { margin-top: 2px; font-weight: 700; }
+.ac-row .ac-stake .ac-meta, .ac-row .ac-stake a { font-weight: 400; font-size: .9rem; }
+.ac .tag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; font: 500 11.5px var(--mono); color: var(--soft); vertical-align: 2px; }
+.ac .btn { min-height: 40px; margin: 14px 0 0; padding: 0 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: 600 .9rem var(--face); cursor: pointer; }
+.ac-notes { margin: 16px 0 0; font-size: .85rem; color: var(--soft); max-width: 110ch; }
+.ac-notes a { color: var(--ink); text-decoration-line: underline; text-decoration-color: var(--link-line); }
+.ac-api { margin: 12px 0 0; font-size: .82rem; color: var(--soft); overflow-wrap: anywhere; }
+.ac-api code { font: 12px var(--mono); color: var(--ink); }
+.ac .muted { color: var(--soft); } .ac .small { font-size: .85rem; }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 760px) {
+  .ac-row { grid-template-columns: minmax(0, 1fr); }
+  .ac-when { margin: 0 0 2px; font-size: .85rem; }
+  .ac-tabs { flex-wrap: nowrap; gap: 16px; overflow-x: auto; scrollbar-width: none; } /* one row; the last tab peeks to show it scrolls */
+  .ac-tabs button { flex: none; font-size: 1rem; }
+}

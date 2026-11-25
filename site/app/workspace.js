@@ -5,6 +5,7 @@
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
+  var actLink = location.hash === '#activists'; // the URL sync drops the hash before the section draws: remembered here, used once
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);
     Object.keys(attrs || {}).forEach(function (k) {
@@ -217,6 +218,7 @@
     if (S.tab === 'overview') overview(); else if (S.tab === 'chart') chartTab(); else if (S.tab === 'statements') statementsTab(); else if (S.tab === 'timeline') timelineTab(); else if (S.tab === 'calendar') calendarTab(); else if (S.tab === 'people') peopleTab(); else if (S.tab === 'ownership') ownershipTab(); else if (S.tab === 'segments') segmentsTab(); else if (S.tab === 'compare') compareTab();
   }
   // dividends (Q-04): a shared module, loaded only when a view shows them
+  var acP; function ac() { return acP || (acP = new Promise(function (ok, no) { if (window.prvActivists) return ok(window.prvActivists); var sc = document.createElement('script'); sc.src = '/app/activists.js'; sc.onload = function () { window.prvActivists ? ok(window.prvActivists) : no(); }; sc.onerror = function () { acP = null; no(); }; document.head.appendChild(sc); })); }
   var dvP; function dv() { return dvP || (dvP = new Promise(function (ok, no) { if (window.prvDividends) return ok(window.prvDividends); var sc = document.createElement('script'); sc.src = '/app/dividends.js'; sc.onload = function () { window.prvDividends ? ok(window.prvDividends) : no(); }; sc.onerror = function () { dvP = null; no(); }; document.head.appendChild(sc); })); }
   function keyNeeded(p) {
     if (!p) return; var n = p.querySelector('.ws-keyneeded');
@@ -798,7 +800,19 @@
       el('div', { class: 'tw' }, [el('table', { class: 'own-table', id: 'own-table' })]), el('p', { class: 'muted small', id: 'own-more', hidden: 'hidden' }), el('p', { class: 'notes small muted', id: 'own-notes' })]);
     var ins = el('section', { class: 'ws-sec', 'aria-labelledby': 'ins-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ins-h', text: 'Insider transactions (Forms 3, 4, 5)' }), el('a', { class: 'linkish', href: '/insiders/', text: 'Screen all companies' })]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice.' }), el('p', { class: 'muted', text: 'Loading…' })]);
     var big = el('section', { class: 'ws-sec', 'aria-labelledby': 'big-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'big-h', text: 'Holders above 5% (Schedules 13D and 13G)' })]), el('p', { class: 'muted', text: 'Loading…' })]);
-    pane.replaceChildren(own, ins, big);
+    // Q-07 activist stakes (Schedule 13D): a lazy module; hidden while the endpoint is not on the server
+    var actHead = el('div', { class: 'ov-h' }, [el('h3', { id: 'act-h', text: 'Activist stakes (Schedule 13D)' }), el('a', { class: 'linkish', href: '/activists/', text: 'New stakes at all companies' })]);
+    var act = el('section', { id: 'activists', class: 'ws-sec', 'aria-labelledby': 'act-h' }, [actHead, el('p', { class: 'muted', text: 'Loading…' })]);
+    pane.replaceChildren(own, ins, big, act);
+    var actDraw = function (all) { ac().then(function (A) { return A.load('/v1/companies/' + cik + '/activists?status=' + (all ? 'all' : 'current') + (S.as_of ? '&as_of=' + S.as_of : '')).then(function (r) { if (S.tab !== 'ownership' || S.cik !== cik) return; A.block(act, r, { head: actHead, all: all, onAll: actDraw }); if (actLink && !act.hidden) { actLink = false; anchor(); } }); }).catch(function () { act.hidden = true; }); };
+    // a deep link (#activists, from /activists/) keeps the section in view while the sections above it load, until the
+    // reader scrolls, taps or types, or for 4 s at most
+    var anchor = function () {
+      var keep = function () { act.scrollIntoView({ block: 'start' }); }, ro = new ResizeObserver(keep), ev = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+      var stop = function () { ro.disconnect(); ev.forEach(function (e) { removeEventListener(e, stop, true); }); };
+      keep(); ro.observe(pane); ev.forEach(function (e) { addEventListener(e, stop, true); }); setTimeout(stop, 4000);
+    };
+    actDraw(false);
     if (d.ownership) companyLower().then(function (L) {
       if (!L || S.tab !== 'ownership') return;
       window.CompanyPage.cur = cur; L.ownership(d); var more = $('own-more'); if (more) more.hidden = true;

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141719">
+<title>Activist stakes · Provenance</title>
+<meta name="description" content="Schedule 13D filings across companies: who reported more than 5% of a company with a purpose beyond passive investment, the purpose quoted from Item 4 as filed, and how each stake changed. Each row links its filing on sec.gov. Information, not signals.">
+<!-- shell:meta -->
+<link rel="canonical" href="/activists/">
+<meta property="og:url" content="/activists/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Provenance">
+<meta property="og:title" content="Activist stakes · Provenance">
+<meta property="og:description" content="Schedule 13D filings across companies: who reported more than 5% of a company with a purpose beyond passive investment, the purpose quoted from Item 4 as filed, and how each stake changed. Each row links its filing on sec.gov. Information, not signals.">
+<meta property="og:image" content="/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Provenance: every figure cites its SEC filing.">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /shell:meta -->
+<link rel="preload" href="/fonts/schibsted-grotesk-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<!-- shell:theme -->
+<script>/* the reader's theme before first paint (chat and the Explorer only; #12) */try{var t=localStorage.getItem('prv-theme');if(t==='light'||t==='ledger'||t==='terminal')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<!-- /shell:theme -->
+<!-- shell:head -->
+<link rel="icon" href="/shell/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/shell/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/shell/apple-touch-icon.png">
+<link rel="stylesheet" href="/shell/shell.css">
+<script src="/shell/shell.js"></script>
+<!-- /shell:head -->
+<link rel="stylesheet" href="/public.css">
+<link rel="stylesheet" href="/activists/activists.css">
+</head>
+<body class="data-page">
+<!-- shell:header -->
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-bar">
+  <div class="site-wrap">
+    <a class="site-wordmark" href="/" aria-label="Provenance home"><i aria-hidden="true"></i><span>provenance</span></a>
+    <button class="site-menu-btn" id="site-menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav class="site-nav" id="site-nav" aria-label="Primary">
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Product</button>
+        <p class="site-group-name" aria-hidden="true">Product</p>
+        <ul class="site-menu" id="site-nav-platform">
+          <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
+          <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-data">Data</button>
+        <p class="site-group-name" aria-hidden="true">Data</p>
+        <ul class="site-menu" id="site-nav-data">
+          <li><a href="/companies/"><b>Companies</b><span>Find a company and open its figures</span></a></li>
+          <li><a href="/search/"><b>Search filings</b><span>Words and phrases inside 10-K, prospectus and 8-K sections</span></a></li>
+          <li><a href="/insiders/"><b>Insider trades</b><span>Open-market buys and sales on Form 4, across companies</span></a></li>
+          <li><a href="/managers/"><b>Fund managers</b><span>13F portfolios, and what funds bought and sold each quarter</span></a></li>
+          <li><a href="/activists/"><b>Activist stakes</b><span>Schedule 13D stakes, with the purpose as filed</span></a></li>
+          <li><a href="/ipos/"><b>Going public</b><span>IPOs by stage, with deal terms from the prospectus</span></a></li>
+          <li><a href="/coverage/"><b>Coverage</b><span>Companies, metrics, forms and freshness, counted from the data</span></a></li>
+          <li><a href="/status/"><b>Status</b><span>What is loaded and how fresh it is</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>New and removed listings in Canada, the UK and the EU</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
+        <p class="site-group-name" aria-hidden="true">Developers</p>
+        <ul class="site-menu" id="site-nav-dev">
+          <li><a href="/developers/"><b>Quickstart and guides</b><span>Your first cited figure in ten minutes</span></a></li>
+          <li><a href="/docs"><b>API reference</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/docs/flags/"><b>Reading the flags</b><span>What each mark next to a figure means</span></a></li>
+          <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="/changelog/"><b>Changelog</b><span>What changed and how versions work</span></a></li>
+        </ul>
+      </div>
+      <a class="site-link" href="/#pricing">Pricing</a>
+      <a class="site-link" href="/account/">Sign in</a>
+      <a class="site-button site-cta" href="/account/">Get API key</a>
+    </nav>
+    <a class="site-button" href="/account/">Get API key</a>
+  </div>
+</header>
+<!-- /shell:header -->
+<main class="ac" id="main">
+  <h1>Activist stakes</h1>
+  <p class="ac-lede">Schedule 13D stakes filed with the SEC, newest first.</p>
+  <p class="ac-disc" id="ac-disc">Information, not signals. Not investment advice.</p>
+  <p class="ac-cov" id="ac-cov">Covers 13D filings in the SEC’s structured format, December 2024 onward. Earlier and free-text filings are not read: for example, <a href="https://www.sec.gov/Archives/edgar/data/891103/000090266424004719/0000902664-24-004719-index.html" target="_blank" rel="noopener">the Schedule 13D on Match Group filed 15 July 2024 ↗</a> is not shown.</p>
+  <section aria-labelledby="ac-list-h">
+    <h2 id="ac-list-h" class="vh">Filings</h2>
+    <div class="ac-tabs" role="tablist" aria-label="Kind of filing">
+      <button type="button" role="tab" data-kind="new" aria-selected="true" title="Original Schedules 13D">New</button>
+      <button type="button" role="tab" data-kind="increased" aria-selected="false" title="Amendments whose stake rose by 0.1 points or more">Increased</button>
+      <button type="button" role="tab" data-kind="decreased" aria-selected="false" title="Amendments whose stake fell by 0.1 points or more, staying at 5% or over">Decreased</button>
+      <button type="button" role="tab" data-kind="exited" aria-selected="false" title="Amendments that report under 5%: the filer’s exit filing">Exited</button>
+      <button type="button" role="tab" data-kind="switched" aria-selected="false" title="Original 13Ds from a filer that filed a passive 13G about the company first">Switched</button>
+    </div>
+    <div class="ac-ctl">
+      <label>Filed in <select id="ac-win"><option value="30">the last 30 days</option><option value="90">the last 90 days</option><option value="365">the last 12 months</option></select></label>
+      <label>Stake <select id="ac-min"><option value="">any (5% and over)</option><option value="10">10% or more</option><option value="20">20% or more</option></select></label>
+    </div>
+    <p class="ac-sum" id="ac-sum" aria-live="polite">Loading…</p>
+    <ol class="ac-rows" id="ac-rows"></ol>
+    <button class="btn" id="ac-more" type="button" hidden>Show more</button>
+    <p class="ac-notes" id="ac-notes"></p>
+    <p class="ac-api" id="ac-api" hidden></p>
+  </section>
+</main>
+<!-- shell:footer -->
+<footer class="site-foot">
+  <div class="site-board">
+    <div class="site-tile statement">
+      <p>Public company intelligence. Built for humans and AI.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA, GLEIF or the Federal Reserve. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF; Federal Reserve H.10 exchange rates are used only for size bands. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance.</p>
+    </div>
+    <nav class="site-tile links" aria-label="Site">
+      <div class="cols">
+        <ul>
+          <li><a href="/developers/">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
+        </ul>
+        <ul>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/docs">API reference</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+        </ul>
+      </div>
+    </nav>
+    <figure class="site-tile photo"><img src="/img/catalogue-card.jpg" width="900" height="675" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
+    <div class="site-tile live" id="live-facts" data-source="/v1/stats">
+      <dl>
+        <div><dt>Companies</dt><dd data-stat="companies">20,540</dd></div>
+        <div><dt>Filings</dt><dd data-stat="filings">8,734,078</dd></div>
+        <div><dt>Normalized facts</dt><dd data-stat="facts">5,580,088</dd></div>
+      </dl>
+      <p class="note" id="live-note">Live from /v1/stats, refreshed every 30 seconds.</p>
+      <p class="note" id="status-empty" hidden>No companies ingested yet. Request any CIK through the API to start.</p>
+      <p class="note" id="status-error" hidden>Live stats are unavailable right now; the figures above may be out of date.</p>
+    </div>
+    <div class="site-tile mark" aria-hidden="true"><span>Provenance</span></div>
+    <a class="site-tile go" href="/account/"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
+  </div>
+  <nav class="site-legal" aria-label="Legal"><a href="/legal/terms/">Terms</a><a href="/legal/privacy/">Privacy</a><a href="/legal/acceptable-use/">Acceptable use</a><a href="/legal/data-sources/">Data sources</a><a href="/changelog/">Changelog</a><a href="/status/">Status</a></nav>
+  <p class="site-credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons. Typefaces: Schibsted Grotesk, IBM Plex Sans and Mono, and Newsreader, served from this site under the <a href="/legal/data-sources/#type-h">SIL Open Font License</a>.</p>
+</footer>
+<!-- /shell:footer -->
+<script src="/app/activists.js" defer></script>
+<script src="/activists/activists.js" defer></script>
+</body>
+</html>
