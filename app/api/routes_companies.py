@@ -724,10 +724,14 @@ def statement(
     # shown as filed, with a note on it and on the shares cell it was checked against
     recon: dict = {}
     if any(f.quality_status in eps_reconcile.STATUSES for f in by_key.values()):
-        for x in eps_reconcile.find(db, sorted({f.cik for f in by_key.values()})):
+        flagged_ciks = sorted({f.cik for f in by_key.values()})
+        for x in eps_reconcile.find(db, flagged_ciks):
             n = eps_reconcile.NOTE
             recon[(x["accession_number"], x["metric"], x["period_end"])] = n
             recon[(x["accession_number"], eps_reconcile.PAIRS[x["metric"]], x["period_end"])] = n
+        for x in eps_reconcile.find_off(db, flagged_ciks):  # S-06b: the one figure off
+            recon.setdefault((x["accession_number"], x["metric"], x["period_end"]),
+                             eps_reconcile.scale_note(x))  # fmt: skip
 
     def cell(f: FactOut, end) -> StatementCell:
         own = statements_service.registrant(f, cik)

@@ -7,11 +7,18 @@ not add up, so every derived use (payout, ratios, screens, marts, chat) leaves i
 leave out anything not "ok" or "partial".
 
 The test is the filing's own figures, never a guess from magnitude: EPS divided by (net income
-/ weighted shares) for the same filing, period and currency, within 5% of 100 ("unit_doubtful":
-probably cents or pence tagged as the main unit; 30 of 30 checked were). Everything else is left
-alone: two-class EPS, preferred dividends, rounding, and the ratios near 1,000 or 1/100, where
-the filing usually prints the EPS right and the share count or net income is the figure off (and
-Fannie Mae's $0.01 after senior preferred dividends lands near 1/100 by coincidence).
+/ weighted shares) for the same filing, period and currency.
+- Within 5% of 100: the EPS is "unit_doubtful" (probably cents or pence tagged as the main unit;
+  30 of 30 checked were).
+- Within 5% of 1,000 or 1/100 (S-06b): which of the three is off is read from the company's
+  other filings for the same period (their comparative columns). A figure is off when no other
+  filing agrees with it, every other filing differs from it by about 1,000, 100 or their
+  inverses, and putting the other filings' figure in its place alone makes the EPS reconcile;
+  when exactly one of the three passes, that fact is "unit_doubtful" (Waters' 59.5 billion
+  weighted shares for 59.5 million; Barrett's EPS 1,570 for $1.57; Palatin's net income in
+  thousands). Otherwise nothing is flagged: Fannie Mae's $0.01 after senior preferred dividends
+  agrees with every filing, and a filing whose only comparison is itself wrong (Landmark Bancorp)
+  is left alone.
 """
 
 from __future__ import annotations
@@ -33,31 +40,43 @@ def cents_as_units(ratio: float) -> bool:
     return abs(ratio / FACTOR - 1) <= BAND
 
 
-def find(db: Session, ciks: list[str] | None = None) -> list[dict]:
-    """Every EPS observation about 100 times its same-filing net income over weighted shares."""
+def _triples(db: Session, ciks: list[str] | None):
+    """(EPS, net income, weighted shares) of one filing and period, in one currency."""
     e, n, sh = aliased(FinancialFact), aliased(FinancialFact), aliased(FinancialFact)
     same = lambda o: and_(o.cik == e.cik, o.accession_number == e.accession_number,  # noqa: E731
                           o.period_class == e.period_class, o.period_end == e.period_end,
                           o.period_start.is_not_distinct_from(e.period_start))  # fmt: skip
     shares_metric = case((e.metric == "eps_diluted", PAIRS["eps_diluted"]),
                          else_=PAIRS["eps_basic"])  # fmt: skip
-    q = (select(e.id, e.cik, e.accession_number, e.metric, e.period_end, e.unit, e.value,
-                e.quality_status, n.value, n.unit, sh.value, sh.id)
+    q = (select(e.id, e.cik, e.accession_number, e.metric, e.period_start, e.period_end,
+                e.unit, e.value, e.quality_status, n.id, n.value, n.unit, n.quality_status,
+                sh.id, sh.metric, sh.value, sh.quality_status)
          .join(n, and_(same(n), n.metric == "net_income", n.value != 0))
          .join(sh, and_(same(sh), sh.metric == shares_metric, sh.value > 0))
          .where(e.metric.in_(tuple(PAIRS)), e.value != 0,
                 e.accession_number.is_not(None)))  # fmt: skip
     if ciks:
         q = q.where(e.cik.in_(ciks))
-    out, seen = [], set()
-    for (fid, cik, acc, metric, end, unit, eps, status, ni, ni_unit, shares,
-         shares_id) in db.execute(q):  # fmt: skip
-        if fid in seen or ni_unit != unit.split("/")[0]:  # one currency; one pair per fact
+    seen = set()
+    for r in db.execute(q):
+        if r[0] in seen or r[11] != r[6].split("/")[0]:  # one currency; one pair per fact
             continue
-        ratio = float(eps) / (float(ni) / float(shares))
+        seen.add(r[0])
+        yield r
+
+
+def _ratio(eps: float, net_income: float, shares: float) -> float:
+    return eps / (net_income / shares)
+
+
+def find(db: Session, ciks: list[str] | None = None) -> list[dict]:
+    """Every EPS observation about 100 times its same-filing net income over weighted shares."""
+    out = []
+    for (fid, cik, acc, metric, _start, end, _unit, eps, status, _nid, ni, _nu, _ns, shares_id,
+         _sm, shares, _ss) in _triples(db, ciks):  # fmt: skip
+        ratio = _ratio(float(eps), float(ni), float(shares))
         if not cents_as_units(ratio):
             continue
-        seen.add(fid)
         out.append({"id": fid, "cik": cik, "accession_number": acc, "metric": metric,
                     "period_end": end, "eps": float(eps), "net_income": float(ni),
                     "shares": float(shares), "shares_id": shares_id, "ratio": ratio,
@@ -65,11 +84,87 @@ def find(db: Session, ciks: list[str] | None = None) -> list[dict]:
     return out
 
 
+def _near(ratio: float, k: float) -> bool:
+    return abs(ratio / k - 1) <= BAND
+
+
+_SCALES = (1000.0, 0.001, 100.0, 0.01)
+
+
+def _others(db: Session, cik: str, metric: str, unit: str, start, end, acc: str) -> list:
+    """(value, form, filed date, accession, source_url) of the same figure in other filings."""
+    f = FinancialFact
+    return list(db.execute(select(f.value, f.form_type, f.filed_date, f.accession_number,
+                                  f.source_url).where(
+        f.cik == cik, f.metric == metric, f.unit == unit, f.period_end == end,
+        f.period_start.is_not_distinct_from(start), f.accession_number != acc,
+        f.value.is_not(None), f.value != 0)))  # fmt: skip
+
+
+def find_off(db: Session, ciks: list[str] | None = None) -> list[dict]:
+    """S-06b: in EPS triples about 1,000 or 1/100 off, the one figure the company's other
+    filings show to be off (see the module docstring)."""
+    out, seen = [], set()
+    for t in _triples(db, ciks):
+        (eid, cik, acc, metric, start, end, unit, eps, es, nid, ni, nu, ns, sid, sm, shares,
+         ss) = t  # fmt: skip
+        vals = {"eps": float(eps), "net_income": float(ni), "shares": float(shares)}
+        if not (_near(_ratio(**vals), 1000.0) or _near(_ratio(**vals), 0.01)):
+            continue
+        inputs = (("eps", eid, metric, unit, es), ("net_income", nid, "net_income", nu, ns),
+                  ("shares", sid, sm, "shares", ss))  # fmt: skip
+        fixes = []
+        for name, fid, m, u, was in inputs:
+            alts = _others(db, cik, m, u, start, end, acc)
+            v = vals[name]
+            if not alts or any(abs(v / float(a[0]) - 1) < 0.02 for a in alts):
+                continue  # nothing to compare with, or another filing agrees with it
+            if not all(any(_near(v / float(a[0]), k) for k in _SCALES) for a in alts):
+                continue
+            alts.sort(key=lambda a: float(a[0]))
+            other = alts[len(alts) // 2]
+            tried = {**vals, name: float(other[0])}
+            if abs(_ratio(**tried) - 1) <= BAND:
+                factor = next(k for k in _SCALES if _near(v / float(other[0]), k))
+                fixes.append({"id": fid, "cik": cik, "accession_number": acc, "metric": m,
+                              "period_end": end, "value": v, "factor": factor,
+                              "other": {"value": float(other[0]), "form": other[1],
+                                        "filed_date": other[2], "accession_number": other[3],
+                                        "source_url": other[4]},
+                              "status": UNIT_DOUBTFUL, "was": was})  # fmt: skip
+        if len(fixes) == 1 and fixes[0]["id"] not in seen:
+            seen.add(fixes[0]["id"])  # a net income or shares fact can sit in two triples
+            out.append(fixes[0])
+    return out
+
+
+_DIRECTION = {
+    1000.0: ("about 1,000 times", "probably reported in thousands without the scale"),
+    100.0: ("about 100 times", "probably in cents or pence tagged as the main unit"),
+    0.001: ("about 1/1,000 of", "probably reported in thousands"),
+    0.01: ("about 1/100 of", "probably reported in hundreds or as cents"),
+}
+
+
+def scale_note(f: dict) -> str:
+    """The cell note for a figure off by a scale, in its direction, citing a filing it was
+    compared with."""
+    size, why = _DIRECTION[f["factor"]]
+    o = f["other"]
+    when = getattr(o["filed_date"], "isoformat", lambda: str(o["filed_date"]))()
+    return (
+        f"As filed, this figure is {size} the same figure in the company's {o['form']} filed "
+        f"{when} ({why}); with that filing's figure the EPS reconciles. Shown as filed; left "
+        "out of ratios, growth and screens."
+    )
+
+
 def apply(db: Session, ciks: list[str] | None = None, found: list[dict] | None = None) -> int:
-    """Set the status on each found EPS fact (never on the shares or net income). Returns how
-    many changed. Only "ok" or "partial" facts are flagged; a fact already flagged stays."""
-    ids = [f["id"] for f in (find(db, ciks) if found is None else found)
-           if f["was"] in ("ok", "partial")]  # fmt: skip
+    """Set the status on each found fact. Returns how many changed. Only "ok" or "partial"
+    facts are flagged; a fact already flagged stays."""
+    if found is None:
+        found = find(db, ciks) + find_off(db, ciks)
+    ids = sorted({f["id"] for f in found if f["was"] in ("ok", "partial")})
     for k in range(0, len(ids), 1000):
         db.execute(update(FinancialFact).where(FinancialFact.id.in_(ids[k:k + 1000]))
                    .values(quality_status=UNIT_DOUBTFUL))  # fmt: skip
