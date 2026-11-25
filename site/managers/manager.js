@@ -50,7 +50,7 @@
       var x = 4 + i * (bw + 8), v = r.value_usd, h2 = v == null ? 0 : Math.max(2, (H - 16) * v / max), g = document.createElementNS(NS, 'g');
       var rect = document.createElementNS(NS, 'rect'); rect.setAttribute('x', x); rect.setAttribute('y', H - h2); rect.setAttribute('width', bw); rect.setAttribute('height', h2); rect.setAttribute('rx', 2); rect.setAttribute('class', 'mg-bar' + (r.quarter === cur ? ' cur' : ''));
       var t = document.createElementNS(NS, 'title'); t.textContent = qn(r.quarter) + ': ' + (v == null ? 'values look reported in thousands; not added up' : big(v)) + ', ' + int(r.positions) + ' positions'; rect.appendChild(t); g.appendChild(rect);
-      var lab = document.createElementNS(NS, 'text'); lab.setAttribute('x', x + bw / 2); lab.setAttribute('y', H + 13); lab.setAttribute('text-anchor', 'middle'); lab.setAttribute('class', 'mg-ax'); lab.textContent = qn(r.quarter); g.appendChild(lab);
+      var lab = document.createElementNS(NS, 'text'); lab.setAttribute('x', x + bw / 2); lab.setAttribute('y', H + 13); lab.setAttribute('text-anchor', 'middle'); lab.setAttribute('class', 'mg-ax'); lab.textContent = rows.length <= 6 ? qn(r.quarter) : !i || r.quarter.slice(0, 4) !== rows[i - 1].quarter.slice(0, 4) ? r.quarter.slice(0, 4) : ''; g.appendChild(lab); // more than six quarters: each year once
       if (v != null && r.quarter === cur) { var vl = document.createElementNS(NS, 'text'); vl.setAttribute('x', x + bw / 2); vl.setAttribute('y', H - h2 - 4); vl.setAttribute('text-anchor', 'middle'); vl.setAttribute('class', 'mg-val'); vl.textContent = big(v); g.appendChild(vl); }
       svg.appendChild(g);
     });

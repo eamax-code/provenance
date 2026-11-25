@@ -41,7 +41,8 @@ a.mg-flag { cursor: pointer; text-decoration-line: underline; text-decoration-co
 .mg-ax { font: 11px var(--face); fill: var(--soft); }
 .mg-val { font: 600 11px var(--face); fill: var(--ink); }
 .mg .tw { overflow-x: auto; }
-.mg-table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.mg-table { width: 100%; border-collapse: collapse; font-size: .9rem; } /* tabular figures on numbers only: in the face they also widen . and , in names */
+.mg-table .n { font-variant-numeric: tabular-nums; }
 .mg-table th[scope=col] { text-align: left; font-size: .78rem; font-weight: 600; color: var(--soft); padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .mg-table th[scope=col] span[title] { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
 .mg-table th[scope=row] { text-align: left; font-weight: 600; padding: 7px 8px; border-bottom: 1px solid var(--line-soft); }

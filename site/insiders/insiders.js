@@ -1,13 +1,11 @@
-/* Insider trades (Q-03, docs/contracts/insider-screener.md): open-market buys (P) and sales (S) across companies, one row
-   per Form 4, code and security class. Every filter lives in the URL, so each screen has its own link. Buy and sale are
-   said in words, never by colour; flags (amended, value partial, cluster) sit on the row with a tooltip each. The CSV
-   starts with the disclaimer. Text nodes only, never HTML; links go to sec.gov/Archives or into the Explorer. */
+/* Insider trades (Q-03, docs/contracts/insider-screener.md): open-market buys and sales, one row per Form 4, code and
+   class. Filters live in the URL; buy and sale in words, never colour; flags on the row link their entry. Text nodes only. */
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var ARCHIVE = /^https:\/\/www\.sec\.gov\/Archives\//;
-  var KEYS = ['type', 'since', 'until', 'as_of', 'min_value', 'max_value', 'role', 'title', 'cik', 'owner_cik', 'plan_10b5_1', 'cluster', 'sort'];
+  var KEYS = ['type', 'since', 'until', 'as_of', 'min_value', 'max_value', 'role', 'title', 'cik', 'owner_cik', 'plan_10b5_1', 'cluster', 'plan_purchase', 'sort'];
   var LIMIT = 50, MAXOFF = 5000, DISC = 'Information, not signals. Not investment advice.';
   // the presets (PM-approved labels); the first is the plain default screen
   var PRESETS = [['Latest', {}], ['Large buys (over $1M)', { type: 'buy', min_value: '1000000', sort: 'value' }],
@@ -67,6 +65,7 @@
     if (roles.length) next.role = roles.join(',');
     if (next.sort === 'date') delete next.sort;
     if (st.cluster && next.type !== 'sell') next.cluster = st.cluster; // set by the Cluster buys preset; the form has no field for it
+    if (st.plan_purchase && next.type !== 'sell') next.plan_purchase = st.plan_purchase; // from a link
     if (st.owner_cik) next.owner_cik = st.owner_cik;
     st = next;
   }
@@ -91,6 +90,9 @@
       var t = 'Amended (4/A) on ' + dmy(a.filed_date) + ': the figures may have been corrected. Open the amendment on sec.gov.';
       out.push(ARCHIVE.test(a.source_url || '') ? el('a', { class: 'it-flag', href: a.source_url, target: '_blank', rel: 'noopener', title: t, text: 'Amended (4/A)' + ((r.amended_by || []).length > 1 ? ' ×' + r.amended_by.length : '') }) : fx('Amended (4/A)', t, 'amended'));
     });
+    // F-03f/g: plan purchases, stated or likely
+    if (r.plan_purchase) out.push(fx('Plan purchase', 'The filing says it was bought under a plan (an employee or director purchase plan, a plan trust or dividend reinvestment)', 'plan-purchase'));
+    else if (r.plan_inferred) out.push(fx('Likely plan purchase (not stated)', 'A fraction of a share under 100 shares, as plan purchases usually are; the filing does not say so', 'plan-inferred'));
     if (r.value_partial) out.push(fx('Value partial', 'Value partial: some lines had no price', 'value-partial'));
     if (r.price_outlier) out.push(fx('Price looks wrong as filed', 'The price on this Form 4 is far from this company\u2019s other trades that month; it may be a total typed in the price box. Left out of value filters and ranking.', 'price-outlier'));
     (r.duplicate_filings || []).slice(0, 1).forEach(function (d) { var t = 'Filed twice: the same trades on ' + f0(r) + ' and ' + d.source_url + '. Shown once.'; out.push(ARCHIVE.test(d.source_url || '') ? el('a', { class: 'it-flag', href: d.source_url, target: '_blank', rel: 'noopener', title: t, text: 'Filed twice' }) : fx('Filed twice', t, 'filed-twice')); });

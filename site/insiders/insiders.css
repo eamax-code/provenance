@@ -24,13 +24,14 @@
 .it-sum { margin: 0; color: var(--soft); max-width: 110ch; }
 .it .btn { min-height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: 600 .9rem var(--face); cursor: pointer; white-space: nowrap; }
 .it .tw { overflow-x: auto; }
-.it-table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.it-table { width: 100%; border-collapse: collapse; font-size: .9rem; } /* tabular figures on numbers only: in the face they also widen . and , in names */
+.it-table .n, .it-filed, .it-date { font-variant-numeric: tabular-nums; }
 .it-table th { position: sticky; top: 0; background: var(--bg); text-align: left; font-size: .78rem; font-weight: 600; color: var(--soft); padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .it-table th span[title] { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
 .it-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 .it-table .n { text-align: right; white-space: nowrap; }
 .it-filed, .it-date { white-space: nowrap; color: var(--soft); }
-.it-co a, .it-f a, .it-val a { color: var(--ink); text-decoration-line: underline; text-decoration-color: var(--link-line); }
+.it-co a, .it-f a, .it-val a, .it-how a { color: var(--ink); text-decoration-line: underline; text-decoration-color: var(--link-line); }
 .it .tag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; font: 500 11.5px var(--mono); color: var(--soft); vertical-align: 1px; }
 .it-who { display: block; font-weight: 600; }
 .it-role { display: block; font-size: .8rem; color: var(--soft); }

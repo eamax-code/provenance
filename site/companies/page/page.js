@@ -106,7 +106,8 @@
   P.inactive = function (c, asOf, k05, href) {
     if (P.stillFiling(c, asOf)) return null;
     var lp = c.last_periodic_report, s = P.successorOf(c, k05);
-    var kids = [lp ? 'No periodic report since ' + lp.form + ' filed ' + P.date(lp.filed_date) : 'Files no periodic reports of its own (offerings only)'];
+    var t = lp ? 'No periodic report since ' + lp.form + ' filed ' + P.date(lp.filed_date) : 'Files no periodic reports of its own (offerings only)';
+    var kids = [P.el('a', { href: '/docs/flags/#' + (lp ? 'no-periodic' : 'offerings-only'), 'aria-label': t + ': what this means', text: t })]; // the mark explains itself
     if (s) {
       var why = (s.quote ? '“' + s.quote + '” ' : '') + [s.form, s.date && 'filed ' + P.date(s.date)].filter(Boolean).join(' ');
       kids.push(' · ' + s.label + ' ', s.cik ? P.el('a', { href: (href || function (k) { return '/companies/' + k; })(parseInt(s.cik, 10)), title: why, text: P.orgName(s.name) }) : P.el('span', { title: why, text: P.orgName(s.name) }));

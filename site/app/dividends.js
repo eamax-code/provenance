@@ -5,6 +5,9 @@
    flagged as possibly special, never called special. No yield. */
 (function () {
   'use strict';
+  // the API's notes for a reader: the basis line above already says as reported and no yield, so the note restating it
+  // goes, and so do notes about fields this block doesn't show (split_adjusted, special)
+  var notes = function (b) { return (b.notes || []).filter(function (n) { return !/^As reported:|\bsplit_adjusted\b|^special\b/.test(n); }).join(' '); };
   var ARCHIVE = /^https:\/\/www\.sec\.gov\/Archives\//, cache = {};
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);
@@ -47,7 +50,7 @@
     if (r.status === 404) { host.hidden = true; return; }
     if (!r.ok) { host.replaceChildren(head, el('p', { class: 'muted small', text: r.status === 403 ? 'Dividends for this company need a free key (the demo key covers the showcase companies).' : r.status === 429 ? 'Too many requests this minute; dividends will load on the next view.' : 'Dividends are unavailable right now.' })); return; }
     var b = r.b || {}, data = b.data || [], by = {};
-    if (!data.length) { host.replaceChildren.apply(host, [head, el('p', { class: 'muted', text: empty }), (b.notes || []).length ? el('p', { class: 'muted small', text: b.notes.join(' ') }) : null].filter(Boolean)); return; }
+    if (!data.length) { host.replaceChildren.apply(host, [head, el('p', { class: 'muted', text: empty }), notes(b) ? el('p', { class: 'muted small', text: notes(b) }) : null].filter(Boolean)); return; }
     data.forEach(function (d) { by[d.period_label] = d; });
     var cols = (o.cols && o.cols.length ? o.cols : data.map(function (d) { return d.period_label; })), flags = [];
     var row = function (label, tip, cell, id) { return el('tr', {}, [el('th', { scope: 'row' }, [id ? el('a', { href: '/docs/flags/#' + id, title: tip, 'aria-label': label + ': what this means', text: label }) : tip ? el('span', { title: tip, text: label }) : label])].concat(cols.map(function (c) { var d = by[c]; return d ? cell(d, c) : el('td', { class: 'n muted', title: 'not reported', text: '—' }); }))); };
@@ -77,7 +80,7 @@
       flags.length ? el('ul', { class: 'dv-flags', 'aria-label': 'Flags' }, flags) : null,
       mixed ? el('p', { class: 'muted small', text: mixed }) : null,
       splits.length ? el('p', { class: 'muted small', text: 'Reviewed splits: ' + splits.join('; ') + '.' }) : null,
-      el('p', { class: 'muted small', text: [(b.labels || {}).basis_note].concat(b.notes || []).filter(Boolean).join(' ') })].filter(Boolean)); // a null child would print "null"
+      notes(b) ? el('p', { class: 'muted small', text: notes(b) }) : null].filter(Boolean)); // a null child would print "null"
     if (o.labelWidth) t.querySelectorAll('tr > :first-child').forEach(function (c) { c.style.width = c.style.minWidth = o.labelWidth + 'px'; }); // line the periods up under the statement's
     var w = t.parentNode; if (!o.newestFirst) w.scrollLeft = w.scrollWidth;
   }

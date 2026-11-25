@@ -61,7 +61,7 @@
   $('fs-to').addEventListener('change', function () { st.filed_to = this.value; run(); });
   $('fs-cik').addEventListener('change', function () { st.cik = this.value.replace(/\D/g, ''); run(); });
   if (window.matchMedia && matchMedia('(max-width: 760px)').matches) $('fs-sheet').open = false; // a sheet under the box on phones
-  // "Exact phrase" quotes what was typed; "Any word" joins the words with or; "All words" leaves it as typed
+  // Exact phrase quotes it; Any word joins with or; All words leaves it
   function shaped() {
     var v = q.value.trim(), mode = (document.querySelector('input[name=fs-mode]:checked') || {}).value;
     if (mode === 'phrase' && v && !/^".*"$/.test(v)) return '"' + v.replace(/"/g, '') + '"';
@@ -111,7 +111,7 @@
     if (hitsBox.id !== 'fs-hits') { var ol = el('ol', { class: 'fs-hits', id: 'fs-hits' }); hitsBox.replaceWith(ol); hitsBox = ol; }
     document.body.classList.remove('fs-empty');
     var my = ++seq, off = append ? next : 0;
-    if (!append) { hitsBox.textContent = ''; shown = 0; lastAcc = null; $('fs-h').textContent = /"/.test(st.q) ? 'Filings that say: ' + st.q : 'Filings that say “' + st.q + '”'; document.title = st.q + ' · Search inside filings · Provenance'; say('Searching…'); }
+    if (!append) { hitsBox.textContent = ''; shown = 0; lastAcc = null; var ww = loose(); $('fs-h').textContent = /"/.test(st.q) ? 'Filings that say: ' + st.q : ww ? 'Filings with the words ' + ww.map(function (t) { return '“' + t + '”'; }).join(' and ') : 'Filings that say “' + st.q + '”'; document.title = st.q + ' · Search inside filings · Provenance'; say('Searching…'); }
     more.hidden = true; if (!append) what.hidden = true;
     fetch('/v1/search/filings?' + query(off).toString() + '&limit=' + LIMIT, { headers: { Accept: 'application/json', 'X-API-Key': key() } })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { return { ok: r.ok, status: r.status, b: b }; }); })
@@ -143,19 +143,19 @@
       })
       .catch(function () { if (my === seq) say('The search could not run. Check the connection and try again.'); });
   }
-  // 2+ words unquoted, no or/-word: offer the exact phrase
+  // 2+ words unquoted, no or/-word: the words, else null
+  function loose() { var w = st.q.split(/\s+/).filter(Boolean); return w.length > 1 && !/"/.test(st.q) && !w.some(function (t) { return /^(or|-.*)$/i.test(t); }) ? w : null; }
   function exact() {
-    var w = st.q.split(/\s+/).filter(Boolean), ex = $('fs-exact');
+    var w = loose(), ex = $('fs-exact');
     if (ex) ex.remove();
-    if (w.length < 2 || /"/.test(st.q) || w.some(function (t) { return /^(or|-.*)$/i.test(t); })) return;
+    if (!w) return;
     var p = '"' + w.join(' ') + '"', u = query(0); u.set('q', p);
     var a = el('a', { href: '/search/?' + u.toString(), text: 'Search the exact phrase “' + w.join(' ') + '”?' });
     a.addEventListener('click', function (e) { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); st.q = q.value = p; run(); });
     $('fs-sum').after(el('p', { class: 'fs-exact', id: 'fs-exact' }, [a]));
   }
   more.addEventListener('click', function () { run(true); });
-  // before the first search: no filters to set yet, three searches to start from (PM, 24 Nov). Each returned real hits on
-  // the live endpoint; "going concern" finds none among the showcase companies, so it shows only with a key.
+  // before the first search: three to start from (PM, 24 Nov); "going concern" only with a key (no showcase hit)
   function examples() {
     var keyed = key() !== 'demo', ex = [
       keyed ? ['“going concern”', { q: '"going concern"' }] : null,

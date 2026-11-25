@@ -1,6 +1,5 @@
-/* A 10-K item as filed: a reading column (about 72 characters) with its contents beside it on wide screens and in a
-   sheet on phones. Long text paints lazily by blocks (content-visibility), so nothing above the reader shifts.
-   Matches of ?q= are marked as Search marks them (bold, accent underline), never the marker yellow. Shell tokens only. */
+/* A 10-K item as filed: a 72ch column, contents beside it (a sheet on phones); blocks paint lazily; matches marked as
+   Search marks them, never in marker yellow. Shell tokens only. */
 .sx { max-width: 1180px; margin: 0 auto; padding: 24px var(--m) 64px; font: 400 1rem/1.6 var(--face); color: var(--ink); }
 .sx a { color: var(--ink); text-decoration-line: underline; text-decoration-color: var(--link-line); text-underline-offset: 2px; }
 .sx-co { margin: 0 0 4px; font-weight: 600; }
@@ -11,16 +10,16 @@
 .sx-items a[aria-current="page"] { text-decoration-color: var(--accent-hi); text-decoration-thickness: 2px; }
 .sx-asis { margin: 0 0 14px; max-width: 80ch; font-size: .9rem; color: var(--soft); }
 .sx-asis b { color: var(--ink); }
-.sx-find { position: sticky; top: 0; z-index: 2; margin: 0 0 12px; padding: 8px 0; background: var(--bg); border-bottom: 1px solid var(--line); font-size: .92rem; }
+.sx-find { position: sticky; top: var(--bar-h, 0px); z-index: 2; margin: 0 0 12px; padding: 8px 0; background: var(--bg); border-bottom: 1px solid var(--line); font-size: .92rem; }
 .sx .btn { min-height: 36px; margin-left: 6px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: 600 .88rem var(--face); cursor: pointer; }
 .sx-pos { font-variant-numeric: tabular-nums; }
 .sx-layout { display: grid; grid-template-columns: 17rem minmax(0, 72ch); gap: 40px; align-items: start; }
-.sx-toc { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; font-size: .86rem; line-height: 1.4; }
+.sx-toc { position: sticky; top: calc(var(--bar-h, 0px) + 16px); max-height: calc(100vh - var(--bar-h, 0px) - 32px); overflow: auto; font-size: .86rem; line-height: 1.4; }
 .sx-toc-h, .sx-sheet-h { margin: 0 0 6px; font-weight: 700; }
 .sx-toc ol, .sx-sheet ol { list-style: none; margin: 0; padding: 0; }
 .sx-toc li, .sx-sheet li { padding: 4px 0 4px 12px; }
 .sx-toc li.g, .sx-sheet li.g { padding-left: 0; font-weight: 600; margin-top: 6px; }
-.sx-toc a, .sx-sheet a { color: var(--soft); text-decoration-line: underline; text-decoration-color: var(--line-soft); text-underline-offset: 3px; } /* every link underlined, quietly here (a heading can read as a figure: "2025") */
+.sx-toc a, .sx-sheet a { color: var(--soft); text-decoration-line: underline; text-decoration-color: var(--line-soft); text-underline-offset: 3px; } /* underlined, quietly (a heading can read as a figure) */
 .sx-toc a:hover, .sx-toc a:focus-visible, .sx-sheet a:hover { color: var(--ink); text-decoration-line: underline; }
 .sx-tocbtn { display: none; }
 .sx-text { grid-column: 2; min-width: 0; }
@@ -41,5 +40,6 @@ mark.sx-m.on { outline: 2px solid var(--accent-hi); outline-offset: 2px; border-
   .sx-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .sx-toc { display: none !important; }
   .sx-text { grid-column: 1; }
-  .sx-tocbtn:not([hidden]) { display: inline-flex; align-items: center; position: sticky; top: 8px; z-index: 3; justify-self: end; min-height: 40px; margin: 0 0 8px; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); font: 600 .9rem var(--face); box-shadow: 0 2px 8px rgba(0, 0, 0, .2); }
+  /* phones: Contents floats at the thumb */
+  .sx-tocbtn:not([hidden]) { display: inline-flex; align-items: center; position: fixed; right: var(--m, 16px); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 3; min-height: 44px; margin: 0; padding: 0 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); font: 600 .9rem var(--face); box-shadow: 0 2px 8px rgba(0, 0, 0, .2); }
 }

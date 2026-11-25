@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var actLink = location.hash === '#activists'; // the URL sync drops the hash before the section draws: remembered here, used once
+  var actLink = location.hash === '#activists', ftdLink = location.hash === '#ftd'; // the URL sync drops the hash before the section draws: remembered here, used once
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);
     Object.keys(attrs || {}).forEach(function (k) {
@@ -195,7 +195,8 @@
     var k = c.successor, sb = c.succeeded_by, L = { acquired: 'Acquired by', merged: 'Merged into', succeeded: 'Succeeded by' }, s = null;
     if (k) s = { cik: k.cik, name: k.display_name || k.name, label: 'Succeeded by', quote: k.quote, form: (k.evidence || {}).form_type, url: k.quote_url || (k.evidence || {}).source_url };
     else if (sb && (sb.display_name || sb.name || sb.name_as_filed)) s = { cik: sb.cik, name: sb.display_name || sb.name || sb.name_as_filed, label: L[sb.kind] || 'Succeeded by', quote: sb.quote, form: sb.form, date: sb.filed_date, url: sb.document_url || sb.filing_url };
-    var kids = [lp ? 'No periodic report since ' + lp.form + ' filed ' + day(lp.filed_date) : 'Files no periodic reports of its own (offerings only)'];
+    var t = lp ? 'No periodic report since ' + lp.form + ' filed ' + day(lp.filed_date) : 'Files no periodic reports of its own (offerings only)';
+    var kids = [el('a', { href: '/docs/flags/#' + (lp ? 'no-periodic' : 'offerings-only'), 'aria-label': t + ': what this means', text: t })]; // the mark explains itself
     if (s) {
       var why = (s.quote ? '“' + s.quote + '” ' : '') + [s.form, s.date && 'filed ' + day(s.date)].filter(Boolean).join(' '), sc = s.cik ? String(parseInt(s.cik, 10)) : null;
       kids.push(' · ' + s.label + ' ', sc ? el('a', { href: '/app/?c=' + sc, title: why, text: orgName(s.name), on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(sc); } } } }) : el('span', { title: why, text: orgName(s.name) }));
@@ -605,7 +606,7 @@
     // columns on an earlier share basis (split_break.pre_split_columns): they need not come first (a later filing restates
     // only the periods it shows again), so each such cell is marked and YoY only compares two cells on the same basis
     var preOf = function (r) { var ks = r.split_break && r.split_break.pre_split_columns; if (!ks) return null; var set = {}; ks.forEach(function (k) { var q = colAt(k); if (q > -1) set[q] = 1; }); return set; };
-    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: fyTip(c, b.label_basis), text: colLabel(c) }); })));
+    var head = el('tr', {}, [el('th', { scope: 'col', class: 'stick' }, lab(STN[S.st], STS[S.st] !== STN[S.st] && STS[S.st]))].concat(cols.map(function (c, ci) { return el('th', { scope: 'col', class: 'n' + (sbCols.indexOf(ci) > -1 ? ' sb' : ''), title: fyTip(c, b.label_basis) }, [c.transition ? el('a', { class: 'st-tr', href: '/docs/flags/#transition-' + (/\bQ\d/.test(c.period_label || '') ? 'quarter' : 'period'), 'aria-label': colLabel(c) + ': what this means', text: colLabel(c) }) : colLabel(c)]); }))); // a transition column's label opens its entry
     // YoY compares a column with the one that ends about a year before it (S-07): a transition period, or a year that
     // overlaps the one before (a changed year end), has no like-for-like year and shows "—"
     // a quarter inside a transition is still a quarter, so it compares; only the part-year column does not
@@ -836,17 +837,25 @@
       el('div', { class: 'ov-h' }, [el('h3', { id: 'own-h', text: 'Institutional holders (13F)' })]), el('p', { class: 'muted small', id: 'own-when' }),
       el('div', { class: 'own-nums', id: 'own-nums' }), el('p', { class: 'own-flag', id: 'own-flag', hidden: 'hidden' }),
       el('div', { class: 'tw' }, [el('table', { class: 'own-table', id: 'own-table' })]), el('p', { class: 'muted small', id: 'own-more', hidden: 'hidden' }), el('p', { class: 'notes small muted', id: 'own-notes' })]);
-    var ins = el('section', { class: 'ws-sec', 'aria-labelledby': 'ins-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ins-h', text: 'Insider transactions (Forms 3, 4, 5)' }), el('a', { class: 'linkish', href: '/insiders/', text: 'Screen all companies' })]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice.' }), el('p', { class: 'muted', text: 'Loading…' })]);
-    var big = el('section', { class: 'ws-sec', 'aria-labelledby': 'big-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'big-h', text: 'Holders above 5% (Schedules 13D and 13G)' })]), el('p', { class: 'muted', text: 'Loading…' })]);
+    var ins = el('section', { id: 'insiders', class: 'ws-sec', 'aria-labelledby': 'ins-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'ins-h', text: 'Insider transactions (Forms 3, 4, 5)' }), el('a', { class: 'linkish', href: '/insiders/', text: 'Screen all companies' })]), el('p', { class: 'muted small', text: 'Information, not signals. Not investment advice.' }), el('p', { class: 'muted', text: 'Loading…' })]);
+    var big = el('section', { id: 'above5', class: 'ws-sec', 'aria-labelledby': 'big-h' }, [el('div', { class: 'ov-h' }, [el('h3', { id: 'big-h', text: 'Holders above 5% (Schedules 13D and 13G)' })]), el('p', { class: 'muted', text: 'Loading…' })]);
     // Q-07 activist stakes (Schedule 13D): a lazy module; hidden while the endpoint is not on the server
     var actHead = el('div', { class: 'ov-h' }, [el('h3', { id: 'act-h', text: 'Activist stakes (Schedule 13D)' }), el('a', { class: 'linkish', href: '/activists/', text: 'New stakes at all companies' })]);
     var act = el('section', { id: 'activists', class: 'ws-sec', 'aria-labelledby': 'act-h' }, [actHead, el('p', { class: 'muted', text: 'Loading…' })]);
-    pane.replaceChildren(own, ins, big, act);
-    var actDraw = function (all) { ac().then(function (A) { return A.load('/v1/companies/' + cik + '/activists?status=' + (all ? 'all' : 'current') + (S.as_of ? '&as_of=' + S.as_of : '')).then(function (r) { if (S.tab !== 'ownership' || S.cik !== cik) return; A.block(act, r, { head: actHead, all: all, onAll: actDraw }); if (actLink && !act.hidden) { actLink = false; anchor(); } }); }).catch(function () { act.hidden = true; }); };
+    // a section list (PM, 25 Nov): five sections make a long tab; each link jumps to its section (the same anchors as the
+    // deep links), a count where one is known; sticky on phones only; nothing collapses
+    var nav = el('nav', { class: 'pp-nav own-nav', 'aria-label': 'Ownership sections' }, [['ownership', '13F holders'], ['insiders', 'Insiders'], ['above5', 'Above 5%'], ['activists', 'Activists'], ['ftd', 'Fails to deliver']].map(function (x) {
+      return el('a', { href: '?c=' + cik + '&tab=ownership#' + x[0], 'data-s': x[0], on: { click: function (e) { var t = $(x[0]); if (e.metaKey || e.ctrlKey || !t) return; e.preventDefault(); t.scrollIntoView({ block: 'start', behavior: 'smooth' }); } } }, [x[1], el('span', { class: 'own-n' })]);
+    }));
+    var navCount = function (id, n) { var a = nav.querySelector('[data-s="' + id + '"] .own-n'); if (a) a.textContent = n == null ? '' : count(n); };
+    var navSync = function () { [].forEach.call(nav.children, function (a) { var t = $(a.getAttribute('data-s')); a.hidden = !t || t.hidden; }); };
+    if (d.ownership && d.ownership.holders_count != null) navCount('ownership', d.ownership.holders_count);
+    pane.replaceChildren(nav, own, ins, big, act);
+    var actDraw = function (all) { ac().then(function (A) { return A.load('/v1/companies/' + cik + '/activists?status=' + (all ? 'all' : 'current') + (S.as_of ? '&as_of=' + S.as_of : '')).then(function (r) { if (S.tab !== 'ownership' || S.cik !== cik) return; A.block(act, r, { head: actHead, all: all, onAll: actDraw }); navSync(); if (actLink && !act.hidden) { actLink = false; anchor(act); } }); }).catch(function () { act.hidden = true; }); };
     // a deep link (#activists, from /activists/) keeps the section in view while the sections above it load, until the
     // reader scrolls, taps or types, or for 4 s at most
-    var anchor = function () {
-      var keep = function () { act.scrollIntoView({ block: 'start' }); }, ro = new ResizeObserver(keep), ev = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+    var anchor = function (sec) {
+      var keep = function () { sec.scrollIntoView({ block: 'start' }); }, ro = new ResizeObserver(keep), ev = ['wheel', 'touchstart', 'keydown', 'mousedown'];
       var stop = function () { ro.disconnect(); ev.forEach(function (e) { removeEventListener(e, stop, true); }); };
       keep(); ro.observe(pane); ev.forEach(function (e) { addEventListener(e, stop, true); }); setTimeout(stop, 4000);
     };
@@ -862,6 +871,7 @@
         if (S.tab !== 'ownership' || S.cik !== cik) return;
         var rows = [].concat.apply([], ((r.b || {}).data || []).map(function (g) { return g.rows || []; })), d = rows.map(function (x) { return x.settlement_date; }).sort().pop(); if (d) ftdLast = d;
         F.block(ftd, r, { head: ftdHead, range: range, onRange: ftdDraw, asOf: S.as_of });
+        navSync(); if (ftdLink && !ftd.hidden) { ftdLink = false; anchor(ftd); } // a deep link (#ftd, from /docs/flags/)
       }); }).catch(function () { ftd.hidden = true; });
     };
     ftdDraw('3m');
@@ -883,23 +893,27 @@
       var rows = r.ok && r.body && r.body.data || [];
       var body = rows.map(function (t) {
         var sell = t.acquired_disposed === 'D', open = /open-market/.test(t.trans_code_label || '');
-        return el('tr', {}, [el('td', { text: day(t.trans_date) }), el('th', { scope: 'row' }, [t.owner_name, el('span', { class: 'muted small ins-role', title: t.role || '', text: t.role || '' })]),
-          el('td', {}, [(t.trans_code_label || t.trans_code || '').replace(/^./, function (c) { return c.toUpperCase(); }), t.is_derivative ? el('span', { class: 'tag', text: 'derivative' }) : null, t.plan_10b5_1 ? el('span', { class: 'tag', title: 'Made under a Rule 10b5-1 trading plan set up in advance', text: '10b5-1 plan' }) : null]),
-          el('td', { class: 'n' + (open ? (sell ? ' down' : ' up') : '') }, [(sell ? '−' : '+') + count(t.shares || 0)]), el('td', { class: 'n opt2', text: t.price != null ? money(t.price, 'USD', 2).replace(/\.00$/, '') : '—' }),
-          el('td', { class: 'n', text: t.value != null ? money(t.value, 'USD') : '—' }), el('td', { class: 'n muted opt2', text: t.shares_after != null ? count(t.shares_after) : '—' }),
-          el('td', {}, [ARCHIVE.test(t.source_url || '') ? el('a', { href: t.source_url, target: '_blank', rel: 'noopener', text: 'Form ' + t.form_type + ' ↗' }) : null])]);
+        // the Form 4 sits under the transaction (no Filing column): the card fits beside the 13F holders; phones stack the row
+        return el('tr', {}, [el('td', { class: 'ins-d', text: day(t.trans_date) }), el('th', { scope: 'row' }, [t.owner_name, el('span', { class: 'muted small ins-role', title: t.role || '', text: t.role || '' })]),
+          el('td', { class: 'ins-t' }, [el('span', { class: 'ins-tl', text: (t.trans_code_label || t.trans_code || '').replace(/^./, function (c) { return c.toUpperCase(); }) }), t.is_derivative ? el('span', { class: 'tag', text: 'derivative' }) : null, t.plan_10b5_1 ? el('span', { class: 'tag', title: 'Made under a Rule 10b5-1 trading plan set up in advance', text: '10b5-1 plan' }) : null,
+            t.plan_purchase ? el('a', { class: 'tag', href: '/docs/flags/#plan-purchase', title: 'The filing says it was bought under a plan (an employee or director purchase plan, a plan trust or dividend reinvestment)', text: 'Plan purchase' }) : t.plan_inferred ? el('a', { class: 'tag', href: '/docs/flags/#plan-inferred', title: 'A fraction of a share under 100 shares, as plan purchases usually are; the filing does not say so', text: 'Likely plan purchase (not stated)' }) : null, // F-03f/g, as on /insiders/
+            ARCHIVE.test(t.source_url || '') ? el('a', { class: 'ins-f', href: t.source_url, target: '_blank', rel: 'noopener', text: 'Form ' + t.form_type + ' ↗' }) : null]),
+          el('td', { class: 'n ins-s' + (open ? (sell ? ' down' : ' up') : ''), 'data-l': 'Shares' }, [(sell ? '−' : '+') + count(t.shares || 0)]), el('td', { class: 'n opt2', text: t.price != null ? money(t.price, 'USD', 2).replace(/\.00$/, '') : '—' }),
+          el('td', { class: 'n ins-v', 'data-l': 'Value' }, [t.value != null ? money(t.value, 'USD') : '—']), el('td', { class: 'n muted opt2', text: t.shares_after != null ? count(t.shares_after) : '—' })]);
       });
       body.forEach(function (tr, i) { if (i >= 8) { tr.hidden = true; tr.classList.add('more-row'); } });
       var allIns = body.length > 8 ? el('button', { type: 'button', class: 'linkish', text: 'Show all ' + body.length, on: { click: function () { body.forEach(function (tr) { tr.hidden = false; }); allIns.remove(); } } }) : null;
-      ins.replaceChildren.apply(ins, [ins.firstChild, ins.children[1], rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table ins-table' }, [el('thead', {}, [el('tr', {}, ['Date', 'Insider', 'Transaction', 'Shares', 'Price', 'Value', 'Held after', 'Filing'].map(function (h, i) { return el('th', { scope: 'col', class: (i >= 3 && i <= 6 ? 'n' : '') + (i === 4 || i === 6 ? ' opt2' : ''), text: h }); }))]), el('tbody', {}, body)])])
+      ins.replaceChildren.apply(ins, [ins.firstChild, ins.children[1], rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table ins-table' }, [el('thead', {}, [el('tr', {}, ['Date', 'Insider', 'Transaction', 'Shares', 'Price', 'Value', 'Held after'].map(function (h, i) { return el('th', { scope: 'col', class: (i >= 3 && i <= 6 ? 'n' : '') + (i === 4 || i === 6 ? ' opt2' : ''), text: h }); }))]), el('tbody', {}, body)])])
         : demoSpent(r) ? demoNote('Insider transactions', demoSpent(r)) : el('p', { class: 'muted', text: r.ok ? 'No insider transactions in the filings loaded.' : 'Insider transactions are unavailable right now.' }),
         allIns, !X.hasKey() && rows.length ? el('p', { class: 'muted small', text: 'The ten most recent; a free key shows more.' }) : null].filter(Boolean));
     });
     keyedOrDemo('/v1/companies/' + cik + '/holders?limit=' + (X.hasKey() ? 25 : 10) + asq).then(function (r) {
       if (S.tab !== 'ownership' || S.cik !== cik) return;
       var rows = r.ok && r.body && r.body.data || [];
-      big.replaceChildren(big.firstChild, rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table' }, [el('thead', {}, [el('tr', {}, ['Holder', 'Type', '% of class', 'Shares', 'Schedule', 'As of', 'Filing'].map(function (h, i) { return el('th', { scope: 'col', class: i >= 2 && i <= 3 ? 'n' : '', text: h }); }))]),
-        el('tbody', {}, rows.map(function (h) { var f = h.filing || {}; return el('tr', {}, [el('th', { scope: 'row', text: orgName(h.name) }), el('td', { class: 'muted', text: h.holder_type_label || '' }), el('td', { class: 'n', text: h.percent != null ? pct(h.percent) : '—' }), el('td', { class: 'n', text: h.shares != null ? count(h.shares) : '—' }), el('td', { text: h.schedule || '' }), el('td', { text: day(h.event_date) }), el('td', {}, [ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: (f.form_type || 'Filing').replace(/^SCHEDULE /, '') + ' ↗' }) : null])]); }))])])
+      if (r.ok && !((r.body || {}).meta || {}).has_more) navCount('above5', rows.length);
+      big.replaceChildren(big.firstChild, rows.length ? el('div', { class: 'tw' }, [el('table', { class: 'ov-table big-table' }, [el('thead', {}, [el('tr', {}, ['Holder', '% of class', 'Shares', 'Filing, as of'].map(function (h, i) { return el('th', { scope: 'col', class: i === 1 || i === 2 ? 'n' : '', text: h }); }))]),
+        // four columns so the card fits beside the 13F holders: the type under the name, the date with the filing
+        el('tbody', {}, rows.map(function (h) { var f = h.filing || {}; return el('tr', {}, [el('th', { scope: 'row' }, [orgName(h.name), h.holder_type_label ? el('span', { class: 'muted small ins-role', text: h.holder_type_label }) : null]), el('td', { class: 'n big-p' }, [h.percent != null ? pct(h.percent) : '—']), el('td', { class: 'n big-s' }, [h.shares != null ? count(h.shares) : '—']), el('td', { class: 'big-f' }, [ARCHIVE.test(f.source_url || '') ? el('a', { href: f.source_url, target: '_blank', rel: 'noopener', text: (f.form_type || h.schedule || 'Filing').replace(/^SCHEDULE /, '') + ' ↗' }) : (h.schedule || ''), el('span', { class: 'muted', text: ' ' + day(h.event_date) })])]); }))])])
         : demoSpent(r) ? demoNote('Holders above 5%', demoSpent(r)) : el('p', { class: 'muted', text: r.ok ? 'No 13D or 13G filings above 5% in the filings loaded.' : '5% holders are unavailable right now.' }));
     });
   }

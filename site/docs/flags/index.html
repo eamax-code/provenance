@@ -89,7 +89,7 @@
   <p class="fg-lede">Marks you can meet next to a figure, what each one means, and an example to open. A mark says how a figure was filed or worked out; it is never a judgement on the company.</p>
   <p class="fg-disc">Information, not signals. Not investment advice.</p>
   <p class="fg-note">Examples marked <span class="fk">free key</span> open with a <a href="/account/">free key</a>; the others open for anyone.</p>
-  <nav class="fg-toc" aria-label="On this page"><a href="#statements-h">Statements</a><a href="#dividends-h">Dividends</a><a href="#insiders-h">Insider trades</a><a href="#managers-h">Fund managers</a><a href="#activists-h">Activist stakes</a></nav>
+  <nav class="fg-toc" aria-label="On this page"><a href="#statements-h">Statements</a><a href="#filing-status-h">Filing status</a><a href="#dividends-h">Dividends</a><a href="#insiders-h">Insider trades</a><a href="#managers-h">Fund managers</a><a href="#activists-h">Activist stakes</a><a href="#fails-h">Fails to deliver</a><a href="#text-h">Filing text</a></nav>
   <section aria-labelledby="statements-h">
     <h2 id="statements-h">Figures in the statements</h2>
     <dl class="fls">
@@ -100,6 +100,17 @@
       <div class="fl" id="quality"><dt>! (a quality note)</dt><dd><p>The figure did not pass a check as filed; the tooltip says which. It is shown as filed and left out of ratios and screens.</p><dl class="sub"><div class="fl" id="unit-doubtful"><dt>unit doubtful</dt><dd><p>EPS as filed is about 100 times the same filing’s net income over weighted shares: probably cents or pence tagged as dollars or pounds. The weighted shares it was checked against carry the same note.</p><p class="ex">Example: <a href="/app/?c=863064&amp;tab=statements">Rio Tinto, FY2017 diluted EPS 486.9</a> <span class="fk">free key</span>.</p></dd></div>
 </dl></dd></div>
       <div class="fl" id="fiscal-year"><dt>Fiscal year names (tooltip on each column)</dt><dd><p>FY2025 names a fiscal year as the company’s 10-K does where it says so (Gap’s year ended 31 January 2026 is its fiscal 2025); otherwise by the year it ends in.</p><p class="ex">Examples: <a href="/app/?c=39911&amp;tab=statements">Gap</a> <span class="fk">free key</span>; <a href="/app/?c=320193&amp;tab=statements">Apple</a>.</p></dd></div>
+      <div class="fl" id="transition-period"><dt>Transition period (N months, ended …)</dt><dd><p>A short period between two fiscal years, reported when the company moved its year end (usually on Form 10-KT). It is never a fiscal year and has no year-on-year change.</p><p class="ex">Example: <a href="/app/?c=79958&amp;tab=statements">Precision Castparts, the 9 months ended 3 January 2016</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="transition-quarter"><dt>Transition Q1, Q2 …</dt><dd><p>A quarter inside a transition period, numbered from that period’s start, not a quarter of a fiscal year. It is still a quarter, so it compares with the quarter a year before.</p><p class="ex">Example: <a href="/app/?c=79958&amp;tab=statements&amp;p=quarterly">the same company, quarterly</a> <span class="fk">free key</span>.</p></dd></div>
+    </dl>
+  </section>
+  <section aria-labelledby="filing-status-h">
+    <h2 id="filing-status-h">Filing status</h2>
+    <dl class="fls">
+      <div class="fl" id="no-periodic"><dt>No periodic report since {form} filed {date}</dt><dd><p>No 10-K, 10-Q, 20-F or 40-F of the company’s own in about the last 18 months, counted back from the newest filing loaded here. It may have been taken private or merged, or now report under a new registrant; its figures stop at that report. Screens and rankings leave it out by default; its pages stay. At a point in time, the line shows only if this was already true then.</p><p class="ex">Example: <a href="/app/?c=1288776">Google Inc.</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="offerings-only"><dt>Files no periodic reports of its own (offerings only)</dt><dd><p>The registrant files offering documents, such as note prospectuses, but no periodic report of its own; often a subsidiary that issues debt.</p><p class="ex">Example: <a href="/app/?c=1665650">JPMorgan Chase Financial Co. LLC</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="no-longer-files"><dt>no longer files (Screener)</dt><dd><p>A Screener row for a company in either case above. The Screener lists them only with <b>Include companies that no longer file</b> ticked.</p><p class="ex">Example: <a href="/app/?sm=revenue&amp;sy=2024&amp;si=1#screener">revenue for 2024 with it ticked</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="succeeded-by"><dt>Succeeded by, Merged into, Acquired by</dt><dd><p>The company the registrant’s own filings name as its successor, with the sentence quoted in the tooltip and the filing linked. <b>Succeeded by</b>: a successor issuer, a new holding company or a change of state, or when unclear. <b>Merged into</b>: it merged with and into the named company. <b>Acquired by</b>: the filing says the named company acquired it.</p><p>Shown for reference and never joined: the successor’s figures are not this company’s history, except where a reviewed succession continues them (<b>Successor to</b>, on the successor’s page).</p><p class="ex">Examples: <a href="/app/?c=1288776">Google Inc., succeeded by Alphabet Inc.</a> <span class="fk">free key</span>; <a href="/app/?c=1170650">Medco Health Solutions, acquired by Express Scripts Holding Co.</a> <span class="fk">free key</span>.</p></dd></div>
     </dl>
   </section>
   <section aria-labelledby="dividends-h">
@@ -118,6 +129,8 @@
       <div class="fl" id="price-outlier"><dt>Price looks wrong as filed</dt><dd><p>The price is far from the company’s other trades that month, often a total typed in the price box; the value is kept as filed and left out of value filters and ranking.</p><p class="ex">Example: <a href="/insiders/?cik=1840572&amp;type=buy&amp;since=2026-08-28&amp;until=2026-09-01">Lucky Strike Entertainment, August 2026</a> <span class="fk">free key</span>.</p></dd></div>
       <div class="fl" id="value-partial"><dt>Value partial</dt><dd><p>Some lines of the trade had no price, so its value understates it.</p><p class="ex">Example: <a href="/insiders/?cik=1094831&amp;type=buy&amp;since=2025-10-06&amp;until=2025-10-06">BGC Group, 6 October 2025</a>.</p></dd></div>
       <div class="fl" id="cluster"><dt>Cluster buy</dt><dd><p>Three or more different buyers bought the company’s shares on the open market within 30 days; insiders who file together or are affiliated count as one buyer. This purchase is one of them.</p><p class="ex">Example: <a href="/insiders/?cik=1074902&amp;type=buy&amp;cluster=true&amp;since=2026-10-26&amp;until=2026-11-24">LCNB Corp, October and November 2026</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="plan-purchase"><dt>Plan purchase</dt><dd><p>The filing says the shares were bought under a plan (an employee or director stock purchase plan, a plan trust or dividend reinvestment), not on the open market. Such purchases are left out of Buys, cluster buys and first buys.</p><p class="ex">Example: <a href="/insiders/?cik=1046179&amp;plan_purchase=true&amp;since=2026-11-06&amp;until=2026-11-06">TSMC, 6 November 2026</a>.</p></dd></div>
+      <div class="fl" id="plan-inferred"><dt>Likely plan purchase (not stated)</dt><dd><p>Every line is a fraction of a share under 100 shares, as reinvestment, plan and fund-subscription purchases usually are, though the filing does not say so. Treated like a plan purchase.</p><p class="ex">Example: <a href="/insiders/?cik=108985&amp;plan_purchase=true&amp;since=2026-11-20&amp;until=2026-11-20">York Water, 20 November 2026</a> <span class="fk">free key</span>.</p></dd></div>
     </dl>
   </section>
   <section aria-labelledby="managers-h">
@@ -140,6 +153,19 @@
       <div class="fl" id="activist-coverage"><dt>What is covered</dt><dd><p>13D filings in the SEC’s structured format, December 2024 onward. Earlier and free-text filings are not read: for example, the Schedule 13D on Match Group filed 15 July 2024 is not shown.</p><p class="ex">Example: <a href="/activists/">Activist stakes across companies</a>.</p></dd></div>
     </dl>
     <p class="fg-disc">Information, not signals. A 13D says what the filer reported, not what it will do.</p>
+  </section>
+  <section aria-labelledby="fails-h">
+    <h2 id="fails-h">Fails to deliver (SEC)</h2>
+    <dl class="fls">
+      <div class="fl" id="ftd-balance"><dt>A running balance</dt><dd><p>The SEC’s published balance of shares that had failed to settle and were still outstanding on each settlement date, across all clearing members. It is not the day’s new fails, it doesn’t show how old the fails are, and it is not a measure of short selling.</p><p class="ex">Example: <a href="/app/?c=320193&amp;tab=ownership#ftd">Apple</a>.</p></dd></div>
+      <div class="fl" id="ftd-price"><dt>Price —</dt><dd><p>The SEC file gives no price for that day, or one under a penny. The dash is not a zero.</p><p class="ex">Example: <a href="/app/?c=1877461&amp;tab=ownership#ftd">1606 Corp.</a> <span class="fk">free key</span>.</p></dd></div>
+    </dl>
+  </section>
+  <section aria-labelledby="text-h">
+    <h2 id="text-h">Filing text</h2>
+    <dl class="fls">
+      <div class="fl" id="as-filed"><dt>Quoted as filed; not summarised</dt><dd><p>The reader shows a 10-K item’s text exactly as the filing gives it, in its paragraphs, with its own subheadings as headings. Nothing is reworded or shortened, and the document on sec.gov is linked above it.</p><p class="ex">Example: <a href="/filings/0000320193-26-000026/1A/">Apple’s risk factors</a>.</p></dd></div>
+    </dl>
   </section>
 </main>
 <!-- shell:footer -->

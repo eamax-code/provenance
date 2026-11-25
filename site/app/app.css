@@ -424,7 +424,7 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 700; border-top: 2px
 #screener { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; } .scr-ctl .ch-bar > * { max-width: 100%; } #screener[hidden] { display: none !important; }
 .scr-ctl { display: grid; gap: 6px; } .scr-ctl .ch-bar { margin: 0; } .scr-l { display: inline-flex; gap: 6px; align-items: center; font-size: .88rem; color: var(--muted); }
 .scr-ctl select, .scr-ctl input { padding: 5px 8px; font-size: .88rem; }
-.scr-gone { display: block; font-size: .8rem; font-weight: 400; color: var(--muted); } /* D-01: quiet, under the name */
+.scr-table th a.scr-gone { display: table; margin-top: 1px; font-size: .8rem; font-weight: 400; color: var(--muted); text-decoration-line: underline; text-decoration-color: var(--line-soft); text-underline-offset: 2px; } /* D-01: quiet, under the name; opens its entry */
 .scr-ctl .scr-chk { min-height: 32px; cursor: pointer; } .scr-ctl .scr-chk input { padding: 0; width: 16px; height: 16px; margin: 0; }
 .scr-table { font-size: .86rem; } .scr-table th[scope=row] { text-align: left; font-weight: 500; white-space: normal; min-width: 12em; } .scr-table td, .scr-table th { padding: 4px 8px; }
 
@@ -439,13 +439,31 @@ td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }
 @media (min-width: 1200px) {
   #pane-ownership:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 14px; align-items: start; }
   #pane-ownership #ownership { grid-row: span 2; }
-  #pane-ownership .ins-table .opt2 { display: none; }
+  #pane-ownership .ins-table .opt2 { display: none; } #pane-ownership .ins-table th, #pane-ownership .ins-table td { padding-left: 5px; padding-right: 5px; }
   #pane-ownership .own-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* insiders: one line per person, the full role on hover */
-.ins-table th[scope="row"] { min-width: 10em; max-width: 16em; } .ins-table .ins-role { display: block; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ins-table th[scope="row"] { min-width: 8em; max-width: 15em; } .ins-table .ins-role { display: block; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ins-table td.n, .ins-table td:first-child { white-space: nowrap; } .ins-table td { white-space: normal; } .ins-table .tag { margin: 2px 0 0; }
+.st-table thead a.st-tr { color: inherit; text-decoration-line: underline; text-decoration-color: var(--link-line); text-underline-offset: 2px; } /* a transition column's label */
+.ins-table .ins-tl, .ins-table .ins-f, .big-table .big-f { white-space: nowrap; } .big-table .ins-role { display: block; } .ins-table .ins-f { display: block; margin-top: 3px; font-size: .82rem; }
+/* phones: each holder and each trade is one stacked row (name and the main figure, then the rest), no sideways scroll */
+@media (max-width: 600px) {
+  .own-table thead, .ins-table thead, .big-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .own-table, .own-table tbody, .ins-table, .ins-table tbody, .big-table, .big-table tbody { display: block; width: 100%; }
+  .own-table tr, .ins-table tr, .big-table tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+  .own-table tr:not([hidden])::after, .ins-table tr:not([hidden])::after, .big-table tr::after { content: ''; order: 3; flex-basis: 100%; height: 0; }
+  .own-table th, .own-table td, .ins-table th, .ins-table td, .big-table th, .big-table td { display: block; padding: 0; border: 0; }
+  .own-table tbody th, .ins-table tbody th, .big-table tbody th { order: 1; flex: 1 1 0; min-width: 0; max-width: none; }
+  .own-table .own-v, .ins-table .ins-s, .big-table .big-p { order: 2; margin-left: auto; }
+  .own-table td:not(.own-v), .ins-table td:not(.ins-s), .big-table td:not(.big-p) { order: 4; font-size: .85rem; }
+  .big-table .big-p::after { content: ' of class'; color: var(--muted); } .big-table .big-s::after { content: ' shares'; color: var(--muted); } .big-table .big-f { margin-left: auto; }
+  .own-table .opt { display: block; } .own-table td.n.opt { display: none; } .ins-table .opt2 { display: none; }
+  .own-table .own-p::after { content: ' of shares'; color: var(--muted); } .ins-table .ins-s::after { content: ' shares'; color: var(--muted); font-size: .85rem; }
+  .ins-table .ins-d { color: var(--muted); flex-basis: 100%; } .ins-table .ins-v { margin-left: auto; } .ins-table .ins-t .tag { margin: 0 0 0 6px; } .ins-table .ins-f { display: inline; margin: 0 0 0 8px; }
+  .ins-table .ins-role { max-width: none; }
+}
 /* phones: the toolbar in two compact rows, the key bar in one line, identity behind a toggle */
 @media (max-width: 600px) {
   .toolbar { gap: 8px; padding-bottom: 8px; } .toolbar-title { font-size: 1.15rem; }
@@ -670,6 +688,13 @@ table.pr-table { min-width: 900px; }
 @media (max-width: 640px) { table.pr-table { min-width: 0; } }
 .st-table td.adj .door { font-style: italic; }
 .pp-nav { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .88rem; }
+#pane-ownership .own-nav { grid-column: 1 / -1; margin: 0 0 10px; } .own-nav .own-n { margin-left: .35em; color: var(--muted); font-variant-numeric: tabular-nums; }
+#pane-ownership .own-nav ~ section { scroll-margin-top: 12px; }
+@media (max-width: 600px) {
+  #pane-ownership .own-nav { position: sticky; top: var(--bar-h, 0px); z-index: 4; flex-wrap: nowrap; overflow-x: auto; margin: 0 calc(-1 * var(--m, 16px)) 10px; padding: 6px var(--m, 16px); background: var(--bg); border-bottom: 1px solid var(--line-soft); scrollbar-width: none; }
+  .own-nav a { white-space: nowrap; }
+  #pane-ownership .own-nav ~ section { scroll-margin-top: 52px; }
+}
 .pp-nav a { text-decoration: none; min-height: 28px; display: inline-flex; align-items: center; } .pp-nav a[aria-current="true"] { color: var(--fg); text-decoration: underline; text-underline-offset: 4px; }
 .ask { font-size: .78rem; white-space: nowrap; }
 .tag-sus { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); margin-left: 6px; }
