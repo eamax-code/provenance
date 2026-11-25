@@ -331,6 +331,74 @@ def insider_screen_request(text: str, today: date) -> dict | None:
     return out
 
 
+# Q-07: activist stakes across companies ("new activist stakes this month"); a question naming a
+# company ("which activists hold Tesla") goes to the company flow (strongly_named)
+_ACTIVIST = re.compile(r"\bactivists?\b", re.IGNORECASE)
+_ACTIVIST_KIND = (("exited", re.compile(r"\b(exit\w*|sold out|dropped below|below 5)", re.I)),
+                  ("increased", re.compile(r"\b(increas\w*|rais\w*|add\w*|grew)\b", re.I)),
+                  ("decreased", re.compile(r"\b(decreas\w*|cut|trim\w*|reduc\w*)\b", re.I)),
+                  ("switched", re.compile(r"\b(switch\w*|13g)\b", re.I)))  # fmt: skip
+
+
+def activist_request(text: str) -> dict | None:
+    """{kind, since, label} for a question about activist stakes across companies, or None."""
+    if not _ACTIVIST.search(text):
+        return None
+    kind = next((k for k, rx in _ACTIVIST_KIND if rx.search(text)), "new")
+    days, label = _window(text)
+    if not _WINDOW.search(text):
+        days, label = 30, "the last 30 days"
+    return {"kind": kind, "days": min(max(days, 1), 366), "label": label}
+
+
+def _activists(db: Session, p: Plan, today: date) -> DataAnswer:
+    """Q-07: Schedule 13D filings across companies in a window, each cited to its filing; Item 4
+    quoted only as filed, never summarised."""
+    from app.services import activists as act
+
+    f = activist_request(p.filters.get("text", "")) or {"kind": "new", "days": 30,
+                                                         "label": "the last 30 days"}  # fmt: skip
+    since = today - timedelta(days=f["days"])
+    rows = act.across(db, since, today, f["kind"])
+    what = {"new": "new activist stakes (original Schedules 13D)",
+            "increased": "activist stakes increased (13D/A)",
+            "decreased": "activist stakes decreased (13D/A)",
+            "exited": "activist stakes exited (13D/A under 5%)",
+            "switched": "activist stakes switched from a passive 13G"}[f["kind"]]  # fmt: skip
+    how = [{"endpoint": "/v1/activists", "parameters": {
+        "since": since.isoformat(), "until": today.isoformat(), "kind": f["kind"]}}]  # fmt: skip
+    tail = f" {act.COVERAGE['note']} {act.DISCLAIMER}"
+    if not rows:
+        return DataAnswer(f"No {what} in {f['label']} in the structured filings read.{tail}",
+                          "activists", how=how)  # fmt: skip
+    cites: list[dict] = []
+    table_rows = []
+    for r in rows[:TABLE_ROWS]:
+        name = r["company"]["name"] or r["company"]["cik"]
+        n = _cite(cites, f"{name} {r['form']} filed {_d(date.fromisoformat(r['filed_date']))}",
+                  r["source_url"])  # fmt: skip
+        pct = f"{r['percent']:g}%" if r["percent"] is not None else "—"
+        chg = (f"{r['change_pct_points']:+g} pts" if r["change_pct_points"] is not None
+               else "—")  # fmt: skip
+        pur = r["purpose"]
+        table_rows.append([_cell(name), _cell(r["filer"]["name"]), _cell(r["kind"]), _cell(pct),
+                           _cell(chg), _cell(_d(date.fromisoformat(r["filed_date"]))),
+                           _cell(f"{r['form']} [{n}]" if n else r["form"], r["source_url"]),
+                           _cell(f"Item 4 as filed ({pur['form']} {pur['filed_date']})"
+                                 if pur else "—", pur["source_url"] if pur else None)])  # fmt: skip
+    lead = rows[0]
+    text = (f"{len(rows):,} {what} in {f['label']}, as filed; the latest is "
+            f"{lead['filer']['name']} at {lead['company']['name'] or lead['company']['cik']} "
+            f"({lead['percent']:g}%).{tail}" if lead["percent"] is not None else
+            f"{len(rows):,} {what} in {f['label']}, as filed.{tail}")  # fmt: skip
+    widget = _table(f"Activist stakes: {what}, {f['label']}",
+                    ["Company", "Filer", "Kind", "Percent", "Change", "Filed", "Filing",
+                     "Purpose"], table_rows, note=_more(len(rows)))  # fmt: skip
+    note = ("One row per Schedule 13D or 13D/A; Item 4 (Purpose of Transaction) is linked as "
+            "filed, never summarised." + tail)  # fmt: skip
+    return DataAnswer(text, "activists", [widget], citations=cites, how=how, notes=[note])
+
+
 # Q-02: funds (Form 13F) in chat
 _FUND_WORDS = (
     r"(?:funds?|fund managers?|managers?|institutions?|institutional investors?|hedge funds?|13f)"
@@ -380,6 +448,8 @@ def plan(text: str, ctx: ConversationContext | None, db: Session | None = None) 
         return Plan("filing_search", filters={"text": text})
     if insider_screen_request(text, date.today()):
         return Plan("insider_screen", filters={"text": text})
+    if activist_request(text):
+        return Plan("activists", filters={"text": text})
     fund = fund_request(text)
     if fund:
         return Plan("funds", filters={"text": text, **fund})
@@ -451,6 +521,8 @@ def answer(db: Session, p: Plan, ctx: ConversationContext | None, today: date) -
         return _insider_screen(db, p, today)
     if p.kind == "funds":
         return _funds(db, p, today)
+    if p.kind == "activists":
+        return _activists(db, p, today)
     raise ValueError(p.kind)
 
 

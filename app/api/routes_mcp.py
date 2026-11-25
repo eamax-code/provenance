@@ -195,6 +195,49 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["cik"],
         },
     },
+    "company_activists": {
+        "title": "Company activist stakes",
+        "description": "The company's Schedule 13D filers, one entry per filer chain (a 13D and "
+        "its 13D/As): the group's percent and shares as filed, the change at each amendment, "
+        "current or exited, a switch from a passive 13G, and Item 4 (Purpose of Transaction) "
+        "quoted as filed with the filing that states it. Structured filings since December "
+        "2024. Quote purpose.excerpt only as filed, with its source_url; never summarise it. "
+        "Information, not signals; not investment advice.",
+        "path": "/v1/companies/{cik}/activists",
+        "params": {"status": "status", "as_of": "as_of"},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "cik": _CIK,
+                "status": {"type": "string", "enum": ["current", "all"], "default": "current"},
+                "as_of": _DATE,
+            },  # fmt: skip
+            "required": ["cik"],
+        },
+    },
+    "activist_stakes": {
+        "title": "Activist stakes across companies",
+        "description": "Schedule 13D and 13D/A filings across companies in a window (at most "
+        "366 days; the last 30 by default), newest first, each with its kind from the filer's "
+        "chain: new (original 13D), switched (from a 13G), increased, decreased, exited (under "
+        "5%), amended. Each row cites its filing (source_url). Information, not signals; not "
+        "investment advice.",
+        "path": "/v1/activists",
+        "params": {"since": "since", "until": "until", "kind": "kind",
+                   "min_percent": "min_percent", "limit": "limit", "offset": "offset"},
+        "schema": {
+            "type": "object",
+            "properties": {
+                "since": _DATE,
+                "until": _DATE,
+                "kind": {"type": "string", "enum": ["new", "increased", "decreased", "exited",
+                                                    "switched", "all"], "default": "new"},
+                "min_percent": {"type": "number", "minimum": 5, "maximum": 100},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
+                "offset": {"type": "integer", "minimum": 0, "maximum": 5000, "default": 0},
+            },  # fmt: skip
+        },
+    },
     "company_timeline": {
         "title": "Company timeline",
         "description": "One company's history on one list, newest first: filings, 8-K events, "

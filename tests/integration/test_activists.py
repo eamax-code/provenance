@@ -111,10 +111,26 @@ def seeded(db):
             [("Owner One", "0001900011", "IN", 105, 1.95), g2], filer="0001900011",
             amend=1)  # fmt: skip
     # 18.1 to 18.2 is an increase of 0.1 points (Bitdeer)
-    _filing(db, OTHER, "0001900021-26-000001", "SCHEDULE 13D", date(2026, 3, 1),
-            [("Tether", "0001900021", "CO", 100, 18.1)], filer="0001900021", purpose="Hold.")
-    _filing(db, OTHER, "0001900021-26-000002", "SCHEDULE 13D/A", date(2026, 4, 1),
-            [("Tether", "0001900021", "CO", 101, 18.2)], filer="0001900021", amend=1)
+    _filing(
+        db,
+        OTHER,
+        "0001900021-26-000001",
+        "SCHEDULE 13D",
+        date(2026, 3, 1),
+        [("Tether", "0001900021", "CO", 100, 18.1)],
+        filer="0001900021",
+        purpose="Hold.",
+    )
+    _filing(
+        db,
+        OTHER,
+        "0001900021-26-000002",
+        "SCHEDULE 13D/A",
+        date(2026, 4, 1),
+        [("Tether", "0001900021", "CO", 101, 18.2)],
+        filer="0001900021",
+        amend=1,
+    )
     db.commit()
 
 
@@ -197,8 +213,78 @@ def test_errors_and_the_demo_key(client, auth, seeded, settings, monkeypatch):
 def test_the_list_is_rebuilt_when_a_13d_is_added(client, auth, db, seeded):
     q = "/v1/activists?since=2026-11-01&until=2026-11-25"
     before = client.get(q, headers=auth).json()["data"]
-    _filing(db, OTHER, "0001900031-26-000001", "SCHEDULE 13D", date(2026, 11, 20),
-            [("New Fund", "0001900031", "PN", 100, 6.0)], filer="0001900031", purpose="Value.")
+    _filing(
+        db,
+        OTHER,
+        "0001900031-26-000001",
+        "SCHEDULE 13D",
+        date(2026, 11, 20),
+        [("New Fund", "0001900031", "PN", 100, 6.0)],
+        filer="0001900031",
+        purpose="Value.",
+    )
     db.commit()
     after = client.get(q, headers=auth).json()["data"]
     assert len(after) == len(before) + 1 and after[0]["filer"]["name"] == "New Fund"
+
+
+def _walk(x):
+    if isinstance(x, dict):
+        for k, v in x.items():
+            yield k, v
+            yield from _walk(v)
+    elif isinstance(x, list):
+        for v in x:
+            yield from _walk(v)
+
+
+def _clean(body):
+    import json
+
+    raw = json.dumps(body).lower()
+    for banned in ("first_detected_at", "source_updated_at", "cusip", "data.sec.gov"):
+        assert banned not in raw, banned
+    urls = [v for k, v in _walk(body) if k.endswith("url") and v]
+    assert urls and all(u.startswith("https://www.sec.gov/Archives/") for u in urls), urls
+
+
+def test_api_and_mcp_carry_no_internal_field_or_api_url(client, auth, seeded):
+    import json
+
+    _clean(client.get(f"/v1/companies/{CO}/activists?status=all", headers=auth).json())
+    _clean(client.get("/v1/activists?since=2026-01-01&until=2026-11-25&kind=all",
+                      headers=auth).json())  # fmt: skip
+    for name, args in (("company_activists", {"cik": CO, "status": "all"}),
+                       ("activist_stakes", {"since": "2026-01-01", "until": "2026-11-25",
+                                            "kind": "all"})):  # fmt: skip
+        rpc = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+               "params": {"name": name, "arguments": args}}  # fmt: skip
+        res = client.post("/mcp", json=rpc, headers=auth).json()["result"]
+        assert res["isError"] is False, res
+        body = json.loads(res["content"][0]["text"])
+        assert body["data"]
+        _clean(body)
+
+
+def test_chat_answers_both_questions_quoting_item_4_as_filed(client, auth, seeded):
+    from app.services.chat_intents import detect
+    from app.services.conversation import activist_request
+
+    assert detect("Who are the activists at Tesla?") == "activists"
+    assert detect("Who files a 13D on Tesla?") == "five_percent"  # unchanged
+    assert activist_request("new activist stakes this month")["kind"] == "new"
+    one = client.post("/v1/chat", json={"message": "Who are the activists?", "cik": CO},
+                      headers=auth).json()  # fmt: skip
+    assert one["intent"] == "activists" and one["answered_by"] == "data", one
+    assert "Starboard Value LP" in one["answer"] and "9.15%" in one["answer"]
+    assert (
+        "Item 4 is amended to add: the Reporting Persons nominated two directors." in one["answer"]
+    )  # quoted as filed, from the filing that states it
+    assert "Not investment advice" in one["answer"] and "December 2024" in one["answer"]
+    (table,) = [b for b in one["blocks"] if b.get("type") == "table"]
+    assert table["columns"][0] == "Filer" and len(table["rows"]) == 2
+    many = client.post("/v1/chat", json={"message": "new activist stakes in the last 2 years"},
+                       headers=auth).json()  # fmt: skip
+    assert many["intent"] == "activists" and "Not investment advice" in many["answer"], many
+    (t2,) = [b for b in many["blocks"] if b.get("type") == "table"]
+    assert {r[0]["text"] for r in t2["rows"]} == {"TARGETCO INC", "OTHERCO INC"}

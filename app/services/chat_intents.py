@@ -81,6 +81,8 @@ INTENTS = (  # first match wins
             re.I,
         ),
     ),  # fmt: skip
+    # Q-07 (2026-11-25): activist stakes (Schedule 13D chains); "13D" alone stays five_percent
+    ("activists", re.compile(r"\bactivists?\b|\bactivist (?:stakes?|investors?)\b", re.I)),
     (
         "five_percent",
         re.compile(
@@ -811,7 +813,7 @@ HOW = {  # the endpoint that returns the same data (C-01 "how I got this")
     "pay": "executive-pay", "trading_plans": "insider-plans", "proposed_sales": "insider-plans",
     "changes": "changes", "calendar": "calendar", "private_raises": "private-raises",
     "comment_letters": "comment-letters", "corporate_tree": "corporate-tree",
-    "dividends": "dividends",
+    "dividends": "dividends", "activists": "activists",
 }  # fmt: skip
 
 ANSWERS = {"holders": holders, "five_percent": five_percent, "auditor": auditor,
@@ -853,7 +855,51 @@ def dividends(db: Session, b: Brief, as_of: date | None) -> tuple[str, list[dict
     return text, [table]
 
 
+def activists(db: Session, b: Brief, as_of: date | None) -> tuple[str, list[dict]]:
+    """Q-07: the company's current Schedule 13D filers, largest first, each with its latest
+    filing cited; the largest's Item 4 quoted only as filed, citing the filing that states it."""
+    from app.services import activists as act
+
+    out = act.for_company(db, b.company.cik, "current", as_of)
+    rows = out["data"]
+    tail = f" {act.COVERAGE['note']} {act.DISCLAIMER}"
+    if not rows:
+        return (f"No current Schedule 13D stake about {_name(b)} in the structured filings read "
+                f"(December 2024 on).{tail}", [])  # fmt: skip
+    top = rows[0]
+    cur = top["current"]
+    n = _cite(b, f"{cur['form']} filed {cur['filed_date']}", cur["source_url"])
+    pct = f"{cur['percent']:g}%" if cur["percent"] is not None else "an undisclosed share"
+    of = f" of the {cur['class_label']}" if cur["class_label"] else ""
+    many = f"{len(rows)} filers hold" if len(rows) > 1 else "One filer holds"
+    text = (f"{many} a current Schedule 13D stake in {_name(b)}. The largest is "
+            f"{top['filer']['name']} with {pct}{of}, as its {cur['form']} filed "
+            f"{cur['filed_date']} reports [{n}].")  # fmt: skip
+    pur = top["purpose"]
+    if pur:
+        m = _cite(b, f"{pur['form']} filed {pur['filed_date']}", pur["source_url"])
+        text += (f" Item 4 (Purpose of Transaction), as filed in its {pur['form']} of "
+                 f"{pur['filed_date']}: \u201c{pur['excerpt']}{'…' if pur['truncated'] else ''}"
+                 f"\u201d [{m}]")  # fmt: skip
+    text += tail
+    table = _table(
+        "Activist stakes (Schedule 13D)",
+        ["Filer", "Percent", "Shares", "Class", "Latest filing", "First 13D", "From a 13G"],
+        [[_cell(r["filer"]["name"]),
+          _cell(f"{r['current']['percent']:g}%" if r["current"]["percent"] is not None else "—"),
+          _cell(f"{r['current']['shares']:,.0f}" if r["current"]["shares"] is not None else "—"),
+          _cell(r["current"]["class_label"] or "—"),
+          _cell(f"{r['current']['form']} {r['current']['filed_date']}",
+                r["current"]["source_url"]),
+          _cell(r["first_filed"]["filed_date"], r["first_filed"]["source_url"]),
+          _cell("Yes" if r["switched_from_13g"] else "No")]
+         for r in rows],
+    )  # fmt: skip
+    return text, [table]
+
+
 TABLED = {"comment_letters": comment_letters, "corporate_tree": corporate_tree,
+          "activists": activists,
           "dividends": dividends}  # fmt: skip
 
 

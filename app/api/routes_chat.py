@@ -634,6 +634,7 @@ SINGLE = (
     "private_raises",
     "comment_letters",
     "corporate_tree",
+    "activists",
 )  # C-16
 
 
@@ -730,6 +731,8 @@ def _answer(body: ChatRequest, request: Request, db: Session, settings: Settings
             market = None  # an Ask link about one company's Form D: that company's offerings
     if market and market.kind == "insider_screen" and body.cik:
         market = None  # "How much did the CEO sell?" on a company page: that company's insiders
+    if market and market.kind == "activists" and body.cik:
+        market = None  # "Who are the activists?" on a company page: that company's 13D filers
     if market and (
         market.kind
         in ("out_of_scope", "list_followup", "compare", "screen", "filing_search", "funds")

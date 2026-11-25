@@ -1,7 +1,7 @@
 # Q-07 Activist stakes (Schedule 13D): filers, stakes, stated purpose, amendment chains
 
-Status: **built** (2026-11-25; ui's 9 comments folded in, see "Build notes" at the end). MCP and
-chat follow.
+Status: **built** (2026-11-25; ui's 9 comments folded in, see "Build notes" at the end), with
+the MCP tools and chat answers below.
 
 A Schedule 13D is filed by whoever acquires more than 5% of a class with a purpose beyond passive
 investment (influence over the company); a 13G is the passive form. Information about what the
@@ -142,7 +142,8 @@ Across companies: "new activist stakes this month".
 
 ## MCP and chat (after the API)
 
-- MCP tools `company_activists` and `activist_stakes`.
+- MCP tools `company_activists` (status, as_of) and `activist_stakes` (since, until, kind,
+  min_percent, limit, offset): the endpoints' responses as they are.
 - Chat answers "who are the activists at X", "new activist stakes this month" with the rows,
   each linked to its filing, the purpose quoted as filed, and the disclaimer.
 
