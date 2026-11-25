@@ -36,8 +36,10 @@ BUDGETS = {
     "company page, figure view (loaded on open)": (["companies/page/figure-view.js"], 5_500),
     # chat: 25.3 KB on 23 Nov with C-01/C-02 (figure chips, how, hand-off); 27.3 KB on 24 Nov with C-08
     # (CSV per table, a link per answer, a visible Copy), so the budget went to 28 KB
-    "chat": (["chat/index.html", "chat.css", "chat.js"], 28_000),
-    "ipos": (["ipos/index.html", "ipos/ipos.css", "ipos/ipos.js"], 12_000),
+    # B-G1 (25 Nov): chat and ipos raised to their real first loads, app/app.css counted (no new
+    # code): chat 41.0 KB with it, ipos 24.3 KB
+    "chat": (["chat/index.html", "app/app.css", "chat.css", "chat.js"], 42_000),
+    "ipos": (["ipos/index.html", "app/app.css", "ipos/ipos.css", "ipos/ipos.js"], 25_500),
     # the Explorer (/app/): its page, CSS and every script it loads except the shared shell. 133.4 KB on
     # 24 Nov after the window's new views (People, Calendar, What changed, letters and tree, What's new,
     # private raises); the budget is that plus about 10% so it stops growing unnoticed. X-22 (24 Nov): the
@@ -50,14 +52,61 @@ BUDGETS = {
     "explorer, connections graph (loaded when the tab opens)": (["app/graph.js"], 16_500),
     # Search inside filings (Q-01, 24 Nov): 9.2 KB when added
     "search": (["search/index.html", "search/search.css", "search/search.js"], 10_500),
-    "insiders": (["insiders/index.html", "insiders/insiders.css", "insiders/insiders.js"], 12_500),
+    "insiders": (["insiders/index.html", "insiders/insiders.css", "insiders/insiders.js"], 12_800),
     # Q-02 fund managers (25 Nov, PM-approved): about 8.8 KB and 10.5 KB gzipped at launch
     "managers": (["managers/index.html", "managers/managers.css", "managers/managers.js"], 10_000),
     "manager": (["managers/manager.html", "managers/managers.css", "managers/manager.js"], 11_000),
     # Q-04 dividends block, a shared lazy module (25 Nov): 4.1 KB gzipped at launch
     "dividends": (["app/dividends.js"], 5_000),
+    # Q-07 activist stakes (25 Nov, PM-approved): the Explorer's lazy module 4.8 KB, the page 13.2 KB
+    "activists module": (["app/activists.js"], 5_000),
+    "activists": (["activists/index.html", "activists/activists.css", "activists/activists.js",
+                   "app/activists.js"], 14_000),
     "shell": (["shell/shell.css", "shell/shell.js"], 10_500),
+    # the public pages' shared stylesheet (B-G1): 1.7 KB
+    "public.css": (["public.css"], 2_000),
 }
+
+
+# lines every page loads, counted once on their own (B-G1)
+SHARED = ("shell", "public.css")
+
+
+def _first_load(page: str) -> set[str]:
+    """Same-origin scripts and stylesheets a page's HTML loads on first load, as site paths."""
+    from html.parser import HTMLParser
+    from posixpath import dirname, join, normpath
+
+    found: set[str] = set()
+    base = "/" + dirname(page) + "/"
+
+    class P(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            a = dict(attrs)
+            ref = a.get("src") if tag == "script" else (
+                a.get("href") if tag == "link" and "stylesheet" in (a.get("rel") or "").split()
+                else None)  # fmt: skip
+            if not ref or re.match(r"^(?:[a-z]+:)?//", ref) or ref.startswith(("data:", "#")):
+                return
+            path = ref.split("?", 1)[0].split("#", 1)[0]
+            found.add(normpath(path if path.startswith("/") else join(base, path)).lstrip("/"))
+
+    P().feed((SITE / page).read_text(encoding="utf-8"))
+    return found
+
+
+def test_every_file_a_page_loads_first_is_in_its_budget():
+    """B-G1: a budgeted page's first-load scripts and stylesheets are each in its own list or in a
+    shared line, so a file added to the HTML cannot ship outside every budget (chat loaded
+    prov-card.js and app/app.css, about 16 KB, unlisted)."""
+    shared = {f for name in SHARED for f in BUDGETS[name][0]}
+    missing = []
+    for name, (files, _budget) in BUDGETS.items():
+        for page in (f for f in files if f.endswith(".html")):
+            for f in sorted(_first_load(page) - set(files) - shared):
+                if (SITE / f).exists():
+                    missing.append(f"{name}: {f}")
+    assert not missing, "loaded on first load but in no budget: " + "; ".join(missing)
 
 
 def test_heavy_pages_stay_in_their_compressed_budget():
