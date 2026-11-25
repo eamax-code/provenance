@@ -210,11 +210,20 @@
     return s;
   }
   // C-01: a figure in an answer opens the same provenance card as the Explorer
-  function chip(text, info) { return window.ProvCard && info ? window.ProvCard.door(text, info) : document.createTextNode(text); }
+  // the card itself (prov-card.js) loads on the first figure tap, not with the page: each figure is the same door
+  // (a button with its info) and opens the card once the script is in
+  var pcP; function pc() { return pcP || (pcP = new Promise(function (ok, no) { if (window.ProvCard) { window.ProvCard.configure(CARD); return ok(window.ProvCard); } var sc = document.createElement('script'); sc.src = '/prov-card.js'; sc.onload = function () { var P = window.ProvCard; if (!P) return no(); P.configure(CARD); ok(P); }; sc.onerror = function () { pcP = null; no(); }; document.head.appendChild(sc); })); }
+  function door(text, info) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'door'; b.textContent = text; b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('data-t', text); b._prov = info;
+    // stopPropagation: the card's own outside-click handler would close it as it opens (as the card's own doors do)
+    b.addEventListener('click', function (e) { e.stopPropagation(); pc().then(function (P) { if (b.getAttribute('aria-expanded') === 'true') P.close(); else P.open(b); }).catch(function () {}); });
+    return b;
+  }
+  function chip(text, info) { return info ? door(text, info) : document.createTextNode(text); }
   function pointInfo(w, p, label) {
     return { label: label || String(w.title || '').split(' by ')[0], metric: w.metric, currency: w.currency, fiscal_label: p.label, period_end: p.period_end, form_type: p.form_type, filed_date: p.filed_date, source_url: p.source_url, accession_number: p.accession_number, source_tag: p.source_tag, mapping_version: p.mapping_version, quality_status: p.quality_status, cik: state.cik };
   }
-  if (window.ProvCard) window.ProvCard.configure({
+  var CARD = {
     asOf: function () { return $('cx-asof') && $('cx-asof').value || null; },
     actions: function (i) {
       if (!i.cik) return [];
@@ -223,7 +232,7 @@
       var link = document.createElement('a'); link.className = 'btn small'; link.href = '/app/?' + q.toString(); link.textContent = 'Open in Explorer';
       return [link];
     }
-  });
+  };
   // a growth or CAGR tile is derived from two reported figures: the card lists both filings
   function rateInfo(w, t, p) {
     var pts = w.points || [], a, b, formula;
@@ -629,14 +638,14 @@
   function figureChips(reply) {
     var figs = (reply.blocks || []).filter(function (b) { return b && b.type === 'figure' && b.value != null; });
     // a chart or table already makes each figure a door; chips are for answers in words
-    if (!figs.length || !window.ProvCard || (reply.widgets || []).length) return null;
+    if (!figs.length || (reply.widgets || []).length) return null;
     var cikOf = function (f) { var m = /\/edgar\/data\/(\d+)\//.exec(f.source_url || ''); return f.cik || (m && m[1]) || ''; };
     var many = figs.map(cikOf).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).length > 1;
     var row = el('div', 'cx-chips');
     figs.slice(0, 12).forEach(function (f) {
       var info = { label: f.label, metric: f.metric, currency: (f.unit || '').split('/')[0], fiscal_label: f.period_label || null, period_end: f.period_end, form_type: f.form_type, filed_date: f.filed_date, source_url: f.source_url, accession_number: f.accession_number, source_tag: f.source_tag, mapping_version: f.mapping_version, quality_status: f.quality_status, derived: f.derived, inputs: f.inputs, cik: cikOf(f) || state.cik };
       var who = f.company || f.display_name || (many && cikOf(f) ? 'CIK ' + cikOf(f) : '');
-      var chip = el('span', 'cx-chip'); chip.appendChild(el('span', 'cx-muted cx-small', (who ? who + ' · ' : '') + f.label + ' ')); chip.appendChild(window.ProvCard.door(human(f.display || String(f.value)), info));
+      var chip = el('span', 'cx-chip'); chip.appendChild(el('span', 'cx-muted cx-small', (who ? who + ' · ' : '') + f.label + ' ')); chip.appendChild(door(human(f.display || String(f.value)), info));
       row.appendChild(chip);
     });
     return row;

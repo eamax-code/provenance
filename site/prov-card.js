@@ -76,5 +76,5 @@
   }
   document.addEventListener('click', function (e) { if (card && !card.contains(e.target)) close(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && card) { var f = close(); if (f) f.focus(); } });
-  window.ProvCard = { door: door, close: close, configure: function (c) { Object.assign(cfg, c || {}); } };
+  window.ProvCard = { door: door, open: open, close: close, configure: function (c) { Object.assign(cfg, c || {}); } };
 })();
