@@ -44,6 +44,7 @@ def _annual(db: Session, ciks, as_of: date, metrics=("revenue", "operating_incom
                 FinancialFact.filed_date,
                 Company.fiscal_year_end,
                 Company.fiscal_year_offset,
+                Company.fiscal_year_ends,
             )
             .join(Company, Company.cik == FinancialFact.cik)
             .where(
@@ -60,15 +61,15 @@ def _annual(db: Session, ciks, as_of: date, metrics=("revenue", "operating_incom
         )
     ).all()
     best: dict = {}
-    for cik, metric, value, end, url, form, filed, fye_end, off in rows:
-        fye = (fye_end, off)  # S-05: the company's naming convention
+    for cik, metric, value, end, url, form, filed, fye_end, off, ends in rows:
+        fye = (fye_end, off, periods.parse_year_ends(ends))  # S-05, S-07: the naming convention
         rank = (form in ANNUAL_FORMS, filed)
         key = (cik, metric, end)
         if key not in best or rank > best[key][0]:
             best[key] = (rank, float(value), url, fye)
     out: dict = {}
     for (cik, metric, end), (_, value, url, fye) in best.items():
-        fy = periods.fiscal_year(end, fye)
+        fy = periods.fiscal_year(end, fye, period_class="annual")
         out.setdefault(cik, {}).setdefault(fy, {})[metric] = (value, end, url)
     return out
 

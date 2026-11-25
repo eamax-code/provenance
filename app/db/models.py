@@ -62,6 +62,9 @@ class Company(Base):
     # S-05: years to add to the end-year fiscal label, as the latest 10-K words it (-1: the year
     # is named by the calendar year it starts in); null: not read, the end-year rule applies
     fiscal_year_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # S-07: the company's own fiscal year ends (ISO dates, comma-separated, oldest first): the
+    # year each annual report covers; a period takes the fiscal year in force when it was filed
+    fiscal_year_ends: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Identity the SEC publishes in the submissions (issue #9); empty strings are stored as null.
     filer_category: Mapped[str | None] = mapped_column(Text, nullable=True)  # Large accelerated…
     sec_office: Mapped[str | None] = mapped_column(Text, nullable=True)  # ownerOrg

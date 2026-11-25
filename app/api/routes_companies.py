@@ -429,7 +429,8 @@ def facts(
     if stated:
         notes.append(first_reported.NOTE)
     for f in page:  # the period's own fiscal year, whatever filing reported it
-        f.period_fiscal_year = periods.fiscal_year(f.period_end, periods.convention(company))
+        f.period_fiscal_year = periods.fiscal_year(f.period_end, periods.convention(company),
+                                                     period_class=f.period_class)
         f.calendar_period = periods.calendar_period(f.period_start, f.period_end, f.period_class)
         if f.period_class in ("annual", "quarterly"):
             f.period_label = periods.label(f.period_end, f.period_class,
@@ -552,7 +553,8 @@ def _derived_page(cik, company, metric, ratio, rows, limit, offset, as_of) -> Fa
         )  # fmt: skip
     out.sort(key=lambda f: f.period_end, reverse=True)
     for f in out:
-        f.period_fiscal_year = periods.fiscal_year(f.period_end, periods.convention(company))
+        f.period_fiscal_year = periods.fiscal_year(f.period_end, periods.convention(company),
+                                                     period_class=f.period_class)
         f.calendar_period = periods.calendar_period(f.period_start, f.period_end, f.period_class)
         if f.period_class in ("annual", "quarterly"):
             f.period_label = periods.label(f.period_end, f.period_class,
@@ -699,6 +701,33 @@ def statement(
     cover = {k: v for k, v in by_key.items() if k[0] in COVER_METRICS}
     for k in cover:
         by_key.pop(k)
+    transitions: dict = {}  # S-07: end -> start of a year-end changer's transition period
+    if period == "annual":
+        # S-07: annual columns are the company's own fiscal years (and its predecessors'), the
+        # year each annual report covers; other 12-month periods in a 10-K are never columns
+        own = set()
+        for c in db.scalars(select(Company).where(Company.cik.in_(ciks))):
+            own.update(periods.parse_year_ends(c.fiscal_year_ends))
+        own_ends = tuple(sorted(own))
+        for k in [k for k in by_key if not periods.is_fiscal_year_end(k[1], own_ends)]:
+            by_key.pop(k)
+        tq = select(FinancialFact).where(
+            FinancialFact.cik.in_(ciks), FinancialFact.derived.is_(False),
+            FinancialFact.metric.in_(metrics), FinancialFact.period_class == "other",
+            FinancialFact.form_type.in_(("10-KT", "10-KT/A")),
+            FinancialFact.period_start.is_not(None))  # fmt: skip
+        if as_of:
+            tq = known_by(tq, as_of)
+        trows = [r for r in db.scalars(tq) if 60 <= (r.period_end - r.period_start).days <= 340]
+        main = {}  # the transition period each 10-KT reports: its latest end
+        for r in trows:
+            if r.period_end > main.get(r.accession_number, (date.min,))[0]:
+                main[r.accession_number] = (r.period_end, r.period_start)
+        tset = set(main.values())
+        for f in _select_latest([r for r in trows if (r.period_end, r.period_start) in tset]):
+            if (f.metric, f.period_end) not in by_key:
+                by_key[(f.metric, f.period_end)] = f
+                transitions[f.period_end] = f.period_start
     ends = sorted({end for _, end in by_key})[-n_cols:]
     for (m, dated), f in sorted(cover.items(), key=lambda kv: kv[0][1]):
         home = [e for e in ends if e <= dated and (dated - e).days <= 120]
@@ -711,11 +740,22 @@ def statement(
         if f.period_start and end in ends:
             starts.setdefault(end, f.period_start)
     columns = []
+    conv = periods.convention(company)  # S-05, S-07: the company's own naming
+    fiscal = [e for e in ends if e not in transitions]
+    names = dict(zip(fiscal, periods.labels(fiscal, period, conv), strict=True))
     for end in ends:
-        conv = periods.convention(company)  # S-05: the company's own naming
-        label = periods.label(end, period, conv)
+        if end in transitions:  # S-07: never a fiscal year, never in year-on-year comparisons
+            label = periods.transition_label(transitions[end], end)
+            columns.append(StatementColumn(
+                key=label, period_label=label, period_fiscal_year=None,
+                period_start=transitions[end], period_end=end, calendar_period=None,
+                transition=True,
+            ))  # fmt: skip
+            continue
+        label = names[end]
         columns.append(StatementColumn(
-            key=label, period_label=label, period_fiscal_year=periods.fiscal_year(end, conv),
+            key=label, period_label=label,
+            period_fiscal_year=periods.fiscal_year(end, conv, period_class=period),
             period_start=starts.get(end), period_end=end,
             calendar_period=periods.calendar_period(starts.get(end), end, period),
         ))  # fmt: skip

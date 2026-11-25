@@ -337,9 +337,10 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
     )  # fmt: skip
     # S-05: each company's fiscal year end with its naming convention
     fye = {
-        cik: (end, off)
-        for cik, end, off in db.execute(
-            select(Company.cik, Company.fiscal_year_end, Company.fiscal_year_offset).where(
+        cik: (end, off, periods.parse_year_ends(ends))
+        for cik, end, off, ends in db.execute(
+            select(Company.cik, Company.fiscal_year_end, Company.fiscal_year_offset,
+                   Company.fiscal_year_ends).where(  # fmt: skip
                 Company.cik.in_(ciks) if ciks else True
             )
         )
@@ -358,7 +359,7 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
     )
     for r in result:
         year_end = fye.get(r.cik)
-        fiscal_year = periods.fiscal_year(r.period_end, year_end)
+        fiscal_year = periods.fiscal_year(r.period_end, year_end, period_class=r.period_class)
         quarter = (
             periods.fiscal_quarter(r.period_end, year_end)
             if r.period_class == "quarterly"

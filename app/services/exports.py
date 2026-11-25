@@ -74,7 +74,8 @@ _COMPUTED = ("period_fiscal_year", "period_label", "calendar_period")
 def fact_row(f: FinancialFact, fiscal_year_end: str | None = None) -> dict:
     row = {col: getattr(f, _RENAMED.get(col, col)) for col in EXPORT_COLUMNS
            if col not in _COMPUTED}  # fmt: skip
-    row["period_fiscal_year"] = periods.fiscal_year(f.period_end, fiscal_year_end)
+    row["period_fiscal_year"] = periods.fiscal_year(f.period_end, fiscal_year_end,
+                                                    period_class=f.period_class)
     row["period_label"] = (
         periods.label(f.period_end, f.period_class, fiscal_year_end)
         if f.period_class in ("annual", "quarterly") else None

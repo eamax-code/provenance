@@ -994,7 +994,8 @@ def annual_fact(db: Session, company: Company, metric: str, year: int | None,
     from app.services import periods
 
     fye = periods.convention(company)
-    return next((f for f in rows if periods.fiscal_year(f.period_end, fye) == year), None)
+    return next((f for f in rows
+                 if periods.fiscal_year(f.period_end, fye, period_class="annual") == year), None)
 
 
 def figure_for(db: Session, b: Brief, metric: str, year: int | None, as_of: date | None) -> str:

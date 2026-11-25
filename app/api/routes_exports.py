@@ -21,6 +21,7 @@ from app.services.exports import (
     render_rows_json,
 )
 from app.services.fact_normalizer import MAPPING_VERSION, SUPPORTED_METRICS
+from app.services.periods import parse_year_ends
 from app.services.sec_client import normalize_cik
 
 router = APIRouter(prefix="/v1/exports", tags=["exports"])
@@ -93,9 +94,10 @@ def export_facts(
     headers = _headers(filename, len(rows), truncated, requested)
     # S-05: each company's fiscal year end with its naming convention
     year_ends = {
-        cik: (fye, off)
-        for cik, fye, off in db.execute(
-            select(Company.cik, Company.fiscal_year_end, Company.fiscal_year_offset).where(
+        cik: (fye, off, parse_year_ends(ends))
+        for cik, fye, off, ends in db.execute(
+            select(Company.cik, Company.fiscal_year_end, Company.fiscal_year_offset,
+                   Company.fiscal_year_ends).where(  # fmt: skip
                 Company.cik.in_({r.cik for r in rows})
             )
         )

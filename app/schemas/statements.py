@@ -14,6 +14,11 @@ class StatementColumn(BaseModel):
     period_start: date | None = None
     period_end: date
     calendar_period: str | None = None
+    transition: bool = Field(
+        False, description="S-07: a transition period between two fiscal years when the company "
+        "changed its year end (a 10-KT); labelled 'Transition period (N months, ended date)', "
+        "never a fiscal year and never compared year on year.",
+    )
 
 
 class StatementCell(BaseModel):

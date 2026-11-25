@@ -33,3 +33,29 @@ def test_a_change_of_year_end_names_the_month():
     ]
     advance = [date(2021, 1, 2), date(2022, 1, 1), date(2022, 12, 31)]
     assert periods.labels(advance, "annual", "1231") == ["FY2020", "FY2021", "FY2022"]
+
+
+def test_s07_a_year_is_named_by_its_own_end_and_a_quarter_by_the_year_containing_it():
+    # Greif: its years end on October 31 though the stored year end says September 30
+    assert periods.label(date(2019, 10, 31), "annual", ("0930", None, ())) == "FY2019"
+    # Broadcom Corp: December years under a stale October year end
+    assert periods.label(date(2014, 12, 31), "annual", ("1030", None, ())) == "FY2014"
+    # Theralink: December years, then September from 2020; quarters follow the year in force
+    conv = ("0930", None, (date(2018, 12, 31), date(2019, 12, 31), date(2020, 9, 30)))
+    assert periods.label(date(2019, 9, 30), "quarterly", conv) == "Q3 FY2019"
+    assert periods.label(date(2020, 6, 30), "quarterly", conv) == "Q3 FY2020"
+    assert periods.label(date(2021, 3, 31), "quarterly", conv) == "Q2 FY2021"  # stored end
+    # the S-05 offset still applies (Gap: start-year naming)
+    assert periods.label(date(2026, 1, 31), "annual", ("0201", -1, ())) == "FY2025"
+
+
+def test_s07_only_the_companys_own_years_are_fiscal_years():
+    own = (date(2009, 12, 31), date(2010, 12, 31))
+    assert periods.is_fiscal_year_end(date(2008, 12, 31), own)  # a comparative year
+    assert periods.is_fiscal_year_end(date(2011, 1, 1), (date(2010, 1, 2),))  # 52/53 weeks
+    assert not periods.is_fiscal_year_end(date(2010, 11, 30), (date(2010, 5, 31),
+                                                                date(2011, 5, 31)))  # fmt: skip
+    assert periods.is_fiscal_year_end(date(2010, 11, 30), ())  # nothing known: kept
+    assert periods.transition_label(date(2015, 3, 1), date(2015, 12, 31)) == (
+        "Transition period (10 months, ended 2015-12-31)"
+    )

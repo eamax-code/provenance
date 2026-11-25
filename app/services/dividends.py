@@ -181,7 +181,7 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
             "period_label": periods.label(e, cls, conv),
             "period_start": start.isoformat() if start else None,
             "period_end": e.isoformat(),
-            "period_fiscal_year": periods.fiscal_year(e, conv),
+            "period_fiscal_year": periods.fiscal_year(e, conv, period_class=cls),
             "fiscal_year_end": fye,
             "label_basis": periods.label_basis(conv),
             "calendar_period": periods.calendar_period(start, e, cls),
