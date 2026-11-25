@@ -59,6 +59,12 @@ secret values) when:
 
 The Dockerfile serves the API by default; override the command for the poller.
 
+**Design prototypes never deploy.** `site/poc/` is in `.dockerignore`, so it is never in the
+image (`COPY site` leaves it out), and with `APP_ENV=production` the app answers `/poc/...` with
+404 even if the files were present; `robots.txt` disallows `/poc/` and the sitemap never lists
+it. Tests: `test_production_hides_the_prototypes_and_sends_hsts` and
+`test_the_prototypes_never_reach_the_deploy_image`.
+
 **Migrations before code.** Apply migrations (`alembic upgrade head`) before any process starts
 or restarts on new code: the API, the poller, the hourly tracker (launchd
 `com.eamax.provenance.track-filings`), chains and loaders all import whatever code is on disk

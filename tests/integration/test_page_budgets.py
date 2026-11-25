@@ -55,7 +55,8 @@ BUDGETS = {
     # Q-09 (25 Nov): Read the whole section on Item 1A/7 hits
     "search": (["search/index.html", "search/search.css", "search/search.js"], 10_800),
     # Q-09 (25 Nov, PM-approved): a 10-K item as filed, 8.8 KB at launch
-    "filing section": (["filings/section.html", "filings/section.css", "filings/section.js"], 9_000),
+    # Q-09 + a11y: matches announced to screen readers (pre-launch checklist)
+    "filing section": (["filings/section.html", "filings/section.css", "filings/section.js"], 9_400),
     "insiders": (["insiders/index.html", "insiders/insiders.css", "insiders/insiders.js"], 12_800),
     # Q-02 fund managers (25 Nov, PM-approved): about 8.8 KB and 10.5 KB gzipped at launch
     "managers": (["managers/index.html", "managers/managers.css", "managers/managers.js"], 10_000),

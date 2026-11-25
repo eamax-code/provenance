@@ -29,6 +29,7 @@ SITEMAP_PAGES = (
     "/listings/",
     "/playground/",
     "/status/",
+    "/coverage/",
     "/changelog/",
     "/contact/",
     "/ipos/",

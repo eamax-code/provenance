@@ -69,6 +69,7 @@ def test_production_hides_the_prototypes_and_sends_hsts(settings, monkeypatch):
         assert "stats-refresher" not in [t.name for t in threading.enumerate()]
         assert c.get("/poc/themes/").status_code == 404
         assert c.get("/poc/gamification/game.js").status_code == 404
+        assert c.get("/poc/").status_code == 404 and c.get("/poc/poc.css").status_code == 404
         r = c.get("/healthz")
         assert r.headers["strict-transport-security"].startswith("max-age=31536000")
 
@@ -149,3 +150,13 @@ def test_no_page_loads_anything_from_google_fonts():
 def test_csp_allows_no_font_cdn(client):
     csp = client.get("/healthz").headers["Content-Security-Policy"]
     assert "googleapis" not in csp and "gstatic" not in csp
+
+
+def test_the_prototypes_never_reach_the_deploy_image():
+    """Pre-launch: site/poc is left out of the Docker build context (.dockerignore), so it is
+    never in the deploy image; production also 404s /poc/ (above)."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    ignored = {ln.strip().rstrip("/") for ln in (root / ".dockerignore").read_text().splitlines()}
+    assert "site/poc" in ignored
