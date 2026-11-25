@@ -19,6 +19,10 @@ class StatementColumn(BaseModel):
         "changed its year end (a 10-KT); labelled 'Transition period (N months, ended date)', "
         "never a fiscal year and never compared year on year.",
     )
+    transition_form: str | None = Field(
+        None, description="S-07: the form the transition period was reported on (10-KT, or a "
+        "10-K or 20-F whose cover may say annual report)",
+    )
 
 
 class StatementCell(BaseModel):

@@ -702,6 +702,7 @@ def statement(
     for k in cover:
         by_key.pop(k)
     transitions: dict = {}  # S-07: end -> start of a year-end changer's transition period
+    span_form: dict = {}
     if period == "annual":
         # S-07: annual columns are the company's own fiscal years (and its predecessors'), the
         # year each annual report covers; other 12-month periods in a 10-K are never columns
@@ -711,23 +712,24 @@ def statement(
         own_ends = tuple(sorted(own))
         for k in [k for k in by_key if not periods.is_fiscal_year_end(k[1], own_ends)]:
             by_key.pop(k)
-        tq = select(FinancialFact).where(
-            FinancialFact.cik.in_(ciks), FinancialFact.derived.is_(False),
-            FinancialFact.metric.in_(metrics), FinancialFact.period_class == "other",
-            FinancialFact.form_type.in_(("10-KT", "10-KT/A")),
-            FinancialFact.period_start.is_not(None))  # fmt: skip
-        if as_of:
-            tq = known_by(tq, as_of)
-        trows = [r for r in db.scalars(tq) if 60 <= (r.period_end - r.period_start).days <= 340]
-        main = {}  # the transition period each 10-KT reports: its latest end
-        for r in trows:
-            if r.period_end > main.get(r.accession_number, (date.min,))[0]:
-                main[r.accession_number] = (r.period_end, r.period_start)
-        tset = set(main.values())
-        for f in _select_latest([r for r in trows if (r.period_end, r.period_start) in tset]):
-            if (f.metric, f.period_end) not in by_key:
-                by_key[(f.metric, f.period_end)] = f
-                transitions[f.period_end] = f.period_start
+        # a year-end changer's transition period (10-KT, or a 20-F or 10-K transition report)
+        from app.services import fiscal_years
+
+        found = [x for xs in fiscal_years.transitions(db, ciks, as_of).values() for x in xs]
+        spans = {(x[0], x[1]): x[2] for x in found}
+        span_form = {x[1]: x[3] for x in found}  # the cover's form: 10-KT, or 10-K or 20-F
+        if spans:
+            tq = select(FinancialFact).where(
+                FinancialFact.cik.in_(ciks), FinancialFact.derived.is_(False),
+                FinancialFact.metric.in_(metrics),
+                FinancialFact.accession_number.in_(set(spans.values())))  # fmt: skip
+            if as_of:
+                tq = known_by(tq, as_of)
+            trows = [r for r in db.scalars(tq) if (r.period_start, r.period_end) in spans]
+            for f in _select_latest(trows):
+                if (f.metric, f.period_end) not in by_key:
+                    by_key[(f.metric, f.period_end)] = f
+                    transitions[f.period_end] = f.period_start
     ends = sorted({end for _, end in by_key})[-n_cols:]
     for (m, dated), f in sorted(cover.items(), key=lambda kv: kv[0][1]):
         home = [e for e in ends if e <= dated and (dated - e).days <= 120]
@@ -749,7 +751,7 @@ def statement(
             columns.append(StatementColumn(
                 key=label, period_label=label, period_fiscal_year=None,
                 period_start=transitions[end], period_end=end, calendar_period=None,
-                transition=True,
+                transition=True, transition_form=span_form.get(end),
             ))  # fmt: skip
             continue
         label = names[end]

@@ -4,8 +4,8 @@
 python scripts/set_fiscal_year_ends.py --dry-run --out d.jsonl   # count, store nothing
 python scripts/set_fiscal_year_ends.py                           # store
 
-An annual report's own year is its annual period ending at the filing's period of report (the
-SEC's report date, within 7 days), else its latest annual period (net income or revenue). Labels
+Own years are read by app.services.fiscal_years: an annual report's own year (its period of
+report, else its latest annual period) and its comparative years ending on the same day. Labels
 then name a fiscal year by its own end date and a quarter by the own year end containing it, and
 annual statement columns are these years only: other 12-month periods in a report (AAR's
 November and June periods, Eros' September) are never columns. The dry run counts the annual
@@ -17,48 +17,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 
 from _bootstrap import bootstrap
 from sqlalchemy import text, update
 
 from app.db.models import Company
-from app.services import periods
-
-FORMS = ("10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A", "10-KT", "10-KT/A")
-NEAR = 7
-
-
-def own_year_ends(db) -> dict[str, list]:
-    """{cik: [own year end dates, oldest first]}"""
-    rows = db.execute(text("""
-        select f.cik, f.accession_number, f.period_end, fl.report_date
-        from financial_facts f left join filings fl on fl.accession_number = f.accession_number
-        where f.period_class = 'annual' and f.quality_status in ('ok', 'partial')
-          and f.metric in ('net_income', 'revenue') and f.form_type = any(:forms)
-        group by f.cik, f.accession_number, f.period_end, fl.report_date"""),
-        {"forms": list(FORMS)}).all()  # fmt: skip
-    by_filing: dict[tuple, list] = defaultdict(list)
-    report: dict[tuple, object] = {}
-    for cik, acc, end, rep in rows:
-        by_filing[(cik, acc)].append(end)
-        report[(cik, acc)] = rep
-    out: dict[str, set] = defaultdict(set)
-    for key, ends in by_filing.items():
-        rep = report[key]
-        near = [e for e in ends if rep and abs((e - rep).days) <= NEAR]
-        out[key[0]].add(max(near) if near else max(ends))
-    result = {}
-    for cik, ends in out.items():
-        kept: list = []
-        for e in sorted(ends):  # one per year: a 52/53-week year can move by a few days
-            if kept and (e - kept[-1]).days <= NEAR:
-                kept[-1] = e
-            else:
-                kept.append(e)
-        result[cik] = kept
-    return result
-
+from app.services import fiscal_years, periods
 
 REMOVED: dict[str, list] = {}
 
@@ -87,7 +52,7 @@ def main() -> int:
     args = ap.parse_args()
     _, Session = bootstrap()
     db = Session()
-    own = own_year_ends(db)
+    own = fiscal_years.own_year_ends(db)
     gone = removed_columns(db, own)
     stats = {"companies": len(own), "year_ends": sum(len(v) for v in own.values()),
              "columns_removed": sum(gone.values()),
