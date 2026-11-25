@@ -39,6 +39,13 @@ TARGET_P95_MS = {
     "filing search": 500,
     "insider screen": 500,
     "managers": 500,
+    "timeline": 500,
+    "activists": 500,
+    "activists all": 500,
+    "fails to deliver": 500,
+    "sections": 500,
+    "dividends": 500,
+    "screen inactive": 500,
 }
 # the palette's names (ui's check, 2026-11-24) and the read set of 10-K changes
 TERMS = (
@@ -86,6 +93,12 @@ MANAGER_SHAPES = (
     "/v1/managers/activity?direction=bought",
     "/v1/managers/activity?direction=sold",
 )  # fmt: skip
+# Q-09: both items of three read 10-Ks (latest filings of Microsoft, Berkshire, JPMorgan)
+SECTIONS = ("0001193125-26-323660/sections/1A", "0001193125-26-323660/sections/7",
+            "0001628280-26-008131/sections/1A", "0001628280-26-008131/sections/7",
+            "0001193125-26-083899/sections/1A", "0001193125-26-083899/sections")  # fmt: skip
+ACTIVISTS = ("since=2026-08-26&until=2026-11-24", "kind=all&since=2026-05-28&until=2026-11-24",
+             "min_percent=10&since=2025-11-24&until=2026-11-24")  # fmt: skip
 SHOWCASE_PAGES = ("overview", "statements/income", "timeline", "insiders", "holders", "ownership")
 
 
@@ -129,6 +142,14 @@ def requests_for(
         ("insider screen", "GET", f"/v1/insider-transactions?{INSIDER_SCREENS[i % 7]}", None),
         ("filing search", "GET", f"/v1/search/filings?q={FILING_QUERIES[i % 15]}"
                                  f"&sort={('date', 'relevance')[i // 15 % 2]}", None),
+        ("activists", "GET", f"/v1/companies/{cik}/activists", None),
+        ("activists all", "GET", f"/v1/activists?{ACTIVISTS[i % 3]}", None),
+        ("fails to deliver", "GET", f"/v1/companies/{cik}/fails-to-deliver", None),
+        ("sections", "GET", f"/v1/filings/{SECTIONS[i % 6]}", None),
+        ("dividends", "GET", f"/v1/companies/{cik}/dividends?period="
+                             f"{('annual', 'quarterly')[i // 6 % 2]}", None),
+        ("screen inactive", "GET", "/v1/facts/screen?metric=revenue&year=2025&limit=50"
+                                   "&include_inactive=true", None),
     ]  # fmt: skip
     if watchlist:
         plan.append(("watchlist rows", "GET", f"/v1/watchlists/{watchlist}/rows", None))

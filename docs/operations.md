@@ -638,6 +638,42 @@ DATABASE_URL=.../provenance_migration_drill alembic upgrade +1   # repeated, tim
 - Scratch database at the end: 91 MB. Not measured: full-size loader times on a restored copy,
   and the final database size (needs the full drill).
 
+## R-2 at 2 workers, before launch (2026-11-25 15:41 IST)
+
+`scripts/load_smoke.py --rps 25 --seconds 240` against a scratch server on HEAD 348da86 with **2
+uvicorn workers** (local Postgres, a temporary enterprise key revoked afterwards), load average
+4-5.5 on the machine from other sessions: 6,000 requests (25.0 req/s achieved), 200 per
+endpoint. The 24 Nov mix plus filing search (both sorts), the insider screener (the Q-03d
+value-filtered shapes included), managers (Berkshire, BlackRock by value and change, activity),
+activists (per company and across), fails-to-deliver, sections, dividends (annual and
+quarterly) and the screen with `include_inactive=true`. Target p95 under 500 ms.
+
+| Endpoint | p50 ms | p95 ms | p99 ms |
+| --- | --- | --- | --- |
+| /v1/insider-transactions | 388 | **630** | 825 |
+| /v1/search/filings | 255 | 322 | 524 |
+| /v1/search | 186 | 224 | 322 |
+| /v1/activists | 87 | 220 | 757 |
+| /fails-to-deliver | 99 | 214 | 233 |
+| /overview (keyed) | 129 | 189 | 246 |
+| /v1/filings/{accession}/sections | 41 | 152 | 241 |
+| /v1/facts/screen | 59 | 148 | 203 |
+| /dividends | 27 | 121 | 168 |
+| /activists (per company) | 13 | 120 | 191 |
+| /v1/facts/screen?include_inactive=true | 32 | 94 | 184 |
+| /v1/managers (all shapes) | 74 | 84 | 92 |
+| /timeline | 48 | 83 | 165 |
+| every other endpoint in the mix | 5-62 | 7-97 | 10-125 |
+
+- **Errors:** none on keyed endpoints. The keyless public endpoints (`/v1/public/.../overview`,
+  `/v1/public/coverage`, `/v1/stats`) returned 429 for about half their requests (the per-IP
+  public limit, by design at this rate from one address) and 404 for the four mix companies
+  outside the showcase (by design).
+- **Timeline at 2 workers: p95 83 ms** (722 ms at one worker on 24 Nov): the watch item is closed.
+- **Over target: the insider screener, p95 630 ms.** Alone (median of 5) its shapes take 64-567
+  ms: the default month 314 ms, a year of sales over $5M outside 10b5-1 plans sorted by value
+  567 ms. It is slow by itself, not only under load: a ticket.
+
 ## R-2 for the 24 Nov endpoints (2026-11-24 03:57 IST)
 
 `scripts/load_smoke.py --rps 25 --seconds 180` against a scratch server on HEAD fe50312 (one
