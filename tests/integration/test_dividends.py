@@ -284,3 +284,68 @@ def test_each_row_says_its_basis_and_payout_needs_declared_or_recognised(client,
     assert rows["FY2024"]["basis"] == "cash paid" and rows["FY2024"]["payout_ratio"] is None
     assert rows["FY2023"]["basis"] == "recognised in the period (IFRS)"
     assert rows["FY2023"]["payout_ratio"]["value"] == 0.4
+
+
+def test_a_year_with_no_annual_figure_is_the_sum_of_its_four_quarters(client, auth, db):
+    """Q-04c(2): FY2024 has four contiguous quarters and no annual figure: derived, its inputs
+    listed, no payout ratio. FY2023 has three (Costco's untagged 16-week fourth): none. FY2022's
+    first quarter is given differently by a later filing (Terex's Q2 2020): none."""
+    from datetime import UTC, date, datetime, timedelta
+
+    from app.db.models import Company
+
+    cik, now = "0000000904", datetime.now(UTC)
+    db.add(Company(cik=cik, legal_name="QUARTERLY INC", ticker="QTRS", fiscal_year_end="1231",
+                   fiscal_year_ends="2022-12-31,2023-12-31,2024-12-31",
+                   source_url="https://www.sec.gov/", first_detected_at=now,
+                   last_processed_at=now, quality_status="ok"))  # fmt: skip
+    m, u = "dividends_per_share", "USD/shares"
+    q = [((1, 1), (3, 31)), ((4, 1), (6, 30)), ((7, 1), (9, 30)), ((10, 1), (12, 31))]
+    rows = []
+    for y, values in ((2024, (0.10, 0.10, 0.10, 0.12)), (2023, (0.09, 0.09, 0.09, None)),
+                      (2022, (0.08, 0.08, 0.08, 0.08))):  # fmt: skip
+        for i, ((sm, sd), (em, ed)) in enumerate(q):
+            if values[i] is not None:
+                rows.append(_fact(DividendFact, cik, m, values[i], u, date(y, sm, sd),
+                                  date(y, em, ed), "quarterly", f"q-{y}-{i}",
+                                  date(y, em, ed) + timedelta(days=40)))  # fmt: skip
+    # a later filing gives another year's dividend for Q1 FY2022
+    rows.append(_fact(DividendFact, cik, m, 0.80, u, date(2022, 1, 1), date(2022, 3, 31),
+                      "quarterly", "q-2023-9", date(2023, 5, 1)))  # fmt: skip
+    db.add_all(rows)
+    db.commit()
+    body = client.get(f"/v1/companies/{cik}/dividends", headers=auth).json()
+    by = {r["period_label"]: r for r in body["data"]}
+    assert set(by) == {"FY2024"}
+    fy = by["FY2024"]
+    assert fy["derived"] and fy["declared_per_share"] == 0.42 and fy["payout_ratio"] is None
+    assert [i["value"] for i in fy["inputs"]] == [0.10, 0.10, 0.10, 0.12]
+    assert [i["period_label"] for i in fy["inputs"]] == ["Q1 FY2024", "Q2 FY2024", "Q3 FY2024",
+                                                         "Q4 FY2024"]  # fmt: skip
+    assert fy["period_start"] == "2024-01-01" and fy["quality_status"] == "derived"
+    assert any("sum of its four quarters" in n for n in body["notes"])
+
+
+def test_a_daily_rate_tagged_as_a_quarter_is_never_summed():
+    """Q-04c(2): RREEF's 0.001836 a quarter and Griffin's 0.001896 fourth quarter are daily
+    rates; Radian's 0.0025 a quarter is a dividend."""
+    from datetime import date
+    from types import SimpleNamespace
+
+    from app.services.dividends import annual_from_quarters
+
+    def year(values):
+        q = [((1, 1), (3, 31)), ((4, 1), (6, 30)), ((7, 1), (9, 30)), ((10, 1), (12, 31))]
+        return {date(2017, em, ed): SimpleNamespace(
+            value=v, unit="USD/shares", source_tag="CommonStockDividendsPerShareDeclared",
+            quality_status="ok", period_start=date(2017, sm, sd), period_end=date(2017, em, ed),
+            accession_number="a", form_type="10-Q", filed_date=None, source_url="u", cik="1")
+            for v, ((sm, sd), (em, ed)) in zip(values, q, strict=True)}  # fmt: skip
+
+    def derive(values):
+        qs = year(values)
+        return annual_from_quarters(qs, dict.fromkeys(qs, 1.0), [date(2017, 12, 31)], {})
+
+    assert derive([0.001836, 0.001832, 0.001854, 0.001868]) == {}
+    assert derive([0.17, 0.17, 0.17, 0.001896]) == {}
+    assert float(derive([0.0025] * 4)[date(2017, 12, 31)]["fact"].value) == 0.01

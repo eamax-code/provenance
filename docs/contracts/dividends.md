@@ -186,3 +186,17 @@ Ex-dividend, record and payment dates are not in the SEC's company facts; they w
   LLC distributions (filers' scale slips and figures that were not dividends). Check of 30
   filled cells: 29 right, 1 wrong (CrossAmerica 2015: $2.28 in its 2017 10-K's prior-year
   column, where its 2016 10-K gives four quarters summing to $2.23).
+- **Q-04c(2) (2026-11-25): a year with no annual figure, from its four quarters.** Where no annual
+  value was filed for one of the company's own fiscal years, the row is the sum of four quarters
+  as first filed: contiguous (each starting the day after the last ended), a year long in total,
+  of one tag and unit, ok or partial, on one share basis (one split factor). `derived: true`,
+  `quality_status: "derived"`, `inputs` lists the four quarters with their filings, the row cites
+  the fourth quarter's filing, and `payout_ratio` is `null` (no one filing gives both sides); a
+  note says so. Never from three quarters (Costco FY2020–22: its 16-week fourth quarter is not
+  tagged, so those years stay empty), never where two filings give a quarter differently (a
+  split restating it, Insperity 2017; a later filing dating another year's dividend to it,
+  Houlihan Lokey FY2018, Terex Q2 2020, Corebridge Q1 2024), never from a daily rate tagged as a
+  quarter (a quarter under 1/20 of the year's largest, Griffin's; or under $0.01 with more than
+  four decimals, RREEF's). 766 years at 243 companies. Checks: two samples failed and drove those
+  rules (Corebridge and Houlihan Lokey; Insperity, Terex and Griffin); the third fresh 30 had
+  29 right, and its one wrong (RREEF's daily rates) is now left out.

@@ -62,6 +62,79 @@ EMPTY_NOTE = ("No dividends per share are reported in the 10-K and 10-Q XBRL fil
               "for this company.")  # fmt: skip
 
 
+YEAR_DAYS = (350, 378)  # four quarters: a 52- or 53-week year, or a calendar year
+QUARTER_DAYS = (77, 119)  # a 13-week quarter, or a retailer's 16-week fourth (Costco's)
+FROM_QUARTERS_NOTE = ("A year marked derived is the sum of its four quarters as filed, given only "
+                      "where no annual figure was filed and the quarters are contiguous, of one "
+                      "tag, unit and share basis; it has no payout ratio.")  # fmt: skip
+
+
+SPREAD = 20  # a quarter under 1/20 of the year's largest is a rate, not a quarter (Griffin's)
+
+
+def _agree(a: float, b: float) -> bool:
+    return a == b or (b != 0 and abs(a / b - 1) <= 0.005)
+
+
+def annual_from_quarters(quarters: dict, factor: dict, year_ends, annual_ends,
+                         seen: dict | None = None) -> dict:  # fmt: skip
+    """Q-04c(2): {year end: {"fact", "inputs", "factor"}} for each own fiscal year with no
+    annual figure, as the sum of four reported quarters: contiguous (each starting the day after
+    the last ended, within a few days), together a year long, of one tag and unit, ok or partial,
+    and on one share basis (one split factor). Never from three, never across a split. seen:
+    {(tag, unit, start, end): values every filing reports}; a quarter two filings give
+    differently is never summed (a split restates it: Insperity's 2017; a later filing dates
+    another year's dividend to it: Terex's Q2 2020, Corebridge's Q1 2024). Nor is a year with a
+    daily rate tagged as a quarter: a nonzero quarter under 1/20 of the year's largest
+    (Griffin's), or under $0.01 with more than four decimals (RREEF's 0.001836; Radian's 0.0025
+    a quarter is a dividend)."""
+    from types import SimpleNamespace
+
+    out: dict = {}
+    for y in year_ends:
+        if any(abs((y - a).days) <= 7 for a in annual_ends):
+            continue
+        last = [e for e in quarters if abs((e - y).days) <= 7]
+        if not last:
+            continue
+        chain = [quarters[min(last, key=lambda e: abs((e - y).days))]]
+        while len(chain) < 4:
+            start = chain[-1].period_start
+            prev = [f for f in quarters.values()
+                    if start and 1 <= (start - f.period_end).days <= 4]  # fmt: skip
+            if not prev:
+                break
+            chain.append(max(prev, key=lambda f: f.period_end))
+        if len(chain) < 4:
+            continue
+        chain.reverse()
+        first, fourth = chain[0], chain[-1]
+        span = (fourth.period_end - first.period_start).days + 1
+        facs = {factor.get(f.period_end) for f in chain}
+        nonzero = [abs(float(f.value)) for f in chain if f.value]
+        if any(not all(_agree(float(v), float(f.value)) for v in (seen or {}).get(
+                (f.source_tag, f.unit, f.period_start, f.period_end), ()))
+               for f in chain if f.value is not None):  # fmt: skip
+            continue
+        if nonzero and min(nonzero) * SPREAD < max(nonzero):
+            continue
+        if any(v < 0.01 and round(v, 4) != v for v in nonzero):
+            continue
+        if (not YEAR_DAYS[0] <= span <= YEAR_DAYS[1]
+                or len({f.source_tag for f in chain}) != 1 or len({f.unit for f in chain}) != 1
+                or any(f.value is None or f.quality_status not in ("ok", "partial") for f in chain)
+                or len(facs) != 1 or None in facs):  # fmt: skip
+            continue
+        fact = SimpleNamespace(
+            value=sum(f.value for f in chain), unit=fourth.unit, source_tag=fourth.source_tag,
+            quality_status="derived", period_start=first.period_start,
+            period_end=fourth.period_end, accession_number=fourth.accession_number,
+            form_type=fourth.form_type, filed_date=fourth.filed_date,
+            source_url=fourth.source_url, cik=fourth.cik)  # fmt: skip
+        out[fourth.period_end] = {"fact": fact, "inputs": chain, "factor": facs.pop()}
+    return out
+
+
 def _cite(f) -> dict:
     return {"accession_number": f.accession_number, "form": f.form_type,
             "filed_date": f.filed_date.isoformat() if f.filed_date else None,
@@ -138,6 +211,8 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
     def cell(end: date, cls: str):
         if cls == "annual":
             f = annual.get(end)
+            if f is None and end in from_q:
+                return from_q[end]["fact"], from_q[end]["inputs"]
             return (f, None) if f else (None, None)
         if end in quarters:
             return quarters[end], None
@@ -159,17 +234,34 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
 
     q_cells = {e: cell(e, "quarterly")[0] for e in set(quarters) | set(derived)}
     q_factor = factors(q_cells)
+    # Q-04c(2): a year with no annual figure, as the sum of its four quarters, each as first
+    # filed (a later filing can date another year's dividends to it: Houlihan Lokey's FY2019
+    # 10-K gives FY2018's quarters as 0.27 and 0.31 against 0.20 in its own year's 10-K), on the
+    # share basis of those filings
+    as_first = [r for r in first.values() if r.period_class == "quarterly" or (
+        r.period_class == "other"
+        and QUARTER_DAYS[0] <= (r.period_end - r.period_start).days + 1 <= QUARTER_DAYS[1])]
+    reported = _pick(as_first, cik, currency)
+    seen: dict = {}
+    for r in rows:
+        if r.quality_status in ("ok", "partial") and r.value is not None:
+            seen.setdefault((r.source_tag, r.unit, r.period_start, r.period_end),
+                            set()).add(r.value)  # fmt: skip
+    from_q = annual_from_quarters(reported, factors(reported),
+                                  periods.parse_year_ends(company.fiscal_year_ends), annual, seen)
     special_q = _specials(q_cells, q_factor)
     a_cells = {e: f for e, f in annual.items()}
     special_a = _specials(a_cells, factors(a_cells), SPECIAL_YEAR_DAYS, SPECIAL_MIN_YEARS,
                           ANNUAL_BASIS)  # fmt: skip
 
     cls = "annual" if period == "annual" else "quarterly"
-    ends = sorted(annual) if cls == "annual" else sorted(q_cells)
+    ends = sorted(set(annual) | set(from_q)) if cls == "annual" else sorted(q_cells)
     ends = ends[-(n or (10 if cls == "annual" else 20)):]
-    cells = {e: cell(e, cls)[0] for e in ends}
+    cells = {e: cell(e, cls)[0] for e in ends if e not in from_q or cls != "annual"}
     fac = factors(cells) if cls == "annual" else {e: q_factor.get(e) for e in ends}
-    eps = _same_filing_eps(db, ciks, [cells[e] for e in ends]) if cls == "annual" else {}
+    if cls == "annual":
+        fac.update({e: from_q[e]["factor"] for e in ends if e in from_q})
+    eps = _same_filing_eps(db, ciks, list(cells.values())) if cls == "annual" else {}
     paid = _picked_metric(db, ciks, cik, currency, "dividends_paid", cls, as_of)
     data = []
     for e in ends:
@@ -199,7 +291,11 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
             "payout_ratio": None,
             "dividends_paid": None,
         }  # fmt: skip
-        if inputs:
+        if inputs and cls == "annual":  # Q-04c(2): the four quarters it sums
+            row["inputs"] = [{"period_label": periods.label(x.period_end, "quarterly", conv),
+                              "value": float(x.value), "accession_number": x.accession_number,
+                              "source_url": x.source_url} for x in inputs]  # fmt: skip
+        elif inputs:
             row["inputs"] = [{"period_label": periods.label(date.fromisoformat(x["period_end"]),
                                                             "annual" if i == 0 else "ytd", conv),
                               "value": float(x["value"]), "accession_number": x["accession_number"],
@@ -214,7 +310,7 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
         p = paid.get(e)
         if p is not None and p.value is not None:
             row["dividends_paid"] = {"value": float(p.value), "unit": p.unit, **_cite(p)}
-        if cls == "annual":
+        if cls == "annual" and not inputs:
             row["payout_ratio"] = _payout(f, eps.get((f.accession_number, e)))
             if row["payout_ratio"] == IMPLAUSIBLE:
                 row["payout_ratio"] = None
@@ -229,6 +325,8 @@ def build(db: Session, company: Company, period: str = "annual", n: int | None =
     splits = [{"ratio": s["hint"], "date": s["date"],
                "source": {"form": s["form"], "filed_date": s["filed"],
                           "evidence": s["disclosure"]}} for s in dated]  # fmt: skip
+    if cls == "annual" and any(e in from_q for e in ends):
+        notes.append(FROM_QUARTERS_NOTE)
     if not SPECIAL_ENABLED:
         notes.append(SPECIAL_NOTE)
     notes.insert(0, "As reported: each value in the share basis of the filing it cites; "
