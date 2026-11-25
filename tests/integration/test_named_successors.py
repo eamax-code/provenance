@@ -339,3 +339,18 @@ def test_old_subjects_and_a_second_sentence_mark_a_succession(db):
         former=("EXPRESS SCRIPTS HOLDING CO",),
     )
     assert (got["successor_cik"], got["kind"]) == (ESH, "acquired")
+
+
+def test_a_reviewed_override_sets_the_kind_after_the_rule(tmp_path):
+    """United Financial 2014: the rule reads "Legacy United merged with and into the Company" as
+    a succession; the reviewed file says merged. An override whose link changed is reported."""
+    f = tmp_path / "reviewed.csv"
+    f.write_text('predecessor_cik,successor_cik,kind,quote,reason\n'
+                 f'{MEDCO},{ESH},merged,"Legacy merged into the Company.","a merger"\n'
+                 f'{OTHER},{ESH},acquired,"gone","the link changed"\n')  # fmt: skip
+    chosen = {MEDCO: {"successor_cik": ESH, "kind": "succeeded"}}
+    unmatched = N.apply_overrides(chosen, N.reviewed_overrides(f))
+    assert chosen[MEDCO]["kind"] == "merged" and unmatched == [(OTHER, ESH)]
+    # the shipped file: every row a known kind, with a quote and a reason
+    rows = list(N.reviewed_overrides().values())
+    assert rows and all(r["kind"] in N.KINDS and r["quote"] and r["reason"] for r in rows)

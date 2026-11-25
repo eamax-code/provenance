@@ -99,6 +99,10 @@ def main() -> int:
         print(f"stopped: {e}", file=sys.stderr)  # 403/429: stop, rerun later (cached)
         stats["stopped"] += 1
     chosen = N.choose(rows)
+    unmatched = N.apply_overrides(chosen)  # app/data/named_successors_reviewed.csv
+    stats["overrides_unmatched"] = len(unmatched)
+    if unmatched:
+        print(f"reviewed overrides that match no link (review again): {unmatched}", file=sys.stderr)
     stats["links_found"] = len(rows)
     stats["predecessors_linked"] = len(chosen)
     stats.update(Counter(f"kind_{r['kind']}" for r in chosen.values()))

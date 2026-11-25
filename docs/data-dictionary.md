@@ -662,6 +662,10 @@ Archives).
   merged, OfficeMax and Palomar to acquired, TechTarget and United Financial to succeeded,
   Motricity's quote. Check: all 66 `succeeded` rows and 10 random others; 1 debatable
   (United Financial: "Legacy United merged with and into the Company"), 0 wrong otherwise.
+- **Reviewed overrides.** `app/data/named_successors_reviewed.csv` (predecessor, successor, kind,
+  quote, reason) sets a kind after the rule, where a reviewer read the filing differently; an
+  override whose link changed is reported, not applied. One row: United Financial 2014, a merger
+  (Rockville took the United name), now "Merged into".
 - **Overview.** `company.succeeded_by`, only when the company stopped filing and has no K-05
   `successor`: `{cik, name, name_as_filed, display_name, kind, label, quote, filed_date, form,
   document_url, basis}`. Filled by `scripts/find_named_successors.py` (`--dry-run --out`, then

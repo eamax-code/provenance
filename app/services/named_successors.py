@@ -19,8 +19,10 @@ doubtful link is worse than none.
 
 from __future__ import annotations
 
+import csv
 import re
 from datetime import date, timedelta
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -338,6 +340,34 @@ def candidates(db: Session) -> tuple[list[Filing], list[Filing], dict[str, MartC
             pred.append(f)
     succ = list(db.scalars(select(Filing).where(Filing.form_type.in_(SUCCESSOR_FORMS))))
     return pred, succ, stopped
+
+
+REVIEWED = Path(__file__).resolve().parents[1] / "data" / "named_successors_reviewed.csv"
+
+
+def reviewed_overrides(path: Path = REVIEWED) -> dict[tuple[str, str], dict]:
+    """(predecessor_cik, successor_cik) -> a reviewed kind with its quote and reason, applied
+    after the rule (United Financial 2014: a merger the rule reads as a succession)."""
+    if not path.exists():
+        return {}
+    with open(path, newline="", encoding="utf-8") as fh:
+        return {(r["predecessor_cik"], r["successor_cik"]): r for r in csv.DictReader(fh)}
+
+
+def apply_overrides(chosen: dict[str, dict], overrides: dict | None = None) -> list[tuple]:
+    """Set the reviewed kind on the links it names; returns the overrides that matched no link
+    (the link changed: review them again)."""
+    overrides = reviewed_overrides() if overrides is None else overrides
+    unmatched = []
+    for (pred, succ), r in overrides.items():
+        row = chosen.get(pred)
+        if row is None or row["successor_cik"] != succ:
+            unmatched.append((pred, succ))
+            continue
+        if r["kind"] not in KINDS:
+            raise ValueError(f"named_successors_reviewed.csv: unknown kind {r['kind']!r}")
+        row["kind"] = r["kind"]
+    return unmatched
 
 
 def choose(rows: list[dict]) -> dict[str, dict]:
