@@ -49,11 +49,14 @@ def read_paras(sec, f) -> list[str] | None:
     return [p for p, _ in paragraphs(body)]
 
 
+def former_names(db, cik: str) -> set[str]:
+    return {N.norm(a) for a in db.scalars(select(CompanyAlias.alias).where(
+        CompanyAlias.cik == cik, CompanyAlias.kind == "former"))} - {""}  # fmt: skip
+
+
 def own_names(db, cik: str) -> set[str]:
     names = {N.norm(db.scalar(select(Company.legal_name).where(Company.cik == cik)))}
-    names |= {N.norm(a) for a in db.scalars(select(CompanyAlias.alias).where(
-        CompanyAlias.cik == cik, CompanyAlias.kind == "former"))}  # fmt: skip
-    return {n for n in names if n}
+    return {n for n in names | former_names(db, cik) if n}
 
 
 def main() -> int:

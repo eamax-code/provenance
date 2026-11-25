@@ -43,8 +43,9 @@ def _companies(db):
     return N.Names(db)
 
 
-def _pred(names, *paras, cik=MEDCO, own=("MEDCO HEALTH SOLUTIONS INC",)):
-    return N.read_predecessor(list(paras), cik, {N.norm(n) for n in own}, names, ON)
+def _pred(names, *paras, cik=MEDCO, own=("MEDCO HEALTH SOLUTIONS INC",), former=()):
+    own = {N.norm(n) for n in (*own, *former)}
+    return N.read_predecessor(list(paras), cik, own, names, ON)
 
 
 def test_a_defined_parent_is_resolved_and_matched_exactly(db):
@@ -78,8 +79,8 @@ def test_successor_issuer_and_merged_into_and_holding_company_kinds(db):
     assert (got["successor_cik"], got["kind"]) == (OTHER, "merged")
     got = _pred(
         names,
-        "Express Scripts Holding Company (“Holdings”) became the new parent holding "
-        "company. As a result, the Company became a wholly owned subsidiary of Holdings.",
+        "In the holding company reorganization, the Company became a wholly owned subsidiary "
+        "of Express Scripts Holding Company.",
     )
     assert (got["successor_cik"], got["kind"]) == (ESH, "succeeded")
 
@@ -251,3 +252,90 @@ def test_a_term_after_another_terms_description_is_the_named_parent():
         "wholly owned subsidiary of Tyler Technologies, Inc. (“Parent”)"
     )
     assert got["parent"] == "Tyler Technologies, Inc."
+
+
+def test_the_kind_comes_from_the_matched_sentence_not_the_whole_filing(db):
+    """D-01b label fix: "successor issuer" and a defined "Holding Company Merger" elsewhere in an
+    acquisition's 8-K do not make it a reorganisation (Limestone 2023, Palomar 2013)."""
+    names = _companies(db)
+    got = _pred(
+        names,
+        "The Company merged with and into Callon Petroleum Company (the “Holding Company "
+        "Merger”), with Callon Petroleum Company surviving.",
+        "Pursuant to Rule 12g-3(a), the surviving company is the successor issuer.",
+    )
+    assert (got["successor_cik"], got["kind"]) == (OTHER, "merged")
+    got = _pred(
+        names,
+        "Express Scripts Holding Company is the successor issuer to Express Scripts, Inc. for "
+        "its notes.",
+        "Upon completion of the merger, the Company became a wholly owned subsidiary of Express "
+        "Scripts Holding Company.",
+    )
+    assert (got["successor_cik"], got["kind"]) == (ESH, "acquired")
+
+
+def test_a_successor_with_the_filers_own_name_succeeds_it(db):
+    """BlackRock 2024: "Old BlackRock became a wholly owned subsidiary of New BlackRock", where New
+    BlackRock carries the filer's former name: a reorganisation, though the sentence says not."""
+    names = _companies(db)
+    got = _pred(
+        names,
+        "By and among Medco Health Solutions, Inc. (formerly known as Express Scripts Holding "
+        "Company), a Delaware corporation (“Old ESH”), and Express Scripts Holding Company, a "
+        "Delaware corporation (“New ESH”). Old ESH became a wholly owned subsidiary of New ESH.",
+        former=("EXPRESS SCRIPTS HOLDING CO",),
+    )
+    assert (got["successor_cik"], got["kind"]) == (ESH, "succeeded")
+    # Chubb 2016: ACE later took the name Chubb; the filer's current name is not a former one
+    got = _pred(names, "As a result of the Merger, the Company became a wholly owned subsidiary "
+                "of Express Scripts Holding Company.",
+                own=("EXPRESS SCRIPTS HOLDING CO",))  # fmt: skip
+    assert got is None or got["kind"] == "acquired"
+    # Motricity 2013: the transaction's own name; STERIS 2015: a successor-issuer sentence names
+    # the same successor as the one the company became a subsidiary of
+    got = _pred(names, "Upon completion of the Reorganization, the Company became a wholly owned "
+                "subsidiary of Express Scripts Holding Company.")  # fmt: skip
+    assert got["kind"] == "succeeded"
+    got = _pred(names, "As a result of the Combination, the Company became a wholly owned "
+                "subsidiary of Callon Petroleum Company.", "Callon Petroleum Company is the "
+                "successor issuer to the Company pursuant to Rule 12g-3(a).")  # fmt: skip
+    assert (got["successor_cik"], got["kind"]) == (OTHER, "succeeded")
+    # NorthStar 2017: another party's defined "Redomestication Merger" in the same sentence
+    got = _pred(
+        names,
+        "(i) NSAM merged into Colony (the “Redomestication Merger”), and (ii) the Company merged "
+        "with and into Callon Petroleum Company, with Callon Petroleum Company surviving.",
+    )
+    assert (got["successor_cik"], got["kind"]) == (OTHER, "merged")
+
+
+def test_old_subjects_and_a_second_sentence_mark_a_succession(db):
+    """TWDC 2019: "Old Disney became a wholly owned subsidiary of Disney"; Motricity 2013: the
+    Plan of Reorganization's sentence first, "Upon completion of the Reorganization" after it.
+    Gannett 2019 ("the Company became a wholly owned subsidiary of" an acquirer that took its
+    name at closing) stays an acquisition."""
+    names = _companies(db)
+    got = _pred(
+        names,
+        "Medco Health Solutions, Inc. (“Old Medco”) and Express Scripts Holding Company "
+        "(“Express Scripts”) signed. Old Medco became a wholly owned subsidiary of Express "
+        "Scripts.",
+    )
+    assert (got["successor_cik"], got["kind"]) == (ESH, "succeeded")
+    got = _pred(
+        names,
+        "Pursuant to the Agreement and Plan of Reorganization, the Company became a wholly owned "
+        "subsidiary of Express Scripts Holding Company.",
+        "Upon completion of the Reorganization, the Company became a wholly owned subsidiary of "
+        "Express Scripts Holding Company.",
+    )
+    assert (got["successor_cik"], got["kind"]) == (ESH, "succeeded")
+    assert got["quote"].startswith("Upon completion of the Reorganization")
+    got = _pred(
+        names,
+        "As a result of the Merger, a change of control of the Company occurred and the Company "
+        "became a wholly owned subsidiary of Express Scripts Holding Company.",
+        former=("EXPRESS SCRIPTS HOLDING CO",),
+    )
+    assert (got["successor_cik"], got["kind"]) == (ESH, "acquired")

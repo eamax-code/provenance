@@ -629,10 +629,17 @@ Archives).
   Rule 12g-3). Defined terms are resolved within the filing (Parent: "Express Scripts Holding
   Company (f/k/a Aristotle Holding, Inc.) (the "Parent")"). The subject must be the filer itself
   ("the Company", "the Registrant", its defined term or its name), right before the verb.
-- **`kind`.** `succeeded` for a successor issuer, a new holding company, a redomicile or when
-  unclear; `acquired` when the filer became a wholly owned subsidiary of another company;
-  `merged` when it merged with and into another company. The labels are "Succeeded by",
-  "Acquired by" and "Merged into".
+- **`kind`.** `succeeded` for a successor-issuer statement naming the filer, or when the matched
+  sentence itself says so: holding-company reorganisation, new parent holding company,
+  redomicile or conversion wording within the matched clause (quoted defined terms left out),
+  "the Reorganization" as the transaction's name, or the filer written as the old side ("Old
+  BlackRock became ... of New BlackRock", "Old Disney became ... of Disney"); also when a
+  successor-issuer sentence elsewhere in the same filing names the same successor and the filer.
+  Otherwise `acquired` (the filer became a wholly owned subsidiary of another company) or
+  `merged` (it merged with and into another company). Never from words elsewhere in the filing:
+  "successor issuer" and a defined "Holding Company Merger" also appear in acquisitions
+  (corrected 2026-11-25: Limestone, OfficeMax and Palomar had read "Succeeded by"). The labels
+  are "Succeeded by", "Acquired by" and "Merged into".
 - **Matching.** `name`: the name is exactly one company's name held here, case, punctuation, a
   leading "The", an EDGAR state tag ("/DE/") and the abbreviations Corporation/Corp,
   Company/Co, Incorporated/Inc and Limited/Ltd aside; a former name counts only when no current
@@ -650,6 +657,11 @@ Archives).
   HollyFrontier, BlackRock Finance, Medco and Google (K-05 shown) and Sears and Tech Data
   (no successor stated or held: empty). The 60 `succeeded` pairs without a K-05 link are
   K-05 review candidates (not joined until reviewed).
+- **Label fix (2026-11-25).** 6 rows corrected in place (dump before:
+  `apps/provenance-review/2026-11-25/named_successors_before_label_fix.csv`): Limestone to
+  merged, OfficeMax and Palomar to acquired, TechTarget and United Financial to succeeded,
+  Motricity's quote. Check: all 66 `succeeded` rows and 10 random others; 1 debatable
+  (United Financial: "Legacy United merged with and into the Company"), 0 wrong otherwise.
 - **Overview.** `company.succeeded_by`, only when the company stopped filing and has no K-05
   `successor`: `{cik, name, name_as_filed, display_name, kind, label, quote, filed_date, form,
   document_url, basis}`. Filled by `scripts/find_named_successors.py` (`--dry-run --out`, then

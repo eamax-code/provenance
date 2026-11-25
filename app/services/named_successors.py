@@ -50,6 +50,9 @@ _WORD = r"(?:[A-Z0-9][\w&'’.\-]*)"
 _TAIL = re.compile(r"((?:" + _WORD + r"|of|and|&|de|du|la|the)(?:\s+(?:" + _WORD +
                    r"|of|and|&|de|du|la|the))*(?:,\s*(?:Inc\.?|LLC|L\.L\.C\.|L\.P\.|LP|Ltd\.?|"
                    r"N\.V\.|S\.A\.|plc|PLC|Corp\.?|Co\.|AG|SE))?)\s*$")  # fmt: skip
+# the label check only: a lowercase legal form after a space ("... Exchange Act), STERIS plc")
+_LOOSE_TAIL = re.compile(r"([A-Z][\w&'’.\-]*(?:\s+[A-Z][\w&'’.\-]*)*\s+"
+                         r"(?:plc|ltd\.?|llc|inc\.?))\s*$")  # fmt: skip
 _SENT = re.compile(r"(?:(?<=[.;][”\"’])|(?<=[.;]))\s+(?=[A-Z(“\"])")
 _ABBR = re.compile(r"(?:\b(?:Inc|Corp|Co|Ltd|No|Nos|Mr|Ms|Dr|St|Jr|Sr|Ave|U\.S|L\.P|N\.V|S\.A|"
                    r"L\.L\.C|f/k/a|a/k/a|i\.e|e\.g|vs|Sec|Rule)|\b[A-Z])\.[”\"’]?$")  # fmt: skip
@@ -63,9 +66,29 @@ _SUCCESSOR = re.compile(r"(?P<a>[^.;]{1,220}?)\s+(?:is|was|became|has become|wil
                         r"]?\s+(?:to|of)\s+(?P<b>[^.;]{1,160})", re.I)  # fmt: skip
 _MERGED = re.compile(r"(?P<s>[^.;]{1,200}?)\s+(?:merged|was merged)\s+with\s+and\s+into\s+"
                      r"(?P<t>[^.;]{1,160})", re.I)  # fmt: skip
-_REORG = re.compile(r"holding company (?:reorganization|merger|structure)|new (?:parent )?holding "
-                    r"company|parent holding company|Section 251\(g\)|redomicil|"
-                    r"successor issuer", re.I)  # fmt: skip
+# D-01b label fix: the reorganisation words of the matched sentence itself (never the whole
+# filing: "successor issuer" and a defined "Holding Company Merger" appear in acquisitions)
+_REORG = re.compile(r"holding company reorgani[sz]ation|reorgani[sz]ation into a holding company|"
+                    r"new (?:parent )?holding company|parent holding company of|holding company "
+                    r"structure|Section 251\(g\)|redomicil|redomestic|reincorporat|"
+                    r"conver(?:sion|ted|ting) (?:\w+ ){0,4}(?:in)?to an? (?:\w+ ){0,3}"
+                    r"(?:corporation|company)", re.I)  # fmt: skip
+_QUOTED = re.compile(r"[“\"][^”\"]{1,80}[”\"]")
+# the transaction's own name: "Upon completion of the Reorganization, Motricity became ..."
+# the filer written as the old one of a pair: "Old BlackRock became ... of New BlackRock", "Old
+# Disney became ... of Disney", "Former TechTarget became ... of New TechTarget"
+_OLD = re.compile(r"\b(?:Old|Former|Legacy|Predecessor)\s+[A-Z][\w&\-]+\s*[,)”\"]*\s*$")
+_THE_REORG = re.compile(r"\b(?:completion|consummation|effect|result|part) of the (?:Holding "
+                        r"Company )?Reorgani[sz]ation\b")  # fmt: skip
+
+
+def reorganised(sentence: str) -> bool:
+    """D-01b: a reorganisation by the matched sentence's own words (defined terms in quotes left
+    out: another party's "Redomestication Merger")."""
+    bare = _QUOTED.sub(" ", sentence)
+    return bool(_REORG.search(bare)) or bool(_THE_REORG.search(sentence))
+
+
 _SUB = re.compile(r"\b(?:merger\s+sub|mergersub|merger\s+subsidiary|sub\s+inc|acquisition\s+"
                   r"(?:corp|co|sub|inc|llc))\b", re.I)  # fmt: skip
 _SELF = ("the company", "the registrant", "registrant", "company", "we", "the issuer")
@@ -231,11 +254,14 @@ def read_predecessor(paras: list[str], filer_cik: str, self_names: set[str], nam
     then "became a wholly owned subsidiary of", then "merged with and into"."""
     text = "\n".join(paras)
     terms = definitions(text)
-    reorg = bool(_REORG.search(text))
     found = []
+    issuer_to_self: set[str] = set()
     for s in sentences(paras):
         for m in _SUCCESSOR.finditer(s):
             if _refers_to_self(m.group("b")[:120], self_names, terms, at="start"):
+                issuer_to_self |= {norm(n) for n in _tail_names(m.group("a"), terms)}
+                if loose := _LOOSE_TAIL.search(m.group("a").strip()):
+                    issuer_to_self.add(norm(loose.group(1)))
                 for n in _tail_names(m.group("a"), terms):
                     if cik := names.find(n, on, filer_cik):
                         found.append((0, "succeeded", cik, n, s))
@@ -248,7 +274,9 @@ def read_predecessor(paras: list[str], filer_cik: str, self_names: set[str], nam
                 if _SUB.search(n):
                     break
                 if cik := names.find(n, on, filer_cik):
-                    found.append((1, "succeeded" if reorg else "acquired", cik, n, s))
+                    near = s[max(0, m.start() - 200) : m.end()]
+                    kind = "succeeded" if reorganised(near) or _OLD.search(head) else "acquired"
+                    found.append((1, kind, cik, n, s))
                     break
         for m in _MERGED.finditer(s):
             if not _refers_to_self(m.group("s")[-120:], self_names, terms):
@@ -257,11 +285,21 @@ def read_predecessor(paras: list[str], filer_cik: str, self_names: set[str], nam
                 if _SUB.search(n):
                     break
                 if cik := names.find(n, on, filer_cik):
-                    found.append((2, "succeeded" if reorg else "merged", cik, n, s))
+                    near = s[max(0, m.start() - 200) : m.end()]
+                    old = _OLD.search(m.group("s"))
+                    kind = "succeeded" if reorganised(near) or old else "merged"
+                    found.append((2, kind, cik, n, s))
                     break
     if not found:
         return None
     rank, kind, cik, name, s = min(found, key=lambda f: f[0])
+    same = [f for f in found if f[0] == rank and f[2] == cik and f[1] == "succeeded"]
+    if same:  # Motricity: the Plan of Reorganization's sentence, then "the Reorganization"
+        kind, s = "succeeded", same[0][4]
+    # D-01b label fix: also a succession when a successor-issuer sentence in the filing names this
+    # successor as written and the filer (its lookup can miss where the other one matched)
+    if kind != "succeeded" and norm(name) in issuer_to_self:
+        kind = "succeeded"
     return {"successor_cik": cik, "kind": kind, "name_as_filed": name, "quote": _quote(s),
             "match_method": "name"}  # fmt: skip
 
