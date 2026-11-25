@@ -9,6 +9,7 @@
 .fs-syntax { margin: 8px 0 0; font-size: .85rem; color: var(--soft); max-width: 90ch; }
 .fs h1 { font: var(--display-weight) clamp(1.6rem, 1.1rem + 1.6vw, 2.4rem)/1.1 var(--display); letter-spacing: -0.03em; margin: 22px 0 4px; overflow-wrap: anywhere; }
 .fs-sum { margin: 0 0 18px; color: var(--soft); max-width: 110ch; }
+.fs-exact { margin: -12px 0 18px; font-size: .92rem; color: var(--soft); } .fs-exact a { color: inherit; }
 .fs-grid { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 28px; align-items: start; }
 .fs-facets fieldset { border: 0; margin: 0 0 16px; padding: 0; }
 .fs-facets legend { font-size: .8rem; font-weight: 600; color: var(--soft); margin-bottom: 4px; }

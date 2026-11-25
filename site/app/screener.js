@@ -95,7 +95,7 @@
     var body = shown.map(function (x, i) {
       var r = x.r, name = window.Workspace && window.Workspace.orgName ? window.Workspace.orgName(r.display_name || r.legal_name) : r.display_name || r.legal_name, cik = String(parseInt(r.cik, 10));
       return el('tr', {}, [el('td', { class: 'n muted', text: String(i + 1) }),
-        el('th', { scope: 'row' }, [el('a', { href: '/app/?c=' + cik, text: name, on: { click: function (e) { if (window.Workspace && !e.metaKey && !e.ctrlKey) { e.preventDefault(); window.ProvenanceExplorer.showExplore(); window.Workspace.open(cik); } } } })]),
+        el('th', { scope: 'row' }, [el('a', { href: '/app/?c=' + cik, text: name, on: { click: function (e) { if (window.Workspace && !e.metaKey && !e.ctrlKey) { e.preventDefault(); window.ProvenanceExplorer.showExplore(); window.Workspace.open(cik); } } } }), r.periodic_active === false ? el('span', { class: 'scr-gone', title: 'No 10-K, 10-Q, 20-F or 40-F of its own in 18 months', text: 'no longer files' }) : null]),
         el('td', { class: 'muted', text: [r.ticker, r.exchange].filter(Boolean).join(' · ') })].concat(cols.map(function (c) {
           var v = x.cells[c];
           if (!v || v.value == null) return el('td', { class: 'n muted', title: D[c] ? 'Needs both figures from the same filing' : 'Not among the top ' + lim + ' companies ranked by ' + label(c).toLowerCase() + '; open the company for its figure', text: '—' });

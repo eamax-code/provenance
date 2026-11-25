@@ -91,7 +91,7 @@
     return el('li', { class: 'fs-hit' + (same ? ' fs-fold' : '') }, [head,
       same ? null : el('p', { class: 'fs-meta' }, [el('span', { class: 'mono', text: f.accession_number || '' }), link ? ' · ' : '', link]),
       el('p', { class: 'fs-snip' }, marked(h.snippet || '', h.highlights)),
-      // a held 10-K item (1A, 7) opens in the reader, every match of the query marked (Q-09)
+      // a held 10-K item opens in the reader at the hit (Q-09)
       /^10k:(1A|7)$/.test(sec.item || '') && f.accession_number ? el('p', { class: 'fs-read' }, [el('a', { href: '/filings/' + f.accession_number + '/' + sec.item.slice(4) + '/?q=' + encodeURIComponent(st.q) + (typeof h.section_offset === 'number' ? '&o=' + h.section_offset : ''), text: 'Read the whole section' })]) : null]);
   }
   function coverage(cov) {
@@ -100,12 +100,13 @@
     return 'searches the sections we hold: ' + cov.map(function (c) { return (bit[c.section] || c.section + ' for ') + Number(c.companies).toLocaleString('en-US') + ' companies'; }).join(', ') + '; not all of EDGAR';
   }
   function say(text) { $('fs-sum').textContent = text; }
-  // the per-section coverage sits under "What's searched" (PM, 24 Nov): open on desktop, closed on phones; the summary keeps one line
+  // coverage under "What's searched" (PM, 24 Nov): open on desktop, closed on phones
   var what = $('fs-what'); what.open = !(window.matchMedia && matchMedia('(max-width: 760px)').matches);
   function covList(cov) { var bit = { annual_report: '10-K risk factors and MD&A for ', prospectus: 'prospectuses for ', earnings_release: 'earnings releases for ', '8k_officers': 'officer-change 8-Ks for ' };
     return cov.map(function (c) { return (bit[c.section] || c.section + ' for ') + Number(c.companies).toLocaleString('en-US') + ' companies'; }).join(', '); }
   function run(append) {
     syncUrl();
+    if (!append && $('fs-exact')) $('fs-exact').remove();
     if (!st.q) { hitsBox.textContent = ''; more.hidden = true; return; }
     if (hitsBox.id !== 'fs-hits') { var ol = el('ol', { class: 'fs-hits', id: 'fs-hits' }); hitsBox.replaceWith(ol); hitsBox = ol; }
     document.body.classList.remove('fs-empty');
@@ -132,14 +133,25 @@
         var sort = st.sort === 'relevance' ? 'most relevant first' : 'newest filing first', asof = st.filed_to ? ' · as known on ' + day(st.filed_to) : '';
         if (!shown) say('No stored section matches this search. It ' + coverage(b.coverage) + '.');
         else say(shown + ' section' + (shown === 1 ? '' : 's') + ' shown' + (m.has_more ? (next > MAXOFF ? ', more than 500: narrow the search to see the rest' : ', more below') : '') + ' · ' + sort + asof + ' · not all of EDGAR.');
+        exact();
         what.hidden = !shown || !(b.coverage && b.coverage.length);
         if (!what.hidden) $('fs-what-p').textContent = 'Searches the sections we hold: ' + covList(b.coverage) + '.';
-        // the summary line already says what is searched, so the API's coverage note is not repeated (PM, 24 Nov); other notes show
+        // the API's coverage note is not repeated (the summary says it); other notes show
         $('fs-cov').textContent = (b.notes || []).filter(function (n) { return !/not every filing on EDGAR/.test(n); }).join(' ');
         var api = $('fs-api'); api.hidden = false;
         api.replaceChildren('The same search from the API: ', el('code', { text: 'curl -H "X-API-Key: $KEY" "' + location.origin + '/v1/search/filings?' + query(0).toString() + '"' }));
       })
       .catch(function () { if (my === seq) say('The search could not run. Check the connection and try again.'); });
+  }
+  // 2+ words unquoted, no or/-word: offer the exact phrase
+  function exact() {
+    var w = st.q.split(/\s+/).filter(Boolean), ex = $('fs-exact');
+    if (ex) ex.remove();
+    if (w.length < 2 || /"/.test(st.q) || w.some(function (t) { return /^(or|-.*)$/i.test(t); })) return;
+    var p = '"' + w.join(' ') + '"', u = query(0); u.set('q', p);
+    var a = el('a', { href: '/search/?' + u.toString(), text: 'Search the exact phrase “' + w.join(' ') + '”?' });
+    a.addEventListener('click', function (e) { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); st.q = q.value = p; run(); });
+    $('fs-sum').after(el('p', { class: 'fs-exact', id: 'fs-exact' }, [a]));
   }
   more.addEventListener('click', function () { run(true); });
   // before the first search: no filters to set yet, three searches to start from (PM, 24 Nov). Each returned real hits on
