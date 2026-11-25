@@ -102,6 +102,19 @@ def seeded(db):
         filer=PERSON,
         purpose="Engagement.",
     )
+    # a group whose members each report only their own shares: under 5% throughout (FONAR)
+    g1 = ("Owner One", "0001900011", "IN", 100, 1.9)
+    g2 = ("Owner Two", "0001900012", "IN", 90, 1.7)
+    _filing(db, OTHER, "0001900011-26-000001", "SCHEDULE 13D", date(2026, 2, 1), [g1, g2],
+            filer="0001900011", purpose="Going private.")  # fmt: skip
+    _filing(db, OTHER, "0001900011-26-000002", "SCHEDULE 13D/A", date(2026, 5, 1),
+            [("Owner One", "0001900011", "IN", 105, 1.95), g2], filer="0001900011",
+            amend=1)  # fmt: skip
+    # 18.1 to 18.2 is an increase of 0.1 points (Bitdeer)
+    _filing(db, OTHER, "0001900021-26-000001", "SCHEDULE 13D", date(2026, 3, 1),
+            [("Tether", "0001900021", "CO", 100, 18.1)], filer="0001900021", purpose="Hold.")
+    _filing(db, OTHER, "0001900021-26-000002", "SCHEDULE 13D/A", date(2026, 4, 1),
+            [("Tether", "0001900021", "CO", 101, 18.2)], filer="0001900021", amend=1)
     db.commit()
 
 
@@ -150,16 +163,25 @@ def test_across_companies_kinds_and_filters(client, auth, seeded):
     assert kinds == {"0001517137-26-000001": "switched", "0001517137-26-000002": "increased",
                      "0001517138-26-000003": "amended", "0001900001-26-000001": "new",
                      "0001900001-26-000002": "exited", "0001900001-26-000009": "new",
-                     "0001900001-26-000004": "new"}  # fmt: skip
+                     "0001900001-26-000004": "new",
+                     "0001900011-26-000001": "new", "0001900011-26-000002": "amended",
+                     "0001900021-26-000001": "new",
+                     "0001900021-26-000002": "increased"}  # fmt: skip
     new = client.get(f"/v1/activists?{q}", headers=auth).json()["data"]
-    assert len(new) == 4 and new[0]["filed_date"] == "2026-11-12"  # newest first
+    assert len(new) == 6 and new[0]["filed_date"] == "2026-11-12"  # newest first
     sw = client.get(f"/v1/activists?{q}&kind=switched", headers=auth).json()["data"]
     assert sw[0]["switched_from_13g"]["percent"] == 5.4 and sw[0]["group_size"] == 2
     assert sw[0]["event_date"] == "2026-03-02"
     big = client.get(f"/v1/activists?{q}&kind=all&min_percent=9", headers=auth).json()["data"]
-    assert {r["percent"] for r in big} == {9.1, 9.15}
+    assert {r["percent"] for r in big} == {9.1, 9.15, 18.1, 18.2}
     wide = client.get("/v1/activists?since=2025-01-01&until=2026-11-25", headers=auth)
     assert wide.status_code == 422 and wide.json()["error"]["code"] == "invalid_parameter"
+
+
+def test_a_chain_never_at_5_percent_is_not_exited(client, auth, seeded):
+    body = client.get(f"/v1/companies/{OTHER}/activists?status=all", headers=auth).json()
+    group = next(d for d in body["data"] if d["filer"]["cik"] == "0001900011")
+    assert group["status"] == "current" and group["current"]["percent"] == 1.95
 
 
 def test_errors_and_the_demo_key(client, auth, seeded, settings, monkeypatch):
@@ -170,3 +192,13 @@ def test_errors_and_the_demo_key(client, auth, seeded, settings, monkeypatch):
                       headers=demo).json()["data"]  # fmt: skip
     assert {r["company"]["cik"] for r in rows} == {OTHER}  # showcase companies only
     assert client.get(f"/v1/companies/{CO}/activists", headers=demo).status_code == 403
+
+
+def test_the_list_is_rebuilt_when_a_13d_is_added(client, auth, db, seeded):
+    q = "/v1/activists?since=2026-11-01&until=2026-11-25"
+    before = client.get(q, headers=auth).json()["data"]
+    _filing(db, OTHER, "0001900031-26-000001", "SCHEDULE 13D", date(2026, 11, 20),
+            [("New Fund", "0001900031", "PN", 100, 6.0)], filer="0001900031", purpose="Value.")
+    db.commit()
+    after = client.get(q, headers=auth).json()["data"]
+    assert len(after) == len(before) + 1 and after[0]["filer"]["name"] == "New Fund"

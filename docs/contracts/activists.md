@@ -175,6 +175,17 @@ Across companies: "new activist stakes this month".
   filer CIK or a reporting person's CIK; an original 13D after the chain exited starts a new
   chain. `filer` is whoever filed the chain's first structured 13D (a group member may file
   later amendments; `group` is the latest filing's reporting persons).
+- **Exited** means a fall under 5% from an earlier filing at 5% or more in the chain (`status`
+  and `kind` alike). A group whose members each report only their own shares can file under 5%
+  throughout (FONAR's 57-person buyout group: 1.95% at most): its chain stays `current`, and
+  its `percent` is the largest a single reporting person reports, as filed.
+- **Moves** are compared to 4 decimals (18.1 to 18.2 is an increase of 0.1 points).
+- **Gate (2026-11-25):** 30 filings against their XML (chains of 3 or more, group filings,
+  exits, switches, carried statements, truncated Item 4): figures, shares, amendment numbers,
+  classes and quotes all right; two rule faults found (FONAR read as exited, Bitdeer's 0.1 move
+  as amended), fixed and proven; a fresh 30 after the fix had none. In-process: per company
+  about 25 ms; across companies 0.2 s for 30 days, about 1 s for a full year when first built,
+  then about 10 ms from a per-process cache that is rebuilt when a 13D or 13G row is added.
 - **Unchanged:** an amendment whose Item 4 is short (400 characters or fewer) and says it is
   unchanged or not amended does not state a purpose; the earlier statement is quoted, citing
   its own filing.

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import BeneficialOwner, Company, Schedule13DPurpose
@@ -83,6 +83,13 @@ def _below(f: Filing13) -> bool:
     return f.percent is not None and f.percent < THRESHOLD
 
 
+def _exited(chain: list[Filing13]) -> bool:
+    """The chain's latest filing reports under 5% after an earlier one at 5% or more (a group
+    whose members each report only their own shares can file under 5% throughout: FONAR)."""
+    return _below(chain[-1]) and any(not _below(f) and f.percent is not None
+                                     for f in chain[:-1])  # fmt: skip
+
+
 def _f(v: Decimal | None) -> float | None:
     return float(v) if v is not None else None
 
@@ -116,7 +123,7 @@ def chains(filings: list[Filing13]) -> list[list[Filing13]]:
             if f.keys & set().union(*(x.keys for x in c)):
                 home = c
                 break
-        exited = home is not None and _below(home[-1])
+        exited = home is not None and _exited(home)
         if home is None or (f.form == "SCHEDULE 13D" and exited):
             out.append([f])
         else:
@@ -187,17 +194,19 @@ def _entry(f: Filing13, prev: Filing13 | None, purposes: dict) -> dict:
 
 def _kind(i: int, chain: list[Filing13], switched: bool) -> str:
     f = chain[i]
-    if _below(f):
-        return "exited"
+    earlier = [x for x in chain[:i] if x.percent is not None]
+    if _below(f) and earlier and not _below(earlier[-1]):
+        return "exited"  # crossed under 5%
     if i == 0:
         if f.form == "SCHEDULE 13D":
             return "switched" if switched else "new"
         return "amended"  # the chain's first structured filing is an amendment
     prev = chain[i - 1]
     if f.percent is not None and prev.percent is not None:
-        if f.percent - prev.percent >= MOVE:
+        move = round(f.percent - prev.percent, 4)  # 18.2 - 18.1 is 0.0999... in floats
+        if move >= MOVE:
             return "increased"
-        if prev.percent - f.percent >= MOVE:
+        if move <= -MOVE:
             return "decreased"
     return "amended"
 
@@ -240,7 +249,7 @@ def _chain_view(chain: list[Filing13], g_filings: list, purposes: dict) -> dict:
         "switched_from_13g": _switch(chain, g_filings),
         "purpose": _purpose(chain, purposes),
         "chain": [_entry(f, chain[i - 1] if i else None, purposes) for i, f in enumerate(chain)],
-        "status": "exited" if _below(last) else "current",
+        "status": "exited" if _exited(chain) else "current",
     }
 
 
@@ -266,6 +275,10 @@ def for_company(db: Session, cik: str, status: str = "current", as_of: date | No
 KINDS = ("new", "increased", "decreased", "exited", "switched", "all")
 
 
+_CACHE: dict[tuple, list[dict]] = {}
+CACHE_SIZE = 64
+
+
 def across(
     db: Session,
     since: date,
@@ -274,7 +287,28 @@ def across(
     min_percent: float | None = None,
     allowed: set[str] | None = None,
 ) -> list[dict]:
-    """Every 13D or 13D/A filed in the window, newest first, with its kind from its chain."""
+    """Every 13D or 13D/A filed in the window, newest first, with its kind from its chain.
+    Cached per process until a 13D or 13G row is added or removed (a year's window takes about a
+    second to build)."""
+    stamp = tuple(db.execute(select(func.max(BeneficialOwner.id),
+                                    func.count(BeneficialOwner.id))).one())  # fmt: skip
+    key = (since, until, kind, min_percent,
+           frozenset(allowed) if allowed is not None else None, stamp)  # fmt: skip
+    if key not in _CACHE:
+        if len(_CACHE) >= CACHE_SIZE:
+            _CACHE.pop(next(iter(_CACHE)))
+        _CACHE[key] = _across(db, since, until, kind, min_percent, allowed)
+    return _CACHE[key]
+
+
+def _across(
+    db: Session,
+    since: date,
+    until: date,
+    kind: str,
+    min_percent: float | None,
+    allowed: set[str] | None,
+) -> list[dict]:
     subjects = sorted({s for (s,) in db.execute(
         select(BeneficialOwner.subject_cik).where(BeneficialOwner.form_type.in_(D_FORMS),
                                                   BeneficialOwner.filing_date >= since,
