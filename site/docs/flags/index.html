@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141719">
+<title>Reading the flags · Provenance</title>
+<meta name="description" content="What each mark next to a Provenance figure means, from derived and split-adjusted figures to amended Forms 4 and 13F filings that look reported in thousands, each with an example to open. Information, not signals.">
+<!-- shell:meta -->
+<link rel="canonical" href="/docs/flags/">
+<meta property="og:url" content="/docs/flags/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Provenance">
+<meta property="og:title" content="Reading the flags · Provenance">
+<meta property="og:description" content="What each mark next to a Provenance figure means, from derived and split-adjusted figures to amended Forms 4 and 13F filings that look reported in thousands, each with an example to open. Information, not signals.">
+<meta property="og:image" content="/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Provenance: every figure cites its SEC filing.">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /shell:meta -->
+<link rel="preload" href="/fonts/schibsted-grotesk-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<!-- shell:theme -->
+<script>/* the reader's theme before first paint (chat and the Explorer only; #12) */try{var t=localStorage.getItem('prv-theme');if(t==='light'||t==='ledger'||t==='terminal')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<!-- /shell:theme -->
+<!-- shell:head -->
+<link rel="icon" href="/shell/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/shell/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/shell/apple-touch-icon.png">
+<link rel="stylesheet" href="/shell/shell.css">
+<script src="/shell/shell.js"></script>
+<!-- /shell:head -->
+<link rel="stylesheet" href="/public.css">
+<link rel="stylesheet" href="/docs/flags/flags.css">
+</head>
+<body class="data-page">
+<!-- shell:header -->
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-bar">
+  <div class="site-wrap">
+    <a class="site-wordmark" href="/" aria-label="Provenance home"><i aria-hidden="true"></i><span>provenance</span></a>
+    <button class="site-menu-btn" id="site-menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav class="site-nav" id="site-nav" aria-label="Primary">
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-platform">Product</button>
+        <p class="site-group-name" aria-hidden="true">Product</p>
+        <ul class="site-menu" id="site-nav-platform">
+          <li><a href="/developers/"><b>Data API</b><span>Company and financial data over REST</span></a></li>
+          <li><a href="/chat/"><b>Financial Chat</b><span>Questions answered with cited filings</span></a></li>
+          <li><a href="/app/"><b>Company Explorer</b><span>Search and open any company</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-data">Data</button>
+        <p class="site-group-name" aria-hidden="true">Data</p>
+        <ul class="site-menu" id="site-nav-data">
+          <li><a href="/companies/"><b>Companies</b><span>Find a company and open its figures</span></a></li>
+          <li><a href="/search/"><b>Search filings</b><span>Words and phrases inside 10-K, prospectus and 8-K sections</span></a></li>
+          <li><a href="/insiders/"><b>Insider trades</b><span>Open-market buys and sales on Form 4, across companies</span></a></li>
+          <li><a href="/managers/"><b>Fund managers</b><span>13F portfolios, and what funds bought and sold each quarter</span></a></li>
+          <li><a href="/ipos/"><b>Going public</b><span>IPOs by stage, with deal terms from the prospectus</span></a></li>
+          <li><a href="/coverage/"><b>Coverage</b><span>Companies, metrics, forms and freshness, counted from the data</span></a></li>
+          <li><a href="/status/"><b>Status</b><span>What is loaded and how fresh it is</span></a></li>
+          <li><a href="/listings/"><b>Listings</b><span>New and removed listings in Canada, the UK and the EU</span></a></li>
+        </ul>
+      </div>
+      <div class="site-group">
+        <button class="site-group-btn" type="button" aria-expanded="false" aria-controls="site-nav-dev">Developers</button>
+        <p class="site-group-name" aria-hidden="true">Developers</p>
+        <ul class="site-menu" id="site-nav-dev">
+          <li><a href="/developers/"><b>Quickstart and guides</b><span>Your first cited figure in ten minutes</span></a></li>
+          <li><a href="/docs"><b>API reference</b><span>Endpoints, parameters and errors</span></a></li>
+          <li><a href="/docs/flags/"><b>Reading the flags</b><span>What each mark next to a figure means</span></a></li>
+          <li><a href="/playground/"><b>Playground</b><span>Run calls without signing up</span></a></li>
+          <li><a href="/changelog/"><b>Changelog</b><span>What changed and how versions work</span></a></li>
+        </ul>
+      </div>
+      <a class="site-link" href="/#pricing">Pricing</a>
+      <a class="site-link" href="/account/">Sign in</a>
+      <a class="site-button site-cta" href="/account/">Get API key</a>
+    </nav>
+    <a class="site-button" href="/account/">Get API key</a>
+  </div>
+</header>
+<!-- /shell:header -->
+<main class="fg" id="main">
+  <h1>Reading the flags</h1>
+  <p class="fg-lede">Marks you can meet next to a figure, what each one means, and an example to open. A mark says how a figure was filed or worked out; it is never a judgement on the company.</p>
+  <p class="fg-disc">Information, not signals. Not investment advice.</p>
+  <p class="fg-note">Examples marked <span class="fk">free key</span> open with a <a href="/account/">free key</a>; the others open for anyone.</p>
+  <nav class="fg-toc" aria-label="On this page"><a href="#statements-h">Statements</a><a href="#dividends-h">Dividends</a><a href="#insiders-h">Insider trades</a><a href="#managers-h">Fund managers</a></nav>
+  <section aria-labelledby="statements-h">
+    <h2 id="statements-h">Figures in the statements</h2>
+    <dl class="fls">
+      <div class="fl" id="derived"><dt>derived</dt><dd><p>Worked out by this service from reported figures (a margin, a ratio, a quarter as the year less its first three quarters); its inputs and their filings are listed with it. Q4 is worked out only for amounts that add up across quarters (revenue, income, cash flows, dividends per share); per-share earnings and share counts never are.</p><p class="ex">Example: <a href="/app/?c=320193&amp;tab=statements">Apple’s operating margin</a>.</p></dd></div>
+      <div class="fl" id="as-reported"><dt>As reported</dt><dd><p>Each figure comes from the latest filing that reports it as of the date shown, which can be a later restated filing; the tooltip names it.</p><p class="ex">Example: <a href="/app/?c=320193&amp;tab=statements">Apple’s income statement</a>.</p></dd></div>
+      <div class="fl" id="pre-split"><dt>Shaded cell, before a split</dt><dd><p>Reported on the share basis before a later stock split, so its per-share figures and share counts do not compare with the columns after it; year-on-year changes skip that pair.</p><p class="ex">Example: <a href="/app/?c=1065280&amp;tab=statements">Netflix’s years before its 10-for-1 split of November 2025</a>.</p></dd></div>
+      <div class="fl" id="split-adjusted"><dt>Split-adjusted</dt><dd><p>Figures before a split put on today’s share basis by this service (derived, in italics), using the reviewed splits listed under the table.</p><p class="ex">Example: <a href="/app/?c=1065280&amp;tab=statements&amp;adj=split">Netflix with Split-adjusted on</a>.</p></dd></div>
+      <div class="fl" id="quality"><dt>! (a quality note)</dt><dd><p>The figure did not pass a check as filed; the tooltip says which. It is shown as filed and left out of ratios and screens.</p><dl class="sub"><div class="fl" id="unit-doubtful"><dt>unit doubtful</dt><dd><p>EPS as filed is about 100 times the same filing’s net income over weighted shares: probably cents or pence tagged as dollars or pounds. The weighted shares it was checked against carry the same note.</p><p class="ex">Example: <a href="/app/?c=863064&amp;tab=statements">Rio Tinto, FY2017 diluted EPS 486.9</a> <span class="fk">free key</span>.</p></dd></div>
+</dl></dd></div>
+      <div class="fl" id="fiscal-year"><dt>Fiscal year names (tooltip on each column)</dt><dd><p>FY2025 names a fiscal year as the company’s 10-K does where it says so (Gap’s year ended 31 January 2026 is its fiscal 2025); otherwise by the year it ends in.</p><p class="ex">Examples: <a href="/app/?c=39911&amp;tab=statements">Gap</a> <span class="fk">free key</span>; <a href="/app/?c=320193&amp;tab=statements">Apple</a>.</p></dd></div>
+    </dl>
+  </section>
+  <section aria-labelledby="dividends-h">
+    <h2 id="dividends-h">Dividends</h2>
+    <dl class="fls">
+      <div class="fl" id="dividends-as-reported"><dt>As reported</dt><dd><p>Each amount on the share basis of the filing it cites; turn on Split-adjusted to see them on today’s basis.</p><p class="ex">Example: <a href="/app/?c=320193&amp;tab=statements#dividends">Apple</a>.</p></dd></div>
+      <div class="fl" id="dividend-basis"><dt>The basis in the row label</dt><dd><p><b>declared</b>: what the board declared for the period. <b>cash paid</b>: paid in the period, which can include the previous year’s final dividend; no payout ratio. <b>recognised in the period (IFRS)</b>: what an IFRS filer recognised in the year, typically last year’s final plus this year’s interim. <b>distributions per unit</b>: a partnership’s distributions; no payout ratio.</p><p class="ex">Examples: <a href="/app/?c=320193&amp;tab=statements#dividends">Apple, declared</a>; <a href="/app/?c=1143513&amp;tab=statements#dividends">Gladstone Capital, cash paid</a> <span class="fk">free key</span>; <a href="/app/?c=811809&amp;tab=statements#dividends">BHP, recognised</a> <span class="fk">free key</span>; <a href="/app/?c=1538849&amp;tab=statements#dividends">CrossAmerica Partners, per unit</a> <span class="fk">free key</span>.</p></dd></div>
+    </dl>
+  </section>
+  <section aria-labelledby="insiders-h">
+    <h2 id="insiders-h">Insider trades (Form 4)</h2>
+    <dl class="fls">
+      <div class="fl" id="amended"><dt>Amended (4/A)</dt><dd><p>A Form 4/A restated this trade; the row shows the amendment’s figures and the tooltip the first-filed ones.</p><p class="ex">Example: <a href="/insiders/?cik=1652044&amp;owner_cik=1665419&amp;type=sell&amp;since=2025-06-01&amp;until=2025-08-31">Alphabet, a sale of 30 July 2025</a>.</p></dd></div>
+      <div class="fl" id="cancelled"><dt>Cancelled by 4/A</dt><dd><p>An amendment says the trade did not happen as filed: it shows 0 shares and counts nowhere.</p><p class="ex">Example: <a href="/insiders/?cik=1467623&amp;type=sell&amp;since=2026-11-02&amp;until=2026-11-09">Dropbox, November 2026</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="filed-twice"><dt>Filed twice</dt><dd><p>The same trades were filed on two Forms 4; one row, both filings linked.</p><p class="ex">Example: <a href="/insiders/?cik=1065280&amp;type=sell&amp;since=2025-05-29&amp;until=2025-06-02">Netflix, May 2025</a>.</p></dd></div>
+      <div class="fl" id="price-outlier"><dt>Price looks wrong as filed</dt><dd><p>The price is far from the company’s other trades that month, often a total typed in the price box; the value is kept as filed and left out of value filters and ranking.</p><p class="ex">Example: <a href="/insiders/?cik=1840572&amp;type=buy&amp;since=2026-08-28&amp;until=2026-09-01">Lucky Strike Entertainment, August 2026</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="value-partial"><dt>Value partial</dt><dd><p>Some lines of the trade had no price, so its value understates it.</p><p class="ex">Example: <a href="/insiders/?cik=1094831&amp;type=buy&amp;since=2025-10-06&amp;until=2025-10-06">BGC Group, 6 October 2025</a>.</p></dd></div>
+      <div class="fl" id="cluster"><dt>Cluster buy</dt><dd><p>Three or more different buyers bought the company’s shares on the open market within 30 days; insiders who file together or are affiliated count as one buyer. This purchase is one of them.</p><p class="ex">Example: <a href="/insiders/?cik=1074902&amp;type=buy&amp;cluster=true&amp;since=2026-10-26&amp;until=2026-11-24">LCNB Corp, October and November 2026</a> <span class="fk">free key</span>.</p></dd></div>
+    </dl>
+  </section>
+  <section aria-labelledby="managers-h">
+    <h2 id="managers-h">Fund managers (Form 13F)</h2>
+    <dl class="fls">
+      <div class="fl" id="possible-split"><dt>Possible split; not compared</dt><dd><p>All managers’ shares of the security moved as a stock split would, so this quarter is not compared with the one before.</p><p class="ex">Example: <a href="/managers/315066/?quarter=2026-09-30">FMR LLC’s Amphenol position, quarter ended 30 September 2026</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="compared-after-split"><dt>Compared after the 10:1 split</dt><dd><p>The security split during the quarter, so the shares held before it were put on the new basis before comparing (derived).</p><p class="ex">Example: <a href="/managers/?quarter=2025-12-31">Netflix in Funds bought, quarter ended 31 December 2025</a>.</p></dd></div>
+      <div class="fl" id="thousands"><dt>Values look reported in thousands</dt><dd><p>The filing’s values look 1,000 times too small, as if still reported in thousands after 2023; shown as filed and left out of totals.</p><p class="ex">Example: <a href="/managers/19475/?quarter=2025-12-31">Chase Investment Counsel, quarter ended 31 December 2025</a> <span class="fk">free key</span>.</p></dd></div>
+      <div class="fl" id="notice-only"><dt>Files notices only</dt><dd><p>The manager filed a 13F notice; its holdings are reported by the managers it names, listed on its page.</p><p class="ex">Example: <a href="/managers/102909/">Vanguard Group</a> <span class="fk">free key</span>.</p></dd></div>
+    </dl>
+  </section>
+</main>
+<!-- shell:footer -->
+<footer class="site-foot">
+  <div class="site-board">
+    <div class="site-tile statement">
+      <p>Public company intelligence. Built for humans and AI.</p>
+      <p>Provenance is independent and is not affiliated with, endorsed by or sponsored by the SEC, ESMA, the FCA, GLEIF or the Federal Reserve. Data comes from the SEC's EDGAR filings, ESMA and FCA FIRDS, and GLEIF; Federal Reserve H.10 exchange rates are used only for size bands. Filing availability, taxonomy coverage and timestamps vary, and a missing field does not mean the company has no such information. Values marked derived are computed by this service. Not investment advice; review the filing before relying on a value. © 2026 Provenance.</p>
+    </div>
+    <nav class="site-tile links" aria-label="Site">
+      <div class="cols">
+        <ul>
+          <li><a href="/developers/">Data API</a></li><li><a href="/chat/">Financial Chat</a></li><li><a href="/app/">Company Explorer</a></li><li><a href="/playground/">Playground</a></li><li><a href="/#pricing">Pricing</a></li>
+        </ul>
+        <ul>
+          <li><a href="/#markets">Coverage</a></li><li><a href="/status/">Status</a></li><li><a href="/companies/">Companies</a></li><li><a href="/listings/">Listings</a></li><li><a href="/docs">API reference</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="/llms.txt" target="_blank" rel="noopener">llms.txt</a></li>
+        </ul>
+      </div>
+    </nav>
+    <figure class="site-tile photo"><img src="/img/catalogue-card.jpg" width="900" height="675" alt="A typed library catalogue card with its call number, JK 241 .M62, in the top-left corner, filed in front of a handwritten card." loading="lazy"></figure>
+    <div class="site-tile live" id="live-facts" data-source="/v1/stats">
+      <dl>
+        <div><dt>Companies</dt><dd data-stat="companies">20,540</dd></div>
+        <div><dt>Filings</dt><dd data-stat="filings">8,734,078</dd></div>
+        <div><dt>Normalized facts</dt><dd data-stat="facts">5,580,088</dd></div>
+      </dl>
+      <p class="note" id="live-note">Live from /v1/stats, refreshed every 30 seconds.</p>
+      <p class="note" id="status-empty" hidden>No companies ingested yet. Request any CIK through the API to start.</p>
+      <p class="note" id="status-error" hidden>Live stats are unavailable right now; the figures above may be out of date.</p>
+    </div>
+    <div class="site-tile mark" aria-hidden="true"><span>Provenance</span></div>
+    <a class="site-tile go" href="/account/"><span>Get an API key</span><svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
+  </div>
+  <nav class="site-legal" aria-label="Legal"><a href="/legal/terms/">Terms</a><a href="/legal/privacy/">Privacy</a><a href="/legal/acceptable-use/">Acceptable use</a><a href="/legal/data-sources/">Data sources</a><a href="/changelog/">Changelog</a><a href="/status/">Status</a></nav>
+  <p class="site-credits">Photographs: <a href="https://commons.wikimedia.org/w/index.php?curid=153582891">Inside a card catalog at the Indiana State Library</a> by TBurmeister (WMF), <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=44413813">The first card written west of Cambridge</a> by David Fulmer, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; both via Wikimedia Commons. Typefaces: Schibsted Grotesk, IBM Plex Sans and Mono, and Newsreader, served from this site under the <a href="/legal/data-sources/#type-h">SIL Open Font License</a>.</p>
+</footer>
+<!-- /shell:footer -->
+</body>
+</html>
