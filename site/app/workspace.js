@@ -182,10 +182,26 @@
       parentBit(strip, S.cik);
     }
     var itog = strip ? el('button', { type: 'button', class: 'linkish ws-ident-t', 'aria-expanded': 'false', 'aria-controls': 'ws-ident', text: 'Identity: CIK, LEI, incorporation, auditor', on: { click: function () { var o = strip.classList.toggle('open'); itog.setAttribute('aria-expanded', String(o)); } } }) : null;
-    $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [seal(c.cik), el('h2', { text: c.display_name || (c.legal_name ? orgName(c.legal_name) : 'CIK ' + c.cik) }), chips, acts]), itog, strip,
+    $('ws-head').replaceChildren.apply($('ws-head'), [el('div', { class: 'ws-title' }, [seal(c.cik), el('h2', { text: c.display_name || (c.legal_name ? orgName(c.legal_name) : 'CIK ' + c.cik) }), chips, acts]), inactiveLine(c), itog, strip,
       S.asofNote ? el('p', { class: 'ws-note', role: 'status', text: S.asofNote }) : null].filter(Boolean));
     var ai = $('ws-asof'); if (ai) ai.value = S.as_of || ''; var ab = $('ws-asof-btn'); if (ab) ab.lastChild.textContent = S.as_of ? day(S.as_of) : 'latest';
     document.title = (c.display_name || 'Company') + (c.ticker ? ' (' + c.ticker + ')' : '') + ' · Explorer · Provenance';
+  }
+  // D-01: no 10-K, 10-Q, 20-F or 40-F of its own in 18 months, said quietly (approved copy; as the company pages say it),
+  // with its successor: K-05's reviewed one first, else the one its own filings name (D-01b succeeded_by), quote in the tooltip
+  function inactiveLine(c) {
+    var lp = c.last_periodic_report, at = S.as_of;
+    if (c.periodic_active !== false || (at && lp && (lp.filed_date > at || (Date.parse(at) - Date.parse(lp.filed_date)) / 864e5 <= 548))) return null;
+    var k = c.successor, sb = c.succeeded_by, L = { acquired: 'Acquired by', merged: 'Merged into', succeeded: 'Succeeded by' }, s = null;
+    if (k) s = { cik: k.cik, name: k.display_name || k.name, label: 'Succeeded by', quote: k.quote, form: (k.evidence || {}).form_type, url: k.quote_url || (k.evidence || {}).source_url };
+    else if (sb && (sb.display_name || sb.name || sb.name_as_filed)) s = { cik: sb.cik, name: sb.display_name || sb.name || sb.name_as_filed, label: L[sb.kind] || 'Succeeded by', quote: sb.quote, form: sb.form, date: sb.filed_date, url: sb.document_url || sb.filing_url };
+    var kids = [lp ? 'No periodic report since ' + lp.form + ' filed ' + day(lp.filed_date) : 'Files no periodic reports of its own (offerings only)'];
+    if (s) {
+      var why = (s.quote ? '“' + s.quote + '” ' : '') + [s.form, s.date && 'filed ' + day(s.date)].filter(Boolean).join(' '), sc = s.cik ? String(parseInt(s.cik, 10)) : null;
+      kids.push(' · ' + s.label + ' ', sc ? el('a', { href: '/app/?c=' + sc, title: why, text: orgName(s.name), on: { click: function (e) { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); window.Workspace.open(sc); } } } }) : el('span', { title: why, text: orgName(s.name) }));
+      if (ARCHIVE.test(s.url || '')) kids.push(' ', el('a', { href: s.url, target: '_blank', rel: 'noopener', title: why, text: (s.form || 'Filing') + ' ↗' }));
+    }
+    return el('p', { class: 'ws-inactive', id: 'ws-inactive' }, kids);
   }
   // X-21: the parent from the corporate tree (GLEIF Level 2), in the identity strip, once the endpoint exists
   var treeCache = {};
@@ -705,8 +721,8 @@
         el('span', { class: 'tl-t' }, [String(i.title || '').replace(/\b(\d{4}-\d{2}-\d{2})\b/g, function (m) { return day(m); }), sub ? el('span', { class: 'muted small', text: ' · ' + sub }) : null]),
         el('span', { class: 'tl-acts' }, [i.changes_available && i.accession_number ? el('button', { type: 'button', class: 'linkish small', text: 'What changed', title: 'Risk factors and MD&A against the previous annual report', on: { click: function () { S.acc = i.accession_number; S.chs = 'risk_factors'; S.cho = null; S.sec = null; go('filings'); } } }) : null,
           // a held 10-K (the same ones What changed reads) opens its items in the reader (Q-09)
-          i.changes_available && i.accession_number ? el('a', { class: 'small', href: '/filings/section.html?a=' + i.accession_number + '&i=1A', text: 'Risk factors' }) : null,
-          i.changes_available && i.accession_number ? el('a', { class: 'small', href: '/filings/section.html?a=' + i.accession_number + '&i=7', text: 'MD&A' }) : null,
+          i.changes_available && i.accession_number ? el('a', { class: 'small', href: '/filings/' + i.accession_number + '/1A/', text: 'Risk factors' }) : null,
+          i.changes_available && i.accession_number ? el('a', { class: 'small', href: '/filings/' + i.accession_number + '/7/', text: 'MD&A' }) : null,
           ARCHIVE.test(i.filing_url || '') ? el('a', { href: i.filing_url, target: '_blank', rel: 'noopener', text: (i.form_type || 'Filing') + ' ↗' }) : null])]);
     }));
     var more = tl.more ? el('button', { type: 'button', class: 'btn small', text: 'Load more', on: { click: function () { tlLoad(); } } }) : null;

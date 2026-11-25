@@ -241,6 +241,7 @@ tr:last-child td { border-bottom: 0; } td.wrap { white-space: normal; }
 .chip { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg); background: var(--bg-2); }
 .chip.quiet { color: var(--muted); } .chip.asof { border-color: var(--accent-hi); color: var(--accent-text); }
 .ws-ident { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; font-size: .85rem; color: var(--muted); }
+.ws-inactive { margin: 0; font-size: .88rem; color: var(--muted); } .ws-inactive a { color: inherit; } /* D-01: quiet, never an alarm */
 .ws-note { margin: 0; font-size: .88rem; color: var(--warn); }
 .ws-keyneeded { margin: 0 0 10px; }
 /* without a key the graph can't load: no empty stage or idle controls under the note (the corporate tree above still shows) */
@@ -423,6 +424,7 @@ table.seg tr.total th, table.seg tr.total td { font-weight: 700; border-top: 2px
 #screener { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; } .scr-ctl .ch-bar > * { max-width: 100%; } #screener[hidden] { display: none !important; }
 .scr-ctl { display: grid; gap: 6px; } .scr-ctl .ch-bar { margin: 0; } .scr-l { display: inline-flex; gap: 6px; align-items: center; font-size: .88rem; color: var(--muted); }
 .scr-ctl select, .scr-ctl input { padding: 5px 8px; font-size: .88rem; }
+.scr-ctl .scr-chk { min-height: 32px; cursor: pointer; } .scr-ctl .scr-chk input { padding: 0; width: 16px; height: 16px; margin: 0; }
 .scr-table { font-size: .86rem; } .scr-table th[scope=row] { text-align: left; font-weight: 500; white-space: normal; min-width: 12em; } .scr-table td, .scr-table th { padding: 4px 8px; }
 
 td.n, th.n, .ov-list time, .tl time { font-variant-numeric: tabular-nums; }

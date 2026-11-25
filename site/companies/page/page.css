@@ -110,6 +110,8 @@ dialog.fv[open] { animation: fv-in .18s ease-out; }
 #main { min-height: 100vh; } /* the footer starts below the fold, so drawing the page never moves it (CLS 0) */
 /* Layout: Snapshot · Report · Dossier, under the company header on all three; the current one in ink, unlinked look */
 .co-layout { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.co-inactive { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted); } /* D-01: quiet, never an alarm */
+.co-inactive a { color: inherit; }
 .co-layout a { display: inline-block; padding: 4px 2px; color: var(--ink); }
 .co-layout a[aria-current="page"] { font-weight: 700; text-decoration: none; }
 .rail .co-layout { margin-bottom: 16px; }

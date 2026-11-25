@@ -92,7 +92,7 @@
       same ? null : el('p', { class: 'fs-meta' }, [el('span', { class: 'mono', text: f.accession_number || '' }), link ? ' · ' : '', link]),
       el('p', { class: 'fs-snip' }, marked(h.snippet || '', h.highlights)),
       // a held 10-K item (1A, 7) opens in the reader, every match of the query marked (Q-09)
-      /^10k:(1A|7)$/.test(sec.item || '') && f.accession_number ? el('p', { class: 'fs-read' }, [el('a', { href: '/filings/section.html?a=' + f.accession_number + '&i=' + sec.item.slice(4) + '&q=' + encodeURIComponent(st.q), text: 'Read the whole section' })]) : null]);
+      /^10k:(1A|7)$/.test(sec.item || '') && f.accession_number ? el('p', { class: 'fs-read' }, [el('a', { href: '/filings/' + f.accession_number + '/' + sec.item.slice(4) + '/?q=' + encodeURIComponent(st.q) + (typeof h.section_offset === 'number' ? '&o=' + h.section_offset : ''), text: 'Read the whole section' })]) : null]);
   }
   function coverage(cov) {
     if (!cov || !cov.length) return 'searches the filing sections this service holds, not all of EDGAR';

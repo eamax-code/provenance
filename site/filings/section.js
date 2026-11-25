@@ -1,7 +1,6 @@
-/* A 10-K item as filed (Q-09, docs/contracts/sections.md), at /filings/{accession}/{item}/ (or section.html?a=&i=).
-   The text exactly as the API gives it, split into its paragraphs; subheadings set from their offsets (start minus
-   offsets.start into text), never reworded; a contents column (a sheet on phones); ?q= marks every match the way
-   Search does and steps through them. Text nodes only; links go to sec.gov/Archives or into the site. */
+/* A 10-K item as filed (Q-09, docs/contracts/sections.md) at /filings/{accession}/{item}/ (or section.html?a=&i=):
+   the API's text in paragraphs, subheadings from offsets, never reworded; contents beside it (a sheet on phones);
+   ?q= marks matches as Search does, ?o= (section_offset) opens at the hit. Text nodes only. */
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
@@ -20,7 +19,7 @@
 
   var u = new URLSearchParams(location.search), pm = location.pathname.match(/\/filings\/(\d{10}-\d{2}-\d{6})\/(1A|7)\/?$/i);
   var ACC = pm ? pm[1] : (/^\d{10}-\d{2}-\d{6}$/.test(u.get('a') || '') ? u.get('a') : '');
-  var ITEM = (pm ? pm[2] : (u.get('i') || '1A')).toUpperCase(), Q = (u.get('q') || '').trim().slice(0, 200);
+  var ITEM = (pm ? pm[2] : (u.get('i') || '1A')).toUpperCase(), Q = (u.get('q') || '').trim().slice(0, 200), O = /^\d{1,9}$/.test(u.get('o') || '') ? +u.get('o') : -1;
   var here = function (item) { return pm ? '/filings/' + ACC + '/' + item + '/' : '/filings/section.html?a=' + ACC + '&i=' + item; };
   var say = function (t, extra) { $('sx-text').replaceChildren.apply($('sx-text'), [el('p', { class: 'sx-state', text: t })].concat(extra || [])); };
   if (!ACC || !/^(1A|7)$/.test(ITEM)) { say('This address does not name a filing and an item (1A or 7).'); return; }
@@ -36,7 +35,7 @@
 
   function render(b) {
     var text = b.text || '', base = (b.offsets || {}).start || 0, subs = (b.subheadings || []).slice().sort(function (x, y) { return x.start - y.start; });
-    // the words together come first, so "supply chain" side by side is one match; each word alone still marks
+    // the words together first ("supply chain" is one match); each word alone still marks
     var t = terms(Q); if (t.length > 1) t.unshift(t.join(' '));
     var rx = t.length ? new RegExp('\\b(' + t.map(function (w) { return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'); }).join('|') + ')', 'gi') : null;
     // paragraphs with their start offset in text; a paragraph that is a subheading becomes a heading
@@ -51,6 +50,10 @@
         flush(); var id = 'h' + (++n), lvl = h.group ? 'h2' : 'h3';
         cur.push(el(lvl, { id: id, class: 'sx-sub' }, marked(p.t, rx)));
         toc.push(el('li', { class: h.group ? 'g' : null }, [el('a', { href: '#' + id, text: p.t.length > 120 ? p.t.slice(0, 117) + '…' : p.t })]));
+      } else if (O >= p.s && O < p.s + p.t.length) {
+        // the Search hit (?o=): the match there, else its word (Search matches stems)
+        var k = O - p.s, mm = rx && (rx.lastIndex = 0, rx.exec(p.t.slice(k))), w = mm && mm.index === 0 ? mm[0] : (/^[\w'’-]+/.exec(p.t.slice(k)) || [''])[0] || p.t.charAt(k);
+        cur.push(el('p', {}, marked(p.t.slice(0, k), rx).concat([el('mark', { class: 'sx-m sx-hit', text: w })], marked(p.t.slice(k + w.length), rx))));
       } else cur.push(el('p', {}, marked(p.t, rx)));
       if (cur.length >= 12) flush(); // blocks of about a dozen paragraphs paint lazily (content-visibility)
     });
@@ -62,14 +65,15 @@
       $('sx-toc').replaceChildren(el('p', { class: 'sx-toc-h', text: 'Contents' }), list()); $('sx-toc').hidden = false;
       $('sx-sheet-nav').replaceChildren(list()); $('sx-tocbtn').hidden = false;
     }
-    // matches of ?q=: say how many, step through them, start at the first
+    // the matches: how many, step through them, start at the hit (or the first)
     var ms = [].slice.call(document.querySelectorAll('mark.sx-m'));
-    if (Q) {
-      var f = $('sx-find'), i = 0, go = function (k) { if (!ms.length) return; ms[i].classList.remove('on'); i = (k + ms.length) % ms.length; ms[i].classList.add('on'); ms[i].scrollIntoView({ block: 'center' }); pos.textContent = (i + 1) + ' of ' + ms.length; };
+    var hit = document.querySelector('mark.sx-hit');
+    if (Q || hit) {
+      var f = $('sx-find'), i = hit ? ms.indexOf(hit) : 0, go = function (k) { if (!ms.length) return; ms[i].classList.remove('on'); i = (k + ms.length) % ms.length; ms[i].classList.add('on'); ms[i].scrollIntoView({ block: 'center' }); pos.textContent = (i + 1) + ' of ' + ms.length; };
       var pos = el('span', { class: 'sx-pos' }), prev = el('button', { type: 'button', class: 'btn', text: 'Previous' }), next = el('button', { type: 'button', class: 'btn', text: 'Next' });
       prev.addEventListener('click', function () { go(i - 1); }); next.addEventListener('click', function () { go(i + 1); });
-      f.replaceChildren.apply(f, ms.length ? [el('span', { text: ms.length + ' match' + (ms.length === 1 ? '' : 'es') + ' for “' + Q + '” · ' }), pos, ' ', prev, next] : ['No match for “' + Q + '” in this section.']);
-      f.hidden = false; if (ms.length) { ms[0].classList.add('on'); pos.textContent = '1 of ' + ms.length; setTimeout(function () { ms[0].scrollIntoView({ block: 'center' }); }, 0); }
+      f.replaceChildren.apply(f, ms.length ? [el('span', { text: ms.length + ' match' + (ms.length === 1 ? '' : 'es') + (Q ? ' for “' + Q + '”' : '') + ' · ' }), pos, ' ', prev, next] : ['No match for “' + Q + '” in this section.']);
+      f.hidden = false; if (ms.length) { ms[i].classList.add('on'); pos.textContent = (i + 1) + ' of ' + ms.length; setTimeout(function () { ms[i].scrollIntoView({ block: 'center' }); }, 0); }
     } else if (location.hash && document.getElementById(location.hash.slice(1))) document.getElementById(location.hash.slice(1)).scrollIntoView();
   }
 
@@ -88,7 +92,7 @@
     if (r.ok && r.b.coverage) $('sx-cov').textContent = r.b.coverage;
     if (items.length > 1) {
       var nav = $('sx-items');
-      nav.replaceChildren.apply(nav, items.map(function (x) { var on = String(x.item).toUpperCase() === ITEM; return el('a', { href: here(x.item) + (Q ? '?q=' + encodeURIComponent(Q) : ''), 'aria-current': on ? 'page' : null, text: 'Item ' + x.item + ' · ' + (x.title || '') }); }));
+      nav.replaceChildren.apply(nav, items.map(function (x) { var on = String(x.item).toUpperCase() === ITEM; return el('a', { href: here(x.item) + (Q ? (pm ? '?' : '&') + 'q=' + encodeURIComponent(Q) : ''), 'aria-current': on ? 'page' : null, text: 'Item ' + x.item + ' · ' + (x.title || '') }); }));
       nav.hidden = false;
     }
   });
@@ -102,7 +106,7 @@
     header(r.b); render(r.b);
   });
 
-  // contents as a sheet on phones: a modal dialog, Esc and the backdrop close it, a choice closes it too
+  // contents as a sheet on phones: a modal; Esc, the backdrop or a choice closes it
   var sheet = $('sx-sheet');
   $('sx-tocbtn').addEventListener('click', function () { sheet.showModal(); });
   $('sx-close').addEventListener('click', function () { sheet.close(); });

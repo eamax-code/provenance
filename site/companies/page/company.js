@@ -95,6 +95,7 @@
       succ.appendChild(srcLink(c.successor.evidence ? c.successor.evidence.form_type : '8-K12B', c.successor.evidence && c.successor.evidence.source_url, 'The filing that named the successor registrant'));
       succ.append('. New filings and figures are on its page.');
     }
+    var ia = $('co-inactive'); if (ia) ia.remove(); ia = P.inactive(c, d.as_of, false); if (ia) $('meta').after(ia);
     $('meta').textContent = [c.sic_description, P.state(c.incorporation ? c.incorporation.code : c.state_of_incorporation) && 'incorporated in ' + P.state(c.incorporation ? c.incorporation.code : c.state_of_incorporation), c.fiscal_year_end_month && 'fiscal year ends ' + c.fiscal_year_end_month, addr && addr[addr.length - 1] !== P.state(c.incorporation ? c.incorporation.code : c.state_of_incorporation) ? addr[addr.length - 1] : null, 'CIK ' + c.cik].filter(Boolean).join(DOT);
     $('ask').href = P.chatUrl(d);
     $('edgar').href = c.filings_url;

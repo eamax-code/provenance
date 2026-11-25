@@ -101,7 +101,7 @@
       };
       var lead = b.prior ? el('p', { class: 'chg-lead' }, ['The ', flink(b.filing, (b.filing.form || '10-K') + ' filed ' + day(b.filing.filed_date) + ' ↗'), ' (' + fy(b.filing) + ') against the ', flink(b.prior, (b.prior.form || '10-K') + ' filed ' + day(b.prior.filed_date) + ' ↗'), ' (' + fy(b.prior) + '), heading by heading.'])
         : el('p', { class: 'chg-lead' }, ['The ', flink(b.filing, (b.filing.form || '10-K') + ' filed ' + day(b.filing.filed_date) + ' ↗'), ': no earlier annual report is stored, so its headings are listed without a comparison.']);
-      var acc = (b.filing || {}).accession_number, full = acc ? el('p', { class: 'small' }, ['Read in full, as filed: ', el('a', { href: '/filings/section.html?a=' + acc + '&i=1A', text: 'Item 1A, risk factors' }), ' · ', el('a', { href: '/filings/section.html?a=' + acc + '&i=7', text: 'Item 7, MD&A' })]) : ''; // never null: replaceChildren would print it
+      var acc = (b.filing || {}).accession_number, full = acc ? el('p', { class: 'small' }, ['Read in full, as filed: ', el('a', { href: '/filings/' + acc + '/1A/', text: 'Item 1A, risk factors' }), ' · ', el('a', { href: '/filings/' + acc + '/7/', text: 'Item 7, MD&A' })]) : ''; // never null: replaceChildren would print it
       host.replaceChildren(el('h3', { id: 'chg-h', text: 'What changed in the annual report' }), lead, full, el('div', { class: 'ch-bar' }, [seg]), out,
         el('p', { class: 'muted small' }, [(b.method && b.method.matching) || '', b.method && b.method.threshold != null ? ' Threshold: ' + b.method.threshold + '.' : '', ' Texts are the first 1,500 characters; the full section is in the filing.']));
       draw();

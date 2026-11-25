@@ -207,6 +207,7 @@ section.card h2 { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
     var c = d.company;
     document.title = c.display_name + ' · company dossier · Provenance';
     $('name').textContent = c.display_name;
+    var ia = P.inactive(c, null, true); if (ia) $('name').after(ia);
     (c.tickers.length ? c.tickers : [c.ticker]).filter(Boolean).forEach(function (t, i) { $('tick').appendChild(el('span', { class: 'chip', text: t + (c.exchanges[i] ? ' · ' + c.exchanges[i] : '') })); });
     if (c.filer_category) c.filer_category.split('; ').forEach(function (cat) { $('tick').appendChild(el('span', { class: 'chip', text: cat })); });
     var kv = function (box, k, v) { if (v == null || v === '' || (Array.isArray(v) && !v.length)) return; var dd = el('dd'); (Array.isArray(v) ? v : [v]).forEach(function (line, i) { if (i) dd.appendChild(el('br')); dd.appendChild(typeof line === 'string' ? document.createTextNode(line) : line); }); box.appendChild(el('dt', { text: k })); box.appendChild(dd); };

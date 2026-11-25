@@ -185,6 +185,7 @@ section.sec > header p { color: var(--muted); font-size: 14.5px; }
     document.title = c.display_name + ' · company report · Provenance';
     $('eyebrow').textContent = [c.ticker && c.ticker + (c.exchange ? ' on ' + c.exchange : ''), c.sic_description, 'CIK ' + c.cik].filter(Boolean).join(' · ');
     $('name').textContent = c.display_name;
+    var ia = P.inactive(c, null, true); if (ia) $('name').after(ia);
     var cites = (d.summary && d.summary.citations) || [];
     P.humanDates((d.summary && d.summary.text) || '').split(/(\[\d+\])/).forEach(function (part) {
       var m = part.match(/^\[(\d+)\]$/);

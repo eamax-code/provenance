@@ -39,6 +39,7 @@
     if (q.get('sc') != null) S.sc = q.get('sc').split(',').filter(function (c) { return (M[c] || D[c]) && c !== S.sm; }).slice(0, 5);
     S.sf = (q.get('sf') || '').split(';').map(function (f) { var m = /^([a-z_]+)(>=|<=)(-?[\d.e+]+)$/.exec(f); return m && (M[m[1]] || D[m[1]]) ? { m: m[1], op: m[2], v: parseFloat(m[3]) } : null; }).filter(Boolean).slice(0, 6);
     S.sx = /^[A-Za-z ]{0,20}$/.test(q.get('sx') || '') ? (q.get('sx') || '') : '';
+    S.si = q.get('si') === '1'; // D-01: include companies that no longer file (off by default)
   }
   function write() {
     var q = new URLSearchParams();
@@ -46,14 +47,15 @@
     q.set('sc', S.sc.join(','));
     if (S.sf.length) q.set('sf', S.sf.map(function (f) { return f.m + f.op + f.v; }).join(';'));
     if (S.sx) q.set('sx', S.sx);
+    if (S.si) q.set('si', '1');
     try { history.replaceState(null, '', location.pathname + '?' + q.toString() + '#screener'); } catch (e) {}
   }
 
   /* ---- data: the ranked metric, then each column for the same calendar year ---- */
   var cache = {}, seq = 0;
   function screen(metric, order, limit) {
-    var k = [metric, S.sy, order, limit, X.hasKey() ? 'k' : 'd'].join('|');
-    if (!cache[k]) cache[k] = X.raw('/v1/facts/screen?metric=' + metric + '&year=' + S.sy + '&period=annual&order=' + order + '&limit=' + limit, X.hasKey() ? null : 'demo').then(function (r) { return r.ok ? r.body : { error: r.status, body: r.body }; });
+    var k = [metric, S.sy, order, limit, S.si ? 'i' : '', X.hasKey() ? 'k' : 'd'].join('|');
+    if (!cache[k]) cache[k] = X.raw('/v1/facts/screen?metric=' + metric + '&year=' + S.sy + '&period=annual&order=' + order + '&limit=' + limit + (S.si ? '&include_inactive=true' : ''), X.hasKey() ? null : 'demo').then(function (r) { return r.ok ? r.body : { error: r.status, body: r.body }; });
     return cache[k];
   }
   function load() {
@@ -103,7 +105,7 @@
     });
     var m = main.meta || {};
     var gaps = shown.some(function (x) { return S.sc.some(function (c) { return !D[c] && !x.cells[c]; }); });
-    var note = 'Showing ' + shown.length + ' of the top ' + rows.length + (m.total_matched ? ' among ' + Number(m.total_matched).toLocaleString('en-US') + ' companies' : '') + ' with ' + label(S.sm).toLowerCase() + ' for calendar ' + S.sy + ', ranked by the API. Columns and filters apply to those rows' + (keyed ? '' : '; the demo key ranks the top ten, a free key the top ' + 200) + '. Currencies are as filed and never converted.' + (gaps ? ' A "—" in a column means the company isn\u2019t in that column\u2019s top ' + lim + ', not that it reported nothing.' : '');
+    var note = 'Showing ' + shown.length + ' of the top ' + rows.length + (m.total_matched ? ' among ' + Number(m.total_matched).toLocaleString('en-US') + ' companies' : '') + ' with ' + label(S.sm).toLowerCase() + ' for calendar ' + S.sy + ', ranked by the API. Columns and filters apply to those rows' + (keyed ? '' : '; the demo key ranks the top ten, a free key the top ' + 200) + '. Currencies are as filed and never converted. ' + (S.si ? 'Includes companies that no longer file (no 10-K, 10-Q, 20-F or 40-F of their own in 18 months).' : 'Companies that no longer file (no 10-K, 10-Q, 20-F or 40-F of their own in 18 months) are left out; tick \u201cInclude companies that no longer file\u201d to list them.') + (gaps ? ' A "—" in a column means the company isn\u2019t in that column\u2019s top ' + lim + ', not that it reported nothing.' : '');
     $('scr-out').replaceChildren.apply($('scr-out'), [el('p', { class: 'muted small', text: note }),
       el('div', { class: 'tw st-wrap' }, [el('table', { class: 'st-table scr-table' }, [el('thead', {}, [head]), el('tbody', {}, body)])]),
       shown.length ? null : el('p', { class: 'muted', text: 'No company in these rows passes every filter.' })].filter(Boolean));
@@ -127,9 +129,10 @@
     var fv = el('input', { type: 'text', size: '7', placeholder: '1B or 20%', 'aria-label': 'Value, e.g. 1B or 20%' });
     var fadd = el('button', { type: 'button', class: 'btn small', text: 'Add filter', on: { click: function () { var v = parseVal(fv.value); if (v == null || S.sf.length >= 6) { fv.focus(); return; } S.sf.push({ m: fm.value, op: fo.value, v: v }); if (D[fm.value] && S.sc.indexOf(fm.value) < 0 && S.sc.length < 5) S.sc.push(fm.value); go(); } } });
     var sx = el('select', { 'aria-label': 'Exchange', on: { change: function (e) { S.sx = e.target.value; go(); } } }, ['', 'Nasdaq', 'NYSE', 'NYSE American', 'Cboe BZX', 'OTC'].map(function (x) { var o = el('option', { value: x, text: x || 'Any exchange' }); if (x === S.sx) o.selected = true; return o; }));
+    var si = el('label', { class: 'scr-l scr-chk' }, [el('input', { type: 'checkbox', id: 'scr-si', checked: S.si ? 'checked' : null, on: { change: function (e) { S.si = e.target.checked; go(); } } }), 'Include companies that no longer file']);
     var copy = el('button', { type: 'button', class: 'btn small', text: 'Copy link', on: { click: function () { try { navigator.clipboard.writeText(location.href); copy.textContent = 'Copied'; } catch (e) {} } } });
     return el('div', { class: 'scr-ctl' }, [
-      el('div', { class: 'ch-bar' }, [el('label', { class: 'scr-l' }, ['Rank by ', sm]), el('label', { class: 'scr-l' }, ['Calendar year ', sy]), so, sx, el('span', { class: 'ch-acts' }, [copy, el('button', { type: 'button', class: 'btn small', id: 'scr-csv', text: 'CSV' })])]),
+      el('div', { class: 'ch-bar' }, [el('label', { class: 'scr-l' }, ['Rank by ', sm]), el('label', { class: 'scr-l' }, ['Calendar year ', sy]), so, sx, si, el('span', { class: 'ch-acts' }, [copy, el('button', { type: 'button', class: 'btn small', id: 'scr-csv', text: 'CSV' })])]),
       el('div', { class: 'ch-bar' }, [el('span', { class: 'muted small', text: 'Columns' }), colChips, addCol]),
       el('div', { class: 'ch-bar' }, [el('span', { class: 'muted small', text: 'Filters' }), fChips, fm, fo, fv, fadd])]);
   }

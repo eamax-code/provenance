@@ -89,6 +89,31 @@
     if (!url || url.indexOf('https://www.sec.gov/') !== 0) return P.el('span', { text: text, class: cls });
     return P.el('a', { href: url, target: '_blank', rel: 'noopener', text: text, class: cls });
   };
+  /* D-01: a registrant with no 10-K, 10-Q, 20-F or 40-F of its own in 18 months, said plainly and quietly (approved
+     copy), with the company its own filings name as its successor (D-01b succeeded_by; K-05's reviewed successor, which
+     comes first, only where the layout has no line of its own for it). At a point in time only when it held then. */
+  P.successorOf = function (c, k05) {
+    var k = k05 && c.successor, s = c.succeeded_by, L = { acquired: 'Acquired by', merged: 'Merged into', succeeded: 'Succeeded by' };
+    if (k) return { cik: k.cik, name: k.display_name || k.name, label: 'Succeeded by', quote: k.quote, form: (k.evidence || {}).form_type, date: null, url: k.quote_url || (k.evidence || {}).source_url };
+    if (s && (s.display_name || s.name || s.name_as_filed)) return { cik: s.cik, name: s.display_name || s.name || s.name_as_filed, label: L[s.kind] || 'Succeeded by', quote: s.quote, form: s.form, date: s.filed_date, url: s.document_url || s.filing_url };
+    return null;
+  };
+  P.stillFiling = function (c, asOf) {
+    var lp = c.last_periodic_report;
+    if (c.periodic_active !== false) return true;
+    return !!(asOf && lp && (lp.filed_date > asOf || (Date.parse(asOf) - Date.parse(lp.filed_date)) / 864e5 <= 548));
+  };
+  P.inactive = function (c, asOf, k05, href) {
+    if (P.stillFiling(c, asOf)) return null;
+    var lp = c.last_periodic_report, s = P.successorOf(c, k05);
+    var kids = [lp ? 'No periodic report since ' + lp.form + ' filed ' + P.date(lp.filed_date) : 'Files no periodic reports of its own (offerings only)'];
+    if (s) {
+      var why = (s.quote ? '“' + s.quote + '” ' : '') + [s.form, s.date && 'filed ' + P.date(s.date)].filter(Boolean).join(' ');
+      kids.push(' · ' + s.label + ' ', s.cik ? P.el('a', { href: (href || function (k) { return '/companies/' + k; })(parseInt(s.cik, 10)), title: why, text: P.orgName(s.name) }) : P.el('span', { title: why, text: P.orgName(s.name) }));
+      if (s.url && s.url.indexOf('https://www.sec.gov/Archives/') === 0) kids.push(' ', P.el('a', { href: s.url, target: '_blank', rel: 'noopener', title: why, text: (s.form || 'Filing') + ' ↗' }));
+    }
+    return P.el('p', { class: 'co-inactive', id: 'co-inactive' }, kids);
+  };
   /* The finding: what in this company's own numbers most needs saying. */
   P.finding = function (d) {
     var ys = d.years.filter(function (y) { return y.operating_margin_pct != null; });
