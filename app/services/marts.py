@@ -451,6 +451,22 @@ INACTIVE_NOTE = ("By default, companies with no 10-K, 10-Q, 20-F or 40-F of thei
                  "include_inactive=true lists them.")  # fmt: skip
 
 
+def periodic_status(db: Session, ciks: set[str], as_of: date | None = None) -> dict[str, bool]:
+    """D-01 per company, by the same rule as periodic_only: today from mart_company, as_of from the
+    filings up to that date (no look-ahead). A company without a mart row is left out."""
+    if not ciks:
+        return {}
+    if as_of is None:
+        return dict(db.execute(select(MartCompany.cik, MartCompany.periodic_active)
+                               .where(MartCompany.cik.in_(ciks))).all())  # fmt: skip
+    newest = db.scalar(select(func.max(Filing.filing_date)))
+    since = min(as_of, newest or as_of) - timedelta(days=PERIODIC_DAYS)
+    live = set(db.scalars(select(Filing.cik).where(
+        Filing.cik.in_(ciks), Filing.form_type.in_(PERIODIC_FORMS), Filing.filing_date <= as_of,
+        Filing.filing_date > since)))  # fmt: skip
+    return {c: c in live for c in ciks}
+
+
 def periodic_only(col, as_of: date | None = None, db: Session | None = None):
     """D-01: a condition on a CIK column keeping companies with a periodic report of their own
     within 18 months (today: mart_company.periodic_active; as_of: filings up to that date,

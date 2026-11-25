@@ -36,6 +36,11 @@ class ScreenRow(LatestRevenueCard):
     )
     predecessor: bool = False
     registrant_label: str | None = None
+    periodic_active: bool | None = Field(
+        default=None,
+        description="D-01: whether the company filed a 10-K, 10-Q, 20-F or 40-F of its own within "
+        "18 months (as of as_of when given); false rows appear only with include_inactive=true",
+    )
     ticker: str | None
     exchange: str | None
     metric: str
@@ -195,6 +200,11 @@ def _present(db: Session, out: list[ScreenRow], as_of: date | None) -> list[Scre
         if c is not None:
             r.display_name = display_name(c.legal_name, c.ticker, c.registrant_name)
         shown.append(r)
+    from app.services.marts import periodic_status
+
+    status = periodic_status(db, {r.cik for r in shown}, as_of)  # D-01: tag rows that stopped
+    for r in shown:
+        r.periodic_active = status.get(r.cik)
     return shown
 
 

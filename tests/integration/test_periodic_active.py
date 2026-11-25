@@ -70,3 +70,16 @@ def test_an_inactive_company_stays_viewable_and_says_when_it_last_filed(client, 
     assert company["periodic_active"] is False
     assert company["last_periodic_report"] == {"form": "10-K", "filed_date": "2016-03-01"}
     assert client.get("/v1/companies/search?q=Old Registrant", headers=auth).json()["data"]
+
+
+def test_screen_rows_say_whether_the_company_still_files(client, auth, db):
+    _seed(db)
+    body = client.get("/v1/facts/screen?metric=revenue&year=2025", headers=auth).json()
+    assert [(r["cik"], r["periodic_active"]) for r in body["data"]] == [(LIVE, True)]
+    every = client.get("/v1/facts/screen?metric=revenue&year=2025&include_inactive=true",
+                       headers=auth).json()  # fmt: skip
+    assert [(r["cik"], r["periodic_active"]) for r in every["data"]] == \
+        [(SUB, False), (OLD, False), (LIVE, True)]  # fmt: skip
+    # as of a date, by the filings up to it: OLD's 2016 10-K made it active then (no look-ahead)
+    assert marts.periodic_status(db, {OLD, LIVE}, date(2016, 6, 1)) == {OLD: True, LIVE: False}
+    assert marts.periodic_status(db, {OLD}) == {OLD: False}
