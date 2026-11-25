@@ -230,6 +230,7 @@ def _annual_metrics(
                 f.form_type.in_(ANNUAL_REPORT_FORMS).desc(),
                 f.filed_date.desc(),
                 f.accession_number.desc(),
+                f.observation_key.desc(),  # M-01: a stable pick among ties, run after run
             ),
         )
         .label("rn")
@@ -316,6 +317,7 @@ def build_financial_marts(db: Session, ciks: list[str] | None = None, log=None) 
                 f.form_type.in_(ANNUAL_REPORT_FORMS).desc(),
                 f.filed_date.desc(),
                 f.accession_number.desc(),
+                f.observation_key.desc(),  # M-01: a stable pick among ties, run after run
             ),
         )
         .label("rn")

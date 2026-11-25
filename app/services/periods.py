@@ -115,7 +115,16 @@ def labels(ends: list[date], period_class: str, fiscal_year_end: str | None = No
     seen: dict[str, int] = {}
     for b in base:
         seen[b] = seen.get(b, 0) + 1
-    return [f"{b} ({e:%b})" if seen[b] > 1 else b for b, e in zip(base, ends, strict=True)]
+    out = [f"{b} ({e:%b})" if seen[b] > 1 else b for b, e in zip(base, ends, strict=True)]
+    # S-07: two periods ending in the same month (one quarter stored as ending on the 30th and
+    # the 31st by two filings) get their dates: a key is never shared
+    again: dict[str, int] = {}
+    for o in out:
+        again[o] = again.get(o, 0) + 1
+    return [
+        f"{b} ({e.isoformat()})" if again[o] > 1 else o
+        for b, o, e in zip(base, out, ends, strict=True)
+    ]
 
 
 def is_fiscal_year_end(end: date, year_ends: tuple, near: int = 7) -> bool:

@@ -59,18 +59,47 @@ def _periods(db: Session, ciks: list[str] | None):
 
 def own_year_ends(db: Session, ciks: list[str] | None = None) -> dict[str, list[date]]:
     """{cik: own fiscal year ends, oldest first}"""
+    return _chains(db, ciks)[0]
+
+
+def _chains(db: Session, ciks: list[str] | None) -> tuple[dict, dict]:
+    """({cik: own year ends}, {cik: [(start, end, accession, form, filed)]} of the short periods
+    a report presents between two of its fiscal years)."""
     by_filing: dict[tuple, list] = defaultdict(list)
-    report: dict[tuple, date | None] = {}
-    for cik, acc, _form, _filed, rep, cls, _start, end in _periods(db, ciks):
-        if cls == "annual":
-            by_filing[(cik, acc)].append(end)
-            report[(cik, acc)] = rep
+    report: dict[tuple, tuple] = {}
+    for cik, acc, form, filed, rep, cls, start, end in _periods(db, ciks):
+        if cls in ("annual", "other", "ytd"):
+            by_filing[(cik, acc)].append((cls, start, end))
+            report[(cik, acc)] = (rep, form, filed)
     out: dict[str, set] = defaultdict(set)
-    for key, ends in by_filing.items():
-        rep = report[key]
-        near = [e for e in ends if rep and abs((e - rep).days) <= NEAR]
-        own = max(near) if near else max(ends)
-        out[key[0]].update(e for e in ends if _same_day(e, own))  # own year and comparatives
+    shorts: dict[str, list] = defaultdict(list)
+    for key, periods in by_filing.items():
+        annual = [p for p in periods if p[0] == "annual"]
+        if not annual:
+            continue
+        rep, form, filed = report[key]
+        near = [p for p in annual if rep and abs((p[2] - rep).days) <= NEAR]
+        own = max(near or annual, key=lambda p: p[2])
+        found = {p[2] for p in annual if _same_day(p[2], own[2])}  # own year and comparatives
+        # the run of periods the report presents back from its own year, each ending the day
+        # before the next starts: the 12-month ones are fiscal years, short ones transitions
+        # (Cenntro's report for January 2018: a 7-month transition to January 2017, then its
+        # June 2016 and 2015 years)
+        cur, short = own, None
+        for _ in range(12):
+            prev = [p for p in periods if 0 < (cur[1] - p[2]).days <= 4 and (
+                p[0] == "annual" or SHORT[0] <= (p[2] - p[1]).days <= SHORT[1])]  # fmt: skip
+            if not prev:
+                break
+            cur = max(prev, key=lambda p: (p[2] - p[1]).days)
+            if cur[0] == "annual":
+                found.add(cur[2])
+                if short:  # a short period between two fiscal years: a transition
+                    shorts[key[0]].append((short[1], short[2], key[1], form, filed))
+                short = None
+            else:
+                short = cur
+        out[key[0]].update(found)
     result = {}
     for cik, ends in out.items():
         kept: list = []
@@ -80,7 +109,7 @@ def own_year_ends(db: Session, ciks: list[str] | None = None) -> dict[str, list[
             else:
                 kept.append(e)
         result[cik] = kept
-    return result
+    return result, shorts
 
 
 def transitions(db: Session, ciks: list[str] | None = None,
@@ -90,8 +119,12 @@ def transitions(db: Session, ciks: list[str] | None = None,
     by_filing: dict[tuple, list] = defaultdict(list)
     for row in _periods(db, ciks):
         by_filing[(row[0], row[1])].append(row)
-    own = own_year_ends(db, ciks)
+    own, chained = _chains(db, ciks)
     out: dict[str, list] = defaultdict(list)
+    for cik, spans in chained.items():  # short periods inside a report's run of years
+        for span in spans:
+            if not (as_of and span[4] and span[4] > as_of):
+                out[cik].append(span)
     for (cik, acc), rows in by_filing.items():
         latest = max(r[7] for r in rows)
         at_end = [r for r in rows if abs((r[7] - latest).days) <= NEAR]

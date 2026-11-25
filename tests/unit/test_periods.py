@@ -59,3 +59,10 @@ def test_s07_only_the_companys_own_years_are_fiscal_years():
     assert periods.transition_label(date(2015, 3, 1), date(2015, 12, 31)) == (
         "Transition period (10 months, ended 2015-12-31)"
     )
+
+
+def test_s07_labels_never_share_a_key():
+    ends = [date(2011, 1, 30), date(2011, 1, 31), date(2011, 4, 30)]
+    keys = periods.labels(ends, "quarterly", ("1031", None, (date(2010, 10, 31),
+                                                             date(2011, 10, 30))))  # fmt: skip
+    assert keys == ["Q1 FY2011 (2011-01-30)", "Q1 FY2011 (2011-01-31)", "Q2 FY2011"]

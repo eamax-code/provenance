@@ -4,7 +4,7 @@ import json
 import logging
 import threading
 import time
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Path, Query, Request, Response
 from sqlalchemy import func, select
@@ -496,7 +496,9 @@ def _select_latest(rows: list[FinancialFact]) -> list[FactOut]:
     out: list[FactOut] = []
     for items in groups.values():
         preferred = [r for r in items if r.quality_status in ("ok", "partial")] or items
-        best = max(preferred, key=lambda r: (r.filed_date or date.min, r.accession_number or ""))
+        # M-01: the observation key breaks ties, so two runs (and the marts) pick the same row
+        best = max(preferred, key=lambda r: (r.filed_date or date.min, r.accession_number or "",
+                                             r.observation_key or ""))
         same_tag = [r for r in items if r.source_tag == best.source_tag]
         out.append(_to_fact_out(best, len(same_tag), True))
     return out
@@ -710,12 +712,14 @@ def statement(
         for c in db.scalars(select(Company).where(Company.cik.in_(ciks))):
             own.update(periods.parse_year_ends(c.fiscal_year_ends))
         own_ends = tuple(sorted(own))
-        for k in [k for k in by_key if not periods.is_fiscal_year_end(k[1], own_ends)]:
-            by_key.pop(k)
         # a year-end changer's transition period (10-KT, or a 20-F or 10-K transition report)
         from app.services import fiscal_years
 
         found = [x for xs in fiscal_years.transitions(db, ciks, as_of).values() for x in xs]
+        t_ends = {x[1] for x in found}  # a balance at a transition's end is a period end too
+        for k in [k for k in by_key if not periods.is_fiscal_year_end(k[1], own_ends)
+                  and not any(abs((k[1] - t).days) <= 7 for t in t_ends)]:  # fmt: skip
+            by_key.pop(k)
         spans = {(x[0], x[1]): x[2] for x in found}
         span_form = {x[1]: x[3] for x in found}  # the cover's form: 10-KT, or 10-K or 20-F
         if spans:
@@ -730,6 +734,18 @@ def statement(
                 if (f.metric, f.period_end) not in by_key:
                     by_key[(f.metric, f.period_end)] = f
                     transitions[f.period_end] = f.period_start
+    quarter_in: dict = {}  # S-07: a quarter ending inside a transition period -> (label, form)
+    if period == "quarterly":
+        from app.services import fiscal_years
+
+        spans_q = sorted({(x[0], x[1], x[3]) for xs in fiscal_years.transitions(
+            db, ciks, as_of).values() for x in xs})  # fmt: skip
+        if spans_q:
+            for end in sorted({e for _, e in by_key}):
+                t = next((t for t in spans_q if t[0] < end <= t[1] + timedelta(days=7)), None)
+                if t:
+                    n = max(1, round((end - t[0]).days / 91.3))
+                    quarter_in[end] = (f"Transition Q{n} (ended {end.isoformat()})", t[2])
     ends = sorted({end for _, end in by_key})[-n_cols:]
     for (m, dated), f in sorted(cover.items(), key=lambda kv: kv[0][1]):
         home = [e for e in ends if e <= dated and (dated - e).days <= 120]
@@ -743,9 +759,17 @@ def statement(
             starts.setdefault(end, f.period_start)
     columns = []
     conv = periods.convention(company)  # S-05, S-07: the company's own naming
-    fiscal = [e for e in ends if e not in transitions]
+    fiscal = [e for e in ends if e not in transitions and e not in quarter_in]
     names = dict(zip(fiscal, periods.labels(fiscal, period, conv), strict=True))
     for end in ends:
+        if end in quarter_in:  # S-07: a quarter inside a transition period, never Qn FYyyyy
+            label, form = quarter_in[end]
+            columns.append(StatementColumn(
+                key=label, period_label=label, period_fiscal_year=None,
+                period_start=starts.get(end), period_end=end, calendar_period=None,
+                transition=True, transition_form=form,
+            ))  # fmt: skip
+            continue
         if end in transitions:  # S-07: never a fiscal year, never in year-on-year comparisons
             label = periods.transition_label(transitions[end], end)
             columns.append(StatementColumn(

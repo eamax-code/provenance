@@ -38,8 +38,10 @@ def removed_columns(db, own: dict[str, list]) -> Counter:
         {"cover": ["shares_outstanding", "public_float"]},
     ).all()
     c: Counter = Counter()
+    t_ends = {k: {x[1] for x in v} for k, v in fiscal_years.transitions(db).items()}
     for cik, end in rows:
-        if not periods.is_fiscal_year_end(end, tuple(own.get(cik) or ())):
+        if not periods.is_fiscal_year_end(end, tuple(own.get(cik) or ())) and not any(
+                abs((end - t).days) <= 7 for t in t_ends.get(cik, ())):  # fmt: skip
             c[cik] += 1
             REMOVED.setdefault(cik, []).append(end.isoformat())
     return c

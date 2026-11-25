@@ -132,3 +132,80 @@ def test_an_interim_in_a_10k_or_a_first_period_is_not_a_transition(db):
     from app.services import fiscal_years
 
     assert fiscal_years.transitions(db, ["0000000907", "0000000908"]) == {}
+
+
+def test_quarters_inside_a_transition_are_labelled_by_it(client, auth, db):
+    """Precision Castparts: the quarters of a 9-month transition are never Q2-Q4 of the fiscal
+    year before it (which has its own Q2-Q4): unique keys, transition: true."""
+    _seed(db)  # December years, then a 10-KT from January to September 2021
+    t = "0000000905-21-000009"
+    for q, (s, e) in enumerate([(date(2021, 1, 1), date(2021, 3, 31)),
+                                (date(2021, 4, 1), date(2021, 6, 30)),
+                                (date(2021, 7, 1), date(2021, 9, 30))], 1):  # fmt: skip
+        db.add(_fact("revenue", 30 + q, s, e, "quarterly", t, "10-KT", date(2021, 12, 1)))
+    for q, (s, e) in enumerate([(date(2020, 4, 1), date(2020, 6, 30)),
+                                (date(2020, 7, 1), date(2020, 9, 30))], 1):  # fmt: skip
+        db.add(_fact("revenue", 20 + q, s, e, "quarterly", "0000000905-21-000001", "10-K",
+                     date(2021, 3, 1)))  # fmt: skip
+    db.commit()
+    body = client.get(f"/v1/companies/{CIK}/statements/income?period=quarterly",
+                      headers=auth).json()  # fmt: skip
+    keys = [c["key"] for c in body["columns"]]
+    assert keys == [
+        "Q2 FY2020",
+        "Q3 FY2020",
+        "Transition Q1 (ended 2021-03-31)",
+        "Transition Q2 (ended 2021-06-30)",
+        "Transition Q3 (ended 2021-09-30)",
+    ]
+    assert len(set(keys)) == len(keys)
+    assert all(c["transition"] for c in body["columns"] if c["key"].startswith("Transition"))
+
+
+def test_a_reports_run_of_years_brings_old_years_and_the_transition(client, auth, db):
+    """Cenntro: its report for January 2018 presents a 7-month transition to January 2017 and
+    the June 2016 and 2015 years before it; all are columns. A balance at the transition's end
+    is a column too (Best Buy's 11-month year to Feb 2, 2013); one at another date is not."""
+    now = datetime.now(UTC)
+    cik = "0000000909"
+    db.add(Company(cik=cik, legal_name="CENNTRO", source_url="https://www.sec.gov/",
+                   first_detected_at=now, last_processed_at=now,
+                   quality_status="ok"))  # fmt: skip
+    r, filed = "0000000909-18-000001", date(2018, 4, 30)
+    rows = [
+        ("revenue", 50, date(2014, 7, 1), date(2015, 6, 30), "annual"),
+        ("revenue", 60, date(2015, 7, 1), date(2016, 6, 30), "annual"),
+        ("revenue", 35, date(2016, 7, 1), date(2017, 1, 31), "ytd"),
+        ("revenue", 70, date(2017, 2, 1), date(2018, 1, 31), "annual"),
+        ("total_assets", 500, None, date(2016, 6, 30), "annual"),
+        ("total_assets", 520, None, date(2017, 1, 31), "annual"),
+        ("total_assets", 540, None, date(2017, 7, 31), "annual"),  # an interim balance
+        ("total_assets", 560, None, date(2018, 1, 31), "annual"),
+    ]
+    for metric, v, start, end, cls in rows:
+        f = _fact(metric, v, start, end, cls, r, "20-F", filed)
+        f.cik = cik
+        if start is None:
+            f.period_type = "instant"
+        db.add(f)
+    db.commit()
+    from app.services import fiscal_years
+
+    ends = fiscal_years.own_year_ends(db, [cik])[cik]
+    from sqlalchemy import select
+
+    db.scalar(select(Company).where(Company.cik == cik)).fiscal_year_ends = ",".join(
+        e.isoformat() for e in ends
+    )
+    db.commit()
+    inc = client.get(f"/v1/companies/{cik}/statements/income?period=annual", headers=auth).json()
+    assert [c["key"] for c in inc["columns"]] == [
+        "FY2015",
+        "FY2016",
+        "Transition period (7 months, ended 2017-01-31)",
+        "FY2018",
+    ]
+    bal = client.get(f"/v1/companies/{cik}/statements/balance?period=annual",
+                     headers=auth).json()  # fmt: skip
+    assert [c["period_end"] for c in bal["columns"]] == ["2016-06-30", "2017-01-31",
+                                                        "2018-01-31"]  # fmt: skip
