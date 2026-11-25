@@ -38,8 +38,9 @@ BUDGETS = {
     # (CSV per table, a link per answer, a visible Copy), so the budget went to 28 KB
     # B-G1 (25 Nov): chat and ipos raised to their real first loads, app/app.css counted (no new
     # code): chat 41.0 KB with it, ipos 24.3 KB
-    "chat": (["chat/index.html", "app/app.css", "chat.css", "chat.js"], 42_000),
-    "ipos": (["ipos/index.html", "app/app.css", "ipos/ipos.css", "ipos/ipos.js"], 25_500),
+    # UI-T1 (25 Nov): chat and ipos load app/base.css, a generated slice of app.css (scripts/build_base_css.py): chat 30.8 KB, ipos 13.7 KB
+    "chat": (["chat/index.html", "app/base.css", "chat.css", "chat.js"], 31_500),
+    "ipos": (["ipos/index.html", "app/base.css", "ipos/ipos.css", "ipos/ipos.js"], 14_500),
     # the Explorer (/app/): its page, CSS and every script it loads except the shared shell. 133.4 KB on
     # 24 Nov after the window's new views (People, Calendar, What changed, letters and tree, What's new,
     # private raises); the budget is that plus about 10% so it stops growing unnoticed. X-22 (24 Nov): the
@@ -158,3 +159,10 @@ def test_the_explorer_budget_counts_every_script_the_page_loads():
     loaded = {m.lstrip("/") for m in re.findall(r'(?:src|href)="(/[^"]+\.(?:js|css))"', html)
               if not m.startswith("/shell/")}
     assert loaded <= set(BUDGETS["explorer"][0]), sorted(loaded - set(BUDGETS["explorer"][0]))
+
+
+def test_base_css_is_generated_from_app_css():
+    # UI-T1: site/app/base.css is derived from app/app.css; an edit to app.css must regenerate it
+    import subprocess, sys
+    r = subprocess.run([sys.executable, "scripts/build_base_css.py", "--check"], cwd=SITE.parent, capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
