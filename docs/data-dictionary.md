@@ -612,6 +612,49 @@ both report. `company.predecessors` and `company.successor` link the two pages w
 filing. Point in time: rows count by their own filing date, so before the change the
 predecessor's rows are the ones shown. Filled by `scripts/detect_successions.py`.
 
+## named_successors (D-01b)
+
+The company a registrant that stopped filing (`mart_company.periodic_active` false) is succeeded
+by, as its own filings name it. **Display only: figures are never joined** (an acquirer's history
+is not the acquired company's; joining is K-05's reviewed `registrant_successions`, which takes
+precedence). One row per `predecessor_cik`: `successor_cik`, `kind`, `name_as_filed` (the name as
+the filing writes it), `quote` (the sentence, as filed), `match_method`, and the evidence filing
+(`evidence_accession`, `evidence_form`, `evidence_date`, `evidence_url`: the document on EDGAR
+Archives).
+
+- **Sources.** The stopped registrant's own 8-Ks with Item 2.01 or 5.01 filed within 400 days of
+  its last periodic report ("the Company became a wholly owned subsidiary of Parent", "the Company
+  merged with and into X", "X is the successor issuer to the Company"), and every 8-K12B or
+  8-K12G3 held, where the successor names its predecessor ("X as the successor issuer to Y",
+  Rule 12g-3). Defined terms are resolved within the filing (Parent: "Express Scripts Holding
+  Company (f/k/a Aristotle Holding, Inc.) (the "Parent")"). The subject must be the filer itself
+  ("the Company", "the Registrant", its defined term or its name), right before the verb.
+- **`kind`.** `succeeded` for a successor issuer, a new holding company, a redomicile or when
+  unclear; `acquired` when the filer became a wholly owned subsidiary of another company;
+  `merged` when it merged with and into another company. The labels are "Succeeded by",
+  "Acquired by" and "Merged into".
+- **Matching.** `name`: the name is exactly one company's name held here, case, punctuation, a
+  leading "The", an EDGAR state tag ("/DE/") and the abbreviations Corporation/Corp,
+  Company/Co, Incorporated/Inc and Limited/Ltd aside; a former name counts only when no current
+  name matches and it was in force at the filing date. `filer_cik`: the successor's own 8-K12B,
+  so the successor is the filer. A merger subsidiary, an ambiguous name (two companies) or a name
+  not held links nothing; two different successors from equally strong evidence link nothing.
+  A successor-issuer sentence outranks the others; then the latest filing.
+- **Known limit.** Successions of 6-K filers are not read (foreign private issuers' 6-K text
+  is too varied for a quote-based rule), so JBS S.A. shows no successor (TODO D-01c).
+- **Load (2026-11-25).** 6,216 predecessor 8-Ks and 651 8-K12B/8-K12G3s read (42 unreadable):
+  813 stopped registrants linked, 598 acquired, 148 merged, 67 succeeded; 7 also have a K-05
+  link, which is shown. The first 30-row check found 2 wrong (Everi: a description with
+  "Apollo Global Management, Inc." taken as the buyer; Duke Realty: "Prologis Merger Sub"
+  read as Prologis), both fixed with tests; the fresh 30 after the fixes: 0 wrong, including
+  HollyFrontier, BlackRock Finance, Medco and Google (K-05 shown) and Sears and Tech Data
+  (no successor stated or held: empty). The 60 `succeeded` pairs without a K-05 link are
+  K-05 review candidates (not joined until reviewed).
+- **Overview.** `company.succeeded_by`, only when the company stopped filing and has no K-05
+  `successor`: `{cik, name, name_as_filed, display_name, kind, label, quote, filed_date, form,
+  document_url, basis}`. Filled by `scripts/find_named_successors.py` (`--dry-run --out`, then
+  without).
+
 ## company_segments (launch plan E-4, first pass)
 
 Revenue and segment profit by business segment, geography and product, per annual report and

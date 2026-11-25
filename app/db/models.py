@@ -456,6 +456,26 @@ class RegistrantSuccession(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class NamedSuccessor(Base):
+    """D-01b: the company a stopped registrant's own filings name as its successor (an 8-K's
+    Item 2.01 or 5.01, or the successor's 8-K12B/8-K12G3), with the sentence quoted. Display only:
+    figures are never joined (that is K-05's RegistrantSuccession, which takes precedence)."""
+
+    __tablename__ = "named_successors"
+
+    predecessor_cik: Mapped[str] = mapped_column(String(10), primary_key=True)
+    successor_cik: Mapped[str] = mapped_column(String(10), nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)  # succeeded, acquired, merged
+    name_as_filed: Mapped[str] = mapped_column(Text, nullable=False)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+    match_method: Mapped[str] = mapped_column(Text, nullable=False)  # name, filer_cik
+    evidence_accession: Mapped[str] = mapped_column(String(25), nullable=False)
+    evidence_form: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_date: Mapped[date] = mapped_column(Date, nullable=False)
+    evidence_url: Mapped[str] = mapped_column(Text, nullable=False)  # the document on Archives
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
 class CompanySegment(Base):
     """A reportable segment's figure for one fiscal year, as an annual report tags it (launch plan
     E-4), from the SEC's Financial Statement and Notes data sets (companyfacts drops dimensional

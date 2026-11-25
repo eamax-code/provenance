@@ -36,6 +36,7 @@ from app.services import (
     ipo_terms,
     leadership,
     live,
+    named_successors,
     periods,
     segments,
     statements,
@@ -127,6 +128,10 @@ def _identity(db: Session, company: Company) -> dict:
                            for p in successions.predecessors(db, company.cik)]  # fmt: skip
     nxt = successions.successor(db, company.cik)
     out["successor"] = successions.as_dict(db, nxt, "successor") if nxt else None
+    # D-01b: the company a stopped registrant's own filings name as its successor (display only;
+    # K-05's reviewed successor above takes precedence)
+    stopped = nxt is None and out.get("periodic_active") is False
+    out["succeeded_by"] = named_successors.succeeded_by(db, company.cik) if stopped else None
     out["former_tickers"] = [
         {"ticker": a.alias, "to": a.valid_to.isoformat() if a.valid_to else None}
         for a in db.scalars(
